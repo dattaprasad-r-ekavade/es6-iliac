@@ -246,6 +246,37 @@ public static class WorldLayout
         return null;
     }
 
+    /// <summary>
+    /// The terrain mesh of a patch covers Center ± Size * this. Kept here so authoring
+    /// checks and the generator agree on where a landmass actually ends.
+    /// </summary>
+    public const float TerrainHalfExtent = 0.49f;
+
+    /// <summary>
+    /// Which landmass (if any) covers this XZ position.
+    ///
+    /// Worth calling before authoring any fixed world position: the bandit camp and the
+    /// coastal ruin were both placed in open water and nobody noticed, because a
+    /// separate bug was relocating everything to the start plaza anyway.
+    /// </summary>
+    public static bool TryGetLandmassAt(Vector3 pos, out Landmass found)
+    {
+        foreach (var land in Landmasses)
+        {
+            if (Mathf.Abs(pos.x - land.Center.x) <= land.Size.x * TerrainHalfExtent &&
+                Mathf.Abs(pos.z - land.Center.z) <= land.Size.z * TerrainHalfExtent)
+            {
+                found = land;
+                return true;
+            }
+        }
+
+        found = default;
+        return false;
+    }
+
+    public static bool IsOverLand(Vector3 pos) => TryGetLandmassAt(pos, out _);
+
     /// <summary>Normalised map-UI position for a world point.</summary>
     public static Vector2 WorldToMapUV(Vector3 world)
     {

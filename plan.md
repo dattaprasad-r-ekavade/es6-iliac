@@ -115,27 +115,52 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/ne
 
 ---
 
-## Verify these in the editor (first play-test after this pass)
+## Phase 5 — Headless Unity pass  ✅ (editor closed 2026-07-26)
 
-1. **Re-run the world rebuild** — *Elder Scrolls 6 → Systems → Install P0+P1 + Rebuild
-   World*. Required for the causeway roads and the relocated POIs; the runtime fixes
-   (spawning, layers, culling, save) work on the current baked scene without it.
-2. **Confirm the NPCs are spread out** — one merchant, one guard and one quest giver
-   around the Daggerfall plaza; greeters at Wayrest and Sentinel; three bandits at the
-   Glenumbra camp. If they're still in a pile, the tagger didn't run.
-3. **Walk the Daggerfall → Wayrest road** end to end; the causeway sections should be
+- [x] **World rebuilt** into `Main.unity` via `-executeMethod
+      SetupP0P1Systems.InstallAndRebuild`. Verified in the baked scene: 140 road
+      segments (44 causeway over water, 96 terrain-following), POIs on land at real
+      terrain heights (12.6 m / 15.0 m), and layers baked — Ground 265,
+      Structure 1102, Prop 626, Water 1, Void 1, Player 1.
+- [x] **Edit-mode test assembly** (`Game.Tests`) + 9 authoring tests on `WorldLayout`.
+      Confirmed they *fail* on the original in-water coordinate — 3 go red with
+      "would drop the player in open water at (-1750, 850)" — so they genuinely
+      guard the bug rather than just passing.
+- [x] **Texture budget applied** — 79 textures capped (PolyHaven / Quaternius → 1024,
+      Kenney → 512) with streaming mipmaps. Reversible: importer settings only,
+      source files untouched.
+- [x] **Windows player rebuilt: 206 MB → 140 MB** (data folder 154 → 88 MB). This also
+      end-to-end validates the asmdefs, the deleted files and the new scripts in a
+      real Unity build.
+- [x] `Tools/compile-check.py` now checks each assembly against its **own** asmdef
+      reference set (including `ProjectReference` deps), so a missing asmdef reference
+      fails the check instead of silently passing.
+- [x] `BuildPlayerCommand` + `TextureBudget` editor entry points, so builds and the
+      texture pass can run from a terminal or CI. Commands are in the README.
+
+---
+
+## Verify in a play-test (needs a human at the controls)
+
+1. **Confirm the NPCs are spread out** — merchant, guard and quest giver around the
+   Daggerfall plaza; greeters at Wayrest and Sentinel; three bandits at the Glenumbra
+   camp. If they're in a pile, the tagger didn't run.
+2. **Walk the Daggerfall → Wayrest road** end to end; the causeway sections should be
    walkable and the safety guard should not fire while crossing.
-4. **Check POI terrain** — the camp and ruin snap to noise-generated terrain, so their
-   exact spots are worth eyeballing even though `PlaceOnLand` guarantees dry ground.
+3. **Reach a coastline** and confirm you are no longer teleported home.
+4. **Kill a bandit, save (F5), reload (F9)** — it should stay dead.
+5. **Check the capped textures** still look acceptable at 1024 / 512.
 
-## Needs a Unity session (cannot be done headless while the editor is open)
-2. **Prefabs.** Player / Enemy / NPC / GameSystems / HUD are still built by
-   `AddComponent` at runtime, so values can't be tuned without editing C#. This is
-   the biggest remaining iteration-speed problem and needs editor authoring.
-3. **Texture budget.** PolyHaven 2K JPEGs are 44.6 MB of the ~60 MB the scene
-   pulls in; set max size 512–1024 in the importer.
-4. **Test assembly.** `com.unity.test-framework` is installed with no tests; the
-   asmdefs added here are the prerequisite.
+## Still open — design work, not tooling
+
+1. **Prefabs.** Player / Enemy / NPC / GameSystems / HUD are still built by
+   `AddComponent` at runtime, so no value can be tuned without editing C#. This is the
+   biggest remaining iteration-speed problem. It is a refactor of the spawn paths
+   (load prefab → configure) rather than something to generate headlessly, and it
+   changes how the game is authored — worth doing deliberately, not blind.
+2. **UI rebuild** — the HUD is 780 lines of code-built legacy uGUI `Text`.
+3. **ScriptableObject data** for quests / dialogue / loot, following the
+   single-source-of-truth pattern `WorldLayout` established.
 
 ## Deliberately not done
 

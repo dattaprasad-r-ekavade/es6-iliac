@@ -31,7 +31,30 @@ Current hardening work and what's left: **[plan.md](plan.md)**.
 - **Physics layers** are declared in `Assets/Scripts/World/GameLayers.cs` and assigned
   at runtime by `WorldTagger`. That tagger is the only place a GameObject's *name* is
   used to decide what something is; everything else queries layers.
-- **Compile without opening Unity** (works while the editor holds the project lock):
+- **Compile without opening Unity** (works while the editor holds the project lock —
+  each assembly is checked against its own asmdef reference set):
   ```
-  python Tools/compile-check.py --editor
+  python Tools/compile-check.py
   ```
+
+### Headless commands (Unity must be closed)
+
+```bash
+UNITY="C:/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe"
+
+# Rebuild the world + systems into Main.unity
+"$UNITY" -batchmode -quit -nographics -projectPath . -logFile Logs/rebuild.log \
+         -executeMethod SetupP0P1Systems.InstallAndRebuild
+
+# Run the edit-mode tests
+"$UNITY" -batchmode -nographics -projectPath . -logFile Logs/tests.log \
+         -runTests -testPlatform EditMode -testResults TestResults.xml
+
+# Build the Windows player
+"$UNITY" -batchmode -quit -nographics -projectPath . -logFile Logs/build.log \
+         -executeMethod BuildPlayerCommand.BuildWindows
+
+# Cap third-party texture import sizes
+"$UNITY" -batchmode -quit -nographics -projectPath . -logFile Logs/tex.log \
+         -executeMethod TextureBudget.Apply
+```

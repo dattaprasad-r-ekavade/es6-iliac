@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Compile-check the project's C# without opening Unity.
 
-Borrows the reference list and preprocessor defines from Unity's generated
-Assembly-CSharp.csproj, but discovers source files from disk — the csproj is only
-regenerated when Unity refreshes, so newly added scripts would otherwise be
-skipped. Runs the Roslyn compiler that ships with the editor, which means this
+For each assembly definition, this borrows the reference list and preprocessor
+defines from the csproj Unity generates for it, but discovers source files from
+disk — the csprojs are only regenerated on refresh, so newly added scripts would
+otherwise be skipped. It runs the Roslyn compiler shipped with the editor, so it
 works while the Unity editor is open and holding the project lock.
 
-Usage:  python Tools/compile-check.py            # runtime scripts
-        python Tools/compile-check.py --editor   # + Assets/Editor
+Because each assembly is compiled against its *own* reference set, this also
+catches a missing asmdef reference rather than silently succeeding.
+
+Usage:  python Tools/compile-check.py
 """
 import os
 import re
@@ -20,23 +22,53 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSC = (r"C:\Program Files\Unity\Hub\Editor\6000.5.3f1\Editor\Data"
        r"\DotNetSdk\sdk\8.0.318\Roslyn\bincore\csc.dll")
 
-RUNTIME_ROOTS = ["Assets/Scripts"]
-EDITOR_ROOTS = ["Assets/Editor"]
+# Assemblies are discovered from the csprojs Unity generates next to the project.
+# Fall back to Assembly-CSharp when no asmdefs exist yet.
+FALLBACK = [("Assembly-CSharp", "Assets")]
 
 
-def csproj_settings(csproj):
-    text = open(os.path.join(ROOT, csproj), encoding="utf-8-sig").read()
+def discover():
+    """[(csproj_name, source_root)] for every asmdef-backed assembly."""
+    found = []
+    for entry in sorted(os.listdir(ROOT)):
+        if not entry.endswith(".csproj"):
+            continue
+        name = entry[:-len(".csproj")]
+        if name.startswith("Assembly-CSharp"):
+            continue
+        text = open(os.path.join(ROOT, entry), encoding="utf-8-sig").read()
+        m = re.search(r'<None Include="([^"]*\.asmdef)"', text)
+        if not m:
+            continue
+        root = os.path.dirname(m.group(1).replace("\\", "/"))
+        found.append((name, root))
+    return found or FALLBACK
+
+
+def settings(csproj):
+    text = open(os.path.join(ROOT, csproj + ".csproj"), encoding="utf-8-sig").read()
     refs = re.findall(r"<HintPath>([^<]+)</HintPath>", text)
+
+    # Dependencies on other asmdefs come through as ProjectReference, not HintPath.
+    # Point those at the assemblies Unity has already built.
+    for dep in re.findall(r'<ProjectReference Include="([^"]+)\.csproj"', text):
+        dll = os.path.join("Library", "ScriptAssemblies", os.path.basename(dep) + ".dll")
+        if os.path.exists(os.path.join(ROOT, dll)):
+            refs.append(dll)
+
     defines = re.findall(r"<DefineConstants>([^<]*)</DefineConstants>", text)
     defines = defines[0].split(";") if defines else []
     return refs, [d.strip() for d in defines if d.strip()]
 
 
-def sources(roots):
+def sources(root):
     found = []
-    for root in roots:
-        for dirpath, _, files in os.walk(os.path.join(ROOT, root)):
-            found += [os.path.join(dirpath, f) for f in files if f.endswith(".cs")]
+    for dirpath, _, files in os.walk(os.path.join(ROOT, root)):
+        # Nested asmdefs form their own assembly; don't pull them in twice.
+        if dirpath != os.path.join(ROOT, root) and \
+           any(f.endswith(".asmdef") for f in os.listdir(dirpath)):
+            continue
+        found += [os.path.join(dirpath, f) for f in files if f.endswith(".cs")]
     return sorted(found)
 
 
@@ -52,6 +84,10 @@ def quote(arg):
 
 
 def compile_check(label, srcs, refs, defines):
+    if not srcs:
+        print("--- %-14s (no sources)" % label)
+        return True
+
     out = os.path.join(tempfile.gettempdir(), label + ".check.dll")
     # -noconfig must not appear inside a response file (csc warns and ignores it).
     args = ["-nologo", "-target:library", "-langversion:9.0", "-nostdlib+",
@@ -68,8 +104,8 @@ def compile_check(label, srcs, refs, defines):
                           capture_output=True, text=True, cwd=ROOT)
     errors = [l for l in (proc.stdout + proc.stderr).splitlines() if "error CS" in l]
     ok = proc.returncode == 0 and not errors
-    status = "OK" if ok else "%d ERROR(S)" % max(len(errors), 1)
-    print("--- %-8s %3d files -> %s" % (label, len(srcs), status))
+    print("--- %-14s %3d files -> %s" % (label, len(srcs), "OK" if ok else
+                                         "%d ERROR(S)" % max(len(errors), 1)))
     for line in errors[:40]:
         print("   ", line.strip().replace(ROOT + os.sep, ""))
     if not errors and proc.returncode != 0:
@@ -78,13 +114,8 @@ def compile_check(label, srcs, refs, defines):
 
 
 if __name__ == "__main__":
-    refs, defines = csproj_settings("Assembly-CSharp.csproj")
-    runtime = sources(RUNTIME_ROOTS)
-    ok = compile_check("runtime", runtime, refs, defines)
-
-    if "--editor" in sys.argv:
-        # Compiled together with the runtime scripts it depends on.
-        ed_refs, ed_defines = csproj_settings("Assembly-CSharp-Editor.csproj")
-        ok &= compile_check("editor", runtime + sources(EDITOR_ROOTS), ed_refs, ed_defines)
-
+    ok = True
+    for name, root in discover():
+        refs, defines = settings(name)
+        ok &= compile_check(name, sources(root), refs, defines)
     sys.exit(0 if ok else 1)

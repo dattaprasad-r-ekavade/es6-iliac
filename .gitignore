@@ -43,5 +43,6 @@ _downloads/
 
 *.log
 
-# Local compile-check output
+# Local compile-check / test-run output
 *.check.dll
+TestResults*.xml
