@@ -2,6 +2,11 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+// The generator used to declare its own LandPatch struct and Biome enum, duplicating
+// coordinates that the map art, fast travel and NPC spawners each re-declared as well.
+using LandPatch = WorldLayout.Landmass;
+using Biome = WorldLayout.Biome;
+
 /// <summary>
 /// Walkable homage map of the Iliac Bay region (High Rock + Hammerfell).
 /// Layout inspired by public Elder Scrolls lore geography (UESP / Daggerfall maps):
@@ -41,24 +46,8 @@ public class IliacBayWorldGenerator : MonoBehaviour
     private readonly List<LandPatch> _patches = new();
     private Vector3 _playerSpawn = new(-160f, 12f, 95f);
 
-    private struct LandPatch
-    {
-        public string Name;
-        public Vector3 Center;
-        public Vector3 Size; // x width, y height, z depth
-        public Biome Biome;
-        public bool HasCity;
-        public string CityName;
-        public int PropCount;
-    }
-
-    private enum Biome
-    {
-        HighRock,
-        Hammerfell,
-        IslandGreen,
-        IslandRock
-    }
+    // Landmass shape/biome definitions live in WorldLayout (see the using aliases at
+    // the top of this file), shared with the map art, fast travel and the spawners.
 
     [ContextMenu("Generate Iliac Bay")]
     public void GenerateWorld()
@@ -77,10 +66,15 @@ public class IliacBayWorldGenerator : MonoBehaviour
         }
 
         BuildLandmarkTower_Balfiera();
+
+        // Layers must be in place before anything raycasts for ground.
+        WorldTagger.TagHierarchy(_root.gameObject);
         Physics.SyncTransforms();
+
         ScatterAllProps();
-        BuildRoadsAndPois();
         BuildDaggerfallSpawnPad();
+        Physics.SyncTransforms();
+        BuildRoadsAndPois();
 
         if (spawnPlayer)
         {
@@ -111,98 +105,11 @@ public class IliacBayWorldGenerator : MonoBehaviour
     private void DefineLandmasses()
     {
         // Large homage scale: cities are kilometres apart (walk, don't hop).
-        // +Z = north, +X = east.
-        _patches.Add(new LandPatch
-        {
-            Name = "HighRock_WrothgarianFoothills",
-            Center = new Vector3(200f, 0f, 3200f),
-            Size = new Vector3(2200f, 55f, 900f),
-            Biome = Biome.HighRock,
-            PropCount = 180
-        });
-        _patches.Add(new LandPatch
-        {
-            Name = "HighRock_GlenumbraCoast",
-            Center = new Vector3(-400f, 0f, 2200f),
-            Size = new Vector3(2000f, 28f, 800f),
-            Biome = Biome.HighRock,
-            PropCount = 160
-        });
-        _patches.Add(new LandPatch
-        {
-            Name = "HighRock_DaggerfallPeninsula",
-            Center = new Vector3(-2000f, 0f, 1600f),
-            Size = new Vector3(900f, 24f, 700f),
-            Biome = Biome.HighRock,
-            HasCity = true,
-            CityName = "Daggerfall",
-            PropCount = 90
-        });
-        _patches.Add(new LandPatch
-        {
-            Name = "HighRock_WayrestShore",
-            Center = new Vector3(2200f, 0f, 1800f),
-            Size = new Vector3(850f, 22f, 650f),
-            Biome = Biome.HighRock,
-            HasCity = true,
-            CityName = "Wayrest",
-            PropCount = 80
-        });
+        // +Z = north, +X = east. Definitions are shared via WorldLayout.
+        _patches.AddRange(WorldLayout.Landmasses);
 
-        _patches.Add(new LandPatch
-        {
-            Name = "Hammerfell_AlikrDesert",
-            Center = new Vector3(300f, 0f, -3000f),
-            Size = new Vector3(2600f, 16f, 1100f),
-            Biome = Biome.Hammerfell,
-            PropCount = 140
-        });
-        _patches.Add(new LandPatch
-        {
-            Name = "Hammerfell_SentinelCoast",
-            Center = new Vector3(-1600f, 0f, -2200f),
-            Size = new Vector3(900f, 18f, 700f),
-            Biome = Biome.Hammerfell,
-            HasCity = true,
-            CityName = "Sentinel",
-            PropCount = 85
-        });
-        _patches.Add(new LandPatch
-        {
-            Name = "Hammerfell_DragontailFoothills",
-            Center = new Vector3(2400f, 0f, -2400f),
-            Size = new Vector3(900f, 60f, 1000f),
-            Biome = Biome.Hammerfell,
-            PropCount = 100
-        });
-
-        _patches.Add(new LandPatch
-        {
-            Name = "Island_Betony",
-            Center = new Vector3(-2800f, 0f, 200f),
-            Size = new Vector3(280f, 16f, 220f),
-            Biome = Biome.IslandGreen,
-            PropCount = 40
-        });
-        _patches.Add(new LandPatch
-        {
-            Name = "Island_Balfiera",
-            Center = new Vector3(150f, 0f, -100f),
-            Size = new Vector3(240f, 28f, 200f),
-            Biome = Biome.IslandRock,
-            PropCount = 28
-        });
-        _patches.Add(new LandPatch
-        {
-            Name = "Island_Cybiades",
-            Center = new Vector3(-900f, 0f, -700f),
-            Size = new Vector3(200f, 14f, 160f),
-            Biome = Biome.IslandRock,
-            PropCount = 22
-        });
-
-        // Overridden by spawn pad after city build.
-        _playerSpawn = new Vector3(-2000f, 26f, 1300f);
+        // Overridden by the spawn pad after the city is built.
+        _playerSpawn = WorldLayout.DaggerfallSpawnPad + Vector3.up * 1.8f;
     }
 
     private void CreateOcean()
@@ -228,6 +135,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         }
         var r = ocean.GetComponent<Renderer>();
         if (r != null) r.sharedMaterial = oceanMat;
+        ocean.layer = GameLayers.Water;
         DestroyColliderSafe(ocean.GetComponent<Collider>());
     }
 
@@ -237,8 +145,9 @@ public class IliacBayWorldGenerator : MonoBehaviour
         var catcher = GameObject.CreatePrimitive(PrimitiveType.Cube);
         catcher.name = "FallCatcher";
         catcher.transform.SetParent(_root, false);
-        catcher.transform.position = new Vector3(0f, -25f, 0f);
+        catcher.transform.position = new Vector3(0f, WorldLayout.VoidCatcherY, 0f);
         catcher.transform.localScale = new Vector3(waterSize * 1.2f, 2f, waterSize * 1.2f);
+        catcher.layer = GameLayers.Void;
         var r = catcher.GetComponent<Renderer>();
         if (r != null) r.enabled = false;
     }
@@ -337,16 +246,16 @@ public class IliacBayWorldGenerator : MonoBehaviour
     private void BuildDaggerfallSpawnPad()
     {
         // Central Daggerfall plaza — south gate approach, on flattened city terrain.
-        const float landHeight = 24f;
-        const float spawnZ = 1450f;
+        var padPos = WorldLayout.DaggerfallSpawnPad;
         var pad = GameObject.CreatePrimitive(PrimitiveType.Cube);
         pad.name = "SpawnPad_Daggerfall";
         pad.transform.SetParent(_root, false);
-        pad.transform.position = new Vector3(-2000f, landHeight + 0.2f, spawnZ);
+        pad.transform.position = padPos;
         pad.transform.localScale = new Vector3(48f, 0.35f, 48f);
+        pad.layer = GameLayers.Ground;
         ApplyMat(pad, sandMaterial, new Color(0.55f, 0.5f, 0.42f));
 
-        _playerSpawn = new Vector3(-2000f, landHeight + 1.1f, spawnZ);
+        _playerSpawn = padPos + Vector3.up * 0.9f;
     }
 
     private void BuildTerrainSurface(Transform parent, LandPatch patch, Material mat, Color color)
@@ -404,6 +313,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         else ApplyMat(terrainGo, mat, color);
         var mc = terrainGo.AddComponent<MeshCollider>();
         mc.sharedMesh = mesh;
+        terrainGo.layer = GameLayers.Ground;
     }
 
     private static float SampleTerrainHeight(float worldX, float worldZ, LandPatch patch)
@@ -554,14 +464,16 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
     private void PlacePropWorld(Vector3 rayOrigin, bool desert, bool island)
     {
-        if (!Physics.Raycast(rayOrigin, Vector3.down, out var hit, 120f, ~0, QueryTriggerInteraction.Ignore))
+        // Terrain only: the old ~0 cast could land props on the void catcher slab,
+        // and then filtered city surfaces back out by name.
+        if (!Physics.Raycast(rayOrigin, Vector3.down, out var hit, 120f,
+                1 << GameLayers.Ground, QueryTriggerInteraction.Ignore))
         {
             return;
         }
 
-        // Don't plant on roads/spawn pads/city roofs named oddly — allow Land/Beach/Rim
-        string n = hit.collider.gameObject.name;
-        if (n.Contains("SpawnPad") || n.Contains("Road") || n.Contains("Pier") || n.Contains("Keep"))
+        // Keep scatter off built surfaces (roads, plazas, piers, spawn pads).
+        if (!hit.collider.gameObject.name.StartsWith("TerrainSurface"))
         {
             return;
         }
@@ -600,6 +512,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         go.name = desert ? "Prop_Desert" : island ? "Prop_Island" : "Prop_Tree";
         go.transform.position = hit.point;
         go.transform.rotation = Quaternion.Euler(0f, (float)_rng.NextDouble() * 360f, 0f);
+        WorldTagger.SetLayerRecursive(go, GameLayers.Prop);
 
         // Distance cull helper
         var cull = go.AddComponent<FoliageDistanceCull>();
@@ -608,34 +521,84 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
     private void BuildRoadsAndPois()
     {
-        // Road Daggerfall -> Wayrest (high rock)
-        BuildRoadSegment(new Vector3(-2000f, 24.3f, 1400f), new Vector3(2200f, 22.3f, 1650f), "Road_Daggerfall_Wayrest");
-        // Road Daggerfall coast toward bay south
-        BuildRoadSegment(new Vector3(-2000f, 24.3f, 1450f), new Vector3(-1750f, 24.3f, 850f), "Road_Daggerfall_BanditCamp");
+        var roads = WorldLayout.Roads;
+        BuildRoad(roads[0], "Road_Daggerfall_Wayrest");
+        BuildRoad(roads[1], "Road_Daggerfall_BanditCamp");
 
         // Bandit camp / coastal ruin (Kenney Survival + Graveyard when wired; else block markers)
-        BuildPrefabPoi(new Vector3(-1750f, 24f, 850f), "POI_BanditCamp", campPrefabs, new Color(0.4f, 0.25f, 0.2f), tentStyle: true);
-        BuildPrefabPoi(new Vector3(-2200f, 24f, 700f), "POI_CoastalRuin", ruinPrefabs, new Color(0.35f, 0.35f, 0.38f), tentStyle: false);
+        BuildPrefabPoi(WorldLayout.BanditCamp, "POI_BanditCamp", campPrefabs, new Color(0.4f, 0.25f, 0.2f), tentStyle: true);
+        BuildPrefabPoi(WorldLayout.CoastalRuin, "POI_CoastalRuin", ruinPrefabs, new Color(0.35f, 0.35f, 0.38f), tentStyle: false);
     }
 
-    private void BuildRoadSegment(Vector3 a, Vector3 b, string name)
+    /// <summary>
+    /// Lay a road along a polyline, projected onto the terrain.
+    ///
+    /// Roads used to be a single stretched cube per route — the Daggerfall–Wayrest
+    /// road was one 4.2 km box at a fixed Y, which sailed through the air over every
+    /// dip and buried itself in every rise.
+    /// </summary>
+    private void BuildRoad(Vector3[] spine, string name)
     {
-        var road = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        road.name = name;
-        road.transform.SetParent(_root, false);
-        var mid = (a + b) * 0.5f;
+        if (spine == null || spine.Length < 2) return;
+
+        var root = CreateChild(_root, name);
+        root.layer = GameLayers.Ground;
+
+        const float segmentLength = 40f;
+        int index = 0;
+
+        for (int i = 0; i < spine.Length - 1; i++)
+        {
+            var a = spine[i];
+            var b = spine[i + 1];
+            float span = Vector3.Distance(new Vector3(a.x, 0f, a.z), new Vector3(b.x, 0f, b.z));
+            int steps = Mathf.Max(1, Mathf.CeilToInt(span / segmentLength));
+
+            for (int s = 0; s < steps; s++)
+            {
+                var from = GroundPoint(Vector3.Lerp(a, b, s / (float)steps));
+                var to = GroundPoint(Vector3.Lerp(a, b, (s + 1) / (float)steps));
+                BuildRoadSegment(root.transform, from, to, $"Road_{name}_{index:000}");
+                index++;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Project an XZ position onto the terrain, or onto the causeway deck where the
+    /// route crosses open water.
+    /// </summary>
+    private static Vector3 GroundPoint(Vector3 p)
+    {
+        var snapped = SnapToGround(p, 0.12f);
+        bool foundGround = snapped != p && snapped.y > WorldLayout.WaterLevel;
+        return foundGround
+            ? snapped
+            : new Vector3(p.x, WorldLayout.CausewayDeckY, p.z);
+    }
+
+    private void BuildRoadSegment(Transform parent, Vector3 a, Vector3 b, string name)
+    {
         var dir = b - a;
         float len = dir.magnitude;
-        road.transform.position = mid;
+        if (len < 0.01f) return;
+
+        var road = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        road.name = name;
+        road.transform.SetParent(parent, false);
+        road.transform.position = (a + b) * 0.5f;
         road.transform.rotation = Quaternion.LookRotation(dir.normalized);
-        road.transform.localScale = new Vector3(8f, 0.25f, len);
+        // Slight overlap (1.04) so adjacent segments don't show seams on slopes.
+        road.transform.localScale = new Vector3(8f, 0.25f, len * 1.04f);
+        road.layer = GameLayers.Ground;
         ApplyMat(road, roadMaterial != null ? roadMaterial : cityMaterial, new Color(0.25f, 0.24f, 0.22f));
     }
 
     private void BuildPrefabPoi(Vector3 pos, string name, GameObject[] pool, Color color, bool tentStyle)
     {
         var root = CreateChild(_root, name);
-        root.transform.position = pos;
+        // Sit the camp/ruin on real terrain rather than an authored guess at the height.
+        root.transform.position = PlaceOnLand(pos);
 
         if (pool != null && pool.Length > 0)
         {
@@ -696,11 +659,13 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
     private void SpawnPlayerAt(Vector3 worldPos)
     {
-        worldPos = SnapToWalkable(worldPos);
+        worldPos = SnapToGround(worldPos, 1.0f);
 
         var player = new GameObject("Player");
         player.transform.SetParent(_root, false);
         player.transform.position = worldPos;
+        player.layer = GameLayers.Player;
+        PlayerRef.Set(player.transform);
 
         var cc = player.AddComponent<CharacterController>();
         cc.height = 1.8f;
@@ -718,6 +683,8 @@ public class IliacBayWorldGenerator : MonoBehaviour
         camGo.tag = "MainCamera";
         var cam = camGo.AddComponent<Camera>();
         cam.nearClipPlane = 0.05f;
+        // The world spans ~6.8 km; the default 1000 m far plane popped whole cities.
+        cam.farClipPlane = WorldLayout.CameraFarPlane;
         camGo.AddComponent<AudioListener>();
 
         var controller = player.AddComponent<SimplePlayerController>();
@@ -731,9 +698,88 @@ public class IliacBayWorldGenerator : MonoBehaviour
     }
 
     /// <summary>
-    /// Snap XZ to the highest walkable surface (terrain / spawn pad), not ocean or beach skirts.
+    /// Drop <paramref name="worldPos"/> onto the walkable surface directly below/above it.
+    ///
+    /// This used to be <c>SnapToWalkable</c>, which returned the Daggerfall spawn pad
+    /// whenever that pad existed in the scene — ignoring its argument entirely. Since the
+    /// pad is baked into Main.unity it always existed, so every caller meaning "put this
+    /// on the ground here" got "put this at Daggerfall": all six NPCs and all five enemies
+    /// spawned in one pile on the start plaza, and re-enabling the player controller
+    /// teleported the player home.
+    ///
+    /// Returns the input unchanged when there is no ground at that XZ, so callers can
+    /// detect failure by comparing against what they passed in.
     /// </summary>
-    public static Vector3 SnapToWalkable(Vector3 worldPos)
+    public static Vector3 SnapToGround(Vector3 worldPos, float clearance = 0.1f)
+    {
+        var origin = new Vector3(worldPos.x, ProbeHeight, worldPos.z);
+        if (Physics.Raycast(origin, Vector3.down, out var hit, ProbeDistance,
+                GameLayers.GroundMask, QueryTriggerInteraction.Ignore))
+        {
+            return hit.point + Vector3.up * clearance;
+        }
+
+        // Nothing on the ground layers — fall back to a broad probe so a world that
+        // hasn't been tagged yet still places things sensibly.
+        var hits = Physics.RaycastAll(origin, Vector3.down, ProbeDistance, ~0, QueryTriggerInteraction.Ignore);
+        RaycastHit? best = null;
+        foreach (var h in hits)
+        {
+            if (h.collider == null) continue;
+            int layer = h.collider.gameObject.layer;
+            if (layer == GameLayers.Void || layer == GameLayers.Water || layer == GameLayers.Prop) continue;
+            if (h.point.y < WorldLayout.WaterLevel) continue;
+            if (best == null || h.point.y > best.Value.point.y) best = h;
+        }
+
+        return best.HasValue ? best.Value.point + Vector3.up * clearance : worldPos;
+    }
+
+    /// <summary>
+    /// Place something on dry land at or near <paramref name="around"/>.
+    ///
+    /// Terrain height comes from layered Perlin noise, so an authored coordinate can
+    /// land in a dip below sea level even when it is well inside a landmass. This
+    /// spirals outwards until it finds a spot that is genuinely above water, which
+    /// keeps spawned NPCs, enemies and camps from ending up underwater.
+    /// </summary>
+    public static Vector3 PlaceOnLand(Vector3 around, float searchRadius = 140f, float clearance = 0.1f)
+    {
+        var direct = SnapToGround(around, clearance);
+        if (direct != around && direct.y > WorldLayout.WaterLevel + 0.5f) return direct;
+
+        // Golden-angle spiral: even coverage without needing a grid.
+        const int samples = 32;
+        const float goldenAngle = 2.39996323f;
+        for (int i = 1; i <= samples; i++)
+        {
+            float t = i / (float)samples;
+            float radius = Mathf.Sqrt(t) * searchRadius;
+            float angle = i * goldenAngle;
+            var probe = around + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+
+            var candidate = SnapToGround(probe, clearance);
+            if (candidate != probe && candidate.y > WorldLayout.WaterLevel + 0.5f)
+                return candidate;
+        }
+
+        return direct;
+    }
+
+    /// <summary>True when there is walkable ground at this XZ.</summary>
+    public static bool HasGroundAt(Vector3 worldPos)
+    {
+        var origin = new Vector3(worldPos.x, ProbeHeight, worldPos.z);
+        return Physics.Raycast(origin, Vector3.down, ProbeDistance,
+            GameLayers.GroundMask, QueryTriggerInteraction.Ignore);
+    }
+
+    /// <summary>
+    /// Where the player starts and respawns — the Daggerfall plaza pad.
+    /// This is the behaviour the old <c>SnapToWalkable</c> accidentally gave every caller;
+    /// now only the callers that actually want it get it.
+    /// </summary>
+    public static Vector3 GetPlayerSpawn()
     {
         var pad = GameObject.Find("SpawnPad_Daggerfall");
         if (pad != null)
@@ -742,22 +788,11 @@ public class IliacBayWorldGenerator : MonoBehaviour
             return new Vector3(p.x, p.y + 1.0f, p.z);
         }
 
-        var origin = new Vector3(worldPos.x, 500f, worldPos.z);
-        var hits = Physics.RaycastAll(origin, Vector3.down, 900f, ~0, QueryTriggerInteraction.Ignore);
-        if (hits == null || hits.Length == 0) return worldPos;
-
-        RaycastHit? best = null;
-        foreach (var h in hits)
-        {
-            if (h.collider == null) continue;
-            var n = h.collider.gameObject.name;
-            if (n.Contains("FallCatcher") || n.Contains("Ocean") || n.Contains("Beach")) continue;
-            if (best == null || h.point.y > best.Value.point.y) best = h;
-        }
-
-        if (!best.HasValue) return worldPos;
-        return best.Value.point + Vector3.up * 0.1f;
+        return SnapToGround(WorldLayout.DaggerfallSpawnPad, 1.0f);
     }
+
+    private const float ProbeHeight = 500f;
+    private const float ProbeDistance = 900f;
 
     private static GameObject CreateChild(Transform parent, string name)
     {

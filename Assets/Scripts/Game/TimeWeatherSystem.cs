@@ -61,13 +61,14 @@ public class TimeWeatherSystem : MonoBehaviour
         ApplyVisuals();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void Update()
     {
-        if (_player == null)
-        {
-            var p = GameObject.Find("Player");
-            if (p != null) _player = p.transform;
-        }
+        if (_player == null) _player = PlayerRef.Transform;
 
         float dayFractionPerSecond = minutesPerRealSecond / (24f * 60f);
         TimeOfDay01 = Mathf.Repeat(TimeOfDay01 + dayFractionPerSecond * Time.deltaTime, 1f);

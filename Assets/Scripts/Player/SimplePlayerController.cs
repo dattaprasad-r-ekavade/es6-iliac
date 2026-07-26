@@ -122,7 +122,9 @@ public class SimplePlayerController : MonoBehaviour
     {
         if (_controller == null) return;
 
-        var pos = IliacBayWorldGenerator.SnapToWalkable(transform.position);
+        // Ground under *this* position — not the Daggerfall pad, which is what the old
+        // SnapToWalkable returned and which teleported the player home on every re-enable.
+        var pos = IliacBayWorldGenerator.SnapToGround(transform.position);
         float bottomOffset = _controller.center.y - (_controller.height * 0.5f) + _controller.skinWidth;
         var target = pos - Vector3.up * bottomOffset;
         bool wasEnabled = _controller.enabled;

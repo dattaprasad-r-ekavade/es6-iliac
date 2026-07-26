@@ -15,11 +15,18 @@ public class GameSystemsBootstrap : MonoBehaviour
         Instance = this;
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     public void StartGameplaySystems(Transform player)
     {
         if (_started) return;
         _started = true;
         _player = player;
+        PlayerRef.Set(player);
+        WorldTagger.SetLayerRecursive(player.gameObject, GameLayers.Player);
 
         var stats = player.GetComponent<PlayerStats>() ?? player.gameObject.AddComponent<PlayerStats>();
         var inv = player.GetComponent<PlayerInventory>() ?? player.gameObject.AddComponent<PlayerInventory>();
@@ -52,64 +59,88 @@ public class GameSystemsBootstrap : MonoBehaviour
         Debug.Log("[GameSystems] P0/P1 systems online.");
     }
 
+    /// <summary>
+    /// Populate the world with NPCs and enemies.
+    ///
+    /// Every position here is snapped with <see cref="IliacBayWorldGenerator.SnapToGround"/>,
+    /// which used to return the Daggerfall spawn pad no matter what it was given — so all
+    /// of this content spawned in a single pile on the start plaza, leaving the bandit camp
+    /// and the ruin empty and the far-city greeters nowhere near their cities.
+    /// </summary>
     private void SpawnWorldContent()
     {
-        // Bandit camp — well south of Daggerfall safe zone
+        // Bandit camp — well south of the Daggerfall safe zone.
         var camp = new GameObject("BanditCamp_Glenumbra");
-        camp.transform.position = new Vector3(-1750f, 25f, 850f);
+        camp.transform.position = WorldLayout.BanditCamp;
         for (int i = 0; i < 3; i++)
         {
-            var pos = camp.transform.position + new Vector3(i * 4f - 4f, 0f, (i % 2) * 3f);
+            var pos = WorldLayout.BanditCamp + new Vector3(i * 4f - 4f, 0f, (i % 2) * 3f);
             SnapToGround(ref pos);
-            EnemyBrain.Spawn("Bandit", pos, new Color(0.45f, 0.2f, 0.15f), 50f + i * 5f, modelId: i == 0 ? "character-male-a" : null);
+            EnemyBrain.Spawn("Bandit", pos, new Color(0.45f, 0.2f, 0.15f), 50f + i * 5f,
+                modelId: i == 0 ? "character-male-a" : null, spawnId: $"bandit_camp_{i}");
         }
 
-        // Ruin undead — far from Daggerfall safe zone
-        var ruinPos = new Vector3(-2200f, 25f, 700f);
-        SnapToGround(ref ruinPos);
-        EnemyBrain.Spawn("Skeleton", ruinPos + Vector3.right * 3f, new Color(0.75f, 0.75f, 0.7f), 40f);
-        EnemyBrain.Spawn("Skeleton", ruinPos + Vector3.left * 3f, new Color(0.7f, 0.7f, 0.65f), 40f);
+        // Ruin undead — far from the Daggerfall safe zone.
+        for (int i = 0; i < 2; i++)
+        {
+            var pos = WorldLayout.CoastalRuin + (i == 0 ? Vector3.right : Vector3.left) * 3f;
+            SnapToGround(ref pos);
+            EnemyBrain.Spawn("Skeleton", pos, new Color(0.75f - i * 0.05f, 0.75f - i * 0.05f, 0.7f), 40f,
+                spawnId: $"coastal_ruin_skeleton_{i}");
+        }
 
-        // Daggerfall NPCs near spawn
-        var merchantPos = new Vector3(-1985f, 25f, 1460f);
-        SnapToGround(ref merchantPos);
-        NpcInteractable.Spawn("Mira the Provisioner", merchantPos, new Color(0.35f, 0.45f, 0.7f),
-            new[] { "Potions and rumors, traveler.", "Wayrest lies far east across the hills." }, merchant: true, modelId: "character-female-b");
+        // Daggerfall NPCs, placed relative to the plaza so they follow it if it moves.
+        var plaza = WorldLayout.DaggerfallSpawnPad;
 
-        var guardPos = new Vector3(-2010f, 25f, 1475f);
-        SnapToGround(ref guardPos);
-        NpcInteractable.Spawn("Gate Guard Ralen", guardPos, new Color(0.4f, 0.4f, 0.45f),
-            new[] { "Keep your blade sheathed in the city.", "Bandits haunt the southern road." }, modelId: "character-male-e");
+        SpawnNpc(plaza + new Vector3(15f, 0f, 10f), "Mira the Provisioner", new Color(0.35f, 0.45f, 0.7f),
+            new[] { "Potions and rumors, traveler.", "Wayrest lies far east across the hills." },
+            merchant: true, modelId: "character-female-b");
 
-        var questPos = new Vector3(-1990f, 25f, 1435f);
-        SnapToGround(ref questPos);
-        NpcInteractable.Spawn("Captain Alid", questPos, new Color(0.55f, 0.4f, 0.25f),
-            new[] { "Clear the Glenumbra bandits.", "The bay remembers those who wander it." }, questGiver: true, modelId: "character-male-c");
+        SpawnNpc(plaza + new Vector3(-10f, 0f, 25f), "Gate Guard Ralen", new Color(0.4f, 0.4f, 0.45f),
+            new[] { "Keep your blade sheathed in the city.", "Bandits haunt the southern road." },
+            modelId: "character-male-e");
 
-        // Wayrest / Sentinel greeters (far)
-        var wr = new Vector3(2180f, 23f, 1560f);
-        SnapToGround(ref wr);
-        NpcInteractable.Spawn("Wayrest Dockhand", wr, new Color(0.3f, 0.5f, 0.4f),
-            new[] { "Welcome to Wayrest, jewel of the Bjoulsae." }, modelId: "character-male-b");
+        SpawnNpc(plaza + new Vector3(10f, 0f, -15f), "Captain Alid", new Color(0.55f, 0.4f, 0.25f),
+            new[] { "Clear the Glenumbra bandits.", "The bay remembers those who wander it." },
+            questGiver: true, modelId: "character-male-c");
 
-        var sen = new Vector3(-1580f, 19f, -1960f);
-        SnapToGround(ref sen);
-        NpcInteractable.Spawn("Sentinel Scout", sen, new Color(0.7f, 0.55f, 0.3f),
-            new[] { "Hot wind and hotter steel — this is Sentinel." }, modelId: "character-female-d");
+        // Greeters at the other two cities, on their own travel pads.
+        var wayrest = WorldLayout.FindSite("wayrest");
+        if (wayrest.HasValue)
+            SpawnNpc(wayrest.Value.TravelPosition + new Vector3(-20f, 0f, 10f), "Wayrest Dockhand",
+                new Color(0.3f, 0.5f, 0.4f),
+                new[] { "Welcome to Wayrest, jewel of the Bjoulsae." }, modelId: "character-male-b");
+
+        var sentinel = WorldLayout.FindSite("sentinel");
+        if (sentinel.HasValue)
+            SpawnNpc(sentinel.Value.TravelPosition + new Vector3(20f, 0f, -10f), "Sentinel Scout",
+                new Color(0.7f, 0.55f, 0.3f),
+                new[] { "Hot wind and hotter steel — this is Sentinel." }, modelId: "character-female-d");
+    }
+
+    private static void SpawnNpc(Vector3 pos, string name, Color color, string[] lines,
+        bool merchant = false, bool questGiver = false, string modelId = null)
+    {
+        SnapToGround(ref pos);
+        NpcInteractable.Spawn(name, pos, color, lines, merchant, questGiver, modelId);
     }
 
     private static void EnsurePlayerAtDaggerfallSpawn(Transform player)
     {
         if (player == null) return;
-        var pos = IliacBayWorldGenerator.SnapToWalkable(player.position);
+        var pos = IliacBayWorldGenerator.GetPlayerSpawn();
         var cc = player.GetComponent<CharacterController>();
         if (cc != null) cc.enabled = false;
         player.position = pos;
         if (cc != null) cc.enabled = true;
     }
 
+    /// <summary>
+    /// Place world content on dry land at (or near) where it was authored — not at the
+    /// player spawn, which is what the old snap helper returned for everything.
+    /// </summary>
     private static void SnapToGround(ref Vector3 pos)
     {
-        pos = IliacBayWorldGenerator.SnapToWalkable(pos);
+        pos = IliacBayWorldGenerator.PlaceOnLand(pos);
     }
 }

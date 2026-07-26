@@ -5,10 +5,13 @@ using UnityEngine;
 /// </summary>
 public static class IliacBayMapArt
 {
-    public const float WorldMinX = -3200f;
-    public const float WorldMaxX = 3200f;
-    public const float WorldMinZ = -3400f;
-    public const float WorldMaxZ = 3600f;
+    // Bounds and landmass shapes come from WorldLayout so the drawn map can no longer
+    // drift away from the world it represents — this file used to carry its own
+    // hand-copied list of ellipses.
+    public const float WorldMinX = WorldLayout.MapMinX;
+    public const float WorldMaxX = WorldLayout.MapMaxX;
+    public const float WorldMinZ = WorldLayout.MapMinZ;
+    public const float WorldMaxZ = WorldLayout.MapMaxZ;
 
     private static Texture2D _cached;
 
@@ -34,19 +37,7 @@ public static class IliacBayMapArt
         var pixels = new Color[w * h];
         for (int i = 0; i < pixels.Length; i++) pixels[i] = ocean;
 
-        var regions = new[]
-        {
-            new Region { X = 200f, Z = 3200f, Rx = 1100f, Rz = 450f, Color = new Color(0.22f, 0.42f, 0.2f) },
-            new Region { X = -400f, Z = 2200f, Rx = 1000f, Rz = 400f, Color = new Color(0.24f, 0.44f, 0.22f) },
-            new Region { X = -2000f, Z = 1600f, Rx = 450f, Rz = 350f, Color = new Color(0.28f, 0.46f, 0.24f) },
-            new Region { X = 2200f, Z = 1800f, Rx = 425f, Rz = 325f, Color = new Color(0.26f, 0.44f, 0.23f) },
-            new Region { X = 300f, Z = -3000f, Rx = 1300f, Rz = 550f, Color = new Color(0.62f, 0.48f, 0.28f) },
-            new Region { X = -1600f, Z = -2200f, Rx = 450f, Rz = 350f, Color = new Color(0.58f, 0.45f, 0.26f) },
-            new Region { X = 2400f, Z = -2400f, Rx = 450f, Rz = 500f, Color = new Color(0.55f, 0.42f, 0.25f) },
-            new Region { X = -2800f, Z = 200f, Rx = 140f, Rz = 110f, Color = new Color(0.3f, 0.5f, 0.28f) },
-            new Region { X = 150f, Z = -100f, Rx = 120f, Rz = 100f, Color = new Color(0.42f, 0.42f, 0.45f) },
-            new Region { X = -900f, Z = -700f, Rx = 100f, Rz = 80f, Color = new Color(0.4f, 0.4f, 0.42f) }
-        };
+        var regions = BuildRegionsFromLayout();
 
         foreach (var r in regions)
             FillEllipse(pixels, w, h, r.X, r.Z, r.Rx, r.Rz, r.Color);
@@ -64,12 +55,35 @@ public static class IliacBayMapArt
         return _cached;
     }
 
-    public static Vector2 WorldToMapUV(Vector3 world)
+    public static Vector2 WorldToMapUV(Vector3 world) => WorldLayout.WorldToMapUV(world);
+
+    /// <summary>Each landmass becomes one ellipse, coloured by its biome.</summary>
+    private static Region[] BuildRegionsFromLayout()
     {
-        float u = Mathf.InverseLerp(WorldMinX, WorldMaxX, world.x);
-        float v = Mathf.InverseLerp(WorldMinZ, WorldMaxZ, world.z);
-        return new Vector2(Mathf.Clamp01(u), Mathf.Clamp01(v));
+        var layout = WorldLayout.Landmasses;
+        var regions = new Region[layout.Length];
+        for (int i = 0; i < layout.Length; i++)
+        {
+            var land = layout[i];
+            regions[i] = new Region
+            {
+                X = land.Center.x,
+                Z = land.Center.z,
+                Rx = land.Size.x * 0.5f,
+                Rz = land.Size.z * 0.5f,
+                Color = BiomeColor(land.Biome)
+            };
+        }
+        return regions;
     }
+
+    private static Color BiomeColor(WorldLayout.Biome biome) => biome switch
+    {
+        WorldLayout.Biome.Hammerfell => new Color(0.6f, 0.46f, 0.27f),
+        WorldLayout.Biome.IslandRock => new Color(0.41f, 0.41f, 0.44f),
+        WorldLayout.Biome.IslandGreen => new Color(0.3f, 0.5f, 0.28f),
+        _ => new Color(0.24f, 0.44f, 0.22f)
+    };
 
     private static void FillEllipse(Color[] pixels, int w, int h, float cx, float cz, float rx, float rz, Color color)
     {

@@ -18,6 +18,7 @@ public class DiscoveryTravelSystem : MonoBehaviour
         public Vector3 TravelPosition;
         public bool IsCity;
         public bool Discovered;
+        public float DiscoverRadius = 90f;
     }
 
     public readonly List<Location> Locations = new();
@@ -29,6 +30,11 @@ public class DiscoveryTravelSystem : MonoBehaviour
 
     private void Awake() => Instance = this;
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     public void Configure(Transform player)
     {
         _player = player;
@@ -37,39 +43,39 @@ public class DiscoveryTravelSystem : MonoBehaviour
         Discover("daggerfall", silent: true);
     }
 
+    /// <summary>Locations come from <see cref="WorldLayout"/> — one shared definition
+    /// with the world generator, the map art and the spawners.</summary>
     public void BootstrapDefaultLocations()
     {
         Locations.Clear();
-        Add("daggerfall", "Daggerfall", new Vector3(-2000f, 24f, 1600f), new Vector3(-2000f, 25.2f, 1450f), true);
-        Add("wayrest", "Wayrest", new Vector3(2200f, 22f, 1800f), new Vector3(2200f, 23.2f, 1550f), true);
-        Add("sentinel", "Sentinel", new Vector3(-1600f, 18f, -2200f), new Vector3(-1600f, 19.2f, -1950f), true);
-        Add("betony", "Betony", new Vector3(-2800f, 16f, 200f), new Vector3(-2800f, 17.2f, 200f), false);
-        Add("balfiera", "Balfiera", new Vector3(150f, 28f, -100f), new Vector3(150f, 29.2f, -100f), false);
-        Add("cybiades", "Cybiades", new Vector3(-900f, 14f, -700f), new Vector3(-900f, 15.2f, -700f), false);
-        Add("bandit_camp", "Glenumbra Bandit Camp", new Vector3(-1750f, 24f, 850f), new Vector3(-1750f, 25.2f, 850f), false);
-        Add("coastal_ruin", "Coastal Ruin", new Vector3(-2200f, 24f, 700f), new Vector3(-2200f, 25.2f, 700f), false);
-    }
-
-    private void Add(string id, string name, Vector3 world, Vector3 travel, bool city)
-    {
-        Locations.Add(new Location
+        foreach (var site in WorldLayout.Sites)
         {
-            Id = id,
-            DisplayName = name,
-            WorldPosition = world,
-            TravelPosition = travel,
-            IsCity = city,
-            Discovered = false
-        });
+            Locations.Add(new Location
+            {
+                Id = site.Id,
+                DisplayName = site.DisplayName,
+                WorldPosition = site.WorldPosition,
+                TravelPosition = site.TravelPosition,
+                IsCity = site.IsCity,
+                DiscoverRadius = site.DiscoverRadius,
+                Discovered = false
+            });
+        }
     }
 
     private void Update()
     {
-        if (_player == null) return;
+        if (_player == null)
+        {
+            _player = PlayerRef.Transform;
+            if (_player == null) return;
+        }
+
         foreach (var loc in Locations)
         {
             if (loc.Discovered) continue;
-            if (Vector3.Distance(_player.position, loc.WorldPosition) < (loc.IsCity ? 280f : 90f))
+            float r = loc.DiscoverRadius;
+            if ((_player.position - loc.WorldPosition).sqrMagnitude < r * r)
             {
                 Discover(loc.Id);
             }
@@ -115,25 +121,36 @@ public class DiscoveryTravelSystem : MonoBehaviour
     private System.Collections.IEnumerator TravelRoutine(Location loc)
     {
         _traveling = true;
+
+        var player = _player != null ? _player : PlayerRef.Transform;
+
+        // Measure the journey *before* teleporting. This used to be read after the
+        // move, so the distance was always ~0 and every trip cost the 0.5 h minimum
+        // no matter how far across the bay it went.
+        float dist = player != null
+            ? Vector3.Distance(player.position, loc.TravelPosition)
+            : 1000f;
+
         GameHud.Instance?.ShowFade(true);
         yield return new WaitForSecondsRealtime(0.45f);
 
-        var player = _player != null ? _player.gameObject : GameObject.Find("Player");
         if (player != null)
         {
+            // Land on real ground: the authored travel Y is an estimate, and terrain
+            // height is generated from noise.
+            var dest = IliacBayWorldGenerator.SnapToGround(loc.TravelPosition, 1.0f);
             var cc = player.GetComponent<CharacterController>();
             if (cc != null) cc.enabled = false;
-            player.transform.position = loc.TravelPosition;
+            player.position = dest;
             if (cc != null) cc.enabled = true;
         }
 
-        float dist = _player != null ? Vector3.Distance(_player.position, loc.TravelPosition) : 1000f;
         float hours = Mathf.Clamp(dist / 500f, 0.5f, 8f);
         TimeWeatherSystem.Instance?.AdvanceHours(hours);
 
         yield return new WaitForSecondsRealtime(0.2f);
         GameHud.Instance?.ShowFade(false);
-        GameHud.Instance?.ShowToast($"Traveled to {loc.DisplayName}");
+        GameHud.Instance?.ShowToast($"Traveled to {loc.DisplayName} — {hours:0.#} h passed");
         _traveling = false;
         OnChanged?.Invoke();
     }

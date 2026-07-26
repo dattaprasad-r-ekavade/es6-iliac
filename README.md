@@ -13,7 +13,25 @@ WASD · mouse look · **Shift** sprint · Space jump · Esc unlock cursor
 
 ## Future plan (Skyrim-like features)
 See **[Docs/SKYRIM_FEATURES_ROADMAP.md](Docs/SKYRIM_FEATURES_ROADMAP.md)** — P0+P1 vertical slice is in; P2 is next (interiors, audio, denser art).
+Current hardening work and what's left: **[plan.md](plan.md)**.
 
 ## Rebuild
 **Elder Scrolls 6 → Systems → Install P0+P1 + Rebuild World**  
 (or Presentation → Setup Menu + Cutscene + Smooth Map)
+
+> ⚠️ The rebuild **deletes every root object in `Main.unity`** and regenerates it.
+> Anything hand-placed in the scene is lost. The scene is currently a build artifact,
+> not an authoring surface — see plan.md.
+
+## Working on the code
+
+- **World data** (landmasses, cities, POIs, roads, spawn/safe-zone geometry) lives in
+  one place: `Assets/Scripts/World/WorldLayout.cs`. The generator, map art, fast travel
+  and content spawners all read from it — don't re-hardcode coordinates.
+- **Physics layers** are declared in `Assets/Scripts/World/GameLayers.cs` and assigned
+  at runtime by `WorldTagger`. That tagger is the only place a GameObject's *name* is
+  used to decide what something is; everything else queries layers.
+- **Compile without opening Unity** (works while the editor holds the project lock):
+  ```
+  python Tools/compile-check.py --editor
+  ```

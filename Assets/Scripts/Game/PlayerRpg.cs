@@ -25,6 +25,11 @@ public class PlayerStats : MonoBehaviour
 
     private void Awake() => Instance = this;
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void Update()
     {
         // Regen
@@ -88,9 +93,8 @@ public class PlayerStats : MonoBehaviour
     private void Die()
     {
         GameHud.Instance?.ShowToast("You were defeated — returned to Daggerfall.");
-        var player = GameObject.Find("Player");
-        if (player != null)
-            PlayerSafetyGuard.TeleportToSpawn(player.transform);
+        if (PlayerRef.TryGet(out var player))
+            PlayerSafetyGuard.TeleportToSpawn(player);
         else
             FullRestore();
     }
@@ -135,6 +139,11 @@ public class PlayerInventory : MonoBehaviour
             Add("health_potion", "Health Potion", 3, "potion");
             Add("torch", "Torch", 1, "misc");
         }
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     public void Add(string id, string name, int count, string kind)
@@ -184,6 +193,11 @@ public class PlayerCombat : MonoBehaviour
 
     private void Awake() => Instance = this;
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void Start()
     {
         var cam = GetComponentInChildren<Camera>(true);
@@ -223,7 +237,11 @@ public class PlayerCombat : MonoBehaviour
         GameSfx.Instance?.PlayMeleeSwing();
         var origin = _cam != null ? _cam.position : transform.position + Vector3.up;
         var dir = _cam != null ? _cam.forward : transform.forward;
-        if (Physics.SphereCast(origin, 0.35f, dir, out var hit, meleeRange, ~0, QueryTriggerInteraction.Ignore))
+
+        // Enemy layer only: the old ~0 cast stopped on terrain, trees and friendly
+        // NPCs, so a swing that clipped a tree in front of a bandit hit nothing.
+        if (Physics.SphereCast(origin, 0.35f, dir, out var hit, meleeRange,
+                GameLayers.CombatMask, QueryTriggerInteraction.Ignore))
         {
             var enemy = hit.collider.GetComponentInParent<EnemyBrain>();
             if (enemy != null)
@@ -246,7 +264,8 @@ public class PlayerCombat : MonoBehaviour
 
         var origin = _cam != null ? _cam.position : transform.position + Vector3.up;
         var dir = _cam != null ? _cam.forward : transform.forward;
-        if (Physics.SphereCast(origin, 0.5f, dir, out var hit, 18f))
+        if (Physics.SphereCast(origin, 0.5f, dir, out var hit, 18f,
+                GameLayers.CombatMask, QueryTriggerInteraction.Ignore))
         {
             var enemy = hit.collider.GetComponentInParent<EnemyBrain>();
             if (enemy != null)

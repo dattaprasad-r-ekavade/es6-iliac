@@ -115,12 +115,42 @@ public class QuestSystem : MonoBehaviour
         OnChanged?.Invoke();
     }
 
-    private void OnEnable()
+    /// <summary>Snapshot for the save file.</summary>
+    public List<SavedQuest> CaptureState()
     {
-        if (DiscoveryTravelSystem.Instance != null)
-            DiscoveryTravelSystem.Instance.OnDiscovered += OnDisc;
+        var list = new List<SavedQuest>(Quests.Count);
+        foreach (var q in Quests)
+        {
+            list.Add(new SavedQuest
+            {
+                Id = q.Id,
+                Active = q.Active,
+                Completed = q.Completed,
+                Progress = q.Progress,
+                StageText = q.StageText
+            });
+        }
+        return list;
     }
 
+    /// <summary>Restore from a save file. Quests absent from the file keep their seeded state.</summary>
+    public void RestoreState(List<SavedQuest> saved)
+    {
+        if (saved == null) return;
+        foreach (var s in saved)
+        {
+            var q = Quests.Find(x => x.Id == s.Id);
+            if (q == null) continue;
+            q.Active = s.Active;
+            q.Completed = s.Completed;
+            q.Progress = s.Progress;
+            if (!string.IsNullOrEmpty(s.StageText)) q.StageText = s.StageText;
+        }
+        OnChanged?.Invoke();
+    }
+
+    // Subscribed in Start only: OnEnable used to run as well, and since both fired
+    // once with the system already alive, every discovery was handled twice.
     private void Start()
     {
         if (DiscoveryTravelSystem.Instance != null)
@@ -131,6 +161,7 @@ public class QuestSystem : MonoBehaviour
     {
         if (DiscoveryTravelSystem.Instance != null)
             DiscoveryTravelSystem.Instance.OnDiscovered -= OnDisc;
+        if (Instance == this) Instance = null;
     }
 
     private void OnDisc(DiscoveryTravelSystem.Location loc)
@@ -187,6 +218,7 @@ public class NpcInteractable : MonoBehaviour
 
         go.name = "NPC_" + name.Replace(" ", "_");
         go.transform.position = pos;
+        WorldTagger.SetLayerRecursive(go, GameLayers.Npc);
         if (go.GetComponent<Collider>() == null)
         {
             var capsule = go.AddComponent<CapsuleCollider>();
@@ -226,7 +258,8 @@ public class PlayerInteract : MonoBehaviour
         var cam = GetComponentInChildren<Camera>();
         var origin = cam != null ? cam.transform.position : transform.position + Vector3.up;
         var dir = cam != null ? cam.transform.forward : transform.forward;
-        if (Physics.SphereCast(origin, 0.4f, dir, out var hit, range))
+        if (Physics.SphereCast(origin, 0.4f, dir, out var hit, range,
+                GameLayers.InteractMask, QueryTriggerInteraction.Ignore))
         {
             var npc = hit.collider.GetComponentInParent<NpcInteractable>();
             if (npc != null) npc.Interact();

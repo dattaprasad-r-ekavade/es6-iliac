@@ -11,17 +11,17 @@ TagManager:
   - 
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  -
+  -
+  - Ground
+  - Structure
+  - Prop
+  - Player
+  - Enemy
+  - NPC
+  - Void
+  -
+  -
   - 
   - 
   - 

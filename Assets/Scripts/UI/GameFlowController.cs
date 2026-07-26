@@ -29,8 +29,14 @@ public class GameFlowController : MonoBehaviour
     [Header("Timing")]
     [SerializeField] private float menuFadeSeconds = 0.75f;
 
-    private bool _started;
+    /// <summary>True between START and the handoff to gameplay — i.e. while the
+    /// cutscene is running and skip input is meaningful.</summary>
+    private bool _inIntro;
+
     private bool _skipRequested;
+
+    /// <summary>True once the player has control.</summary>
+    public bool IsInGameplay { get; private set; }
 
     private void Awake()
     {
@@ -51,9 +57,18 @@ public class GameFlowController : MonoBehaviour
         }
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void Update()
     {
-        if (!_started) return;
+        // Only listen for skip input during the intro. This used to stay armed for the
+        // whole session, so every Space (jump) and Esc (menu) during gameplay was also
+        // recorded as a cutscene-skip request.
+        if (!_inIntro) return;
+
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb == null) return;
         if (kb.spaceKey.wasPressedThisFrame
@@ -74,15 +89,15 @@ public class GameFlowController : MonoBehaviour
 
     public void OnClickStart()
     {
-        if (_started) return;
-        _started = true;
+        if (_inIntro || IsInGameplay) return;
+        _inIntro = true;
         ShowSkipUi(true);
         StartCoroutine(StartRoutine());
     }
 
     public void RequestSkip()
     {
-        if (!_started) return;
+        if (!_inIntro) return;
         _skipRequested = true;
     }
 
@@ -100,8 +115,14 @@ public class GameFlowController : MonoBehaviour
     public void ReturnToMainMenu()
     {
         Time.timeScale = 1f;
-        _started = false;
+        _inIntro = false;
+        IsInGameplay = false;
         _skipRequested = false;
+
+        // The scene reload below rebuilds everything; drop cached statics so nothing
+        // holds a reference into the destroyed scene.
+        PlayerRef.Clear();
+        WorldState.Reset();
         ShowSkipUi(false);
         SetPlayerActive(false);
         if (cinematicCamera != null)
@@ -152,12 +173,14 @@ public class GameFlowController : MonoBehaviour
         }
 
         _skipRequested = false;
+        _inIntro = false;
         BeginGameplay();
     }
 
     private void BeginGameplay()
     {
         ResolveRefs();
+        IsInGameplay = true;
         ShowSkipUi(false);
         if (cinematicCamera != null)
         {
@@ -240,8 +263,7 @@ public class GameFlowController : MonoBehaviour
     {
         if (player == null)
         {
-            var p = GameObject.Find("Player");
-            if (p != null) player = p.transform;
+            player = PlayerRef.Transform;
         }
 
         if (playerCamera == null && player != null)

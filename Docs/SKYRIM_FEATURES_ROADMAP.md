@@ -43,7 +43,17 @@ Recreate the *feel* of Skyrim’s feature set in this game:
 - [x] Weather / day–night cycle (regional)
 - [ ] Cities still kitbash vs “Skyrim city” density (P2 art)
 - [x] NPCs, dialogue (E), combat, inventory, saves (vertical slice)
-- [ ] Quaternius Medieval Village (CC0) not imported yet (manual itch claim)
+- [x] Quaternius Medieval Village imported (`Assets/ThirdParty/Quaternius/MedievalVillage`)
+- [ ] **Nothing is a prefab** — player, NPCs, enemies, systems and the whole HUD are
+      built by `AddComponent` at runtime, so no value can be tuned without editing C#
+- [ ] Cities are only reachable via the causeway roads; the landmasses are separate
+      islands with 180–1000 m water gaps between them
+- [ ] HUD is code-built legacy uGUI `Text` (no TextMeshPro, no scrolling lists)
+
+> **2026-07-26 hardening pass.** The P1 slice was not actually playable as described:
+> `SnapToWalkable` ignored its argument and returned the Daggerfall spawn pad, so every
+> NPC and enemy spawned in one pile on the start plaza. The bandit camp and coastal ruin
+> were also authored in open water. Both are fixed — see [plan.md](../plan.md).
 
 Layout notes: `Assets/Scripts/World/ILIAC_BAY_LAYOUT.md`  
 Assets: `Assets/ThirdParty/ATTRIBUTION.md`
@@ -253,4 +263,5 @@ Never ship Bethesda assets or trademarked audio.
 |---|---|---|
 | 2026-07-24 | Large cities, skip dialogue, Pirate kit, roadmap created | M1: trees + weather + time |
 | 2026-07-26 | **P0+P1 vertical slice shipped** — trees ground-snap + cull; time/weather; map+FT; combat; NPCs; quests; HUD; save/load; roads/POIs | P2 interiors / denser assets |
+| 2026-07-26 | **Prototype hardening** — git + LFS; `WorldLayout` single source of truth; physics layers replace name-matching; spawn-pile bug fixed; POIs moved onto land; causeway roads; foliage culling collapsed to one system; save versioning | Prefabs for player/NPC/systems; texture budget; tests |
 | | | |

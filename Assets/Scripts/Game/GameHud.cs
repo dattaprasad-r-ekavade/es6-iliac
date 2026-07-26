@@ -30,17 +30,31 @@ public class GameHud : MonoBehaviour
     private RectTransform _mapMarkersRoot;
     private float _toastTimer;
     private float _healthDisp = 1f, _magickaDisp = 1f, _staminaDisp = 1f;
-    private Transform _player;
     private int _mapSelected;
     private static Font _fontDisplay;
     private static Font _fontBody;
     private NpcInteractable _focusNpc;
 
+    private GameObject _enemyBarRoot;
+    private Image _enemyFill;
+    private Text _enemyLabel;
+    private float _enemyBarTimer;
+
+    private Coroutine _dialogueRoutine;
+
+    /// <summary>The player transform, resolved through the shared cache.</summary>
+    private Transform _player => PlayerRef.Transform;
+
     private void Awake() => Instance = this;
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
 
     public void Build(Transform player)
     {
-        _player = player;
+        PlayerRef.Set(player);
         EnsureEventSystem();
         UiTheme.EnsureLoaded();
         BuildUi();
@@ -50,13 +64,8 @@ public class GameHud : MonoBehaviour
 
     private void Update()
     {
-        if (_player == null)
-        {
-            var p = GameObject.Find("Player");
-            if (p != null) _player = p.transform;
-        }
-
         RefreshBars();
+        RefreshEnemyBar();
         RefreshCompass();
         RefreshInteractPrompt();
         HandleInput();
@@ -265,7 +274,8 @@ public class GameHud : MonoBehaviour
         var origin = cam != null ? cam.transform.position : _player.position + Vector3.up;
         var dir = cam != null ? cam.transform.forward : _player.forward;
         _focusNpc = null;
-        if (Physics.SphereCast(origin, 0.4f, dir, out var hit, 3.2f))
+        if (Physics.SphereCast(origin, 0.4f, dir, out var hit, 3.2f,
+                GameLayers.InteractMask, QueryTriggerInteraction.Ignore))
             _focusNpc = hit.collider.GetComponentInParent<NpcInteractable>();
 
         if (_focusNpc != null)
@@ -324,8 +334,8 @@ public class GameHud : MonoBehaviour
         }
         HideMenus();
         GameSfx.Instance?.PlayUiConfirm();
+        // The travel routine reports arrival (including elapsed time) when it finishes.
         DiscoveryTravelSystem.Instance.FastTravel(loc.Id);
-        ShowToast($"Traveled to {loc.DisplayName}");
     }
 
     private void RefreshJournal()
@@ -393,14 +403,38 @@ public class GameHud : MonoBehaviour
         _dialogueRoot.SetActive(true);
         if (_dialogueSpeaker != null) _dialogueSpeaker.text = speaker;
         if (_dialogueBody != null) _dialogueBody.text = line + "\n\n<size=18><color=#c9b896>E continue · Esc close</color></size>";
-        StopAllCoroutines();
-        StartCoroutine(HideDialogueSoon());
+
+        // Track this one coroutine rather than StopAllCoroutines(), which would also
+        // kill any unrelated HUD coroutine added later.
+        if (_dialogueRoutine != null) StopCoroutine(_dialogueRoutine);
+        _dialogueRoutine = StartCoroutine(HideDialogueSoon());
     }
 
     private IEnumerator HideDialogueSoon()
     {
         yield return new WaitForSeconds(5f);
         if (_dialogueRoot != null) _dialogueRoot.SetActive(false);
+        _dialogueRoutine = null;
+    }
+
+    /// <summary>
+    /// Show the health of the enemy that was just hit. This used to be a toast per
+    /// swing ("Bandit hit (37 hp)"), which drowned out every other notification.
+    /// </summary>
+    public void ShowEnemyHealth(string enemyName, float health, float maxHealth)
+    {
+        if (_enemyBarRoot == null) return;
+        _enemyBarRoot.SetActive(true);
+        _enemyBarTimer = 4f;
+        if (_enemyLabel != null) _enemyLabel.text = $"{enemyName}   {Mathf.CeilToInt(health)}/{Mathf.CeilToInt(maxHealth)}";
+        if (_enemyFill != null) _enemyFill.fillAmount = maxHealth > 0f ? Mathf.Clamp01(health / maxHealth) : 0f;
+    }
+
+    private void RefreshEnemyBar()
+    {
+        if (_enemyBarRoot == null || !_enemyBarRoot.activeSelf) return;
+        _enemyBarTimer -= Time.deltaTime;
+        if (_enemyBarTimer <= 0f) _enemyBarRoot.SetActive(false);
     }
 
     public void ShowFade(bool on)
@@ -473,6 +507,16 @@ public class GameHud : MonoBehaviour
             new Vector2(0.3f, 0.38f), new Vector2(0.7f, 0.44f), new Color(0.98f, 0.92f, 0.7f),
             wrap: false, display: true, outline: true);
         _promptText.gameObject.SetActive(false);
+
+        // Target health readout (replaces one toast per sword swing).
+        _enemyBarRoot = MakeImage(_hudRoot.transform, "EnemyBar", UiTheme.PanelInset,
+            new Vector2(0.36f, 0.845f), new Vector2(0.64f, 0.895f), new Color(1f, 1f, 1f, 0.95f)).gameObject;
+        _enemyLabel = MakeText(_enemyBarRoot.transform, "EnemyName", "", 16, TextAnchor.UpperCenter,
+            new Vector2(0.03f, 0.5f), new Vector2(0.97f, 1.02f), new Color(0.98f, 0.92f, 0.78f),
+            wrap: false, display: false, outline: true);
+        _enemyFill = MakeSpriteBar(_enemyBarRoot.transform, "EnemyHealth",
+            new Vector2(0.04f, 0.1f), new Vector2(0.96f, 0.5f), UiTheme.BarRed, new Color(0.8f, 0.2f, 0.18f));
+        _enemyBarRoot.SetActive(false);
 
         _combatText = MakeText(_hudRoot.transform, "Combat", "IN COMBAT", 20, TextAnchor.UpperRight,
             new Vector2(0.78f, 0.86f), new Vector2(0.98f, 0.91f), new Color(1f, 0.45f, 0.35f),

@@ -1,40 +1,40 @@
 using UnityEngine;
 
 /// <summary>
-/// Hides foliage renderers when far from the player for large-map performance.
+/// Marks a prop as distance-culled. Registration only — the actual work is done in
+/// one pass by <see cref="FoliageCullingSystem"/>.
+///
+/// This component used to run its own <c>Update</c> and its own
+/// <c>GameObject.Find("Player")</c>, on every one of the ~640 scattered props.
+/// The component is kept (rather than deleted) so the baked Main.unity, which has
+/// it attached 639 times, doesn't come back with missing-script warnings.
 /// </summary>
 public class FoliageDistanceCull : MonoBehaviour
 {
     public float maxDistance = 500f;
-    private Transform _player;
-    private Renderer[] _renderers;
-    private float _timer;
-    private float _phase;
 
-    private void Awake()
+    [System.NonSerialized] public Renderer[] Renderers;
+    [System.NonSerialized] public bool Visible = true;
+
+    private void OnEnable()
     {
-        _renderers = GetComponentsInChildren<Renderer>();
-        _phase = UnityEngine.Random.Range(0f, 0.4f);
+        Renderers ??= GetComponentsInChildren<Renderer>(true);
+        FoliageCullingSystem.Register(this);
     }
 
-    private void Update()
+    private void OnDisable()
     {
-        _timer -= Time.deltaTime;
-        if (_timer > 0f) return;
-        _timer = 0.35f + _phase;
+        FoliageCullingSystem.Unregister(this);
+    }
 
-        if (_player == null)
+    public void SetVisible(bool visible)
+    {
+        if (Visible == visible || Renderers == null) return;
+        Visible = visible;
+        for (int i = 0; i < Renderers.Length; i++)
         {
-            var p = GameObject.Find("Player");
-            if (p != null) _player = p.transform;
-            else return;
-        }
-
-        bool show = (_player.position - transform.position).sqrMagnitude < maxDistance * maxDistance;
-        if (_renderers == null) return;
-        foreach (var r in _renderers)
-        {
-            if (r != null) r.enabled = show;
+            var r = Renderers[i];
+            if (r != null) r.enabled = visible;
         }
     }
 }

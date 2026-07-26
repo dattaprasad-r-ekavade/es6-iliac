@@ -28,6 +28,11 @@ public class GameSfx : MonoBehaviour
         _src.spatialBlend = 0f;
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     public void Configure(
         AudioClip click, AudioClip confirm, AudioClip open, AudioClip error,
         AudioClip swing, AudioClip hit, AudioClip magic, AudioClip loot, AudioClip level)

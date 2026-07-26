@@ -15,10 +15,16 @@ public class EnemyBrain : MonoBehaviour
     [SerializeField] private int xpReward = 20;
     [SerializeField] private bool dropsLoot = true;
 
+    /// <summary>Stable id so a save can remember this one stayed dead.</summary>
+    public string SpawnId { get; private set; }
+
+    public string DisplayName => displayName;
+    public float Health => _hp;
+    public float MaxHealth => maxHealth;
+
     private float _hp;
     private float _atkCd;
     private CharacterController _cc;
-    private Transform _player;
     private Vector3 _home;
     private float _leashRange;
 
@@ -40,19 +46,14 @@ public class EnemyBrain : MonoBehaviour
     private void Update()
     {
         if (_hp <= 0f) return;
-        if (_player == null)
-        {
-            var p = GameObject.Find("Player");
-            if (p != null) _player = p.transform;
-            else return;
-        }
+        if (!PlayerRef.TryGet(out var player)) return;
 
         _atkCd -= Time.deltaTime;
-        var to = _player.position - transform.position;
+        var to = player.position - transform.position;
         to.y = 0f;
         float dist = to.magnitude;
         if (dist > aggroRange) return;
-        if (WorldSafeZone.Contains(_player.position)) return;
+        if (WorldSafeZone.Contains(player.position)) return;
         if (PlayerSafetyGuard.Instance != null && PlayerSafetyGuard.Instance.IsInvulnerable) return;
         if (Vector3.Distance(transform.position, _home) > _leashRange) return;
 
@@ -70,16 +71,27 @@ public class EnemyBrain : MonoBehaviour
         {
             _atkCd = attackCooldown;
             if (PlayerSafetyGuard.Instance != null && PlayerSafetyGuard.Instance.IsInvulnerable) return;
+            if (!HasLineOfSightTo(player)) return;
             PlayerCombat.Instance?.NotifyHitByEnemy();
             PlayerStats.Instance?.Damage(attackDamage);
         }
+    }
+
+    /// <summary>Don't let enemies hit the player through a city wall.</summary>
+    private bool HasLineOfSightTo(Transform player)
+    {
+        var from = transform.position + Vector3.up * 1.2f;
+        var to = player.position + Vector3.up * 1.0f;
+        var delta = to - from;
+        return !Physics.Raycast(from, delta.normalized, delta.magnitude,
+            GameLayers.SightBlockerMask, QueryTriggerInteraction.Ignore);
     }
 
     public void TakeDamage(float amount)
     {
         if (_hp <= 0f) return;
         _hp -= amount;
-        GameHud.Instance?.ShowToast($"{displayName} hit ({Mathf.CeilToInt(_hp)} hp)");
+        GameHud.Instance?.ShowEnemyHealth(displayName, Mathf.Max(0f, _hp), maxHealth);
         if (_hp <= 0f) Die();
     }
 
@@ -93,18 +105,28 @@ public class EnemyBrain : MonoBehaviour
             GameHud.Instance?.ShowToast($"Looted {displayName}");
         }
         QuestSystem.Instance?.NotifyEnemyKilled(displayName);
+        WorldState.MarkKilled(SpawnId);
         Destroy(gameObject);
     }
 
-    public void Setup(string name, float hp)
+    public void Setup(string name, float hp, string spawnId)
     {
         displayName = name;
         maxHealth = hp;
         _hp = hp;
+        SpawnId = spawnId;
     }
 
-    public static GameObject Spawn(string name, Vector3 pos, Color color, float hp = 55f, string modelId = null)
+    /// <summary>
+    /// Spawn an enemy at a world position. <paramref name="spawnId"/> must be stable
+    /// across sessions so a loaded save can skip enemies the player already killed.
+    /// </summary>
+    public static GameObject Spawn(string name, Vector3 pos, Color color, float hp = 55f,
+        string modelId = null, string spawnId = null)
     {
+        spawnId ??= $"{name}@{pos.x:0}_{pos.z:0}";
+        if (WorldState.IsKilled(spawnId)) return null;
+
         GameObject go = CharacterLibrary.Instantiate(modelId, 2.2f);
         if (go == null)
         {
@@ -118,8 +140,21 @@ public class EnemyBrain : MonoBehaviour
 
         go.name = name;
         go.transform.position = pos;
+        WorldTagger.SetLayerRecursive(go, GameLayers.Enemy);
+
+        // CharacterLibrary strips colliders off the model, so give it a hit volume
+        // the player's layer-masked melee cast can actually find.
+        if (go.GetComponent<Collider>() == null)
+        {
+            var capsule = go.AddComponent<CapsuleCollider>();
+            capsule.height = 1.8f;
+            capsule.radius = 0.4f;
+            capsule.center = new Vector3(0f, 0.9f, 0f);
+        }
+
         var brain = go.AddComponent<EnemyBrain>();
-        brain.Setup(name.Replace("_", " "), hp);
+        brain.Setup(name.Replace("_", " "), hp, spawnId);
+
         var labelGo = new GameObject("Name");
         labelGo.transform.SetParent(go.transform, false);
         labelGo.transform.localPosition = new Vector3(0f, 2.2f, 0f);
