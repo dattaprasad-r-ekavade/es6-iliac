@@ -10,9 +10,9 @@ using UnityEngine;
 /// </summary>
 public static class BuildPlayerCommand
 {
-    private const string OutputPath = "Builds/Windows/IliacBay.exe";
+    private const string OutputPath = "Builds/Windows/Kessil.exe";
 
-    [MenuItem("Elder Scrolls 6/Build/Windows Player")]
+    [MenuItem("Kessil/Build/Windows Player")]
     public static void BuildWindows()
     {
         var scenes = new[] { "Assets/Scenes/Main.unity" };

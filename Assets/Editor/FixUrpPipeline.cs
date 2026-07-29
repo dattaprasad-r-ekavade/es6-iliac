@@ -11,7 +11,7 @@ public static class FixUrpPipeline
     private const string UrpAssetPath = "Assets/Settings/URP-HighFidelity.asset";
     private const string RendererPath = "Assets/Settings/URP-HighFidelity-Renderer.asset";
 
-    [MenuItem("Elder Scrolls 6/Rendering/Fix Pink Materials (Setup URP)")]
+    [MenuItem("Kessil/Rendering/Fix Pink Materials (Setup URP)")]
     public static void Fix()
     {
         if (!AssetDatabase.IsValidFolder("Assets/Settings"))

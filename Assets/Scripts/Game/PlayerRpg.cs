@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Player RPG: health / magicka / stamina, XP, inventory, melee combat.
+/// Player RPG: health / mana / stamina, XP, inventory, melee combat.
 /// </summary>
 public class PlayerStats : MonoBehaviour
 {
@@ -15,8 +15,8 @@ public class PlayerStats : MonoBehaviour
     public int XpToLevel => 40 + Level * 35;
     public float Health = 100f;
     public float MaxHealth = 100f;
-    public float Magicka = 80f;
-    public float MaxMagicka = 80f;
+    public float Mana = 80f;
+    public float MaxMana = 80f;
     public float Stamina = 100f;
     public float MaxStamina = 100f;
     public int Gold;
@@ -35,7 +35,7 @@ public class PlayerStats : MonoBehaviour
         // Regen
         if (Health > 0f)
         {
-            Magicka = Mathf.Min(MaxMagicka, Magicka + 4f * Time.deltaTime);
+            Mana = Mathf.Min(MaxMana, Mana + 4f * Time.deltaTime);
             if (!PlayerCombat.Instance || !PlayerCombat.Instance.InCombat)
                 Stamina = Mathf.Min(MaxStamina, Stamina + 12f * Time.deltaTime);
         }
@@ -49,10 +49,10 @@ public class PlayerStats : MonoBehaviour
             Xp -= XpToLevel;
             Level++;
             MaxHealth += 12f;
-            MaxMagicka += 8f;
+            MaxMana += 8f;
             MaxStamina += 8f;
             Health = MaxHealth;
-            Magicka = MaxMagicka;
+            Mana = MaxMana;
             Stamina = MaxStamina;
             GameSfx.Instance?.PlayLevelUp();
             GameHud.Instance?.ShowToast($"Level Up! You are now level {Level}");
@@ -82,17 +82,17 @@ public class PlayerStats : MonoBehaviour
         return true;
     }
 
-    public bool SpendMagicka(float amount)
+    public bool SpendMana(float amount)
     {
-        if (Magicka < amount) return false;
-        Magicka -= amount;
+        if (Mana < amount) return false;
+        Mana -= amount;
         OnChanged?.Invoke();
         return true;
     }
 
     private void Die()
     {
-        GameHud.Instance?.ShowToast("You were defeated — returned to Daggerfall.");
+        GameHud.Instance?.ShowToast("You were defeated — returned to Caldemar.");
         if (PlayerRef.TryGet(out var player))
             PlayerSafetyGuard.TeleportToSpawn(player);
         else
@@ -109,7 +109,7 @@ public class PlayerStats : MonoBehaviour
     public void FullRestore()
     {
         Health = MaxHealth;
-        Magicka = MaxMagicka;
+        Mana = MaxMana;
         Stamina = MaxStamina;
         OnChanged?.Invoke();
     }
@@ -256,9 +256,9 @@ public class PlayerCombat : MonoBehaviour
 
     private void CastFlare()
     {
-        if (PlayerStats.Instance == null || !PlayerStats.Instance.SpendMagicka(16f))
+        if (PlayerStats.Instance == null || !PlayerStats.Instance.SpendMana(16f))
         {
-            GameHud.Instance?.ShowToast("Not enough magicka");
+            GameHud.Instance?.ShowToast("Not enough mana");
             return;
         }
 

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Daggerfall starter area — enemies do not aggro here.
+/// Caldemar starter area — enemies do not aggro here.
 /// Geometry lives in <see cref="WorldLayout"/>; this used to be one of two
 /// safe-zone definitions that disagreed on the radius.
 /// </summary>

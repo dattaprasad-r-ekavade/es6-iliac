@@ -1,52 +1,61 @@
-# Full storyline viability and production plan
+# Vertical slice plan — `storyline.md`, fully playable
 
-**Audit date:** 2026-07-28
+**Audit date:** 2026-07-28 · **Retargeted to the vertical slice:** 2026-07-29
 
 **Story authority:** `storyline.md`
 
-**Target:** the complete authored opening chapter: shipwreck, rescue, character creation,
-King's audience, all four tutorial routes, the prince reveal, prison escape, cave-exit
-title crawl, confrontation and regime change, player title, and the Daggerfall/Council of
-Kings handoff.
+**Target:** a vertical slice in which the complete authored opening chapter is playable end
+to end — shipwreck, rescue, character creation, King's audience, all four tutorial routes,
+the prince reveal, prison escape, cave-exit title crawl, confrontation and regime change,
+player title, and the Caldemar / Crown Council handoff. Content-complete, quality-reduced.
+See “Vertical slice definition” for the cut-lines.
 
 **Expected first-route length:** about 45–70 minutes before polish/playtest adjustment,
 with substantial replay-only content in the other three routes.
 
-**Engine:** Unity 6000.5.3f1, URP 17.5
+**Studio:** DataTheCodie Studios · **Engine:** Unity 6000.5.3f1, URP 17.5 · **Platform:**
+Windows player
 
 ## Scope lock
 
 `storyline.md` is authoritative. This plan does not replace, condense, or redirect it.
 The following are required content, not stretch goals:
 
-1. Merchant ship voyage, Tower sightline, Thalmor warships, arcane pulse, wreck, and water
+1. Merchant ship voyage, Tower sightline, Ivory Concord warships, arcane pulse, wreck, and water
    sequence.
-2. Rescue ship, Wayrest arrival, survivor processing, and real character creation.
+2. Rescue ship, Estmere arrival, survivor processing, and real character creation.
 3. King's audience and assignment by the player's declared inclination.
 4. Four materially distinct routes:
    - Warrior: combat training, hunt/patrol, secret prisoner transport.
-   - Mage: spell training, soul-gem delivery, restricted prison accident.
+   - Mage: spell training, soul-crystal delivery, restricted prison accident.
    - Commerce/Thief: sailing, lockpicking, pickpocketing, sneaking, and secured tower.
    - None/Refuse: general prison, soul-harvesting reveal, and the deliberately fastest
      route.
 5. Prince discovery, explanation, route convergence, evidence, and joint escape.
 6. A shared sea-cave exit used as the walking-into-the-world title-crawl moment.
-7. Confrontation with the King, his removal, the successor, the prisoner soul-trapping
+7. Confrontation with the King, his removal, the successor, the prisoner soul-binding
    ban, and persistent world-state changes.
-8. The player's official title and the mission to Daggerfall to seek recognition from the
-   Council of Kings.
+8. The player's official title and the mission to Caldemar to seek recognition from the
+   Crown Council.
 9. A final Tower reminder that hands the player into the wider main story.
 
-Place, faction, and character renaming is explicitly deferred. Current story names remain
-the display names. Technical IDs must be stable and separate from display strings so a
-later rename does not require rewriting saves, quest logic, or scene references.
+The setting rename was applied on 2026-07-29 (see “Naming policy” below). Story names in
+this plan and in `storyline.md` are the current display names. Technical IDs are stable and
+separate from display strings, so any further rename stays a display-only change and does
+not require rewriting saves, quest logic, or scene references.
 
 ## Verdict
 
-The exact story is viable in this project. The existing world and gameplay prototype are
-a useful foundation, but the opening is now a **multi-scene RPG chapter**, not the former
-15–20 minute vertical-slice proposal. It needs new narrative, interaction, traversal,
-save, AI, interior, cinematic, animation, audio, and world-mutation work.
+The exact story is viable in this project, and a playable slice of all of it is a
+reasonable next deliverable. The existing world and gameplay prototype are a useful
+foundation, but the opening is a **multi-scene RPG chapter**, not a 15–20 minute demo. It
+needs new narrative, interaction, traversal, save, AI, interior, cinematic, animation,
+audio, and world-mutation work.
+
+What makes the slice achievable is dropping the *finish* bar, not the story: greybox art,
+placeholder audio, no voice acting, minimum animation. What makes it risky is that four
+distinct routes must all reach one convergence contract. The plan front-loads that risk
+into VS2 (the grey thread) so it is discovered in week three rather than month three.
 
 Estimated readiness for the complete authored opening: **20–25%**.
 
@@ -63,8 +72,10 @@ Estimated readiness for the complete authored opening: **20–25%**.
 
 Planning ranges, assuming one focused developer using existing low-poly assets:
 
-- **Engineering-complete greybox of every story beat:** 50–75 focused days.
-- **Presentable low-poly release candidate with all four routes:** 85–130 focused days.
+- **This vertical slice — every story beat playable, all four routes, greybox finish:**
+  69–106 focused days. Broken down in the milestone table below.
+- **Presentable low-poly release candidate:** a further 25–40 days on top of the slice,
+  mostly art, animation and audio.
 - **Fully voiced, bespoke cinematic quality:** a separate production tier measured in
   additional person-months.
 
@@ -103,7 +114,7 @@ version of that opening.
 - Replaced 639 per-prop foliage updates with one culling system.
 - Added asmdefs, `Tools/compile-check.py`, headless build tooling, and 9 EditMode tests.
 - Reduced the Windows build from roughly 206 MB to 140 MB with a texture budget.
-- Added the deterministic Blender Yoku kit generator.
+- Added the deterministic Blender Sarrakh kit generator.
 
 ### Audit repair pass — 2026-07-26
 
@@ -119,7 +130,7 @@ version of that opening.
   feet on the ground with a small clearance instead of dropping the player by about 1 m.
 - **First-person camera:** the Player layer is excluded, preventing the camera from
   rendering the player body from inside the head.
-- **World geometry:** fixed the Balfiera tower inheriting a huge island-top scale.
+- **World geometry:** fixed the Corrath tower inheriting a huge island-top scale.
 - **Prototype artifacts:** removed generated city, POI, enemy, and NPC world-space
   nameplates that appeared mirrored from behind.
 - **Cutscene:** authored actor scale is preserved and actors are always cleaned up after
@@ -128,8 +139,8 @@ version of that opening.
 - **Dialogue/input:** dialogue now blocks gameplay, pauses safely, closes explicitly, and
   uses realtime timeout; menus consistently own pause and cursor state.
 - **Presentation:** rebuilt the HUD and title menu with translucent charcoal, silver,
-  muted bronze, Cinzel, and EB Garamond. This is Skyrim-inspired hierarchy using original
-  and licensed assets, not copied Bethesda UI art.
+  muted bronze, Cinzel, and EB Garamond — restrained hierarchy built from original and
+  licensed assets.
 - **Rendering:** switched to Linear color, repaired the broken VolumeProfile sub-assets,
   enabled camera post-processing, set 4× MSAA, four shadow cascades, and a 220 m shadow
   distance, and removed double-applied terrain texture tiling.
@@ -143,7 +154,7 @@ version of that opening.
   meshes and subdivided coast strips. Shorelines now follow the same geometry in the
   world, travel checks, and map art instead of exposing triangular gaps.
 - **Elevation:** added deterministic biome-aware ridged terrain with dry interior
-  guarantees, higher Wrothgar/Dragontail profiles, and flat city build zones blended
+  guarantees, higher Karnoth/Kiln profiles, and flat city build zones blended
   into their surroundings.
 - **City collision:** replaced hundreds of mis-selected microscopic roof modules with
   134 bounded procedural buildings. Every non-enterable building has exactly one
@@ -154,8 +165,8 @@ version of that opening.
 - **Waterfronts:** moved piers and quays from elevated grass to the waterline and added
   collider-backed causeways from each city pad. Decorative ships are normalized,
   offshore, and collider-free.
-- **Regional structure:** added Glenumbra–Wrothgar, Sentinel–Alik'r, and
-  Alik'r–Dragontail routes, widened roads, added guarded causeway rails, and concentrated
+- **Regional structure:** added Kelrith–Karnoth, Qadris–Sarrakh Waste, and
+  Sarrakh Waste–Kiln routes, widened roads, added guarded causeway rails, and concentrated
   modest dressing along playable routes.
 - **Asset curation:** building, tower, dock, tree, prop, camp, and ruin pools are now
   deterministic and role-filtered. The `roof-corner-inner`/`Contains("inn")` bug is
@@ -196,6 +207,8 @@ or packaged-player behavior. Those remain required gates below.
 ## Remaining issues and risks
 
 ### P0 — required before building story scenes
+
+*Delivered by VS0 and VS1. Nothing in the slice plan starts authoring until these are done.*
 
 - Convert `storyline.md` into a versioned chapter graph, scene list, dialogue screenplay,
   cast sheet, evidence list, and outcome matrix. This is implementation detail, not an
@@ -255,9 +268,9 @@ or packaged-player behavior. Those remain required gates below.
 - The current cities are readable, collidable exterior shells, not authored hero spaces:
   buildings have no doors/interiors, walls have no battlements or climb routes, and there
   is no navmesh.
-- Wayrest specifically needs a survivor-processing dock, functioning palace/throne room,
-  guard yard, Mages Guild, working harbor, secured tower, layered prison, soul-harvesting
-  chamber, escape route, and sea cave. Daggerfall needs at least a convincing arrival and
+- Estmere specifically needs a survivor-processing dock, functioning palace/throne room,
+  guard yard, Arcanum, working harbor, secured tower, layered prison, soul-harvesting
+  chamber, escape route, and sea cave. Caldemar needs at least a convincing arrival and
   Council handoff space for this chapter.
 - The story needs reliable crowd and companion navigation. Bake or build navigation per
   authored scene, add off-mesh links only where tested, and keep large decorative areas
@@ -278,15 +291,16 @@ or packaged-player behavior. Those remain required gates below.
 - Add application icon, credits/about, accessibility settings, quality presets, and input
   rebinding.
 - Add a project code license and complete third-party notices.
-- Before any public distribution, perform the deferred naming/IP review. This does not
-  block internal implementation of the current story.
+- Before any public distribution, perform the final IP/rights review. The setting rename
+  is done; what remains is the repository directory, the `.sln`, and a review of art,
+  audio and font provenance.
 - Test a clean zip on a second machine.
 
 ## Story flow contract
 
 ```mermaid
 flowchart TD
-    A["Merchant ship and Tower pulse"] --> B["Rescue ship and Wayrest docks"]
+    A["Merchant ship and Tower pulse"] --> B["Rescue ship and Estmere docks"]
     B --> C["Character creation"]
     C --> D["King's audience and assignment"]
     D --> W["Warrior tutorial"]
@@ -301,7 +315,7 @@ flowchart TD
     E --> X["Sea-cave exit and title crawl"]
     X --> K["Confront the King"]
     K --> R["New ruler, ban, title, persistent consequences"]
-    R --> G["Travel to Daggerfall / Council of Kings"]
+    R --> G["Travel to Caldemar / Crown Council"]
     G --> H["Tower main-story reminder"]
 ```
 
@@ -318,17 +332,17 @@ Use one persistent scene and authored additive scenes. Do not keep expanding the
 |---|---|---|
 | `Bootstrap` | persistent services, input, UI, audio, saves, loading | services initialized once |
 | `Prologue_Ship` | voyage, Tower/warships, pulse, wreck, water | player marked rescued |
-| `Wayrest_Docks` | rescue arrival, processing, character creator | valid character profile |
-| `Wayrest_Palace` | first audience, questioning, assignment | one route locked |
-| `Wayrest_Exterior` | current exterior extracted from `Main` | safe regional traversal |
+| `Estmere_Docks` | rescue arrival, processing, character creator | valid character profile |
+| `Estmere_Palace` | first audience, questioning, assignment | one route locked |
+| `Estmere_Exterior` | current exterior extracted from `Main` | safe regional traversal |
 | `Tutorial_Warrior` | training and hunt/patrol | prince/evidence convergence payload |
-| `Wayrest_MagesGuild` | spell training and delivery setup | access to restricted prison |
-| `Wayrest_Harbor` | sailing and thief instruction | tower objective complete |
-| `Wayrest_SecuredTower` | infiltration objective | evidence/prince route transition |
-| `Wayrest_Prison` | general cells, solitary, soul operation, convergence | prince follows player |
-| `Wayrest_SeaCave` | shared escape and title-crawl vista | prologue escape complete |
-| `Wayrest_Palace_Aftermath` | confrontation and outcome | ruler/title/world mutation saved |
-| `Daggerfall_Arrival` | Council mission handoff and Tower reminder | opening chapter complete |
+| `Estmere_MagesGuild` | spell training and delivery setup | access to restricted prison |
+| `Estmere_Harbor` | sailing and thief instruction | tower objective complete |
+| `Estmere_SecuredTower` | infiltration objective | evidence/prince route transition |
+| `Estmere_Prison` | general cells, solitary, soul operation, convergence | prince follows player |
+| `Estmere_SeaCave` | shared escape and title-crawl vista | prologue escape complete |
+| `Estmere_Palace_Aftermath` | confrontation and outcome | ruler/title/world mutation saved |
+| `Caldemar_Arrival` | Council mission handoff and Tower reminder | opening chapter complete |
 
 Reuse an authored scene for multiple states when safe; use world-state variants rather
 than duplicating whole environments. Every transition needs a spawn ID, fade/load
@@ -360,188 +374,371 @@ Author content in ScriptableObjects or another inspectable data format; keep log
 reusable runtime systems. Dialogue, quest stages, and cutscene cues must not be buried in
 one-off scene scripts.
 
-## Full production plan
+## Vertical slice definition
 
-### Phase 0 — story production package and regression baseline (4–7 days)
+**The deliverable is one build in which `storyline.md` plays from the first frame to the
+Caldemar handoff, on all four routes, with no missing beats and no developer
+intervention.**
 
-- Break the exact outline into numbered beats, objectives, dialogues, choices, and
-  transition conditions.
-- Write a screenplay pass for the ship, rescue, survivor processing, both audiences,
-  every tutorial, the prince reveal, prisoner exposition, escape, confrontation,
-  succession, player title, and Daggerfall handoff.
-- Build a route/outcome matrix and stable ID registry.
-- Record the cave-exit title placement and the shared convergence payload as hard
-  contracts.
-- Snapshot current build, test, performance, scene, and save behavior.
-- Add the existing P0 PlayMode and packaged-player smoke tests.
+This is a *content-complete, quality-reduced* slice rather than the classic
+narrow-but-final-quality kind. The story is not cut; the finish is. A beat that only works
+if someone explains it, or that needs the editor to get past, is not in the slice.
 
-**Gate:** every sentence in `storyline.md` maps to at least one owned scene, system task,
-content task, and acceptance test; current prototype behavior remains green.
+### In the slice
 
-### Phase 1 — persistent technical spine (7–12 days)
+- Every beat in `storyline.md`, in authored order, reachable and completable.
+- All four routes playable and **mechanically distinct** — each teaches what the story says
+  it teaches.
+- Character creation that persists into every later scene and save.
+- Save and load anywhere in the chapter, including mid-route and mid-escape.
+- Watching or skipping any cinematic produces identical story state.
+- Greybox-to-low-poly art built from the existing kits and the Blender generators.
+- Library/placeholder audio with a real mix layout; subtitles on every line.
+- Keyboard and mouse; one supported resolution family; Windows player.
 
-- Create `Bootstrap`, additive loading, spawn points, transitions, fades, loading UI, and
-  failure recovery.
-- Add `GameState`, InputActions, prefabbed actors/UI, data-driven quests, conditional
-  dialogue, story flags, generic interactions, and evidence.
-- Implement `CharacterProfile` and `SaveGameV3`, including v2 handling and menu header
-  validation.
-- Establish protagonist/NPC animation rigs, navigation, companion handoff, cinematic
-  cameras, subtitles, and an AudioMixer before authoring dozens of scenes.
-- Extract the current Wayrest/Daggerfall exterior geography from generated `Main` without
-  destroying the existing working world.
+### Deliberately not in the slice
 
-**Gate:** a test quest can cross three additive scenes, branch, acquire evidence, save,
-quit, continue, restore a companion, mutate the world, and roll back correctly.
+Deferred to a later production tier, and listed here so they are not smuggled in:
 
-### Phase 2 — shipwreck, rescue, creator, and first audience (8–14 days)
+- Voice acting. Silent protagonist, subtitles only.
+- Animation beyond a minimum set: locomotion, attack, block, hit, cast, death, and the
+  handful of story-critical performances (imprisonment, the King's removal).
+- Final art, lighting and material passes; interiors beyond what a beat requires; world
+  density outside the critical path.
+- Controller support, localization, and accessibility beyond subtitle size and volume.
+- The existing free-roam sandbox (bandit camp, coastal ruin, radiant quests). It stays
+  working but is **parked** — do not extend it during the slice.
+- Performance work beyond holding the chosen floor at the five stress locations.
 
-- Build a traversable merchant-ship deck with passengers and a constrained opening
-  viewpoint toward the Tower and warships.
-- Stage the pulse using lighting, VFX, audio, camera impulse, fractured/damaged ship
-  variants, controlled physics, water entry, blackout, and rescue. It may be tightly
-  directed, but every described visual beat must appear.
-- Build the rescue-ship transition and Wayrest survivor-processing dock.
-- Implement character creation with preview, validation, default/random options, profile
-  persistence, and keyboard/controller navigation.
-- Author the King's “every soul must contribute” edict, questioning about the missing
-  prince, remembered/vague/no-memory responses, skill declaration, route assignment, and
-  four valid exits. The edict should also foreshadow the prison soul operation without
-  revealing it prematurely.
+### The cut-line rule
 
-**Gate:** New Game reaches each assignment without a broken camera, lost profile, invalid
-save, sequence skip, or contradictory quest state. Cutscene skipping lands on the same
-canonical flags as watching.
+When a beat runs long, reduce its *finish*, never its *presence*. A prison corridor may be
+three grey rooms; it may not be a fade-to-black with a caption. The one exception is
+crowd scale: named speaking roles are required, background populations are not.
 
-### Phase 3 — shared tutorial mechanics and four complete routes (18–32 days)
+## Vertical slice plan
 
-Build reusable mechanics first, then author every route.
+Nine milestones. Each has a gate that must be green before the next starts, because every
+later milestone depends on the state contract the previous one froze.
 
-#### 3A — shared foundations
+Planning range for the whole slice: **69–106 focused days** for one developer using the
+existing kits. The grey thread (VS2) is the milestone that converts this plan from
+speculation into a measurable burn-down, and it should land inside the first three weeks.
 
-- Tutorial prompts, objective journal, checkpoints, recoverable fail states, route timing,
-  crime/alert hooks, inventory/equipment handoff, and evidence collection.
-- Combat, magic, stealth, lock, pickpocket, and sailing telemetry so balancing is based on
-  observed completion and failure data.
+### VS0 — story production package and regression baseline (4–6 days)
 
-#### 3B — Warrior
+- Break `storyline.md` into numbered beats with ids, objectives, dialogue, choices and
+  transition conditions. This is transcription and decomposition, not rewriting.
+- Write the screenplay pass for every scene: ship, rescue, processing, both audiences,
+  four tutorials, the prince reveal, prisoner exposition, escape, confrontation,
+  succession, title grant, Caldemar handoff.
+- Build the route/outcome matrix and the stable id registry (ids follow the naming policy:
+  setting-neutral, never a display name).
+- Record the shared convergence payload and the cave-exit title placement as hard
+  contracts — these are what keep four routes from diverging into four games.
+- Snapshot current build, test, scene and save behaviour as the regression baseline.
+- Resolve the narrative locks that block authoring: King outcome, successor, player title,
+  supported character options. See the locks list below.
 
-- Guard-yard instruction with movement, melee, block, hit feedback, and a safe spar.
-- Hunt/patrol with navigation, encounter pacing, return/failure handling, and a readable
-  transition into the secret prisoner transport.
-- Wounded-prince discovery, recognition, evidence, and prison-convergence transition.
+**Gate:** every sentence in `storyline.md` maps to at least one beat id, owning scene,
+system task and acceptance test. Existing prototype behaviour stays green.
 
-#### 3C — Mage
+### VS1 — persistent technical spine (8–12 days)
 
-- Spell instruction with cast/resource/target feedback and a nonlethal practice space.
-- Soul-gem delivery objective, restricted-access rules, environmental foreshadowing, and
-  a staged accident that opens the sealed cell.
-- Prince reveal, route-specific evidence, and convergence transition.
+Build the systems the story sits on, before any story content exists.
 
-#### 3D — Commerce / Thief
+- `Bootstrap` scene, additive loading, spawn ids, transitions, fades, loading UI, and a
+  recovery path when a load fails.
+- `GameState` as the single owner of input, cursor, time scale and pause.
+- One Input System actions asset. Prefabbed player, NPC and UI; no more `AddComponent`
+  construction.
+- Data-driven quest stages, conditional dialogue, story flags, generic interaction, and the
+  evidence record.
+- `CharacterProfile` and `SaveGameV3`: scene, spawn, profile, chapter, stage, route, flags,
+  evidence, companion state, outcomes. Header validation on the menu.
+- `CinematicRunner` with an idempotent end-state applied whether watched or skipped.
+- Extract the current exterior geography out of generated `Main` without destroying the
+  working world.
 
-- A bounded but controllable sailing lesson with board/disembark/reset behavior.
-- Sneaking/detection, pickpocketing, lockpicking, crime response, and non-blocking retry
-  paths.
-- Secured-tower infiltration connected spatially and narratively to the prison.
-- Retrieve the assigned object, find the prince, secure evidence, and converge.
+**Gate:** a throwaway test quest crosses three additive scenes, branches, takes evidence,
+saves, quits, continues, restores a companion, mutates the world, and rolls back correctly.
 
-#### 3E — None / Refuse
+### VS2 — the grey thread (6–9 days)
 
-- Immediate arrest and transfer to general population.
-- Prisoner conversations that reveal the black-soul-gem operation without relying on one
-  unskippable exposition dump.
-- A short, intentional route to solitary and the prince, with only the mandatory state
-  needed for the shared escape.
+**The de-risking milestone.** Make the entire chapter traversable before making any of it
+good.
 
-**Gate:** four clean-save end-to-end tests reach the same convergence contract. The None
-route is measurably fastest; the other routes teach their promised mechanics; failure,
-death, save/load, and sequence breaks cannot strand progression.
+- Every scene in the scene table exists, even if it is a grey box with a placeholder sign.
+- Every transition between beats works, in order, with the real spawn and autosave
+  contract.
+- All four routes are selectable at the audience and lead to the convergence checkpoint —
+  stubbed, but genuinely separate paths, not one path with a flag.
+- Every cinematic is a timed placeholder card that applies its real end-state.
+- Dialogue is placeholder text driven by the real dialogue graph.
 
-### Phase 4 — prison, prince, escape, and title moment (8–14 days)
+**Gate:** a developer can start a new game and reach the Caldemar handoff on **all four
+routes** without touching the editor. Total playtime will be short and it will look like
+nothing — that is expected and correct. From here the burn-down is measurable: every later
+milestone replaces placeholder with content inside a structure already proven to hold.
 
-- Complete the prison layout: public cells, restricted wing, solitary cell, processing
-  areas, evidence room, soul-harvesting operation, guard routes, and escape connections.
-- Author the prince's explanation of his alternative, interception, imprisonment, the
-  King's motive, and the Tower/Thalmor seed.
-- Give route-specific discoveries contextual dialogue while preserving one canonical
-  reveal.
-- Implement prince companion behavior, guard alerts, alternate traversal within the
-  shared escape, checkpoints, and stuck/teleport recovery.
-- End the escape through a sea cave. Compose the exterior reveal, music swell, title card,
-  subtitle timing, input hand-back, and autosave as one tested sequence.
+### VS3 — opening: voyage, pulse, wreck, rescue, creator, audience (8–12 days)
 
-**Gate:** every route can escort the prince from discovery to cave exit; watching or
-skipping dialogue/cinematics produces identical required state; the title appears once
-and only at the authored cave checkpoint.
+- Traversable merchant-ship deck, passengers and crew, with a constrained sightline to the
+  Everspire and the Ivory Concord warships.
+- The pulse staged with lighting, VFX, audio, camera impulse, a damaged ship variant,
+  controlled physics, water entry and blackout. Tightly directed is fine; every described
+  visual beat must appear.
+- Rescue ship, Estmere arrival, and the survivor-processing dock.
+- Character creation: preview, validation, random/default options, profile persistence,
+  keyboard navigation.
+- The King's audience: the "every soul must contribute" edict, the questioning about the
+  missing prince, the remembered/vague/no-memory responses, skill declaration, and four
+  valid assignments. The edict foreshadows the prison operation without revealing it.
 
-### Phase 5 — confrontation, succession, and persistent consequences (7–12 days)
+**Gate:** New Game reaches each of the four assignments with no broken camera, lost
+profile, invalid save, sequence skip or contradictory quest state. Skipping the cinematics
+lands on exactly the same flags as watching them.
 
-- Build the return/confrontation path and explain why the evidence can be presented
-  without the player simply being rearrested.
-- Stage evidence presentation, prince testimony, King's defense, player response, and the
-  selected kill/imprison outcome.
-- Implement the successor state, throne-room population swap, guard/faction reactions,
-  prisoner release, outlawed operation, closed/open doors, updated dialogue, journal, and
-  banners or other readable visual consequences.
-- Grant and persist the selected official title. Display it consistently in dialogue,
-  journal, save metadata, and subtitles where relevant.
-- Provide safe defaults for conflicting or missing flags so old development saves cannot
-  create two kings or an absent ruler.
+### VS4 — route mechanics toolkit (7–11 days)
 
-**Gate:** every route and supported King outcome reaches one valid post-coup world. Save,
-reload, death, fast travel, and scene re-entry preserve the ruler, law, NPC set, title,
-and quest stage.
+Build every route-specific mechanic **once**, as a shared system, before authoring the
+routes that use them. Authoring four routes against four bespoke implementations is the
+main way this slice fails.
 
-### Phase 6 — Daggerfall and wider-game handoff (5–10 days)
+- Tutorial prompt and objective framework, checkpoints, recoverable fail states.
+- Combat and magic tutorial-state hooks on the existing systems.
+- `DetectionSystem`: sight, hearing, suspicion, alert, concealment, crouch.
+- `DoorAndLock` and lockpicking; `PickpocketSystem`; crime and alert response.
+- `SailingController`: board, steer, disembark, reset, objective corridor.
+- `CompanionController`: follow, wait, teleport recovery, combat policy, scene handoff.
+- Telemetry on each, so route balancing later uses observed completion and failure data.
 
-- Add the quest to secure legitimacy from High Rock's other rulers.
-- Gate departure until the aftermath state is valid, then support the intended travel
-  method and arrival spawn.
-- Author a convincing Daggerfall arrival/Council setup rather than leaving only a map
-  marker.
-- End the chapter with a visible or spoken Tower reminder and a clear next objective.
+**Gate:** each mechanic is demonstrable in an isolated test scene, survives save/load, and
+cannot strand the player. Sailing and stealth are proven here because they are the two
+largest unknowns in the whole slice.
 
-**Gate:** a blind player understands who rules Wayrest, what changed, why their title
-matters, why they are going to Daggerfall, and why the Tower remains important.
+### VS5 — the four routes, authored to convergence (12–20 days)
 
-### Phase 7 — art, animation, audio, UI, and world-density pass (15–25 days)
+The largest milestone. Each route replaces its VS2 stub with real content.
 
-- Apply the restrained dark-metal, carved-stone, aged-parchment, cool-fog, muted-bronze
-  visual language consistently without copying Bethesda assets or exact UI.
-- Replace placeholder structures along the entire critical route with authored silhouettes,
-  entrances, interiors, clutter clusters, decals, vertical sightlines, lighting, and
-  navigation.
-- Animate key performances and all tutorial feedback: locomotion, attacks, blocks, hits,
-  spell casts, work loops, prisoner states, ship reactions, doors, locks, and the King's
-  removal.
-- Create a narrative audio mix: bay/ship, storm/pulse, docks, city, palace, guild, prison,
-  cave, confrontation, and Daggerfall ambience; add footsteps, Foley, UI, impacts, and
-  music transitions.
-- Upgrade UI layouts for creator, dialogue choices, tutorial prompts, evidence, journal,
-  inventory, title card, map, settings, subtitles, and save/load at common aspect ratios.
-- Use Blender for modular interiors, collision proxies, LODs, damaged ship variants,
-  prison/soul machinery, wall/gate hero pieces, and missing props when licensed assets do
-  not cover them.
+- **Warrior** — guard-yard instruction (movement, melee, block, hit feedback, safe spar),
+  hunt/patrol with encounter pacing, the secret prisoner transport, and the wounded-prince
+  discovery.
+- **Mage** — spell instruction with cast/resource/target feedback, a nonlethal practice
+  space, the soul-crystal delivery, restricted-access rules, and the staged accident that
+  opens the sealed cell.
+- **Commerce / Thief** — the bounded sailing lesson, sneaking and detection, pickpocketing,
+  lockpicking, crime response with non-blocking retries, and the secured-tower
+  infiltration connected spatially to the prison.
+- **None / Refuse** — immediate arrest, general population, prisoner conversations that
+  reveal the soul operation without one unskippable exposition dump, and a short
+  intentional route to solitary. Measured against a target completion time.
 
-**Gate:** the complete critical path is visually coherent, readable, navigable, mixed,
-and stable at the chosen performance floor without requiring developer commentary.
+Each route delivers its own evidence into the shared evidence set and enters convergence
+with a valid prince state, companion state and story stage.
 
-### Phase 8 — full-route QA and release (10–18 days)
+**Gate:** four clean-save end-to-end runs reach an identical convergence contract. The None
+route is measurably fastest. No route relies on another having happened. Failure, death,
+save/load and sequence breaks cannot strand progression.
 
-- Run the route/outcome matrix below on clean saves and upgraded development saves.
-- Profile the ship event, Wayrest exterior, crowded palace, prison, and Daggerfall arrival;
-  set budgets for CPU/GPU frame time, memory, renderers, lights, audio voices, and loading.
-- Add quality presets, rebinding, controller support, subtitle sizing, volume controls,
-  motion reduction, camera sensitivity/FOV, contrast aids, and readable failure messages.
-- Run external blind playtests for every route, with the None path tested separately as a
-  speed route.
-- Remove debug/editor payloads, complete notices/credits, build a clean zip, and validate
+### VS6 — prison, prince, escape, and the title moment (8–12 days)
+
+- Prison layout: public cells, restricted wing, solitary, processing, evidence room, the
+  soul-binding operation, guard routes and escape connections.
+- The prince's explanation: his alternative, the interception, the imprisonment, his
+  father's motive, and the Everspire/Ivory Concord seed.
+- Route-specific discovery dialogue over one canonical reveal.
+- Escort behaviour, guard alerts, alternate traversal, checkpoints, stuck recovery.
+- The sea-cave exit composed as one tested sequence: exterior reveal, music swell, title
+  card, subtitle timing, input hand-back, autosave.
+
+**Gate:** every route escorts the prince from discovery to cave exit. Watching or skipping
+produces identical required state. The title card appears exactly once, at the authored
+cave checkpoint.
+
+### VS7 — confrontation, succession, and the handoff (8–12 days)
+
+- The return and confrontation path, including why the evidence can be presented rather
+  than the player simply being rearrested.
+- Evidence presentation, prince testimony, the King's defence, player response, and the
+  authored outcome.
+- World mutation: successor on the throne, throne-room population swap, guard and faction
+  reactions, prisoner release, the operation outlawed, doors opened and closed, updated
+  dialogue, journal and banners.
+- The granted title, persisted and shown consistently in dialogue, journal and save
+  metadata.
+- Safe defaults for conflicting or missing flags, so a development save cannot produce two
+  rulers or none.
+- The Crown Council quest, gated on a valid aftermath state, and a Caldemar arrival that is
+  a real space rather than a map marker. The chapter ends on the Everspire reminder and a
+  clear next objective.
+
+**Gate:** every route and supported outcome reaches one valid post-coup world. Save,
+reload, death, fast travel and scene re-entry all preserve ruler, law, NPC set, title and
+quest stage. A blind player can state who rules Estmere, what changed, why their title
+matters, and why the Everspire matters.
+
+### VS8 — slice hardening and packaged build (8–12 days)
+
+- Run the QA matrix below on clean saves and on upgraded development saves.
+- Bring the critical path to the readability bar: silhouettes, entrances, lighting,
+  navigation, and the minimum animation set. Not a final art pass — the test is whether a
+  stranger can navigate it without commentary.
+- Lay in the narrative audio mix: bay, ship, storm, docks, city, palace, guild, prison,
+  cave, confrontation, Caldemar. Footsteps, Foley, UI, impacts, music transitions.
+- UI pass on creator, dialogue choices, tutorial prompts, evidence, journal, title card and
+  save/load at common aspect ratios.
+- Profile the five stress locations; hold the chosen frame-time and memory floor.
+- Remove editor/debug payloads, complete notices and credits, build a clean zip, validate
   it on a second machine.
+- Blind playtest every route, with the None path tested separately as a speed route.
 
-**Gate:** no progression blockers or save corruption across the full matrix; build and
-console are clean; all story beats are present; the packaged game completes on the target
-machine without editor support.
+**Gate:** no progression blockers or save corruption across the full matrix. Build and
+console clean. Every beat in `storyline.md` present. The packaged game completes on a
+machine with no editor and no developer present.
+
+### Milestone summary
+
+| Milestone | Focus | Days |
+|---|---|---:|
+| VS0 | Story package, ids, locks, baseline | 4–6 |
+| VS1 | Technical spine | 8–12 |
+| **VS2** | **Grey thread — whole chapter traversable** | **6–9** |
+| VS3 | Opening through first audience | 8–12 |
+| VS4 | Route mechanics toolkit | 7–11 |
+| VS5 | Four routes to convergence | 12–20 |
+| VS6 | Prison, escape, title moment | 8–12 |
+| VS7 | Confrontation, succession, handoff | 8–12 |
+| VS8 | Hardening and packaged build | 8–12 |
+| | **Total** | **69–106** |
+
+These are planning ranges, not commitments. The two ranges most likely to move are VS5
+(four routes) and VS4 (sailing and stealth, the least-proven mechanics). If the slice has
+to shrink, it shrinks by reducing route *depth* — never by removing a route, because
+`storyline.md` requires all four.
+
+## Art direction — locked 2026-07-29
+
+**North star: Morrowind. Realistic execution bar: Dread Delusion.** Those are not in
+tension — Dread Delusion is Morrowind's art direction reproduced by a team of about three,
+which makes it the existence proof that this direction survives being made by almost
+nobody.
+
+Implemented in `Assets/Scripts/World/ArtDirection.cs`, applied via
+**Kessil → Art Direction**. It is the render-layer counterpart to `WorldLayout`: geometry
+in one file, look in the other.
+
+### What is being targeted, and what is not
+
+| Aspect of Morrowind | Target | Why |
+|---|---|---|
+| Poly budgets, texture res, lighting model | **Exceed comfortably** | Its characters ran 5–10k tris on 2002 hardware; this is free now |
+| Distinctive regional silhouettes | **Match** | A design decision, not an art skill |
+| Regional identity — Halbrand vs Sarrakh | **Match** | Palette and kit discipline; costs nothing |
+| Hand-painted texture craft | **Approximate** | Via a small reused material library, not per-object art |
+| Content density | **Explicitly not** | Morrowind hand-placed 316k objects across ~100 man-years |
+
+The density line is the one that matters. Chapter spaces are dense; the 6.8 km bay stays
+thin and fog-limited. Do not attempt Morrowind's object count.
+
+### Budgets
+
+| | Target |
+|---|---|
+| Characters | 2,000–5,000 tris |
+| Architecture modules | 200–800 tris |
+| Textures | 256² standard, 512² hero |
+| Material library | ~25 tileable + 3–4 trim sheets, **total**, reused everywhere |
+| Real-time lights | Few; bake or fake the rest |
+| Draw distance | 150–300 m, with fog carrying the falloff |
+
+### The rules that hold it together
+
+1. **The palette is not negotiable.** 6–8 colours per region, authored in
+   `ArtDirection.Palette` and written onto the world materials. Assets are held to the
+   palette; the palette does not adapt to assets. This is what prevents the earlier
+   three-visual-languages problem from recurring.
+2. **Reuse materials, do not author per-object textures.** Morrowind reused a small texture
+   set across its kits far more than people remember, and that is the affordable half of
+   its look.
+3. **Silhouette over surface detail.** A distinctive shape reads at any fidelity; a detailed
+   texture on a generic shape does not.
+4. **Fog is an aesthetic, not an apology.** It defines the palette and hides the draw
+   distance at the same time.
+5. **One humanoid base.** Vary characters by clothing and colour, not by mesh. Hoods,
+   helmets and dim interiors mean faces never have to carry a scene.
+
+### Pipeline, by asset type
+
+Generative 3D and procedural generation fail at opposite things, so they are assigned to
+opposite categories rather than used interchangeably.
+
+| Asset type | Method | Why |
+|---|---|---|
+| Modular architecture — prison, palace, ship deck | **Procedural Blender scripts** (`Tools/Blender/`) | Needs exact module sizes that snap; deterministic and git-diffable. AI generation cannot hold dimensions |
+| Cultural hero architecture — the Everspire, Sarrakh domes, Estmere's skyline | **AI generation** via blender-mcp (Rodin / Hunyuan3D) | One-off organic shapes with no tiling requirement — generative 3D's strongest category, and the same category Morrowind's most memorable assets fall into |
+| Nature, rocks, foliage | Existing CC0 (Quaternius, Poly Haven) | Already solved |
+| Characters | One rigged humanoid base + Mixamo/AccuRIG animation | The least-solved area; contain it rather than fight it |
+| Materials and textures | Small tileable library, AI-assisted, palette-locked | Consistency beats individual quality |
+| **The look layer** | `ArtDirection.cs` — fog, grading, palette, filtering, sky | **Highest ROI.** Code and settings, not art |
+
+The last row is the thesis: for a developer who codes but does not model, the render layer
+returns more visual improvement per day than asset work does, and it is the half that can
+be iterated in seconds.
+
+### Where the look is enforced
+
+- `ArtDirection.Palette` is written onto the world materials by value, not blended, so
+  applying a look repeatedly is idempotent. Post-grading alone could not tame an
+  off-palette material: a saturated blue ocean under grey fog still reads as a saturated
+  blue ocean. This was found by capturing the comparison, not by reasoning about it.
+- `ArtDirection.Grade()` pulls every weather colour toward the palette, so the weather
+  system cannot drift outside it.
+- `TimeWeatherSystem` scales its authored fog density by the active preset instead of
+  owning absolute values, so a look change survives entering Play mode.
+- The default procedural skybox is disabled. A flat sky in the fog colour makes the horizon
+  dissolve; the bright blue gradient behind a muted world was the single largest reason the
+  prototype read as an engine project rather than a game.
+
+### Spike result — 2026-07-29
+
+Both looks were captured from four matched viewpoints
+(`Assets/Screenshots/ArtDirection/`, regenerate with
+`ArtDirectionTool.CaptureComparison`). **Morrowind Clean is adopted and baked in** —
+confirmed 2026-07-29 after reviewing the comparison.
+
+It is enforced three ways, so it cannot drift back:
+
+- `ArtDirection.Current` defaults to it, asserted by `ArtDirectionTests`.
+- `ArtDirectionTests` rejects any palette colour outside the muted range, in either preset.
+- `ArtDirectionTool.ApplyAndRebuild` is the only sanctioned way to change look, because a
+  preset that is applied without regenerating leaves the old palette baked into the terrain.
+
+A comparison run necessarily ends in whichever preset it captured last. Restore the lock
+afterwards with `ArtDirectionTool.LockMorrowindClean`.
+
+PS1 Crunch was rejected for a concrete reason rather than taste: point filtering and a 0.55
+render scale only pay off against genuinely low-resolution textures. The project's art is
+1–2K PBR from Poly Haven and Quaternius, so the crunch bought aliasing without buying the
+chunky-texel read, and softened the building silhouettes. Committing to PS1 would mean
+re-authoring every texture at 64–128 px — more work, not less. The preset is kept in
+`ArtDirection.cs` so the comparison can be re-run if the texture library ever changes.
+
+Known off-palette surfaces still to fix, found by the spike:
+
+- The Caldemar spawn pad reads bright yellow: `M_Sand` has a light sand `_BaseMap` that
+  overpowers the palette tint. Needs a darker texture or no texture.
+- Kenney NPCs remain saturated toybox characters against a muted world — the clearest
+  argument for the one-humanoid-base rule above.
+- Ground texture tiling is far too large (roughly 2 m cobbles). A UV-scale bug, not an art
+  direction issue, but very visible.
+
+### Slice implications
+
+Art direction is a VS0 deliverable, not a VS8 one — it determines what every later asset is
+built against. What belongs to the slice is the palette lock, the material library, the
+look preset and a critical path that reads without commentary. Final lighting passes, hero
+modelling and per-object texture art belong to the release-candidate tier.
 
 ## Content and asset checklist
 
@@ -550,23 +747,28 @@ multiple ship/canoe models, cave pieces, a large modular castle/wall/door/tower/
 furniture, human variants, and a broad OGG sound library. They still require selection,
 conditioning, materials, collision, LODs, prefabs, and license records.
 
+**For the slice, read this table as a list of what must *exist and function*, not what must
+look finished.** Every row must be present and playable; only the named speaking roles and
+the critical-path silhouettes need to read clearly. LODs, hero-piece modelling and bespoke
+props belong to the release-candidate tier, not here.
+
 | Story location/beat | Required content |
 |---|---|
 | Merchant ship | intact and damaged variants, deck collision, rigging/cargo, passengers, crew, rescue ship |
-| Bay event | distant Tower, Thalmor silhouettes, pulse VFX, shockwave, debris, water entry, underwater/blackout transition |
-| Wayrest docks | harbor approach, survivor triage, guards, civilians, processing stations, character-creator backdrop |
+| Bay event | distant Tower, Ivory Concord silhouettes, pulse VFX, shockwave, debris, water entry, underwater/blackout transition |
+| Estmere docks | harbor approach, survivor triage, guards, civilians, processing stations, character-creator backdrop |
 | First palace visit | gate-to-throne route, throne room, King, court, guards, missing-prince visual references |
 | Warrior route | guard yard, weapons, targets, patrol/hunt terrain, hostile encounter, secret transport |
-| Mage route | guild hall, training room, spell targets, soul-gem props, service corridor, sealed-cell mechanism |
+| Mage route | guild hall, training room, spell targets, soul-crystal props, service corridor, sealed-cell mechanism |
 | Commerce/Thief route | steerable boat, dock lesson space, stealth route, pockets/loot, locks, secured tower |
-| Prison | general population, solitary, restricted wing, guard posts, evidence, black soul gems, harvesting machinery |
+| Prison | general population, solitary, restricted wing, guard posts, evidence, black soul crystals, harvesting machinery |
 | Escape | alternate cover/doors where appropriate, guard response, prince navigation, sea cave, reveal vista |
 | Confrontation | evidence presentation, throne variants, King removal, successor, post-coup guards/prisoners/banners |
-| Daggerfall handoff | arrival landmark, travel transition, Council representatives/setup, next-quest framing |
+| Caldemar handoff | arrival landmark, travel transition, Council representatives/setup, next-quest framing |
 
 Named speaking roles needed at minimum are the King, prince, rescue captain or sailor,
 processing guard, one route instructor per branch, two or more prisoners, confrontation
-witnesses/allies, successor if not the prince, and a Daggerfall/Council contact. Names can
+witnesses/allies, successor if not the prince, and a Caldemar/Council contact. Names can
 remain temporary, but stable role IDs, casting requirements, dialogue ownership, and
 animation needs cannot.
 
@@ -579,20 +781,24 @@ animation needs cannot.
 4. Detection/locks/pickpocket/sailing precede the Commerce/Thief route.
 5. Dialogue conditions, evidence, doors, companion AI, and navigation precede convergence
    and escape.
-6. World mutation and outcome persistence precede confrontation and Daggerfall gating.
+6. World mutation and outcome persistence precede confrontation and Caldemar gating.
 7. Final lighting, audio, animation, and environment dressing follow greybox route lock,
    but representative assets must be proven early in each location.
 
-The Commerce/Thief route is the largest mechanic risk. Prototype its sailing and stealth
-loops during Phase 1 even though final content is scheduled in Phase 3. The companion and
-save-state tests are the largest progression risk and should stay continuously green from
-their first implementation onward.
+The Commerce/Thief route is the largest mechanic risk; VS4 exists to prove its sailing and
+stealth loops before VS5 authors content against them. The companion and save-state tests
+are the largest progression risk and should stay continuously green from their first
+implementation onward.
+
+The ordering constraint that matters most: **VS2's grey thread must complete before any
+milestone that authors content.** Its purpose is to prove the chapter's shape holds before
+effort is sunk into scenes that a structural problem would invalidate.
 
 ## Required QA matrix
 
 | Test family | Required coverage |
 |---|---|
-| Four routes | Warrior, Mage, Commerce/Thief, None from New Game to Daggerfall handoff |
+| Four routes | Warrior, Mage, Commerce/Thief, None from New Game to Caldemar handoff |
 | Assignment | every background/declared-skill mapping, refusal, invalid/default selection |
 | Route recovery | failure, arrest, death, checkpoint, objective retry, accidental area exit |
 | Convergence | correct prince state, route evidence, dialogue variant, inventory, quest stage |
@@ -601,9 +807,9 @@ their first implementation onward.
 | Companion | blocked path, combat, wait, teleport recovery, scene load, save/load, death prevention |
 | Outcomes | every supported King result and successor result, including reload and re-entry |
 | World mutation | ruler/NPC/banner/door/prison/dialogue/journal state cannot regress or duplicate |
-| Input/UI | keyboard/mouse and controller, common aspect ratios, pause/dialogue/loading ownership |
+| Input/UI | keyboard/mouse, common aspect ratios, pause/dialogue/loading ownership (controller is out of slice) |
 | Geometry | doors, stairs, cells, ships, walls, cave, docks, navigation, no fall-through or softlocks |
-| Performance | ship destruction, docks crowd, city, palace, prison, VFX, Daggerfall arrival |
+| Performance | ship destruction, docks crowd, city, palace, prison, VFX, Caldemar arrival |
 | Speed route | intended fastest completion, mandatory exposition retained, no invalid skips |
 
 Automate state-machine, save, route-convergence, world-mutation, and scene-load invariants
@@ -630,20 +836,70 @@ References: [Adobe Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo
 [SIL OFL](https://software.sil.org/oflt/), and
 [Sonniss GDC bundle license](https://sonniss.com/gdc-bundle-license/).
 
-No Bethesda meshes, textures, audio, music, writing, logos, names, or UI art belong in the
-deliverable. “Skyrim-inspired” here means hierarchy, restraint, and atmosphere only.
+No third-party game's meshes, textures, audio, music, writing, logos, names, or UI art
+belong in the deliverable, and no third-party game is named in project material. The UI
+target is described by its own terms — restrained hierarchy, carved stone, aged parchment,
+muted bronze — not by reference to another title.
 
-## Deferred naming policy
+## Naming policy — applied 2026-07-29
 
-Place and faction renaming is intentionally postponed. Do not apply the earlier working
-rename table, bulk-rename assets, rewrite `storyline.md`, record final voice-over, or bake
-names into save keys. Until the user starts the rename pass:
+The setting was renamed off its original derived names. The project now uses an original
+setting throughout: code, scene object names, editor menus, product name, docs, and
+`storyline.md`.
 
-- keep the names in `storyline.md` in all visible story material;
-- use neutral stable IDs and localized/display-name fields internally;
-- keep crests, logos, and commissioned name-specific art replaceable;
-- treat public-release naming and rights review as a later release gate, not a blocker for
-  implementing the story now.
+| Concept | Name |
+|---|---|
+| Sea | Kessil Bay |
+| North realm (temperate) | Halbrand |
+| South realm (arid) | Sarrakh |
+| Regions | Kelrith Coast, Karnoth Highlands, Sarrakh Waste, Kiln Hills |
+| River | the Esk |
+| Cities | Caldemar (`city_west`), Estmere (`city_east`), Qadris (`city_south`) |
+| Islands | Tolm (`isle_west`), Corrath (`isle_center`), Sarn (`isle_south`) |
+| Landmark | the Everspire, on Corrath |
+| Foreign order | the Ivory Concord |
+| Magic institution | the Arcanum |
+| Institution | the Crown Council |
+| Player resource | Mana |
+| Story items | soul crystal, black soul crystal; the practice is soul-binding |
+| Generated art kit | `Assets/Art/Generated/SarrakhKit` |
+
+Rules that keep this cheap to revisit:
+
+- **Save-persisted identifiers are setting-neutral.** `WorldLayout.Site.Id` and
+  `Landmass.CityId` use keys like `city_west`; display names live in `DisplayName` /
+  `CityName`. Code branches on ids only. `WorldLayoutTests` enforces the link by id.
+- Scene object names may stay themed — they are regenerated from `WorldLayout`, so they
+  cost nothing to change.
+- No third-party game is named anywhere in the project, including comments, doc titles,
+  menu paths, and working titles. Describe targets by genre, not by competitor.
+- Keep crests, logos, and commissioned name-specific art replaceable.
+- Still outstanding: the repository directory and `Elder Scrolls 6.sln` (needs Unity
+  closed), and a final rights review before any public distribution.
+
+## Studio and release identity
+
+| Field | Value |
+|---|---|
+| Studio | DataTheCodie Studios |
+| Copyright line | `© 2026 DataTheCodie Studios` |
+| Contact | hello@datathecodie.com |
+| Site | datathecodie.com |
+| Unity `companyName` | `DataTheCodie Studios` (set — determines the save folder path) |
+| Unity `productName` | `Kessil Bay` |
+
+Applies to the credits/about screen, the packaged build's file properties, and third-party
+notices. Two things to know:
+
+- **`companyName` is now load-bearing.** It is part of `Application.persistentDataPath`, so
+  changing it again orphans saves. Treat it as frozen from here.
+- **The studio's brand accent (`#00d9ff`) does not belong in the game UI.** It clashes with
+  the charcoal / silver / muted-bronze palette. Keep studio branding to the splash and
+  credits; the in-game HUD keeps its own language.
+
+The existing portfolio is Android and bite-sized; this is a Windows open-world RPG chapter
+of 69–106 focused days. That is a deliberate platform and scale change rather than an
+extension of current work, and the slice is the cheapest honest test of whether it holds.
 
 ## Narrative and production locks still to resolve
 
@@ -653,7 +909,7 @@ scope.
 1. King and prince identities, appearances, factions, and final dialogue voices.
 2. Tower pulse rules, its causal link to the shipwreck/soul operation, and why the player
    remembers only part of the event.
-3. Why the rescue ship selects Wayrest and why a castaway is brought before the King.
+3. Why the rescue ship selects Estmere and why a castaway is brought before the King.
 4. The exact evidence set available on all routes and why the court accepts it.
 5. Supported character races, bodies, appearances, backgrounds, pronouns, and starter
    equipment.
@@ -662,25 +918,38 @@ scope.
 8. Whether the prince or another legitimate heir succeeds; both are permitted by the
    story, but content production needs one initial authored answer.
 9. Final official player title and how it appears in dialogue/journal/save metadata.
-10. Silent or voiced protagonist, performance target, subtitle standard, and localization
-    scope.
-11. Target hardware, frame-rate/memory floor, supported inputs, and release format.
+10. Subtitle standard and, after the slice, localization scope. *(Protagonist voicing is
+    resolved for the slice: silent, subtitles only.)*
+11. Frame-rate and memory floor at the five stress locations. *(Platform is resolved:
+    Windows player, keyboard and mouse.)*
+
+Items 1–9 block VS0 and must be answered before authoring starts; they are cheap to decide
+and expensive to change once four routes reference them. Items 10–11 can be settled during
+VS8.
 
 The cave-exit title position and all four route contents are already locked by this plan.
-Naming is not part of this decision list.
+Setting names are locked by the naming policy above; only character names remain open
+(item 1).
 
 ## Progress ledger
 
 Update this document at every milestone with:
 
-1. completed story beat IDs and scenes;
-2. the four-route/outcome test result and blocker count;
-3. save/schema version and migration coverage;
-4. outstanding characters, environments, props, animation, VFX, audio, UI, and dialogue;
-5. external playtest completion time and confusion/softlock reports;
-6. frame time, draw calls, memory, and loading time at the five stress locations;
-7. new assets, source/license proof, and Blender time saved versus manual cleanup.
+1. the milestone reached (VS0–VS8) and whether its gate passed;
+2. completed story beat IDs and scenes, against the VS0 beat list;
+3. the four-route/outcome test result and blocker count;
+4. save/schema version and migration coverage;
+5. outstanding characters, environments, props, animation, VFX, audio, UI, and dialogue;
+6. external playtest completion time and confusion/softlock reports;
+7. frame time, draw calls, memory, and loading time at the five stress locations;
+8. new assets, source/license proof, and Blender time saved versus manual cleanup.
 
-Current conclusion: **the complete story is viable, but most of its visible content and
-branching infrastructure are still pending**. The next decisive deliverable is Phase 0's
-validated story graph followed by Phase 1's three-scene save/load/consequence proof.
+The single number worth tracking after VS2: **beats replaced with real content, out of the
+VS0 beat total.** Before VS2 that number is meaningless, because the structure holding the
+beats is not yet proven.
+
+Current conclusion: **the complete story is viable as a playable slice, but most of its
+visible content and all of its branching infrastructure are still pending**. The next
+decisive deliverable is VS0's validated story graph and answered locks, then VS1's
+three-scene save/load/consequence proof, then VS2's grey thread — the first build in which
+`storyline.md` can be walked from end to end.

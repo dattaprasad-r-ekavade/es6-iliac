@@ -22,7 +22,7 @@ public static class TextureBudget
         ("Assets/ThirdParty/Kenney", 512)
     };
 
-    [MenuItem("Elder Scrolls 6/Assets/Apply Texture Budget")]
+    [MenuItem("Kessil/Assets/Apply Texture Budget")]
     public static void Apply()
     {
         var changed = new List<string>();

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Day/night cycle + regional weather (High Rock wetter, Hammerfell dustier).
+/// Day/night cycle + regional weather (Halbrand wetter, Sarrakh dustier).
 /// </summary>
 public class TimeWeatherSystem : MonoBehaviour
 {
@@ -24,7 +24,7 @@ public class TimeWeatherSystem : MonoBehaviour
     public float TimeOfDay01 { get; private set; }
     public float Hour => TimeOfDay01 * 24f;
     public Weather CurrentWeather { get; private set; } = Weather.Clear;
-    public string CurrentRegion { get; private set; } = "HighRock";
+    public string CurrentRegion { get; private set; } = "Halbrand";
 
     private ParticleSystem _rain;
     private ParticleSystem _dust;
@@ -91,9 +91,9 @@ public class TimeWeatherSystem : MonoBehaviour
 
         var p = _player.position;
         string region;
-        if (p.z < -800f) region = "Hammerfell";
+        if (p.z < -800f) region = "Sarrakh";
         else if (Mathf.Abs(p.x) < 500f && Mathf.Abs(p.z) < 500f) region = "Bay";
-        else region = "HighRock";
+        else region = "Halbrand";
 
         if (CurrentRegion == region) return false;
         CurrentRegion = region;
@@ -106,7 +106,7 @@ public class TimeWeatherSystem : MonoBehaviour
         float r = Random.value;
         switch (CurrentRegion)
         {
-            case "Hammerfell":
+            case "Sarrakh":
                 CurrentWeather = r < 0.55f ? Weather.Clear : r < 0.8f ? Weather.Dust : Weather.Cloudy;
                 break;
             case "Bay":
@@ -208,12 +208,27 @@ public class TimeWeatherSystem : MonoBehaviour
                 break;
         }
 
+        // Weather authors its own mood; the art direction decides how far that mood is
+        // allowed to travel from the palette. Without this the look preset is stomped the
+        // moment the weather system ticks.
+        var look = ArtDirection.Active;
+        fogColor = ArtDirection.Grade(fogColor, look);
+        fogDensity *= look.FogDensityScale;
+
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogColor = fogColor;
         RenderSettings.fogDensity = fogDensity;
+        if (sun != null) sun.intensity *= look.SunIntensityScale;
+
         var cam = Camera.main;
-        if (cam != null) cam.backgroundColor = Color.Lerp(fogColor, Color.black, night ? 0.45f : 0f);
+        if (cam != null)
+        {
+            // Solid colour matched to fog, so the horizon dissolves rather than ending at
+            // a visible skybox seam.
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = Color.Lerp(fogColor, Color.black, night ? 0.45f : 0f);
+        }
 
         bool raining = CurrentWeather == Weather.Rain || CurrentWeather == Weather.Storm;
         bool dusty = CurrentWeather == Weather.Dust;

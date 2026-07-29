@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Intro: two characters converse with subtitles, then a scenic camera flyover of Iliac Bay.
+/// Intro: two characters converse with subtitles, then a scenic camera flyover of Kessil Bay.
 /// </summary>
 public class IntroCutsceneDirector : MonoBehaviour
 {
@@ -17,7 +17,7 @@ public class IntroCutsceneDirector : MonoBehaviour
     [Header("Actors")]
     [SerializeField] private Transform actorLeft;
     [SerializeField] private Transform actorRight;
-    [SerializeField] private Transform talkStage; // near Daggerfall overlook
+    [SerializeField] private Transform talkStage; // near Caldemar overlook
 
     [Header("Cameras")]
     [SerializeField] private Camera cinematicCamera;
@@ -47,19 +47,19 @@ public class IntroCutsceneDirector : MonoBehaviour
             new DialogueLine
             {
                 speaker = "Liora",
-                text = "Traveler… look out over the Iliac Bay. High Rock to the north, Hammerfell to the south.",
+                text = "Traveler… look out over the Kessil Bay. Halbrand to the north, Sarrakh to the south.",
                 holdSeconds = 4.2f
             },
             new DialogueLine
             {
                 speaker = "Kael",
-                text = "This is only a homage — a prototype world built to explore that legend.",
+                text = "A young coast, and a prototype of one — early, unfinished, open to walk.",
                 holdSeconds = 3.8f
             },
             new DialogueLine
             {
                 speaker = "Liora",
-                text = "Daggerfall, Wayrest, Sentinel… islands of Betony, Balfiera, Cybiades. Walk them as you will.",
+                text = "Caldemar, Estmere, Qadris… islands of Tolm, Corrath, Sarn. Walk them as you will.",
                 holdSeconds = 4.5f
             },
             new DialogueLine
@@ -249,12 +249,12 @@ public class IntroCutsceneDirector : MonoBehaviour
         var root = new GameObject("ScenicWaypoints_Runtime").transform;
         var defs = new[]
         {
-            new Vector3(-2000f, 90f, 1450f),  // Daggerfall overlook
-            new Vector3(-2800f, 110f, 200f),  // Betony
-            new Vector3(150f, 140f, -80f),    // Balfiera / tower
-            new Vector3(2200f, 120f, 1700f),  // Wayrest approach
-            new Vector3(-1600f, 100f, -2000f),// Sentinel coast
-            new Vector3(-2000f, 55f, 1320f)   // return toward Daggerfall spawn
+            new Vector3(-2000f, 90f, 1450f),  // Caldemar overlook
+            new Vector3(-2800f, 110f, 200f),  // Tolm
+            new Vector3(150f, 140f, -80f),    // Corrath / tower
+            new Vector3(2200f, 120f, 1700f),  // Estmere approach
+            new Vector3(-1600f, 100f, -2000f),// Qadris coast
+            new Vector3(-2000f, 55f, 1320f)   // return toward Caldemar spawn
         };
 
         var arr = new Transform[defs.Length];

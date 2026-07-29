@@ -1,5 +1,5 @@
 """
-First-pass Kenney → denser High-Rock / Hammerfell look (homage, not Bethesda rips).
+First-pass Kenney → denser Halbrand / Sarrakh look.
 
 Usage (Blender GUI with a file open, or):
   blender --python Tools/BlenderMCP/upgrade_kenney_pass.py -- <input.fbx> <output.fbx>
@@ -41,7 +41,7 @@ def upgrade_object(obj) -> None:
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
     # Mild bevel — reads less "toy brick", more carved stone/wood.
-    bevel = obj.modifiers.new(name="HomageBevel", type="BEVEL")
+    bevel = obj.modifiers.new(name="KitBevel", type="BEVEL")
     bevel.width = 0.02
     bevel.segments = 2
     bevel.limit_method = "ANGLE"

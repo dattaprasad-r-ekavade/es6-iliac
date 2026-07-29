@@ -127,7 +127,7 @@ public static class TerrainHeightSampler
         if (patch.HasCity)
         {
             float cityDistance = Mathf.Sqrt(localX * localX + localZ * localZ);
-            float flatRadius = patch.CityName == "Daggerfall" ? 280f : 260f;
+            float flatRadius = patch.CityId == "city_west" ? 280f : 260f;
             cityRelief = Mathf.SmoothStep(
                 0f,
                 1f,
@@ -191,7 +191,7 @@ public static class TerrainHeightSampler
     {
         return landmass.Biome switch
         {
-            WorldLayout.Biome.Hammerfell => new BiomeProfile(
+            WorldLayout.Biome.Sarrakh => new BiomeProfile(
                 28f, 0.0009f, 0.0036f, 0.01f, 0.0016f,
                 0.36f, 0.30f, 0.12f, 0.18f),
             WorldLayout.Biome.IslandGreen => new BiomeProfile(

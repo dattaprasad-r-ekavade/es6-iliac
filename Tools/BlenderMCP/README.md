@@ -13,11 +13,11 @@
 4. In the 3D Viewport press **N** → **BlenderMCP** tab → **Connect to Claude** (works with Cursor too)
 5. In Cursor **Settings → MCP**, `blender` should show as connected once the addon is listening
 
-## Asset upgrade path (Kenney → Skyrim-like)
-Kenney kits are CC0 blockouts. For High Rock / Hammerfell look:
+## Asset upgrade path
+Kenney kits are CC0 blockouts. For the Halbrand / Sarrakh look:
 1. Import FBX from `Assets/ThirdParty/Kenney/` into Blender
 2. Retopo / bevel / trim sheets, add wear, moss, wood grain
 3. Bake normals / AO; export FBX or glTF back into Unity
-4. Prefer Quaternius / Poly Haven / Kenney upgrades as bases; do **not** copy Bethesda meshes
+4. Prefer Quaternius / Poly Haven / Kenney upgrades as bases; never start from another game's meshes
 
-Target feel: denser architecture, weathered stone, thatch/wood roofs, arid sandstone for Hammerfell — homage, not a Skyrim asset rip.
+Target feel: denser architecture, weathered stone, thatch/wood roofs for Halbrand, arid sandstone for Sarrakh. Original work throughout.

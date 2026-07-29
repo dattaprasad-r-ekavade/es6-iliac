@@ -1,22 +1,29 @@
-# Elder Scrolls 6 — Iliac Bay Homage
+# Kessil Bay
+
+An open-world first-person RPG prototype set on Kessil Bay, between temperate Halbrand
+in the north and arid Sarrakh in the south.
+
+> The repository directory and `.sln` are still named `Elder Scrolls 6` from the original
+> scaffolding. Everything inside the project has been renamed; the folder itself is the
+> last step and needs Unity closed. See the naming policy in [plan.md](plan.md).
 
 ## Play
 1. Open `Assets/Scenes/Main.unity`
 2. Press **Play**
 3. Click **START** on the menu
-4. Skip dialogue anytime (**Space** / **SKIP**) → scenic flyover → play at Daggerfall
+4. Skip dialogue anytime (**Space** / **SKIP**) → scenic flyover → play at Caldemar
 
 ## Controls
 WASD · mouse look · **Shift** sprint · Space jump · Esc unlock cursor  
 **M** map/FT · **J** journal · **I** inventory · **T** wait · **E** talk  
 **LMB/1** melee · **2** flare · **Q** potion · **F5** save · **F9** load
 
-## Future plan (Skyrim-like features)
-See **[Docs/SKYRIM_FEATURES_ROADMAP.md](Docs/SKYRIM_FEATURES_ROADMAP.md)** — P0+P1 vertical slice is in; P2 is next (interiors, audio, denser art).
+## Future plan
+See **[Docs/FEATURES_ROADMAP.md](Docs/FEATURES_ROADMAP.md)** — P0+P1 vertical slice is in; P2 is next (interiors, audio, denser art).
 Current hardening work and what's left: **[plan.md](plan.md)**.
 
 ## Rebuild
-**Elder Scrolls 6 → Systems → Install P0+P1 + Rebuild World**  
+**Kessil → Systems → Install P0+P1 + Rebuild World**  
 (or Presentation → Setup Menu + Cutscene + Smooth Map)
 
 > ⚠️ The rebuild **deletes every root object in `Main.unity`** and regenerates it.

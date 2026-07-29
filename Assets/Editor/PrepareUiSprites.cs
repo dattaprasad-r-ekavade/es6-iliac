@@ -10,7 +10,7 @@ public static class PrepareUiSprites
     private const string Source = "Assets/ThirdParty/KenneyUI/UiPackRpg/PNG";
     private const string Dest = "Assets/Resources/UI";
 
-    [MenuItem("Elder Scrolls 6/Presentation/Prepare UI Sprites")]
+    [MenuItem("Kessil/Presentation/Prepare UI Sprites")]
     public static void Prepare()
     {
         if (!AssetDatabase.IsValidFolder("Assets/Resources"))

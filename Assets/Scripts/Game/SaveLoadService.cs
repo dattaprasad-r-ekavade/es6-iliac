@@ -23,8 +23,8 @@ public class SaveData
 
     public float Px, Py, Pz, Pyaw;
     public int Level, Xp, Gold;
-    public float Health, Magicka, Stamina;
-    public float MaxHealth, MaxMagicka, MaxStamina;
+    public float Health, Mana, Stamina;
+    public float MaxHealth, MaxMana, MaxStamina;
     public float TimeOfDay01;
     public List<string> Discovered = new();
     public List<InvItem> Items = new();
@@ -34,13 +34,17 @@ public class SaveData
 
 public class SaveLoadService : MonoBehaviour
 {
-    public const int CurrentVersion = 2;
+    // v3: location ids became setting-neutral ("city_west" rather than a place name), so
+    // a v2 slot's discovered-location list no longer resolves. v2 files also live under
+    // the old company/product folder and filename, so they are orphaned rather than
+    // migrated — the bump is what makes a hand-copied one fail loudly instead of quietly.
+    public const int CurrentVersion = 3;
 
     public static SaveLoadService Instance { get; private set; }
 
     /// <summary>Stable save location for menu flows that exist before this component is created.</summary>
     public static string SaveFilePath =>
-        System.IO.Path.Combine(Application.persistentDataPath, "iliac_bay_save.json");
+        System.IO.Path.Combine(Application.persistentDataPath, "kessil_save.json");
 
     /// <summary>True when a save slot exists. Loading still validates its contents and version.</summary>
     public static bool HasSaveFile => File.Exists(SaveFilePath);
@@ -85,10 +89,10 @@ public class SaveLoadService : MonoBehaviour
             Xp = stats.Xp,
             Gold = stats.Gold,
             Health = stats.Health,
-            Magicka = stats.Magicka,
+            Mana = stats.Mana,
             Stamina = stats.Stamina,
             MaxHealth = stats.MaxHealth,
-            MaxMagicka = stats.MaxMagicka,
+            MaxMana = stats.MaxMana,
             MaxStamina = stats.MaxStamina,
             TimeOfDay01 = TimeWeatherSystem.Instance != null ? TimeWeatherSystem.Instance.TimeOfDay01 : 0.4f,
             Discovered = DiscoveryTravelSystem.Instance != null ? DiscoveryTravelSystem.Instance.GetDiscoveredIds() : new List<string>(),
@@ -160,7 +164,7 @@ public class SaveLoadService : MonoBehaviour
         var player = PlayerRef.Transform;
         if (player != null)
         {
-            var target = _hasCheckpoint ? _checkpoint : IliacBayWorldGenerator.GetPlayerSpawn();
+            var target = _hasCheckpoint ? _checkpoint : KessilWorldGenerator.GetPlayerSpawn();
             MovePlayer(player, target);
         }
 
@@ -183,10 +187,10 @@ public class SaveLoadService : MonoBehaviour
         {
             stats.Gold = data.Gold;
             stats.Health = data.Health;
-            stats.Magicka = data.Magicka;
+            stats.Mana = data.Mana;
             stats.Stamina = data.Stamina;
             stats.MaxHealth = data.MaxHealth;
-            stats.MaxMagicka = data.MaxMagicka;
+            stats.MaxMana = data.MaxMana;
             stats.MaxStamina = data.MaxStamina;
             // Level/Xp have private setters — use the restore helper.
             stats.RestoreProgress(data.Level, data.Xp);
@@ -242,7 +246,7 @@ public class SaveLoadService : MonoBehaviour
     private static Vector3 ReconcileSavedPlayerHeight(Transform player, Vector3 savedPosition)
     {
         var controller = player != null ? player.GetComponent<CharacterController>() : null;
-        var grounded = IliacBayWorldGenerator.SnapCharacterToGround(savedPosition, controller);
+        var grounded = KessilWorldGenerator.SnapCharacterToGround(savedPosition, controller);
         if (grounded == savedPosition) return savedPosition;
 
         float verticalError = Mathf.Abs(savedPosition.y - grounded.y);

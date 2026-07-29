@@ -1,7 +1,7 @@
-"""Generate a modular desert ("Yoku") architecture kit for the southern region.
+"""Generate a modular desert ("Sarrakh") architecture kit for the southern region.
 
 Run headless:
-    blender -b -P Tools/Blender/make_kit_yoku.py -- Assets/Art/Generated/YokuKit
+    blender -b -P Tools/Blender/make_kit_sarrakh.py -- Assets/Art/Generated/SarrakhKit
 
 Why this exists
 ---------------
@@ -16,7 +16,7 @@ Conventions every piece follows (this is the point):
   * origin at base centre, so pieces drop onto terrain and rotate about their footprint
   * +Z up in Blender, exported Y-up for Unity
   * uniform bevel so silhouettes catch light consistently
-  * one material slot named `M_Yoku_Sandstone` for a single shared Unity material
+  * one material slot named `M_Sarrakh_Sandstone` for a single shared Unity material
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ import bpy
 MODULE = 4.0          # grid size in metres
 WALL_THICKNESS = 0.45
 BEVEL_WIDTH = 0.025
-MATERIAL_NAME = "M_Yoku_Sandstone"
+MATERIAL_NAME = "M_Sarrakh_Sandstone"
 
 
 # ---------------------------------------------------------------- scene helpers
@@ -131,12 +131,12 @@ def shared_material():
 # ---------------------------------------------------------------- kit pieces
 
 def piece_wall():
-    return cube("Yoku_Wall", (MODULE, WALL_THICKNESS, MODULE),
+    return cube("Sarrakh_Wall", (MODULE, WALL_THICKNESS, MODULE),
                 loc=(0, 0, MODULE / 2))
 
 
 def piece_wall_window():
-    wall = cube("Yoku_Wall_Window", (MODULE, WALL_THICKNESS, MODULE),
+    wall = cube("Sarrakh_Wall_Window", (MODULE, WALL_THICKNESS, MODULE),
                 loc=(0, 0, MODULE / 2))
     # Narrow slit windows — desert architecture keeps the sun out.
     for x in (-0.7, 0.7):
@@ -147,7 +147,7 @@ def piece_wall_window():
 
 def piece_arch():
     """Horseshoe arch — the most recognisable tell of the style."""
-    wall = cube("Yoku_Arch", (MODULE, WALL_THICKNESS, MODULE), loc=(0, 0, MODULE / 2))
+    wall = cube("Sarrakh_Arch", (MODULE, WALL_THICKNESS, MODULE), loc=(0, 0, MODULE / 2))
 
     radius = 1.15
     springline = 2.0
@@ -167,15 +167,15 @@ def piece_arch():
 
 
 def piece_pillar():
-    shaft = cylinder("Yoku_Pillar", 0.32, 3.4, loc=(0, 0, 1.7), verts=12)
+    shaft = cylinder("Sarrakh_Pillar", 0.32, 3.4, loc=(0, 0, 1.7), verts=12)
     base = cube("pillar_base", (0.85, 0.85, 0.3), loc=(0, 0, 0.15))
     cap = cube("pillar_cap", (0.95, 0.95, 0.35), loc=(0, 0, 3.55))
-    return join([shaft, base, cap], "Yoku_Pillar")
+    return join([shaft, base, cap], "Sarrakh_Pillar")
 
 
 def piece_dome():
     """Drum + hemisphere + finial — the skyline silhouette."""
-    drum = cylinder("Yoku_Dome", 2.0, 1.2, loc=(0, 0, 0.6), verts=32)
+    drum = cylinder("Sarrakh_Dome", 2.0, 1.2, loc=(0, 0, 0.6), verts=32)
 
     bpy.ops.mesh.primitive_uv_sphere_add(radius=2.0, location=(0, 0, 1.2),
                                          segments=32, ring_count=16)
@@ -190,18 +190,18 @@ def piece_dome():
     bpy.ops.mesh.primitive_cone_add(radius1=0.28, depth=0.8, location=(0, 0, 3.9), vertices=12)
     finial = bpy.context.active_object
 
-    return join([drum, sphere, finial], "Yoku_Dome")
+    return join([drum, sphere, finial], "Sarrakh_Dome")
 
 
 def piece_parapet():
     """Crenellated parapet strip that tiles along a roof edge."""
-    rail = cube("Yoku_Parapet", (MODULE, WALL_THICKNESS, 0.5), loc=(0, 0, 0.25))
+    rail = cube("Sarrakh_Parapet", (MODULE, WALL_THICKNESS, 0.5), loc=(0, 0, 0.25))
     merlons = [rail]
     count = 5
     for i in range(count):
         x = -MODULE / 2 + MODULE * (i + 0.5) / count
         merlons.append(cube(f"merlon_{i}", (0.45, WALL_THICKNESS, 0.55), loc=(x, 0, 0.75)))
-    return join(merlons, "Yoku_Parapet")
+    return join(merlons, "Sarrakh_Parapet")
 
 
 def piece_stairs():
@@ -212,17 +212,17 @@ def piece_stairs():
         steps.append(cube(f"step_{i}",
                           (MODULE * 0.75, run, rise * (i + 1)),
                           loc=(0, -run * i, rise * (i + 1) / 2)))
-    return join(steps, "Yoku_Stairs")
+    return join(steps, "Sarrakh_Stairs")
 
 
 PIECES = {
-    "Yoku_Wall": piece_wall,
-    "Yoku_Wall_Window": piece_wall_window,
-    "Yoku_Arch": piece_arch,
-    "Yoku_Pillar": piece_pillar,
-    "Yoku_Dome": piece_dome,
-    "Yoku_Parapet": piece_parapet,
-    "Yoku_Stairs": piece_stairs,
+    "Sarrakh_Wall": piece_wall,
+    "Sarrakh_Wall_Window": piece_wall_window,
+    "Sarrakh_Arch": piece_arch,
+    "Sarrakh_Pillar": piece_pillar,
+    "Sarrakh_Dome": piece_dome,
+    "Sarrakh_Parapet": piece_parapet,
+    "Sarrakh_Stairs": piece_stairs,
 }
 
 
@@ -250,7 +250,7 @@ def export(obj, out_dir: Path) -> Path:
 
 def main() -> None:
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    out_dir = Path(argv[0]) if argv else Path("Assets/Art/Generated/YokuKit")
+    out_dir = Path(argv[0]) if argv else Path("Assets/Art/Generated/SarrakhKit")
     if not out_dir.is_absolute():
         out_dir = Path(__file__).resolve().parents[2] / out_dir
 

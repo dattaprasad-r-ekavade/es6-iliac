@@ -1,9 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Procedural top-down map of the Iliac Bay homage world.
+/// Procedural top-down map of the Kessil Bay world.
 /// </summary>
-public static class IliacBayMapArt
+public static class KessilMapArt
 {
     // Bounds and landmass shapes come from WorldLayout so the drawn map can no longer
     // drift away from the world it represents — this file used to carry its own
@@ -87,7 +87,7 @@ public static class IliacBayMapArt
 
     private static Color BiomeColor(WorldLayout.Biome biome) => biome switch
     {
-        WorldLayout.Biome.Hammerfell => new Color(0.6f, 0.46f, 0.27f),
+        WorldLayout.Biome.Sarrakh => new Color(0.6f, 0.46f, 0.27f),
         WorldLayout.Biome.IslandRock => new Color(0.41f, 0.41f, 0.44f),
         WorldLayout.Biome.IslandGreen => new Color(0.3f, 0.5f, 0.28f),
         _ => new Color(0.24f, 0.44f, 0.22f)

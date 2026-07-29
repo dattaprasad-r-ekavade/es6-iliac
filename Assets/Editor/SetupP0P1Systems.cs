@@ -10,7 +10,7 @@ public static class SetupP0P1Systems
 {
     private const string ScenePath = "Assets/Scenes/Main.unity";
 
-    [MenuItem("Elder Scrolls 6/Systems/Install P0+P1 + Rebuild World")]
+    [MenuItem("Kessil/Systems/Install P0+P1 + Rebuild World")]
     public static void InstallAndRebuild()
     {
         AssetDatabase.Refresh();

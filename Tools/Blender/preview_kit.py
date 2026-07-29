@@ -2,7 +2,7 @@
 
     blender -b -P Tools/Blender/preview_kit.py -- <kit_dir> <out.png>
 
-The import axes deliberately match make_kit_yoku.py's export axes (Y-up, for Unity).
+The import axes deliberately match make_kit_sarrakh.py's export axes (Y-up, for Unity).
 Importing with Blender's defaults instead makes every piece arrive lying on its face —
 a useful smoke test that the export really is Unity-oriented.
 """

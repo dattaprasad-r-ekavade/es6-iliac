@@ -11,7 +11,7 @@ public static class PolyHavenMaterialSetup
     private const string Root = "Assets/ThirdParty/PolyHaven";
     private const string PrefabRoot = "Assets/Prefabs/Hero/PolyHaven";
 
-    [MenuItem("Elder Scrolls 6/Assets/Setup Poly Haven Materials")]
+    [MenuItem("Kessil/Assets/Setup Poly Haven Materials")]
     public static void SetupAll()
     {
         if (!AssetDatabase.IsValidFolder(Root))

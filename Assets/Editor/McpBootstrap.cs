@@ -139,7 +139,7 @@ public static class McpBootstrap
         return null;
     }
 
-    [MenuItem("Elder Scrolls 6/MCP/Force Bridge Connect")]
+    [MenuItem("Kessil/MCP/Force Bridge Connect")]
     public static void ForceBridgeConnect()
     {
         _attempts = 0;

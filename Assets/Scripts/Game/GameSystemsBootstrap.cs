@@ -49,36 +49,36 @@ public class GameSystemsBootstrap : MonoBehaviour
         time.Configure(sun, player);
         disc.Configure(player);
         hud.Build(player);
-        EnsurePlayerAtDaggerfallSpawn(player);
+        EnsurePlayerAtCaldemarSpawn(player);
         player.GetComponent<PlayerSafetyGuard>()?.GrantSpawnProtection();
         save.SetCheckpoint(player.position);
 
         SpawnWorldContent();
 
-        GameHud.Instance?.ShowToast("Iliac Bay — M Map · J Journal · I Inv · E Talk");
+        GameHud.Instance?.ShowToast("Kessil Bay — M Map · J Journal · I Inv · E Talk");
         Debug.Log("[GameSystems] P0/P1 systems online.");
     }
 
     /// <summary>
     /// Populate the world with NPCs and enemies.
     ///
-    /// Every position here is snapped with <see cref="IliacBayWorldGenerator.SnapToGround"/>,
-    /// which used to return the Daggerfall spawn pad no matter what it was given — so all
+    /// Every position here is snapped with <see cref="KessilWorldGenerator.SnapToGround"/>,
+    /// which used to return the Caldemar spawn pad no matter what it was given — so all
     /// of this content spawned in a single pile on the start plaza, leaving the bandit camp
     /// and the ruin empty and the far-city greeters nowhere near their cities.
     /// </summary>
     private void SpawnWorldContent()
     {
-        // Bandit camp — well south of the Daggerfall safe zone.
-        var camp = new GameObject("BanditCamp_Glenumbra");
+        // Bandit camp — well south of the Caldemar safe zone.
+        var camp = new GameObject("BanditCamp_Kelrith");
         camp.transform.position = WorldLayout.BanditCamp;
         ReconcileHostileSpawns();
 
-        // Daggerfall NPCs, placed relative to the plaza so they follow it if it moves.
-        var plaza = WorldLayout.DaggerfallSpawnPad;
+        // Caldemar NPCs, placed relative to the plaza so they follow it if it moves.
+        var plaza = WorldLayout.CaldemarSpawnPad;
 
         SpawnNpc(plaza + new Vector3(15f, 0f, 10f), "Mira the Provisioner", new Color(0.35f, 0.45f, 0.7f),
-            new[] { "Potions and rumors, traveler.", "Wayrest lies far east across the hills." },
+            new[] { "Potions and rumors, traveler.", "Estmere lies far east across the hills." },
             merchant: true, modelId: "character-female-b");
 
         SpawnNpc(plaza + new Vector3(-10f, 0f, 25f), "Gate Guard Ralen", new Color(0.4f, 0.4f, 0.45f),
@@ -86,21 +86,21 @@ public class GameSystemsBootstrap : MonoBehaviour
             modelId: "character-male-e");
 
         SpawnNpc(plaza + new Vector3(10f, 0f, -15f), "Captain Alid", new Color(0.55f, 0.4f, 0.25f),
-            new[] { "Clear the Glenumbra bandits.", "The bay remembers those who wander it." },
+            new[] { "Clear the Kelrith bandits.", "The bay remembers those who wander it." },
             questGiver: true, modelId: "character-male-c");
 
         // Greeters at the other two cities, on their own travel pads.
-        var wayrest = WorldLayout.FindSite("wayrest");
-        if (wayrest.HasValue)
-            SpawnNpc(wayrest.Value.TravelPosition + new Vector3(-20f, 0f, 10f), "Wayrest Dockhand",
+        var estmere = WorldLayout.FindSite("city_east");
+        if (estmere.HasValue)
+            SpawnNpc(estmere.Value.TravelPosition + new Vector3(-20f, 0f, 10f), "Estmere Dockhand",
                 new Color(0.3f, 0.5f, 0.4f),
-                new[] { "Welcome to Wayrest, jewel of the Bjoulsae." }, modelId: "character-male-b");
+                new[] { "Welcome to Estmere, jewel of the Esk." }, modelId: "character-male-b");
 
-        var sentinel = WorldLayout.FindSite("sentinel");
-        if (sentinel.HasValue)
-            SpawnNpc(sentinel.Value.TravelPosition + new Vector3(20f, 0f, -10f), "Sentinel Scout",
+        var qadris = WorldLayout.FindSite("city_south");
+        if (qadris.HasValue)
+            SpawnNpc(qadris.Value.TravelPosition + new Vector3(20f, 0f, -10f), "Qadris Scout",
                 new Color(0.7f, 0.55f, 0.3f),
-                new[] { "Hot wind and hotter steel — this is Sentinel." }, modelId: "character-female-d");
+                new[] { "Hot wind and hotter steel — this is Qadris." }, modelId: "character-female-d");
     }
 
     /// <summary>
@@ -160,10 +160,10 @@ public class GameSystemsBootstrap : MonoBehaviour
         NpcInteractable.Spawn(name, pos, color, lines, merchant, questGiver, modelId);
     }
 
-    private static void EnsurePlayerAtDaggerfallSpawn(Transform player)
+    private static void EnsurePlayerAtCaldemarSpawn(Transform player)
     {
         if (player == null) return;
-        var pos = IliacBayWorldGenerator.GetPlayerSpawn();
+        var pos = KessilWorldGenerator.GetPlayerSpawn();
         var cc = player.GetComponent<CharacterController>();
         if (cc != null) cc.enabled = false;
         player.position = pos;
@@ -176,6 +176,6 @@ public class GameSystemsBootstrap : MonoBehaviour
     /// </summary>
     private static void SnapToGround(ref Vector3 pos)
     {
-        pos = IliacBayWorldGenerator.PlaceOnLand(pos);
+        pos = KessilWorldGenerator.PlaceOnLand(pos);
     }
 }

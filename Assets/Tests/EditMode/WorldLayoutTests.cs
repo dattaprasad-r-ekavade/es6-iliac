@@ -22,6 +22,28 @@ public class WorldLayoutTests
         }
     }
 
+    /// <summary>
+    /// Ids are written into save files, so a place name must never become one: renaming
+    /// the setting would then silently invalidate every existing save. Display names are
+    /// what change; ids describe the world's shape instead.
+    /// </summary>
+    [Test]
+    public void SiteAndCityIds_DoNotEmbedDisplayNames()
+    {
+        foreach (var site in WorldLayout.Sites)
+        {
+            Assert.AreNotEqual(site.DisplayName.ToLowerInvariant(), site.Id.ToLowerInvariant(),
+                $"Site id '{site.Id}' is just its display name — ids must survive a rename.");
+        }
+
+        foreach (var land in WorldLayout.Landmasses)
+        {
+            if (!land.HasCity) continue;
+            Assert.AreNotEqual(land.CityName.ToLowerInvariant(), land.CityId.ToLowerInvariant(),
+                $"City id '{land.CityId}' is just its display name — ids must survive a rename.");
+        }
+    }
+
     [Test]
     public void EverySite_TravelPositionIsOverLand()
     {
@@ -58,11 +80,13 @@ public class WorldLayoutTests
             bool hasSite = false;
             foreach (var site in WorldLayout.Sites)
             {
-                if (site.IsCity && site.DisplayName == land.CityName) { hasSite = true; break; }
+                // Matched on the stable id, not the display name: renaming the setting
+                // must not be able to break the landmass/site link.
+                if (site.IsCity && site.Id == land.CityId) { hasSite = true; break; }
             }
 
             Assert.IsTrue(hasSite,
-                $"Landmass '{land.Name}' builds the city '{land.CityName}' but no map site exists for it.");
+                $"Landmass '{land.Name}' builds city '{land.CityId}' but no map site has that id.");
         }
     }
 
@@ -73,7 +97,7 @@ public class WorldLayoutTests
         foreach (var pos in new[] { WorldLayout.BanditCamp, WorldLayout.CoastalRuin })
         {
             Assert.IsFalse(WorldLayout.IsInSafeZone(pos),
-                $"Hostile POI at ({pos.x:0}, {pos.z:0}) is inside the Daggerfall safe zone, " +
+                $"Hostile POI at ({pos.x:0}, {pos.z:0}) is inside the Caldemar safe zone, " +
                 "so nothing there will ever fight back.");
         }
     }
@@ -111,12 +135,12 @@ public class WorldLayoutTests
     }
 
     [Test]
-    public void SpawnPad_IsOnTheDaggerfallLandmass()
+    public void SpawnPad_IsOnTheCaldemarLandmass()
     {
-        Assert.IsTrue(WorldLayout.TryGetLandmassAt(WorldLayout.DaggerfallSpawnPad, out var land),
+        Assert.IsTrue(WorldLayout.TryGetLandmassAt(WorldLayout.CaldemarSpawnPad, out var land),
             "The player spawn pad is not over any landmass.");
-        Assert.AreEqual("Daggerfall", land.CityName,
-            $"The spawn pad landed on '{land.Name}' instead of the Daggerfall peninsula.");
+        Assert.AreEqual("city_west", land.CityId,
+            $"The spawn pad landed on '{land.Name}' instead of the start-city peninsula.");
     }
 
     [Test]
@@ -180,11 +204,11 @@ public class WorldLayoutTests
         }
 
         Assert.AreEqual(
-            TerrainHeightSampler.GetStableSeed("IliacBay"),
-            TerrainHeightSampler.GetStableSeed("IliacBay"));
+            TerrainHeightSampler.GetStableSeed("Kessil"),
+            TerrainHeightSampler.GetStableSeed("Kessil"));
         Assert.AreNotEqual(
-            TerrainHeightSampler.GetStableSeed("IliacBay"),
-            TerrainHeightSampler.GetStableSeed("HighRock"));
+            TerrainHeightSampler.GetStableSeed("Kessil"),
+            TerrainHeightSampler.GetStableSeed("Halbrand"));
     }
 
     [Test]

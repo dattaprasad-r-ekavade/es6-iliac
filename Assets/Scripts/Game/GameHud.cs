@@ -30,16 +30,16 @@ public class GameHud : MonoBehaviour
         (_dialogueRoot != null && _dialogueRoot.activeSelf);
 
     private Canvas _canvas;
-    private Image _healthFill, _magickaFill, _staminaFill, _damageFlash, _toastBg;
+    private Image _healthFill, _manaFill, _staminaFill, _damageFlash, _toastBg;
     private Text _compassText, _statusText, _toastText, _dialogueSpeaker, _dialogueBody;
     private Text _mapList, _journalText, _invText, _promptText, _combatText;
-    private Text _healthLabel, _magickaLabel, _staminaLabel;
+    private Text _healthLabel, _manaLabel, _staminaLabel;
     private GameObject _mapRoot, _journalRoot, _invRoot, _waitRoot, _pauseRoot, _fade, _dialogueRoot, _hudRoot;
     private RawImage _mapImage;
     private RectTransform _mapPlayerMarker;
     private RectTransform _mapMarkersRoot;
     private float _toastTimer;
-    private float _healthDisp = 1f, _magickaDisp = 1f, _staminaDisp = 1f;
+    private float _healthDisp = 1f, _manaDisp = 1f, _staminaDisp = 1f;
     private int _mapSelected;
     private static Font _fontDisplay;
     private static Font _fontBody;
@@ -231,18 +231,18 @@ public class GameHud : MonoBehaviour
         if (s == null) return;
 
         float ht = s.Health / Mathf.Max(1f, s.MaxHealth);
-        float mt = s.Magicka / Mathf.Max(1f, s.MaxMagicka);
+        float mt = s.Mana / Mathf.Max(1f, s.MaxMana);
         float st = s.Stamina / Mathf.Max(1f, s.MaxStamina);
         _healthDisp = Mathf.MoveTowards(_healthDisp, ht, Time.unscaledDeltaTime * 2.5f);
-        _magickaDisp = Mathf.MoveTowards(_magickaDisp, mt, Time.unscaledDeltaTime * 2.5f);
+        _manaDisp = Mathf.MoveTowards(_manaDisp, mt, Time.unscaledDeltaTime * 2.5f);
         _staminaDisp = Mathf.MoveTowards(_staminaDisp, st, Time.unscaledDeltaTime * 2.5f);
 
         if (_healthFill != null) _healthFill.fillAmount = _healthDisp;
-        if (_magickaFill != null) _magickaFill.fillAmount = _magickaDisp;
+        if (_manaFill != null) _manaFill.fillAmount = _manaDisp;
         if (_staminaFill != null) _staminaFill.fillAmount = _staminaDisp;
 
         if (_healthLabel != null) _healthLabel.text = $"{Mathf.CeilToInt(s.Health)}/{Mathf.CeilToInt(s.MaxHealth)}";
-        if (_magickaLabel != null) _magickaLabel.text = $"{Mathf.CeilToInt(s.Magicka)}/{Mathf.CeilToInt(s.MaxMagicka)}";
+        if (_manaLabel != null) _manaLabel.text = $"{Mathf.CeilToInt(s.Mana)}/{Mathf.CeilToInt(s.MaxMana)}";
         if (_staminaLabel != null) _staminaLabel.text = $"{Mathf.CeilToInt(s.Stamina)}/{Mathf.CeilToInt(s.MaxStamina)}";
 
         if (_statusText != null)
@@ -379,7 +379,7 @@ public class GameHud : MonoBehaviour
             sb.AppendLine();
         }
         if (QuestSystem.Instance.Quests.Count == 0)
-            sb.AppendLine("No quests yet. Speak with Captain Alid in Daggerfall.");
+            sb.AppendLine("No quests yet. Speak with Captain Alid in Caldemar.");
         _journalText.text = sb.ToString();
     }
 
@@ -527,13 +527,13 @@ public class GameHud : MonoBehaviour
             new Vector2(0.04f, 0.1f), new Vector2(0.96f, 0.9f), new Color(0.96f, 0.9f, 0.68f),
             wrap: false, display: true, outline: true);
 
-        // Skyrim-like spatial rhythm: magicka left, health centre, stamina right.
+        // Vitals rhythm: mana left, health centre, stamina right.
         var vitals = MakeImage(_hudRoot.transform, "Vitals", null,
             new Vector2(0.04f, 0.012f), new Vector2(0.96f, 0.072f), Color.clear);
-        _magickaFill = MakeSpriteBar(vitals.transform, "Magicka", new Vector2(0.00f, 0.20f), new Vector2(0.25f, 0.56f), UiTheme.BarBlue, new Color(0.22f, 0.34f, 0.72f));
+        _manaFill = MakeSpriteBar(vitals.transform, "Mana", new Vector2(0.00f, 0.20f), new Vector2(0.25f, 0.56f), UiTheme.BarBlue, new Color(0.22f, 0.34f, 0.72f));
         _healthFill = MakeSpriteBar(vitals.transform, "Health", new Vector2(0.385f, 0.20f), new Vector2(0.615f, 0.56f), UiTheme.BarRed, new Color(0.62f, 0.12f, 0.10f));
         _staminaFill = MakeSpriteBar(vitals.transform, "Stamina", new Vector2(0.75f, 0.20f), new Vector2(1.00f, 0.56f), UiTheme.BarGreen, new Color(0.20f, 0.52f, 0.22f));
-        _magickaLabel = MakeText(vitals.transform, "MLbl", "", 12, TextAnchor.MiddleRight, new Vector2(0.12f, 0.57f), new Vector2(0.25f, 0.96f), UiTheme.Silver, false, false, true);
+        _manaLabel = MakeText(vitals.transform, "MLbl", "", 12, TextAnchor.MiddleRight, new Vector2(0.12f, 0.57f), new Vector2(0.25f, 0.96f), UiTheme.Silver, false, false, true);
         _healthLabel = MakeText(vitals.transform, "HLbl", "", 12, TextAnchor.MiddleCenter, new Vector2(0.42f, 0.57f), new Vector2(0.58f, 0.96f), UiTheme.Silver, false, false, true);
         _staminaLabel = MakeText(vitals.transform, "SLbl", "", 12, TextAnchor.MiddleLeft, new Vector2(0.75f, 0.57f), new Vector2(0.88f, 0.96f), UiTheme.Silver, false, false, true);
 
@@ -592,7 +592,7 @@ public class GameHud : MonoBehaviour
             new Vector2(0.31f, 0.25f), new Vector2(0.69f, 0.75f), UiTheme.Panel);
         MakeText(waitCard.transform, "WaitTitle", "REST", 40, TextAnchor.UpperCenter,
             new Vector2(0.1f, 0.72f), new Vector2(0.9f, 0.95f), new Color(0.96f, 0.9f, 0.7f), false, true, true);
-        MakeText(waitCard.transform, "WaitHint", "Recover health, magicka, and stamina.", 20, TextAnchor.UpperCenter,
+        MakeText(waitCard.transform, "WaitHint", "Recover health, mana, and stamina.", 20, TextAnchor.UpperCenter,
             new Vector2(0.1f, 0.58f), new Vector2(0.9f, 0.72f), new Color(0.9f, 0.85f, 0.75f), true, false, true);
         MakeWaitButton(waitCard.transform, "1 Hour", new Vector2(0.12f, 0.38f), new Vector2(0.88f, 0.52f), () => WaitHours(1f));
         MakeWaitButton(waitCard.transform, "8 Hours", new Vector2(0.12f, 0.22f), new Vector2(0.88f, 0.36f), () => WaitHours(8f));
@@ -617,7 +617,7 @@ public class GameHud : MonoBehaviour
     {
         if (_mapPlayerMarker != null && _player != null)
         {
-            var uv = IliacBayMapArt.WorldToMapUV(_player.position);
+            var uv = KessilMapArt.WorldToMapUV(_player.position);
             _mapPlayerMarker.anchorMin = uv;
             _mapPlayerMarker.anchorMax = uv;
             _mapPlayerMarker.anchoredPosition = Vector2.zero;
@@ -641,7 +641,7 @@ public class GameHud : MonoBehaviour
                 img.color = loc.IsCity ? new Color(1f, 0.85f, 0.35f) : new Color(0.75f, 0.9f, 1f);
                 img.raycastTarget = false;
             }
-            var uv = IliacBayMapArt.WorldToMapUV(loc.WorldPosition);
+            var uv = KessilMapArt.WorldToMapUV(loc.WorldPosition);
             marker.anchorMin = uv;
             marker.anchorMax = uv;
             marker.sizeDelta = new Vector2(loc.IsCity ? 14f : 10f, loc.IsCity ? 14f : 10f);
@@ -669,7 +669,7 @@ public class GameHud : MonoBehaviour
         mapRt.offsetMin = new Vector2(6f, 6f);
         mapRt.offsetMax = new Vector2(-6f, -6f);
         _mapImage = mapGo.AddComponent<RawImage>();
-        _mapImage.texture = IliacBayMapArt.GetMapTexture();
+        _mapImage.texture = KessilMapArt.GetMapTexture();
         _mapImage.color = Color.white;
 
         _mapMarkersRoot = new GameObject("Markers", typeof(RectTransform)).GetComponent<RectTransform>();

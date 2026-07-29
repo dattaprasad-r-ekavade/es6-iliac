@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Single source of truth for the Iliac Bay layout.
+/// Single source of truth for the Kessil Bay layout.
 ///
 /// These numbers used to be hand-copied into five different files
 /// (world generator, discovery/fast-travel, map art, NPC spawns, safe zone),
@@ -35,8 +35,8 @@ public static class WorldLayout
 
     public enum Biome
     {
-        HighRock,
-        Hammerfell,
+        Halbrand,
+        Sarrakh,
         IslandGreen,
         IslandRock
     }
@@ -48,12 +48,19 @@ public static class WorldLayout
         /// <summary>x width, y base height, z depth (metres).</summary>
         public Vector3 Size;
         public Biome Biome;
-        public string CityName;   // null when the patch has no city
+        /// <summary>
+        /// Stable, setting-neutral key for the city on this patch; null when there is none.
+        /// Code branches on this, never on <see cref="CityName"/>, so renaming the setting
+        /// stays a display-only change.
+        /// </summary>
+        public string CityId;
+        /// <summary>Display name of the city. Safe to rewrite at any time.</summary>
+        public string CityName;
         public int PropCount;
         /// <summary>Authored seed; unlike string.GetHashCode(), this is stable across runtimes.</summary>
         public int TerrainSeed;
 
-        public bool HasCity => !string.IsNullOrEmpty(CityName);
+        public bool HasCity => !string.IsNullOrEmpty(CityId);
     }
 
     /// <summary>+Z = north, +X = east. Cities sit kilometres apart on purpose.</summary>
@@ -61,73 +68,76 @@ public static class WorldLayout
     {
         new Landmass
         {
-            Name = "HighRock_WrothgarianFoothills",
+            Name = "Halbrand_KarnothHighlands",
             Center = new Vector3(200f, 0f, 3200f),
             Size = new Vector3(2200f, 55f, 900f),
-            Biome = Biome.HighRock,
+            Biome = Biome.Halbrand,
             PropCount = 180,
             TerrainSeed = 1101
         },
         new Landmass
         {
-            Name = "HighRock_GlenumbraCoast",
+            Name = "Halbrand_KelrithCoast",
             Center = new Vector3(-400f, 0f, 2200f),
             Size = new Vector3(2000f, 28f, 800f),
-            Biome = Biome.HighRock,
+            Biome = Biome.Halbrand,
             PropCount = 160,
             TerrainSeed = 1102
         },
         new Landmass
         {
-            Name = "HighRock_DaggerfallPeninsula",
+            Name = "Halbrand_CaldemarPeninsula",
             Center = new Vector3(-2000f, 0f, 1600f),
             Size = new Vector3(900f, 24f, 700f),
-            Biome = Biome.HighRock,
-            CityName = "Daggerfall",
+            Biome = Biome.Halbrand,
+            CityId = "city_west",
+            CityName = "Caldemar",
             PropCount = 90,
             TerrainSeed = 1103
         },
         new Landmass
         {
-            Name = "HighRock_WayrestShore",
+            Name = "Halbrand_EstmereShore",
             Center = new Vector3(2200f, 0f, 1800f),
             Size = new Vector3(850f, 22f, 650f),
-            Biome = Biome.HighRock,
-            CityName = "Wayrest",
+            Biome = Biome.Halbrand,
+            CityId = "city_east",
+            CityName = "Estmere",
             PropCount = 80,
             TerrainSeed = 1104
         },
         new Landmass
         {
-            Name = "Hammerfell_AlikrDesert",
+            Name = "Sarrakh_Waste",
             Center = new Vector3(300f, 0f, -3000f),
             Size = new Vector3(2600f, 16f, 1100f),
-            Biome = Biome.Hammerfell,
+            Biome = Biome.Sarrakh,
             PropCount = 140,
             TerrainSeed = 2201
         },
         new Landmass
         {
-            Name = "Hammerfell_SentinelCoast",
+            Name = "Sarrakh_QadrisCoast",
             Center = new Vector3(-1600f, 0f, -2200f),
             Size = new Vector3(900f, 18f, 700f),
-            Biome = Biome.Hammerfell,
-            CityName = "Sentinel",
+            Biome = Biome.Sarrakh,
+            CityId = "city_south",
+            CityName = "Qadris",
             PropCount = 85,
             TerrainSeed = 2202
         },
         new Landmass
         {
-            Name = "Hammerfell_DragontailFoothills",
+            Name = "Sarrakh_KilnHills",
             Center = new Vector3(2400f, 0f, -2400f),
             Size = new Vector3(900f, 60f, 1000f),
-            Biome = Biome.Hammerfell,
+            Biome = Biome.Sarrakh,
             PropCount = 100,
             TerrainSeed = 2203
         },
         new Landmass
         {
-            Name = "Island_Betony",
+            Name = "Island_Tolm",
             Center = new Vector3(-2800f, 0f, 200f),
             Size = new Vector3(280f, 16f, 220f),
             Biome = Biome.IslandGreen,
@@ -136,7 +146,7 @@ public static class WorldLayout
         },
         new Landmass
         {
-            Name = "Island_Balfiera",
+            Name = "Island_Corrath",
             Center = new Vector3(150f, 0f, -100f),
             Size = new Vector3(240f, 28f, 200f),
             Biome = Biome.IslandRock,
@@ -145,7 +155,7 @@ public static class WorldLayout
         },
         new Landmass
         {
-            Name = "Island_Cybiades",
+            Name = "Island_Sarn",
             Center = new Vector3(-900f, 0f, -700f),
             Size = new Vector3(200f, 14f, 160f),
             Biome = Biome.IslandRock,
@@ -158,13 +168,13 @@ public static class WorldLayout
     // Declared before Sites: static field initialisers run in textual order, so
     // anything Sites references must already be assigned.
 
-    /// <summary>Central Daggerfall plaza — the player's start and respawn point.</summary>
-    public static readonly Vector3 DaggerfallSpawnPad = new(-2000f, 24.2f, 1450f);
+    /// <summary>Central Caldemar plaza — the player's start and respawn point.</summary>
+    public static readonly Vector3 CaldemarSpawnPad = new(-2000f, 24.2f, 1450f);
 
     // These two used to sit at (-1750, 850) and (-2200, 700) — both in open water,
-    // several hundred metres off the southern edge of the Daggerfall peninsula. The
+    // several hundred metres off the southern edge of the Caldemar peninsula. The
     // spawn bug hid it: everything that should have stood here was relocated to the
-    // start plaza instead. They now sit on the Glenumbra coast, outside the safe zone.
+    // start plaza instead. They now sit on the Kelrith coast, outside the safe zone.
     public static readonly Vector3 BanditCamp = new(-1150f, 30f, 1950f);
     public static readonly Vector3 CoastalRuin = new(-1000f, 30f, 2400f);
 
@@ -179,7 +189,12 @@ public static class WorldLayout
 
     public struct Site
     {
+        /// <summary>
+        /// Stable key written into saves, quest targets and discovery state. Deliberately
+        /// setting-neutral: renaming the world must never invalidate an existing save.
+        /// </summary>
         public string Id;
+        /// <summary>Player-facing name. Safe to rewrite at any time.</summary>
         public string DisplayName;
         /// <summary>Centre used for discovery proximity and the map marker.</summary>
         public Vector3 WorldPosition;
@@ -192,19 +207,19 @@ public static class WorldLayout
 
     public static readonly Site[] Sites =
     {
-        new Site { Id = "daggerfall", DisplayName = "Daggerfall", IsCity = true, DiscoverRadius = 280f,
+        new Site { Id = "city_west", DisplayName = "Caldemar", IsCity = true, DiscoverRadius = 280f,
                    WorldPosition = new Vector3(-2000f, 24f, 1600f), TravelPosition = new Vector3(-2000f, 25.2f, 1450f) },
-        new Site { Id = "wayrest", DisplayName = "Wayrest", IsCity = true, DiscoverRadius = 280f,
+        new Site { Id = "city_east", DisplayName = "Estmere", IsCity = true, DiscoverRadius = 280f,
                    WorldPosition = new Vector3(2200f, 22f, 1800f), TravelPosition = new Vector3(2200f, 23.2f, 1550f) },
-        new Site { Id = "sentinel", DisplayName = "Sentinel", IsCity = true, DiscoverRadius = 280f,
+        new Site { Id = "city_south", DisplayName = "Qadris", IsCity = true, DiscoverRadius = 280f,
                    WorldPosition = new Vector3(-1600f, 18f, -2200f), TravelPosition = new Vector3(-1600f, 19.2f, -1950f) },
-        new Site { Id = "betony", DisplayName = "Betony", IsCity = false, DiscoverRadius = 120f,
+        new Site { Id = "isle_west", DisplayName = "Tolm", IsCity = false, DiscoverRadius = 120f,
                    WorldPosition = new Vector3(-2800f, 16f, 200f), TravelPosition = new Vector3(-2800f, 17.2f, 200f) },
-        new Site { Id = "balfiera", DisplayName = "Balfiera", IsCity = false, DiscoverRadius = 120f,
+        new Site { Id = "isle_center", DisplayName = "Corrath", IsCity = false, DiscoverRadius = 120f,
                    WorldPosition = new Vector3(150f, 28f, -100f), TravelPosition = new Vector3(150f, 29.2f, -100f) },
-        new Site { Id = "cybiades", DisplayName = "Cybiades", IsCity = false, DiscoverRadius = 100f,
+        new Site { Id = "isle_south", DisplayName = "Sarn", IsCity = false, DiscoverRadius = 100f,
                    WorldPosition = new Vector3(-900f, 14f, -700f), TravelPosition = new Vector3(-900f, 15.2f, -700f) },
-        new Site { Id = "bandit_camp", DisplayName = "Glenumbra Bandit Camp", IsCity = false, DiscoverRadius = 90f,
+        new Site { Id = "bandit_camp", DisplayName = "Kelrith Bandit Camp", IsCity = false, DiscoverRadius = 90f,
                    WorldPosition = BanditCamp, TravelPosition = BanditCamp },
         new Site { Id = "coastal_ruin", DisplayName = "Coastal Ruin", IsCity = false, DiscoverRadius = 90f,
                    WorldPosition = CoastalRuin, TravelPosition = CoastalRuin }
@@ -215,38 +230,38 @@ public static class WorldLayout
     /// at build time, and sections crossing open water become causeways at
     /// <see cref="CausewayDeckY"/>.
     ///
-    /// The landmasses are separate islands (the Daggerfall peninsula ends at x≈-1559
-    /// and the Glenumbra coast starts at x≈-1380), so these routes are what actually
+    /// The landmasses are separate islands (the Caldemar peninsula ends at x≈-1559
+    /// and the Kelrith coast starts at x≈-1380), so these routes are what actually
     /// makes the bay walkable. The old single-cube roads bridged the same gaps at a
     /// fixed y≈24, which is why one of them was visibly flying through the sky.
     /// </summary>
     public static readonly Vector3[][] Roads =
     {
-        // Daggerfall -> Wayrest, hopping the two water gaps via the Glenumbra coast.
+        // Caldemar -> Estmere, hopping the two water gaps via the Kelrith coast.
         new[]
         {
             new Vector3(-2000f, 0f, 1450f),
             new Vector3(-1860f, 0f, 1510f),
-            new Vector3(-1784f, 0f, 1600f), // Daggerfall east gate
+            new Vector3(-1784f, 0f, 1600f), // Caldemar east gate
             new Vector3(-1400f, 0f, 1850f),
             new Vector3(-1200f, 0f, 1900f),
             new Vector3(0f, 0f, 2000f),
             new Vector3(900f, 0f, 1900f),
             new Vector3(1850f, 0f, 1700f),
-            new Vector3(2004f, 0f, 1800f), // Wayrest west gate
+            new Vector3(2004f, 0f, 1800f), // Estmere west gate
             new Vector3(2120f, 0f, 1680f),
             new Vector3(2200f, 0f, 1600f)
         },
-        // Daggerfall -> the bandit camp on the Glenumbra shore.
+        // Caldemar -> the bandit camp on the Kelrith shore.
         new[]
         {
             new Vector3(-2000f, 0f, 1450f),
             new Vector3(-1860f, 0f, 1510f),
-            new Vector3(-1784f, 0f, 1600f), // Daggerfall east gate
+            new Vector3(-1784f, 0f, 1600f), // Caldemar east gate
             new Vector3(-1400f, 0f, 1900f),
             BanditCamp
         },
-        // Glenumbra -> Wrothgar, joining the two northern High Rock regions.
+        // Kelrith -> Karnoth, joining the two northern Halbrand regions.
         new[]
         {
             new Vector3(-200f, 0f, 2400f),
@@ -254,16 +269,16 @@ public static class WorldLayout
             new Vector3(100f, 0f, 2800f),
             new Vector3(200f, 0f, 3000f)
         },
-        // Sentinel -> Alik'r, giving the southern city an organic overland route.
+        // Qadris -> Sarrakh Waste, giving the southern city an organic overland route.
         new[]
         {
             new Vector3(-1500f, 0f, -2100f),
-            new Vector3(-1394f, 0f, -2200f), // Sentinel east gate
+            new Vector3(-1394f, 0f, -2200f), // Qadris east gate
             new Vector3(-1200f, 0f, -2500f),
             new Vector3(-1000f, 0f, -2700f),
             new Vector3(-850f, 0f, -2850f)
         },
-        // Alik'r -> Dragontail foothills.
+        // Sarrakh Waste -> Kiln Hills.
         new[]
         {
             new Vector3(1350f, 0f, -2850f),

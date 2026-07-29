@@ -21,7 +21,7 @@ public class GameFlowController : MonoBehaviour
     [SerializeField] private CanvasGroup subtitleFade;
 
     [Header("World")]
-    [SerializeField] private IliacBayWorldGenerator worldGenerator;
+    [SerializeField] private KessilWorldGenerator worldGenerator;
     [SerializeField] private Transform player;
     [SerializeField] private Camera playerCamera;
     [SerializeField] private Camera cinematicCamera;

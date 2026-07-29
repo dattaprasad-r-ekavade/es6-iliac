@@ -33,9 +33,10 @@ public static class WorldVisualFix
         var lit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
         var m = new Material(lit) { name = "M_Ocean_Runtime" };
         m.enableInstancing = true;
-        m.SetColor("_BaseColor", new Color(0.12f, 0.48f, 0.72f, 0.82f));
-        m.SetFloat("_Smoothness", 0.94f);
-        m.SetFloat("_Metallic", 0.08f);
+        var ocean = ArtDirection.Active.Palette.Ocean;
+        m.SetColor("_BaseColor", new Color(ocean.r, ocean.g, ocean.b, 0.82f));
+        m.SetFloat("_Smoothness", 0.62f);
+        m.SetFloat("_Metallic", 0.02f);
         if (m.HasProperty("_Surface"))
         {
             m.SetFloat("_Surface", 1f);

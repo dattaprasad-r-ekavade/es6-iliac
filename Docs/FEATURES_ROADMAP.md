@@ -1,7 +1,8 @@
-# Iliac Bay — Skyrim-like features roadmap
+# Kessil Bay — features roadmap
 
-Homage prototype inspired by Elder Scrolls open-world *systems* (especially Skyrim), set on a lore-inspired **Iliac Bay** (High Rock + Hammerfell).  
-**Not affiliated with Bethesda.** No Bethesda art, audio, or IP copies — original layout, CC0 / free assets, original writing.
+An open-world first-person RPG set on **Kessil Bay**, between the temperate north
+(Halbrand) and the arid south (Sarrakh). Original setting, writing and layout; art is
+CC0 / licensed packs plus generated kits, tracked in `Assets/ThirdParty/ATTRIBUTION.md`.
 
 Use this doc to plan future work. Check items off as they land.
 
@@ -9,13 +10,13 @@ Use this doc to plan future work. Check items off as they land.
 
 ## North star
 
-Recreate the *feel* of Skyrim’s feature set in this game:
+The genre targets this project is built against:
 
-| Skyrim pillar | Our target |
+| Genre pillar | Our target |
 |---|---|
-| Huge walkable world | Iliac Bay at travel scale (cities kilometres apart) |
+| Huge walkable world | Kessil Bay at travel scale (cities kilometres apart) |
 | Discoverable map + fast travel | Fog-of-war map, markers, carriage / discovered FT |
-| Living weather & time | Day/night + regional weather (High Rock rain, Alik’r clear/dust) |
+| Living weather & time | Day/night + regional weather (Halbrand rain, Sarrakh Waste clear/dust) |
 | Dense nature | Proper trees/foliage, not floaty props |
 | Cities that feel inhabited | Districts, NPCs, services, names |
 | Adventure loop | Quests, combat, loot, leveling, radiant jobs |
@@ -26,8 +27,8 @@ Recreate the *feel* of Skyrim’s feature set in this game:
 
 ### Done
 - [x] Unity 6 + URP project, MCP agent workflow
-- [x] Iliac Bay landmass layout (High Rock N / Hammerfell S / bay / islands)
-- [x] Cities: **Daggerfall**, **Wayrest**, **Sentinel** (district streets, walls, gates, docks, name signs)
+- [x] Kessil Bay landmass layout (Halbrand N / Sarrakh S / bay / islands)
+- [x] Cities: **Caldemar**, **Estmere**, **Qadris** (district streets, walls, gates, docks, name signs)
 - [x] Cities ~**4 km** apart (not “one jump”)
 - [x] Player WASD + mouse look + sprint (Shift) + jump
 - [x] Menu → intro dialogue → scenic flyover → gameplay
@@ -41,7 +42,7 @@ Recreate the *feel* of Skyrim’s feature set in this game:
 - [x] World map UI (M) + discovery fog list
 - [x] Fast travel to discovered markers
 - [x] Weather / day–night cycle (regional)
-- [ ] Cities still kitbash vs “Skyrim city” density (P2 art)
+- [ ] Cities still read as kitbash rather than authored density (P2 art)
 - [x] NPCs, dialogue (E), combat, inventory, saves (vertical slice)
 - [x] Quaternius Medieval Village imported (`Assets/ThirdParty/Quaternius/MedievalVillage`)
 - [ ] **Nothing is a prefab** — player, NPCs, enemies, systems and the whole HUD are
@@ -51,11 +52,11 @@ Recreate the *feel* of Skyrim’s feature set in this game:
 - [ ] HUD is code-built legacy uGUI `Text` (no TextMeshPro, no scrolling lists)
 
 > **2026-07-26 hardening pass.** The P1 slice was not actually playable as described:
-> `SnapToWalkable` ignored its argument and returned the Daggerfall spawn pad, so every
+> `SnapToWalkable` ignored its argument and returned the Caldemar spawn pad, so every
 > NPC and enemy spawned in one pile on the start plaza. The bandit camp and coastal ruin
 > were also authored in open water. Both are fixed — see [plan.md](../plan.md).
 
-Layout notes: `Assets/Scripts/World/ILIAC_BAY_LAYOUT.md`  
+Layout notes: `Assets/Scripts/World/KESSIL_LAYOUT.md`  
 Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 
 ---
@@ -66,7 +67,7 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 
 #### 1. Fix trees / foliage
 - [x] Ground-snap trees with raycast onto land colliders
-- [x] Biome rules (High Rock trees / Hammerfell desert / islands rocks)
+- [x] Biome rules (Halbrand trees / Sarrakh desert / islands rocks)
 - [x] Keep clear of city radii
 - [x] Distance culling (`FoliageDistanceCull`)
 - [ ] Optional: grass / detail meshes near player only
@@ -82,7 +83,7 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 #### 3. Weather (match regions)
 - [x] Time-of-day cycle (sun angle, fog, intensity)
 - [x] Weather states: Clear, Cloudy, Rain, Storm, Fog, Dust
-- [x] Regional defaults (High Rock wetter, Hammerfell dust, Bay fog)
+- [x] Regional defaults (Halbrand wetter, Sarrakh dust, Bay fog)
 - [x] Rain / dust particles
 - [ ] Wind affecting trees / flags
 - [ ] Audio beds per weather
@@ -97,17 +98,17 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 
 ---
 
-### P1 — Skyrim feature parity (core loop) — vertical slice landed 2026-07-26
+### P1 — core loop feature parity — vertical slice landed 2026-07-26
 
 #### Exploration & world
-- [x] Roads between Daggerfall↔Wayrest + bandit road
+- [x] Roads between Caldemar↔Estmere + bandit road
 - [x] POIs: bandit camp + coastal ruin
 - [ ] Heightmap / sculpted terrain
 - [ ] More settlements / interiors
 - [ ] Horses / boat travel
 
 #### Character & progression
-- [x] HP / Magicka / Stamina + level/XP
+- [x] HP / Mana / Stamina + level/XP
 - [x] Inventory + potions
 - [x] Wait / sleep (T) restores vitals
 - [ ] Full character creation / perks tree
@@ -146,8 +147,8 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 - [ ] Crafting: smithing, alchemy, enchanting (simplified)
 - [ ] Survival-lite options (hunger/cold — optional toggle)
 - [ ] Followers
-- [ ] Marriage / house purchase (homage, original)
-- [ ] Dragons-or-equivalent regional threat (original creature fantasy — not copying Skyrim dragons beat-for-beat)
+- [ ] Marriage / house purchase
+- [ ] A regional apex threat (original creature fantasy)
 - [ ] Mod-friendly folder layout / ScriptableObjects for data
 - [ ] Performance: streaming, occlusion, GPU instancing for forests
 - [ ] Controllers / gamepad full support
@@ -160,9 +161,9 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 | Milestone | Theme | Exit criteria |
 |---|---|---|
 | **M1** | Trees + weather + time | Biome foliage looks grounded; day/night + 3 weather types |
-| **M2** | Map + fast travel | M opens map; discover cities; FT between Daggerfall / Wayrest / Sentinel |
-| **M3** | Compass + HUD + save | Skyrim-like HUD; save/load works |
-| **M4** | Combat vertical slice | Kill bandits outside Daggerfall; loot; level once |
+| **M2** | Map + fast travel | M opens map; discover cities; FT between Caldemar / Estmere / Qadris |
+| **M3** | Compass + HUD + save | Vitals/compass HUD; save/load works |
+| **M4** | Combat vertical slice | Kill bandits outside Caldemar; loot; level once |
 | **M5** | City life | Merchants + 1 inn interior + 3 dialogue NPCs |
 | **M6** | Quest spine | Journal + 5 quests + map markers |
 | **M7** | Bay expansion | Roads, 2 dungeons, boat FT, denser assets via Blender |
@@ -173,7 +174,7 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 
 ```
 [M] → MapPanel
-        ├── Background: stylized Iliac Bay (RenderTexture top-down or hand-painted)
+        ├── Background: stylized Kessil Bay (RenderTexture top-down or hand-painted)
         ├── FogMask: reveal by discovered RegionId
         ├── Markers: City | Landmark | Quest | Custom
         ├── PlayerIcon: world→map projection
@@ -200,13 +201,13 @@ WeatherController (region from player XZ biome)
 └── Gameplay hooks: bow accuracy in wind (later), NPC seek shelter (later)
 ```
 
-Regions map to existing land patch biomes: `HighRock`, `Hammerfell`, `IslandGreen`, `IslandRock`, plus `Ocean`.
+Regions map to existing land patch biomes: `Halbrand`, `Sarrakh`, `IslandGreen`, `IslandRock`, plus `Ocean`.
 
 ---
 
 ## Fast travel — design sketch
 
-Rules (Skyrim-like):
+Rules:
 1. Must have discovered the destination.
 2. Cannot FT from combat / mid-air / overcrowded interiors (later).
 3. FT advances time (e.g. 1 hour per 500 m).
@@ -221,18 +222,18 @@ Rules (Skyrim-like):
 |---|---|
 | Better trees | Kenney upgrade in Blender; Poly Haven / Quaternius CC0 |
 | Medieval cities | Quaternius Medieval Village MegaKit (manual itch download) → `Assets/ThirdParty/Quaternius/` |
-| Skyrim-level kits | Blender MCP edit passes — homage only |
+| Bespoke architecture kits | Blender MCP edit passes; generated kits under `Assets/Art/Generated/` |
 | Textures / trim sheets | Krita / Substance; URP Lit |
-
-Never ship Bethesda assets or trademarked audio.
 
 ---
 
 ## Explicitly out of scope / legal
 
-- No copying Skyrim meshes, textures, voices, music, or quest text
-- No “Skyrim” / “Elder Scrolls” branding in shipping builds (folder name is working title only)
-- Homage geography + original story/names for new content
+- No third-party game meshes, textures, voices, music, or quest text
+- No third-party game branding anywhere in the project, including working titles,
+  menu paths, folder names and comments
+- Original setting, place names, factions and writing; see the naming policy in
+  [plan.md](../plan.md)
 - Keep attribution for CC0 packs (`Assets/ThirdParty/ATTRIBUTION.md`)
 
 ---
@@ -240,9 +241,9 @@ Never ship Bethesda assets or trademarked audio.
 ## Open questions
 
 1. Seamless open world vs cell streaming (cities as scenes)?
-2. First-person only, or third-person toggle like Skyrim?
-3. Magic-heavy vs low-fantasy Iliac Bay tone?
-4. Multiplayer? (default **no** — single-player Skyrim-like)
+2. First-person only, or a third-person toggle?
+3. Magic-heavy vs low-fantasy Kessil Bay tone?
+4. Multiplayer? (default **no** — single-player)
 5. Target platform beyond Windows editor/player?
 
 ---
@@ -251,8 +252,8 @@ Never ship Bethesda assets or trademarked audio.
 
 | Action | Menu |
 |---|---|
-| Full rebuild menu + world | **Elder Scrolls 6 → Presentation → Setup Menu + Cutscene + Smooth Map** |
-| Map layout notes | `Assets/Scripts/World/ILIAC_BAY_LAYOUT.md` |
+| Full rebuild menu + world | **Kessil → Presentation → Setup Menu + Cutscene + Smooth Map** |
+| Map layout notes | `Assets/Scripts/World/KESSIL_LAYOUT.md` |
 | Blender MCP notes | `Tools/BlenderMCP/README.md` |
 
 ---

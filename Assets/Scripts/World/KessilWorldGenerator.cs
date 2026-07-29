@@ -8,20 +8,18 @@ using LandPatch = WorldLayout.Landmass;
 using Biome = WorldLayout.Biome;
 
 /// <summary>
-/// Walkable homage map of the Iliac Bay region (High Rock + Hammerfell).
-/// Layout inspired by public Elder Scrolls lore geography (UESP / Daggerfall maps):
-/// High Rock north (temperate), Hammerfell south (arid), Iliac Bay between them,
-/// islands Betony / Balfiera / Cybiades, cities Daggerfall / Wayrest / Sentinel.
-/// Original mesh layout — not a copy of Bethesda art.
+/// Builds the walkable Kessil Bay region: Halbrand north (temperate), Sarrakh south
+/// (arid), the bay between them, the islands Tolm / Corrath / Sarn, and the cities
+/// Caldemar / Estmere / Qadris. All geometry is generated from <see cref="WorldLayout"/>.
 /// </summary>
-public class IliacBayWorldGenerator : MonoBehaviour
+public class KessilWorldGenerator : MonoBehaviour
 {
     [Header("World")]
     [SerializeField] private int propSeed = 4242;
     [SerializeField] private float waterSize = 8000f;
     [SerializeField] private Material oceanMaterial;
-    [SerializeField] private Material highRockMaterial;
-    [SerializeField] private Material hammerfellMaterial;
+    [SerializeField] private Material halbrandMaterial;
+    [SerializeField] private Material sarrakhMaterial;
     [SerializeField] private Material sandMaterial;
     [SerializeField] private Material cityMaterial;
     [SerializeField] private Material mountainMaterial;
@@ -49,7 +47,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
     // Landmass shape/biome definitions live in WorldLayout (see the using aliases at
     // the top of this file), shared with the map art, fast travel and the spawners.
 
-    [ContextMenu("Generate Iliac Bay")]
+    [ContextMenu("Generate Kessil Bay")]
     public void GenerateWorld()
     {
         ClearGenerated();
@@ -65,14 +63,14 @@ public class IliacBayWorldGenerator : MonoBehaviour
             BuildLandmass(patch);
         }
 
-        BuildLandmarkTower_Balfiera();
+        BuildLandmarkTower_Corrath();
 
         // Layers must be in place before anything raycasts for ground.
         WorldTagger.TagHierarchy(_root.gameObject);
         Physics.SyncTransforms();
 
         ScatterAllProps();
-        BuildDaggerfallSpawnPad();
+        BuildCaldemarSpawnPad();
         Physics.SyncTransforms();
         BuildRoadsAndPois();
 
@@ -81,7 +79,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
             SpawnPlayerAt(_playerSpawn);
         }
 
-        Debug.Log("[IliacBay] Map built: High Rock (N), Hammerfell (S), Iliac Bay + Betony/Balfiera/Cybiades. Spawn at Daggerfall.");
+        Debug.Log("[Kessil] Map built: Halbrand (N), Sarrakh (S), Kessil Bay + Tolm/Corrath/Sarn. Spawn at Caldemar.");
     }
 
     private void Start()
@@ -104,25 +102,26 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
     private void DefineLandmasses()
     {
-        // Large homage scale: cities are kilometres apart (walk, don't hop).
+        // Travel scale: cities are kilometres apart (walk, don't hop).
         // +Z = north, +X = east. Definitions are shared via WorldLayout.
         _patches.AddRange(WorldLayout.Landmasses);
 
         // Overridden by the spawn pad after the city is built.
-        _playerSpawn = WorldLayout.DaggerfallSpawnPad + Vector3.up * 1.8f;
+        _playerSpawn = WorldLayout.CaldemarSpawnPad + Vector3.up * 1.8f;
     }
 
     private void CreateOcean()
     {
         var ocean = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        ocean.name = "IliacBay_Ocean";
+        ocean.name = "Kessil_Ocean";
         ocean.transform.SetParent(_root, false);
         ocean.transform.position = new Vector3(0f, WorldLayout.WaterLevel, 0f);
         ocean.transform.localScale = Vector3.one * (waterSize / 10f);
         var oceanMat = oceanMaterial != null ? new Material(oceanMaterial) : WorldVisualFix.CreateWaterMaterial();
         if (oceanMaterial != null)
         {
-            oceanMat.SetColor("_BaseColor", new Color(0.12f, 0.48f, 0.72f, 0.82f));
+            var oceanColor = ArtDirection.Active.Palette.Ocean;
+            oceanMat.SetColor("_BaseColor", new Color(oceanColor.r, oceanColor.g, oceanColor.b, 0.82f));
             if (oceanMat.HasProperty("_Surface"))
             {
                 oceanMat.SetFloat("_Surface", 1f);
@@ -177,16 +176,20 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
         var mat = patch.Biome switch
         {
-            Biome.Hammerfell => hammerfellMaterial,
+            Biome.Sarrakh => sarrakhMaterial,
             Biome.IslandRock => mountainMaterial,
-            _ => highRockMaterial
+            _ => halbrandMaterial
         };
+        // Surface colours come from the locked palette, never from literals here. The world
+        // used to hardcode them in a dozen places, which meant the art direction could be
+        // set on the materials and silently ignored by everything the generator built.
+        var palette = ArtDirection.Active.Palette;
         var color = patch.Biome switch
         {
-            Biome.Hammerfell => new Color(0.72f, 0.55f, 0.32f),
-            Biome.IslandRock => new Color(0.45f, 0.45f, 0.48f),
-            Biome.IslandGreen => new Color(0.3f, 0.5f, 0.28f),
-            _ => new Color(0.27f, 0.48f, 0.24f)
+            Biome.Sarrakh => palette.Sarrakh,
+            Biome.IslandRock => palette.Mountain,
+            Biome.IslandGreen => palette.Halbrand,
+            _ => palette.Halbrand
         };
 
         // Rounded landmasses — cylinders are distant silhouette only; walkable hills use TerrainSurface mesh.
@@ -197,7 +200,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         skirt.transform.SetParent(go.transform, false);
         skirt.transform.localPosition = new Vector3(0f, 0.6f, 0f);
         skirt.transform.localScale = new Vector3(patch.Size.x * 1.12f, 0.7f, patch.Size.z * 1.12f);
-        ApplyMat(skirt, sandMaterial, new Color(0.82f, 0.72f, 0.5f));
+        ApplyMat(skirt, sandMaterial, ArtDirection.Active.Palette.Sand);
         DestroyColliderSafe(skirt.GetComponent<Collider>());
         var skirtR = skirt.GetComponent<Renderer>();
         if (skirtR != null) skirtR.enabled = false;
@@ -229,10 +232,10 @@ public class IliacBayWorldGenerator : MonoBehaviour
         if (patch.HasCity)
         {
             float surfaceY = TerrainHeightSampler.Sample(patch.Center.x, patch.Center.z, patch) + 0.05f;
-            BuildCity(go.transform, patch.CityName, surfaceY, patch.Biome == Biome.Hammerfell);
+            BuildCity(go.transform, patch.CityName, surfaceY, patch.Biome == Biome.Sarrakh);
         }
 
-        if (patch.CityName == "Daggerfall")
+        if (patch.CityId == "city_west")
         {
             var stage = CreateChild(go.transform, "Cutscene_TalkStage");
             // South of keep, inside walls — overlook toward the bay.
@@ -244,17 +247,17 @@ public class IliacBayWorldGenerator : MonoBehaviour
         top.transform.localScale = new Vector3(patch.Size.x * 0.85f, 1f, patch.Size.z * 0.85f);
     }
 
-    private void BuildDaggerfallSpawnPad()
+    private void BuildCaldemarSpawnPad()
     {
-        // Central Daggerfall plaza — south gate approach, on flattened city terrain.
-        var padPos = WorldLayout.DaggerfallSpawnPad;
+        // Central Caldemar plaza — south gate approach, on flattened city terrain.
+        var padPos = WorldLayout.CaldemarSpawnPad;
         var pad = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        pad.name = "SpawnPad_Daggerfall";
+        pad.name = "SpawnPad_Caldemar";
         pad.transform.SetParent(_root, false);
         pad.transform.position = padPos;
         pad.transform.localScale = new Vector3(48f, 0.35f, 48f);
         pad.layer = GameLayers.Ground;
-        ApplyMat(pad, sandMaterial, new Color(0.55f, 0.5f, 0.42f));
+        ApplyMat(pad, sandMaterial, ArtDirection.Active.Palette.Sand);
 
         _playerSpawn = padPos + Vector3.up * 0.9f;
     }
@@ -268,7 +271,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
             Mathf.CeilToInt(Mathf.Max(radii.x, radii.y) / targetSpacing),
             8,
             64);
-        float tileMeters = patch.Biome == Biome.Hammerfell ? 48f : patch.Biome == Biome.IslandRock ? 40f : 56f;
+        float tileMeters = patch.Biome == Biome.Sarrakh ? 48f : patch.Biome == Biome.IslandRock ? 40f : 56f;
         var verts = new Vector3[1 + radialRings * angularSegments];
         var uvs = new Vector2[verts.Length];
         var tris = new int[angularSegments * 3 + (radialRings - 1) * angularSegments * 6];
@@ -448,16 +451,16 @@ public class IliacBayWorldGenerator : MonoBehaviour
     {
         float radius = cityName switch
         {
-            "Daggerfall" => 220f,
-            "Wayrest" => 200f,
-            "Sentinel" => 210f,
+            "Caldemar" => 220f,
+            "Estmere" => 200f,
+            "Qadris" => 210f,
             _ => 160f
         };
         int buildings = cityName switch
         {
-            "Daggerfall" => 105,
-            "Wayrest" => 90,
-            "Sentinel" => 95,
+            "Caldemar" => 105,
+            "Estmere" => 90,
+            "Qadris" => 95,
             _ => 70
         };
 
@@ -479,9 +482,9 @@ public class IliacBayWorldGenerator : MonoBehaviour
         });
     }
 
-    private void BuildLandmarkTower_Balfiera()
+    private void BuildLandmarkTower_Corrath()
     {
-        var island = _root.Find("Island_Balfiera");
+        var island = _root.Find("Island_Corrath");
         if (island == null)
         {
             return;
@@ -507,10 +510,10 @@ public class IliacBayWorldGenerator : MonoBehaviour
             tower.transform.SetParent(island, false);
             tower.transform.position = landmarkOrigin + Vector3.up * 40f;
             tower.transform.localScale = new Vector3(8f, 40f, 8f);
-            ApplyMat(tower, cityMaterial, new Color(0.55f, 0.55f, 0.6f));
+            ApplyMat(tower, cityMaterial, ArtDirection.Active.Palette.CityStone);
         }
 
-        tower.name = "AdamantineTower_Homage";
+        tower.name = "EverspireTower";
         EnsureBoundsBoxCollider(tower);
         tower.isStatic = true;
     }
@@ -592,7 +595,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
     {
         foreach (Transform land in _root)
         {
-            if (!land.name.StartsWith("HighRock") && !land.name.StartsWith("Hammerfell") && !land.name.StartsWith("Island_"))
+            if (!land.name.StartsWith("Halbrand") && !land.name.StartsWith("Sarrakh") && !land.name.StartsWith("Island_"))
             {
                 continue;
             }
@@ -609,8 +612,8 @@ public class IliacBayWorldGenerator : MonoBehaviour
                 float z = ((float)_rng.NextDouble() - 0.5f) * 2f * halfZ;
                 if (patch.HasCity && new Vector2(x, z).magnitude < 280f) continue;
 
-                // Prefer clusters away from exact center for High Rock forests
-                if (patch.Biome == Biome.HighRock && _rng.NextDouble() < 0.35)
+                // Prefer clusters away from exact center for Halbrand forests
+                if (patch.Biome == Biome.Halbrand && _rng.NextDouble() < 0.35)
                 {
                     x *= 0.7f;
                     z *= 0.7f;
@@ -638,7 +641,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
             return;
         }
 
-        bool desert = biome == Biome.Hammerfell;
+        bool desert = biome == Biome.Sarrakh;
         bool rockyIsland = biome == Biome.IslandRock;
         bool greenIsland = biome == Biome.IslandGreen;
 
@@ -673,8 +676,10 @@ public class IliacBayWorldGenerator : MonoBehaviour
             go.transform.localScale = desert
                 ? new Vector3(fs, fs * 0.6f, fs)
                 : new Vector3(fs * 0.35f, fs, fs * 0.35f);
-            ApplyMat(go, desert ? hammerfellMaterial : highRockMaterial,
-                desert ? new Color(0.65f, 0.5f, 0.3f) : new Color(0.12f, 0.38f, 0.14f));
+            ApplyMat(go, desert ? sarrakhMaterial : halbrandMaterial,
+                desert
+                    ? ArtDirection.Active.Palette.Sarrakh
+                    : Color.Lerp(ArtDirection.Active.Palette.Halbrand, Color.black, 0.25f));
         }
 
         go.name = desert ? "Prop_Desert" : rockyIsland ? "Prop_IslandRock" : "Prop_Tree";
@@ -694,11 +699,11 @@ public class IliacBayWorldGenerator : MonoBehaviour
         {
             string roadName = i switch
             {
-                0 => "Road_Daggerfall_Wayrest",
-                1 => "Road_Daggerfall_BanditCamp",
-                2 => "Road_Glenumbra_Wrothgar",
-                3 => "Road_Sentinel_Alikr",
-                4 => "Road_Alikr_Dragontail",
+                0 => "Road_Caldemar_Estmere",
+                1 => "Road_Caldemar_BanditCamp",
+                2 => "Road_Kelrith_Karnoth",
+                3 => "Road_Qadris_Waste",
+                4 => "Road_Waste_Kiln",
                 _ => $"Road_Regional_{i:00}"
             };
             BuildRoad(roads[i], roadName);
@@ -712,7 +717,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
     /// <summary>
     /// Lay a road along a polyline, projected onto the terrain.
     ///
-    /// Roads used to be a single stretched cube per route — the Daggerfall–Wayrest
+    /// Roads used to be a single stretched cube per route — the Caldemar–Estmere
     /// road was one 4.2 km box at a fixed Y, which sailed through the air over every
     /// dip and buried itself in every rise.
     /// </summary>
@@ -776,7 +781,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         road.transform.localScale = new Vector3(10f, 0.25f, len * 1.04f);
         road.layer = GameLayers.Ground;
         road.isStatic = true;
-        ApplyMat(road, roadMaterial != null ? roadMaterial : cityMaterial, new Color(0.25f, 0.24f, 0.22f));
+        ApplyMat(road, roadMaterial != null ? roadMaterial : cityMaterial, ArtDirection.Active.Palette.Road);
 
         bool causeway = Mathf.Abs(a.y - WorldLayout.CausewayDeckY) < 0.2f
                         && Mathf.Abs(b.y - WorldLayout.CausewayDeckY) < 0.2f;
@@ -797,7 +802,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         rail.transform.localScale = new Vector3(0.32f, 1.2f, length * 1.04f);
         rail.layer = GameLayers.Structure;
         rail.isStatic = true;
-        ApplyMat(rail, cityMaterial, new Color(0.38f, 0.36f, 0.33f));
+        ApplyMat(rail, cityMaterial, ArtDirection.Active.Palette.CityStone);
     }
 
     private void PlaceRoadsideDressing(Vector3 from, Vector3 to, int index)
@@ -871,7 +876,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         // Legacy path unused — kept for compile safety if referenced.
         PlacePropWorld(
             parent.TransformPoint(localPos + Vector3.up * 40f),
-            desert ? Biome.Hammerfell : Biome.HighRock);
+            desert ? Biome.Sarrakh : Biome.Halbrand);
     }
 
     private void SpawnPlayerAt(Vector3 worldPos)
@@ -913,7 +918,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         controller.enabled = false;
         cam.enabled = false;
 
-        // Face south toward the bay from Daggerfall.
+        // Face south toward the bay from Caldemar.
         player.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
         WorldTagger.SetLayerRecursive(player, GameLayers.Player);
     }
@@ -921,10 +926,10 @@ public class IliacBayWorldGenerator : MonoBehaviour
     /// <summary>
     /// Drop <paramref name="worldPos"/> onto the walkable surface directly below/above it.
     ///
-    /// This used to be <c>SnapToWalkable</c>, which returned the Daggerfall spawn pad
+    /// This used to be <c>SnapToWalkable</c>, which returned the Caldemar spawn pad
     /// whenever that pad existed in the scene — ignoring its argument entirely. Since the
     /// pad is baked into Main.unity it always existed, so every caller meaning "put this
-    /// on the ground here" got "put this at Daggerfall": all six NPCs and all five enemies
+    /// on the ground here" got "put this at Caldemar": all six NPCs and all five enemies
     /// spawned in one pile on the start plaza, and re-enabling the player controller
     /// teleported the player home.
     ///
@@ -1044,7 +1049,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
     }
 
     /// <summary>
-    /// Where the player starts and respawns — the Daggerfall plaza pad.
+    /// Where the player starts and respawns — the Caldemar plaza pad.
     /// This is the behaviour the old <c>SnapToWalkable</c> accidentally gave every caller;
     /// now only the callers that actually want it get it.
     /// </summary>
@@ -1054,14 +1059,14 @@ public class IliacBayWorldGenerator : MonoBehaviour
             controller = PlayerRef.Transform.GetComponent<CharacterController>();
 
         Vector3 target;
-        var pad = GameObject.Find("SpawnPad_Daggerfall");
+        var pad = GameObject.Find("SpawnPad_Caldemar");
         if (pad != null)
         {
             target = pad.transform.position;
         }
         else
         {
-            target = WorldLayout.DaggerfallSpawnPad;
+            target = WorldLayout.CaldemarSpawnPad;
         }
 
         return SnapCharacterToGround(target, controller);

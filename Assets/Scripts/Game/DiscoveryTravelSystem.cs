@@ -39,8 +39,8 @@ public class DiscoveryTravelSystem : MonoBehaviour
     {
         _player = player;
         if (Locations.Count == 0) BootstrapDefaultLocations();
-        // Daggerfall starts discovered
-        Discover("daggerfall", silent: true);
+        // Caldemar starts discovered
+        Discover("city_west", silent: true);
     }
 
     /// <summary>Locations come from <see cref="WorldLayout"/> — one shared definition
@@ -139,7 +139,7 @@ public class DiscoveryTravelSystem : MonoBehaviour
             // Land on real ground: the authored travel Y is an estimate, and terrain
             // height is generated from noise.
             var cc = player.GetComponent<CharacterController>();
-            var dest = IliacBayWorldGenerator.SnapCharacterToGround(loc.TravelPosition, cc);
+            var dest = KessilWorldGenerator.SnapCharacterToGround(loc.TravelPosition, cc);
             if (cc != null) cc.enabled = false;
             player.position = dest;
             if (cc != null) cc.enabled = true;

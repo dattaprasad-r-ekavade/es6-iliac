@@ -10,7 +10,7 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// One-shot setup: rebuild Iliac Bay (smooth land), menu UI, intro cutscene, better town assets, MSAA.
+/// One-shot setup: rebuild Kessil Bay (smooth land), menu UI, intro cutscene, better town assets, MSAA.
 /// </summary>
 public static class SetupGamePresentation
 {
@@ -28,7 +28,7 @@ public static class SetupGamePresentation
     private const string MedievalVillagePath = "Assets/ThirdParty/Quaternius/MedievalVillage";
     private const string MaterialsPath = "Assets/Art/Materials";
 
-    [MenuItem("Elder Scrolls 6/Presentation/Setup Menu + Cutscene + Smooth Map")]
+    [MenuItem("Kessil/Presentation/Setup Menu + Cutscene + Smooth Map")]
     public static void SetupAll()
     {
         AssetDatabase.Refresh();
@@ -65,7 +65,7 @@ public static class SetupGamePresentation
 
         // World
         var world = new GameObject("WorldRoot");
-        var gen = world.AddComponent<IliacBayWorldGenerator>();
+        var gen = world.AddComponent<KessilWorldGenerator>();
         WireWorld(gen);
         gen.GenerateWorld();
 
@@ -149,7 +149,7 @@ public static class SetupGamePresentation
         };
 
         AssetDatabase.SaveAssets();
-        Debug.Log("[SetupGamePresentation] Menu + cutscene + smooth Iliac Bay ready. Press Play → Start.");
+        Debug.Log("[SetupGamePresentation] Menu + cutscene + smooth Kessil Bay ready. Press Play → Start.");
     }
 
     private static void PrepareCharacterResources()
@@ -234,12 +234,12 @@ public static class SetupGamePresentation
         }
     }
 
-    private static void WireWorld(IliacBayWorldGenerator gen)
+    private static void WireWorld(KessilWorldGenerator gen)
     {
         EnsureMaterials();
         var ocean = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_Ocean.mat");
-        var highRock = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_HighRock.mat");
-        var hammerfell = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_Hammerfell.mat");
+        var halbrand = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_Halbrand.mat");
+        var sarrakh = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_Sarrakh.mat");
         var sand = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_Sand.mat");
         var city = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_CityStone.mat");
         var mountain = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_Mountain.mat");
@@ -292,7 +292,7 @@ public static class SetupGamePresentation
             TakeQuota(pirateModules, 16),
             TakeQuota(buildingLandmarks, 4));
 
-        // The first entry is consumed by the Balfiera landmark builder, so make
+        // The first entry is consumed by the Corrath landmark builder, so make
         // it an actual complete tower. Roofs, gates and windmills belong elsewhere.
         var castleTowers = LoadModels(CastlePath, n => n == "tower-square");
         var pirateTowers = LoadModels(PirateKitSafe(), n =>
@@ -354,8 +354,8 @@ public static class SetupGamePresentation
         so.FindProperty("waterSize").floatValue = 8000f;
         so.FindProperty("spawnPlayer").boolValue = true;
         so.FindProperty("oceanMaterial").objectReferenceValue = ocean;
-        so.FindProperty("highRockMaterial").objectReferenceValue = highRock;
-        so.FindProperty("hammerfellMaterial").objectReferenceValue = hammerfell;
+        so.FindProperty("halbrandMaterial").objectReferenceValue = halbrand;
+        so.FindProperty("sarrakhMaterial").objectReferenceValue = sarrakh;
         so.FindProperty("sandMaterial").objectReferenceValue = sand;
         so.FindProperty("cityMaterial").objectReferenceValue = city;
         so.FindProperty("mountainMaterial").objectReferenceValue = mountain;
@@ -427,8 +427,8 @@ public static class SetupGamePresentation
         var rock = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Textures/rock_diff_1k.jpg");
 
         CreateMat($"{MaterialsPath}/M_Ocean.mat", new Color(0.05f, 0.36f, 0.58f, 0.7f), 0.94f, null, 1f, metallic: 0.08f, transparent: true);
-        CreateMat($"{MaterialsPath}/M_HighRock.mat", new Color(0.55f, 0.72f, 0.38f), 0.35f, grass, 56f);
-        CreateMat($"{MaterialsPath}/M_Hammerfell.mat", new Color(0.92f, 0.8f, 0.55f), 0.4f, sandTex, 48f);
+        CreateMat($"{MaterialsPath}/M_Halbrand.mat", new Color(0.55f, 0.72f, 0.38f), 0.35f, grass, 56f);
+        CreateMat($"{MaterialsPath}/M_Sarrakh.mat", new Color(0.92f, 0.8f, 0.55f), 0.4f, sandTex, 48f);
         CreateMat($"{MaterialsPath}/M_Sand.mat", new Color(0.95f, 0.88f, 0.7f), 0.55f, sandTex, 40f);
         CreateMat($"{MaterialsPath}/M_CityStone.mat", new Color(0.78f, 0.74f, 0.68f), 0.45f, rock, 24f);
         CreateMat($"{MaterialsPath}/M_Mountain.mat", new Color(0.7f, 0.7f, 0.68f), 0.3f, rock, 32f);
@@ -478,7 +478,7 @@ public static class SetupGamePresentation
         vol.priority = 1f;
         var profile = ScriptableObject.CreateInstance<VolumeProfile>();
         if (!AssetDatabase.IsValidFolder("Assets/Art")) AssetDatabase.CreateFolder("Assets", "Art");
-        const string profilePath = "Assets/Art/IliacBayVolume.asset";
+        const string profilePath = "Assets/Art/KessilVolume.asset";
         AssetDatabase.DeleteAsset(profilePath);
         AssetDatabase.CreateAsset(profile, profilePath);
 
@@ -617,7 +617,7 @@ public static class SetupGamePresentation
         var cardImg = menuCard.GetComponent<Image>();
         UiTheme.StylePanel(cardImg, UiTheme.PanelBrown, UiTheme.PanelSoft);
 
-        var title = CreateText(menuCard.transform, "Title", "ILIAC BAY", 58, FontStyle.Normal, TextAnchor.MiddleCenter, display: true);
+        var title = CreateText(menuCard.transform, "Title", "KESSIL BAY", 58, FontStyle.Normal, TextAnchor.MiddleCenter, display: true);
         var titleRt = title.rectTransform;
         titleRt.anchorMin = new Vector2(0.08f, 0.74f);
         titleRt.anchorMax = new Vector2(0.92f, 0.91f);
@@ -625,7 +625,7 @@ public static class SetupGamePresentation
         titleRt.offsetMax = Vector2.zero;
         title.color = UiTheme.Silver;
 
-        var sub = CreateText(menuCard.transform, "Subtitle", "A HIGH ROCK & HAMMERFELL HOMAGE", 18, FontStyle.Normal, TextAnchor.MiddleCenter);
+        var sub = CreateText(menuCard.transform, "Subtitle", "HALBRAND · SARRAKH · THE OPEN BAY", 18, FontStyle.Normal, TextAnchor.MiddleCenter);
         var subRt = sub.rectTransform;
         subRt.anchorMin = new Vector2(0.08f, 0.62f);
         subRt.anchorMax = new Vector2(0.92f, 0.72f);

@@ -6,24 +6,24 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Builds the Iliac Bay homage map (High Rock + Hammerfell) from lore geography.
+/// Builds the Kessil Bay map (Halbrand + Sarrakh) into the Main scene.
 /// </summary>
-public static class BuildHomageWorld
+public static class BuildKessilWorld
 {
     private const string NaturePath = "Assets/ThirdParty/Kenney/NatureKit";
     private const string CastlePath = "Assets/ThirdParty/Kenney/CastleKit";
     private const string ScenePath = "Assets/Scenes/Main.unity";
     private const string MaterialsPath = "Assets/Art/Materials";
 
-    [MenuItem("Elder Scrolls 6/World/Build Iliac Bay Map (High Rock + Hammerfell)")]
-    public static void BuildIliacBay()
+    [MenuItem("Kessil/World/Build Kessil Bay Map (Halbrand + Sarrakh)")]
+    public static void BuildKessil()
     {
         AssetDatabase.Refresh();
         EnsureFolders();
 
         var ocean = GetOrCreateLit($"{MaterialsPath}/M_Ocean.mat", new Color(0.08f, 0.28f, 0.48f), 0.0f, 0.9f);
-        var highRock = GetOrCreateLit($"{MaterialsPath}/M_HighRock.mat", new Color(0.27f, 0.48f, 0.24f), 0f, 0.7f);
-        var hammerfell = GetOrCreateLit($"{MaterialsPath}/M_Hammerfell.mat", new Color(0.72f, 0.55f, 0.32f), 0f, 0.65f);
+        var halbrand = GetOrCreateLit($"{MaterialsPath}/M_Halbrand.mat", new Color(0.27f, 0.48f, 0.24f), 0f, 0.7f);
+        var sarrakh = GetOrCreateLit($"{MaterialsPath}/M_Sarrakh.mat", new Color(0.72f, 0.55f, 0.32f), 0f, 0.65f);
         var sand = GetOrCreateLit($"{MaterialsPath}/M_Sand.mat", new Color(0.84f, 0.74f, 0.52f), 0f, 0.8f);
         var city = GetOrCreateLit($"{MaterialsPath}/M_CityStone.mat", new Color(0.55f, 0.52f, 0.48f), 0.05f, 0.7f);
         var mountain = GetOrCreateLit($"{MaterialsPath}/M_Mountain.mat", new Color(0.42f, 0.43f, 0.4f), 0.05f, 0.55f);
@@ -42,7 +42,7 @@ public static class BuildHomageWorld
         light.transform.rotation = Quaternion.Euler(50f, -35f, 0f);
 
         var world = new GameObject("WorldRoot");
-        var gen = world.AddComponent<IliacBayWorldGenerator>();
+        var gen = world.AddComponent<KessilWorldGenerator>();
 
         var trees = LoadModels(NaturePath, n =>
             n.StartsWith("tree_") &&
@@ -66,8 +66,8 @@ public static class BuildHomageWorld
         so.FindProperty("waterSize").floatValue = 1400f;
         so.FindProperty("spawnPlayer").boolValue = true;
         so.FindProperty("oceanMaterial").objectReferenceValue = ocean;
-        so.FindProperty("highRockMaterial").objectReferenceValue = highRock;
-        so.FindProperty("hammerfellMaterial").objectReferenceValue = hammerfell;
+        so.FindProperty("halbrandMaterial").objectReferenceValue = halbrand;
+        so.FindProperty("sarrakhMaterial").objectReferenceValue = sarrakh;
         so.FindProperty("sandMaterial").objectReferenceValue = sand;
         so.FindProperty("cityMaterial").objectReferenceValue = city;
         so.FindProperty("mountainMaterial").objectReferenceValue = mountain;
@@ -91,23 +91,23 @@ public static class BuildHomageWorld
             SceneView.lastActiveSceneView?.FrameSelected();
         }
 
-        Debug.Log("[BuildHomageWorld] Iliac Bay map ready — High Rock (N), Hammerfell (S), Daggerfall/Wayrest/Sentinel, Betony/Balfiera/Cybiades. Press Play at Daggerfall.");
+        Debug.Log("[BuildKessilWorld] Kessil Bay map ready — Halbrand (N), Sarrakh (S), Caldemar/Estmere/Qadris, Tolm/Corrath/Sarn. Press Play at Caldemar.");
     }
 
-    [MenuItem("Elder Scrolls 6/World/Build Homage Island Map")]
+    [MenuItem("Kessil/World/Build Island Map")]
     public static void BuildLegacyRandomIslands()
     {
-        // Keep old entry pointing to Iliac Bay — better default.
-        BuildIliacBay();
+        // Keep old entry pointing to Kessil Bay — better default.
+        BuildKessil();
     }
 
-    [MenuItem("Elder Scrolls 6/World/Rebuild With New Seed")]
+    [MenuItem("Kessil/World/Rebuild With New Seed")]
     public static void RebuildRandomProps()
     {
-        var gen = Object.FindAnyObjectByType<IliacBayWorldGenerator>();
+        var gen = Object.FindAnyObjectByType<KessilWorldGenerator>();
         if (gen == null)
         {
-            BuildIliacBay();
+            BuildKessil();
             return;
         }
 
@@ -117,7 +117,7 @@ public static class BuildHomageWorld
         gen.GenerateWorld();
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
         EditorSceneManager.SaveOpenScenes();
-        Debug.Log($"[BuildHomageWorld] Rebuilt Iliac Bay props with seed {so.FindProperty("propSeed").intValue}");
+        Debug.Log($"[BuildKessilWorld] Rebuilt Kessil Bay props with seed {so.FindProperty("propSeed").intValue}");
     }
 
     private static void EnsureFolders()

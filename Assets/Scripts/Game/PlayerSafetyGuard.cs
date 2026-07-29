@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Keeps the player on land: returns them to Daggerfall if they drown in the bay
+/// Keeps the player on land: returns them to Caldemar if they drown in the bay
 /// or walk off the edge of the world.
 /// </summary>
 public class PlayerSafetyGuard : MonoBehaviour
@@ -54,7 +54,7 @@ public class PlayerSafetyGuard : MonoBehaviour
 
         // Off any walkable surface. Jumps and short falls are legitimate, so this only
         // fires once the player has been over nothing for a while.
-        if (IliacBayWorldGenerator.HasGroundAt(pos))
+        if (KessilWorldGenerator.HasGroundAt(pos))
         {
             _offGroundFor = 0f;
             return;
@@ -64,7 +64,7 @@ public class PlayerSafetyGuard : MonoBehaviour
         if (_offGroundFor >= OffGroundGrace)
         {
             _offGroundFor = 0f;
-            TeleportToSpawn(transform, "You cannot leave the map — returned to Daggerfall.");
+            TeleportToSpawn(transform, "You cannot leave the map — returned to Caldemar.");
         }
     }
 
@@ -72,7 +72,7 @@ public class PlayerSafetyGuard : MonoBehaviour
     {
         if (player == null) return;
         var cc = player.GetComponent<CharacterController>();
-        var pos = IliacBayWorldGenerator.GetPlayerSpawn(cc);
+        var pos = KessilWorldGenerator.GetPlayerSpawn(cc);
         if (cc != null) cc.enabled = false;
         player.position = pos;
         if (cc != null) cc.enabled = true;

@@ -34,17 +34,17 @@ public class QuestSystem : MonoBehaviour
         Quests.Add(new QuestData
         {
             Id = "main_bay",
-            Title = "Winds of the Iliac",
-            Description = "Learn the lay of the bay. Discover Wayrest or Sentinel, then return to Daggerfall's gate.",
-            StageText = "Discover Wayrest or Sentinel",
+            Title = "Winds of the Kessil",
+            Description = "Learn the lay of the bay. Discover Estmere or Qadris, then return to Caldemar's gate.",
+            StageText = "Discover Estmere or Qadris",
             Active = true,
-            TargetLocationId = "wayrest"
+            TargetLocationId = "city_east"
         });
         Quests.Add(new QuestData
         {
             Id = "bounty_bandits",
-            Title = "Glenumbra Bounty",
-            Description = "Bandits prey on the southern road from Daggerfall. Clear their camp.",
+            Title = "Kelrith Bounty",
+            Description = "Bandits prey on the southern road from Caldemar. Clear their camp.",
             StageText = "Slay bandits (0/3)",
             Active = true,
             TargetCount = 3,
@@ -54,7 +54,7 @@ public class QuestSystem : MonoBehaviour
         {
             Id = "ruin_scout",
             Title = "Coastal Ruin",
-            Description = "Scout the ruin south of Daggerfall and survive whatever lurks there.",
+            Description = "Scout the ruin south of Caldemar and survive whatever lurks there.",
             StageText = "Discover Coastal Ruin",
             Active = true,
             TargetLocationId = "coastal_ruin"
@@ -86,8 +86,8 @@ public class QuestSystem : MonoBehaviour
             {
                 if (q.Id == "main_bay")
                 {
-                    q.StageText = "Return toward Daggerfall (or explore freely)";
-                    // complete on discovering either major city beyond daggerfall
+                    q.StageText = "Return toward Caldemar (or explore freely)";
+                    // complete on discovering either major city beyond caldemar
                     Complete(q);
                 }
                 else
@@ -95,8 +95,8 @@ public class QuestSystem : MonoBehaviour
                     Complete(q);
                 }
             }
-            // main quest also completes for sentinel
-            if (q.Id == "main_bay" && (locationId == "wayrest" || locationId == "sentinel"))
+            // main quest also completes for qadris
+            if (q.Id == "main_bay" && (locationId == "city_east" || locationId == "city_south"))
             {
                 Complete(q);
             }
@@ -199,7 +199,7 @@ public class NpcInteractable : MonoBehaviour
         }
         if (IsQuestGiver)
         {
-            line = "Clear the Glenumbra bandits and the road will thank you.";
+            line = "Clear the Kelrith bandits and the road will thank you.";
             QuestSystem.Instance?.NotifyLocation("bandit_camp");
         }
         GameHud.Instance?.ShowDialogue(NpcName, line);

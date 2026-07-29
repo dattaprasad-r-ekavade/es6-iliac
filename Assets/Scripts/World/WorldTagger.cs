@@ -12,7 +12,7 @@ using UnityEngine.SceneManagement;
 /// It is deliberately the <b>only</b> place in the project that interprets a
 /// GameObject's name. Everything downstream asks about layers instead, so a
 /// rename can no longer silently break falling, spawning or out-of-bounds
-/// detection. New objects created by <see cref="IliacBayWorldGenerator"/> get
+/// detection. New objects created by <see cref="KessilWorldGenerator"/> get
 /// their layer at creation time; this pass is idempotent and simply confirms it.
 /// </summary>
 public static class WorldTagger
@@ -98,7 +98,7 @@ public static class WorldTagger
             || name.StartsWith("Keep")
             || name.StartsWith("Building")
             || name.StartsWith("Stall_")
-            || name.StartsWith("AdamantineTower"))
+            || name.StartsWith("EverspireTower"))
             return GameLayers.Structure;
 
         // Characters are tagged by their spawners, not by name.
