@@ -138,8 +138,8 @@ public class DiscoveryTravelSystem : MonoBehaviour
         {
             // Land on real ground: the authored travel Y is an estimate, and terrain
             // height is generated from noise.
-            var dest = IliacBayWorldGenerator.SnapToGround(loc.TravelPosition, 1.0f);
             var cc = player.GetComponent<CharacterController>();
+            var dest = IliacBayWorldGenerator.SnapCharacterToGround(loc.TravelPosition, cc);
             if (cc != null) cc.enabled = false;
             player.position = dest;
             if (cc != null) cc.enabled = true;

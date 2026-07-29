@@ -71,12 +71,14 @@ public static class SetupGamePresentation
 
         var player = GameObject.Find("Player");
         var playerCam = player != null ? player.GetComponentInChildren<Camera>() : null;
+        ConfigurePostProcessing(playerCam);
 
         // Cinematic camera
         var cineGo = new GameObject("CinematicCamera");
         var cineCam = cineGo.AddComponent<Camera>();
         cineCam.tag = "Untagged";
         cineGo.AddComponent<AudioListener>();
+        ConfigurePostProcessing(cineCam);
         cineGo.SetActive(false);
 
         // Actors
@@ -108,6 +110,7 @@ public static class SetupGamePresentation
         flowSo.FindProperty("subtitleLabel").objectReferenceValue = ui.subtitle;
         flowSo.FindProperty("skipHintLabel").objectReferenceValue = ui.skipHint;
         flowSo.FindProperty("skipButton").objectReferenceValue = ui.skipBtn;
+        flowSo.FindProperty("continueButton").objectReferenceValue = ui.continueBtn;
         flowSo.FindProperty("menuFade").objectReferenceValue = ui.menuFade;
         flowSo.FindProperty("subtitleFade").objectReferenceValue = ui.subtitleFade;
         flowSo.FindProperty("worldGenerator").objectReferenceValue = gen;
@@ -121,6 +124,7 @@ public static class SetupGamePresentation
         var binder = ui.canvas.AddComponent<MenuButtonBinder>();
         var binderSo = new SerializedObject(binder);
         binderSo.FindProperty("startButton").objectReferenceValue = ui.startBtn;
+        binderSo.FindProperty("continueButton").objectReferenceValue = ui.continueBtn;
         binderSo.FindProperty("quitButton").objectReferenceValue = ui.quitBtn;
         binderSo.FindProperty("flow").objectReferenceValue = flow;
         binderSo.ApplyModifiedPropertiesWithoutUndo();
@@ -160,15 +164,18 @@ public static class SetupGamePresentation
             var path = AssetDatabase.GUIDToAssetPath(guid);
             var name = System.IO.Path.GetFileName(path);
             var dest = $"Assets/Resources/Characters/{name}";
-            AssetDatabase.DeleteAsset(dest);
-            AssetDatabase.CopyAsset(path, dest);
+            // Keep the destination .meta GUID stable. Replacing an existing asset here
+            // invalidates every serialized model reference whenever presentation is rebuilt.
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(dest) == null)
+                AssetDatabase.CopyAsset(path, dest);
         }
 
         var texSrc = $"{CharPath}/Textures/colormap.png";
         if (System.IO.File.Exists(texSrc))
         {
-            AssetDatabase.DeleteAsset("Assets/Resources/Characters/colormap.png");
-            AssetDatabase.CopyAsset(texSrc, "Assets/Resources/Characters/colormap.png");
+            const string texDest = "Assets/Resources/Characters/colormap.png";
+            if (AssetDatabase.LoadAssetAtPath<Texture2D>(texDest) == null)
+                AssetDatabase.CopyAsset(texSrc, texDest);
         }
         AssetDatabase.Refresh();
     }
@@ -177,16 +184,22 @@ public static class SetupGamePresentation
     {
         var urp = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>("Assets/Settings/URP-HighFidelity.asset");
         if (urp == null) return;
-        var so = new SerializedObject(urp);
-        var msaa = so.FindProperty("m_MSAA");
-        if (msaa != null)
-        {
-            msaa.intValue = 4; // 4x
-            so.ApplyModifiedPropertiesWithoutUndo();
-        }
+        urp.msaaSampleCount = 4;
+        urp.shadowDistance = 220f;
+        urp.shadowCascadeCount = 4;
+        EditorUtility.SetDirty(urp);
         GraphicsSettings.defaultRenderPipeline = urp;
         QualitySettings.renderPipeline = urp;
         QualitySettings.antiAliasing = 4;
+    }
+
+    private static void ConfigurePostProcessing(Camera camera)
+    {
+        if (camera == null) return;
+        var data = camera.GetComponent<UniversalAdditionalCameraData>();
+        if (data == null) data = camera.gameObject.AddComponent<UniversalAdditionalCameraData>();
+        data.renderPostProcessing = true;
+        EditorUtility.SetDirty(data);
     }
 
     private static void UpgradeKenneyMaterials()
@@ -231,65 +244,108 @@ public static class SetupGamePresentation
         var city = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_CityStone.mat");
         var mountain = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_Mountain.mat");
 
-        var trees = LoadModels(NaturePath, n => n.StartsWith("tree_") && (n.Contains("pine") || n.Contains("oak") || n.Contains("default") || n.Contains("tall")))
-            .Concat(LoadModels(SurvivalPath, n => n.StartsWith("tree") && !n.Contains("log") && !n.Contains("trunk")))
-            .Take(16).ToArray();
-        var desert = LoadModels(NaturePath, n => n.StartsWith("cactus") || n.StartsWith("rock_") || n.StartsWith("plant_bush"))
-            .Concat(LoadModels(SurvivalPath, n => n.StartsWith("rock-sand") || n.StartsWith("rock-")))
-            .Take(16).ToArray();
-        var rocks = LoadModels(NaturePath, n => n.StartsWith("rock_") || n.StartsWith("stone_large"))
-            .Concat(LoadModels(SurvivalPath, n => n.StartsWith("rock-") || n.StartsWith("tree-log")))
-            .Take(14).ToArray();
+        // Quotas are selected across each alphabetically sorted source and then
+        // interleaved. This keeps the result deterministic without allowing the
+        // first large kit in a Concat chain to starve every later kit.
+        var natureTrees = LoadModels(NaturePath, n =>
+            n.StartsWith("tree_") && !n.Contains("palm") &&
+            (n.Contains("pine") || n.Contains("oak") || n.Contains("default") || n.Contains("tall")));
+        var survivalTrees = LoadModels(SurvivalPath, n =>
+            n.StartsWith("tree") && !n.Contains("log") && !n.Contains("trunk"));
+        var trees = InterleaveUnique(16,
+            TakeQuota(natureTrees, 12),
+            TakeQuota(survivalTrees, 4));
+
+        var desert = InterleaveUnique(16,
+            TakeQuota(LoadModels(NaturePath, n =>
+                n.StartsWith("cactus") || n.StartsWith("rock_") || n.StartsWith("plant_bush")), 10),
+            TakeQuota(LoadModels(SurvivalPath, n =>
+                n.StartsWith("rock-sand") || n.StartsWith("rock-")), 6));
+        var rocks = InterleaveUnique(14,
+            TakeQuota(LoadModels(NaturePath, n =>
+                n.StartsWith("rock_") || n.StartsWith("stone_large")), 10),
+            TakeQuota(LoadModels(SurvivalPath, n =>
+                n.StartsWith("rock-") || n.StartsWith("tree-log")), 4));
 
         // Quaternius modular medieval village (primary city art) + Poly Haven heroes + Kenney fill.
         var hero = LoadModels(PolyHavenPrefabPath, _ => true);
-        var medieval = LoadModels(MedievalVillagePath, n =>
+        var medievalModules = LoadModels(MedievalVillagePath, n =>
             n.StartsWith("Wall_") || n.StartsWith("Corner_") || n.StartsWith("Roof_") ||
             n.StartsWith("Door") || n.StartsWith("Stairs_") || n.StartsWith("Balcony_") ||
             n.StartsWith("Floor_") || n.Contains("Window"));
         var medievalProps = LoadModels(MedievalVillagePath, n => n.StartsWith("Prop_"));
-        var buildings = medieval.Where(g => !g.name.StartsWith("Prop_"))
-            .Concat(hero.Where(g => g.name.Contains("castle_door") || g.name.Contains("iron_gate") || g.name.Contains("modular_fort")))
-            .Concat(LoadModels(TownPath, n =>
-                n.Contains("watermill") || n.Contains("windmill") || n.StartsWith("stall") ||
-                n.StartsWith("wall") || n.StartsWith("roof") || n.Contains("door") || n.Contains("window") ||
-                n.Contains("chimney") || n.Contains("stairs")))
-            .Concat(LoadModels(CastlePath, n => n.StartsWith("wall") || n.StartsWith("tower-") || n.StartsWith("gate") || n.StartsWith("bridge") || n.StartsWith("stairs")))
-            .Concat(LoadModels(PirateKitSafe(), n => n.Contains("castle") || n.Contains("wall") || n.Contains("tower") || n.Contains("gate")))
-            .Take(140).ToArray();
-        var towers = medieval.Where(g => g.name.StartsWith("Roof_Tower") || g.name.Contains("RoundTiles_6x") || g.name.Contains("RoundTiles_8x"))
-            .Concat(hero.Where(g => g.name.Contains("modular_fort") || g.name.Contains("iron_gate")))
-            .Concat(LoadModels(TownPath, n => n.Contains("tower") || n.Contains("windmill")))
-            .Concat(LoadModels(CastlePath, n => n.StartsWith("tower-")))
-            .Concat(LoadModels(PirateKitSafe(), n => n.Contains("castle") || n.Contains("tower")))
-            .Take(28).ToArray();
-        var docks = LoadModels(PirateKitSafe(), n =>
-                n.Contains("dock") || n.Contains("pier") || n.Contains("ship") || n.Contains("boat") ||
-                n.Contains("plank") || n.Contains("platform") || n.Contains("bridge"))
-            .Concat(LoadModels(CastlePath, n => n.StartsWith("bridge")))
-            .Take(20).ToArray();
-        var props = medievalProps
-            .Concat(hero.Where(g => g.name.Contains("bucket") || g.name.Contains("crate") || g.name.Contains("fire_pit")))
-            .Concat(LoadModels(TownPath, n => n.StartsWith("stall") || n.Contains("fountain") || n.Contains("barrel") || n.Contains("crate") || n.Contains("cart") || n.Contains("fence")))
-            .Concat(LoadModels(PirateKitSafe(), n => n.Contains("barrel") || n.Contains("crate") || n.Contains("chest") || n.Contains("cannon")))
-            .Concat(LoadModels(FurniturePath, n =>
-                n == "table" || n == "tableCloth" || n == "chair" || n == "bench" ||
-                n.StartsWith("bookcase") || n == "desk" || n == "books" || n.StartsWith("sideTable")))
-            .Concat(LoadModels(SurvivalPath, n => n.Contains("barrel") || n.Contains("box") || n.Contains("crate") || n.Contains("bucket")))
-            .Take(50).ToArray();
+        var townModules = LoadModels(TownPath, n =>
+            !n.Contains("inner") &&
+            (n.StartsWith("wall") || n.StartsWith("roof") || n.Contains("door") ||
+             n.Contains("window") || n.Contains("chimney") || n.Contains("stairs")));
+        var castleModules = LoadModels(CastlePath, n =>
+            n.StartsWith("wall") || n.StartsWith("stairs") || n == "door");
+        var pirateModules = LoadModels(PirateKitSafe(), n =>
+            n == "castle-door" || n == "castle-wall" || n == "castle-window");
+        var buildingLandmarks = InterleaveUnique(4,
+            hero.Where(g => g.name == "modular_fort_01"),
+            LoadModels(TownPath, n => n == "watermill" || n == "windmill"));
+        var buildings = InterleaveUnique(128,
+            TakeQuota(medievalModules, 48),
+            TakeQuota(townModules, 32),
+            TakeQuota(castleModules, 24),
+            TakeQuota(pirateModules, 16),
+            TakeQuota(buildingLandmarks, 4));
 
-        var camp = medievalProps.Where(g => g.name.Contains("Crate") || g.name.Contains("Wagon") || g.name.Contains("Fence"))
-            .Concat(hero.Where(g => g.name.Contains("fire_pit") || g.name.Contains("bucket") || g.name.Contains("crate")))
-            .Concat(LoadModels(SurvivalPath, n =>
+        // The first entry is consumed by the Balfiera landmark builder, so make
+        // it an actual complete tower. Roofs, gates and windmills belong elsewhere.
+        var castleTowers = LoadModels(CastlePath, n => n == "tower-square");
+        var pirateTowers = LoadModels(PirateKitSafe(), n =>
+            n == "tower-complete-large" || n == "tower-complete-small" || n == "tower-watch");
+        var heroForts = hero.Where(g => g.name == "modular_fort_01");
+        var towers = InterleaveUnique(8, castleTowers, pirateTowers, heroForts);
+
+        // Harbors need walkable surfaces. Boats and ships are separate dressing,
+        // not valid replacements for a pier beneath the player's feet.
+        var pirateDocks = LoadModels(PirateKitSafe(), n =>
+            n.Contains("dock") || n.Contains("pier") || n.Contains("platform") || n.Contains("plank"));
+        var castleBridges = LoadModels(CastlePath, n => n.StartsWith("bridge"));
+        var natureBridges = LoadModels(NaturePath, n =>
+            n.StartsWith("bridge_") && !n.Contains("center") && !n.Contains("side"));
+        var docks = InterleaveUnique(16,
+            TakeQuota(pirateDocks, 6),
+            TakeQuota(castleBridges, 3),
+            TakeQuota(natureBridges, 8));
+
+        var heroProps = hero.Where(g =>
+            g.name.Contains("bucket") || g.name.Contains("crate") || g.name.Contains("fire_pit"));
+        var townProps = LoadModels(TownPath, n =>
+            n.StartsWith("stall") || n.Contains("fountain") || n.Contains("barrel") ||
+            n.Contains("crate") || n.Contains("cart") || n.Contains("fence"));
+        var pirateProps = LoadModels(PirateKitSafe(), n =>
+            n.Contains("barrel") || n.Contains("crate") || n.Contains("chest") || n.Contains("cannon"));
+        var furnitureProps = LoadModels(FurniturePath, n =>
+            n == "table" || n == "tableCloth" || n == "chair" || n == "bench" ||
+            n.StartsWith("bookcase") || n == "desk" || n == "books" || n.StartsWith("sideTable"));
+        var survivalProps = LoadModels(SurvivalPath, n =>
+            n.Contains("barrel") || n.Contains("box") || n.Contains("crate") || n.Contains("bucket"));
+        var props = InterleaveUnique(48,
+            TakeQuota(medievalProps, 12),
+            TakeQuota(heroProps, 4),
+            TakeQuota(townProps, 12),
+            TakeQuota(pirateProps, 6),
+            TakeQuota(furnitureProps, 8),
+            TakeQuota(survivalProps, 8));
+
+        var camp = InterleaveUnique(28,
+            TakeQuota(medievalProps.Where(g =>
+                g.name.Contains("Crate") || g.name.Contains("Wagon") || g.name.Contains("Fence")), 8),
+            TakeQuota(heroProps, 4),
+            TakeQuota(LoadModels(SurvivalPath, n =>
                 n.StartsWith("tent") || n.StartsWith("campfire") || n.StartsWith("fence") ||
-                n.Contains("bedroll") || n.Contains("barrel") || n.StartsWith("tool-axe")))
-            .Take(28).ToArray();
-        var ruins = hero.Where(g => g.name.Contains("castle_door") || g.name.Contains("iron_gate"))
-            .Concat(LoadModels(GraveyardPath, n =>
+                n.Contains("bedroll") || n.Contains("barrel") || n.StartsWith("tool-axe")), 16));
+        var ruins = InterleaveUnique(28,
+            TakeQuota(hero.Where(g =>
+                g.name.Contains("castle_door") || g.name.Contains("iron_gate")), 2),
+            TakeQuota(LoadModels(GraveyardPath, n =>
                 n.StartsWith("crypt") || n.StartsWith("stone-wall") || n.StartsWith("brick-wall") ||
                 n.StartsWith("column") || n.StartsWith("gravestone") || n.StartsWith("altar") ||
-                n.StartsWith("cross") || n.StartsWith("coffin")))
-            .Take(28).ToArray();
+                n.StartsWith("cross") || n.StartsWith("coffin")), 26));
 
         var road = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/M_Road.mat");
 
@@ -316,7 +372,10 @@ public static class SetupGamePresentation
         so.ApplyModifiedPropertiesWithoutUndo();
 
         WireSfx();
-        Debug.Log($"[SetupGamePresentation] Wired: medieval={medieval.Length} heroPH={hero.Length} trees={trees.Length} buildings={buildings.Length} camp={camp.Length} ruins={ruins.Length} props={props.Length}");
+        Debug.Log(
+            $"[SetupGamePresentation] Wired: medievalModules={medievalModules.Length} heroPH={hero.Length} " +
+            $"trees={trees.Length} desert={desert.Length} rocks={rocks.Length} buildings={buildings.Length} " +
+            $"towers={towers.Length} docks={docks.Length} props={props.Length} camp={camp.Length} ruins={ruins.Length}");
     }
 
     private static void WireSfx()
@@ -386,6 +445,7 @@ public static class SetupGamePresentation
             AssetDatabase.CreateAsset(mat, path);
         }
         mat.shader = shader;
+        mat.enableInstancing = true;
         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c); else mat.color = c;
         if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smooth);
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
@@ -402,9 +462,10 @@ public static class SetupGamePresentation
         {
             if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
             else if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
-            float scale = tileMeters > 0.1f ? 1f / tileMeters : 1f;
-            if (mat.HasProperty("_BaseMap")) mat.SetTextureScale("_BaseMap", new Vector2(scale, scale));
-            if (mat.HasProperty("_MainTex")) mat.SetTextureScale("_MainTex", new Vector2(scale, scale));
+            // Generated terrain meshes already express texture repetition in UV space.
+            // Scaling again here applied tiling twice and reduced textures to a blur.
+            if (mat.HasProperty("_BaseMap")) mat.SetTextureScale("_BaseMap", Vector2.one);
+            if (mat.HasProperty("_MainTex")) mat.SetTextureScale("_MainTex", Vector2.one);
         }
         EditorUtility.SetDirty(mat);
     }
@@ -417,7 +478,9 @@ public static class SetupGamePresentation
         vol.priority = 1f;
         var profile = ScriptableObject.CreateInstance<VolumeProfile>();
         if (!AssetDatabase.IsValidFolder("Assets/Art")) AssetDatabase.CreateFolder("Assets", "Art");
-        AssetDatabase.CreateAsset(profile, "Assets/Art/IliacBayVolume.asset");
+        const string profilePath = "Assets/Art/IliacBayVolume.asset";
+        AssetDatabase.DeleteAsset(profilePath);
+        AssetDatabase.CreateAsset(profile, profilePath);
 
         var color = profile.Add<ColorAdjustments>(true);
         color.active = true;
@@ -426,7 +489,9 @@ public static class SetupGamePresentation
         color.contrast.overrideState = true;
         color.contrast.value = 12f;
         color.saturation.overrideState = true;
-        color.saturation.value = 8f;
+        color.saturation.value = -4f;
+        color.name = nameof(ColorAdjustments);
+        AssetDatabase.AddObjectToAsset(color, profile);
 
         var vignette = profile.Add<Vignette>(true);
         vignette.active = true;
@@ -434,6 +499,8 @@ public static class SetupGamePresentation
         vignette.intensity.value = 0.28f;
         vignette.smoothness.overrideState = true;
         vignette.smoothness.value = 0.45f;
+        vignette.name = nameof(Vignette);
+        AssetDatabase.AddObjectToAsset(vignette, profile);
 
         var bloom = profile.Add<Bloom>(true);
         bloom.active = true;
@@ -441,9 +508,12 @@ public static class SetupGamePresentation
         bloom.intensity.value = 0.18f;
         bloom.threshold.overrideState = true;
         bloom.threshold.value = 1.1f;
+        bloom.name = nameof(Bloom);
+        AssetDatabase.AddObjectToAsset(bloom, profile);
 
         EditorUtility.SetDirty(profile);
         vol.sharedProfile = profile;
+        AssetDatabase.SaveAssets();
     }
 
     private struct Actors { public Transform left, right; }
@@ -499,6 +569,7 @@ public static class SetupGamePresentation
         public CanvasGroup menuFade;
         public CanvasGroup subtitleFade;
         public Button startBtn;
+        public Button continueBtn;
         public Button quitBtn;
     }
 
@@ -528,44 +599,48 @@ public static class SetupGamePresentation
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        scaler.matchWidthOrHeight = 0.5f;
         canvasGo.AddComponent<GraphicRaycaster>();
 
         UiTheme.EnsureLoaded();
 
         // Menu root
-        var menu = CreatePanel(canvasGo.transform, "MenuRoot", new Color(0.04f, 0.05f, 0.07f, 0.88f), stretch: true);
+        var menu = CreatePanel(canvasGo.transform, "MenuRoot", new Color(0.012f, 0.015f, 0.018f, 0.76f), stretch: true);
         var menuFade = menu.AddComponent<CanvasGroup>();
 
-        var menuCard = CreatePanel(menu.transform, "MenuCard", Color.white, stretch: false);
+        var menuCard = CreatePanel(menu.transform, "MenuCard", UiTheme.PanelSoft, stretch: false);
         var cardRt = menuCard.GetComponent<RectTransform>();
-        cardRt.anchorMin = new Vector2(0.28f, 0.18f);
-        cardRt.anchorMax = new Vector2(0.72f, 0.82f);
+        cardRt.anchorMin = new Vector2(0.07f, 0.12f);
+        cardRt.anchorMax = new Vector2(0.43f, 0.88f);
         cardRt.offsetMin = Vector2.zero;
         cardRt.offsetMax = Vector2.zero;
         var cardImg = menuCard.GetComponent<Image>();
-        UiTheme.StylePanel(cardImg, UiTheme.PanelBrown, Color.white);
+        UiTheme.StylePanel(cardImg, UiTheme.PanelBrown, UiTheme.PanelSoft);
 
-        var title = CreateText(menuCard.transform, "Title", "ILIAC BAY", 72, FontStyle.Bold, TextAnchor.MiddleCenter);
+        var title = CreateText(menuCard.transform, "Title", "ILIAC BAY", 58, FontStyle.Normal, TextAnchor.MiddleCenter, display: true);
         var titleRt = title.rectTransform;
-        titleRt.anchorMin = new Vector2(0.08f, 0.72f);
-        titleRt.anchorMax = new Vector2(0.92f, 0.9f);
+        titleRt.anchorMin = new Vector2(0.08f, 0.74f);
+        titleRt.anchorMax = new Vector2(0.92f, 0.91f);
         titleRt.offsetMin = Vector2.zero;
         titleRt.offsetMax = Vector2.zero;
-        title.color = new Color(0.96f, 0.9f, 0.7f);
+        title.color = UiTheme.Silver;
 
-        var sub = CreateText(menuCard.transform, "Subtitle", "A High Rock & Hammerfell Homage", 24, FontStyle.Italic, TextAnchor.MiddleCenter);
+        var sub = CreateText(menuCard.transform, "Subtitle", "A HIGH ROCK & HAMMERFELL HOMAGE", 18, FontStyle.Normal, TextAnchor.MiddleCenter);
         var subRt = sub.rectTransform;
         subRt.anchorMin = new Vector2(0.08f, 0.62f);
         subRt.anchorMax = new Vector2(0.92f, 0.72f);
         subRt.offsetMin = Vector2.zero;
         subRt.offsetMax = Vector2.zero;
-        sub.color = new Color(0.85f, 0.8f, 0.7f);
+        sub.color = UiTheme.MutedSilver;
 
-        var startBtn = CreateButton(menuCard.transform, "StartButton", "START JOURNEY", new Vector2(0.5f, 0.42f), new Color(0.35f, 0.28f, 0.18f, 1f));
-        var quitBtn = CreateButton(menuCard.transform, "QuitButton", "QUIT", new Vector2(0.5f, 0.28f), new Color(0.18f, 0.2f, 0.24f, 1f));
+        var startBtn = CreateButton(menuCard.transform, "StartButton", "NEW JOURNEY", new Vector2(0.5f, 0.48f), UiTheme.Panel);
+        var continueBtn = CreateButton(menuCard.transform, "ContinueButton", "CONTINUE", new Vector2(0.5f, 0.35f), UiTheme.Panel);
+        var quitBtn = CreateButton(menuCard.transform, "QuitButton", "QUIT", new Vector2(0.5f, 0.22f), UiTheme.Panel);
         UiTheme.StyleButton(startBtn, UiTheme.ButtonLong, UiTheme.ButtonLongPressed);
+        UiTheme.StyleButton(continueBtn, UiTheme.ButtonLong, UiTheme.ButtonLongPressed);
         UiTheme.StyleButton(quitBtn, UiTheme.ButtonLong, UiTheme.ButtonLongPressed);
         startBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 70);
+        continueBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 64);
         quitBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(360, 64);
 
         // Subtitles
@@ -575,7 +650,7 @@ public static class SetupGamePresentation
         subsRt.anchorMax = new Vector2(0.85f, 0.24f);
         subsRt.offsetMin = Vector2.zero;
         subsRt.offsetMax = Vector2.zero;
-        UiTheme.StylePanel(subs.GetComponent<Image>(), UiTheme.PanelBrown, Color.white);
+        UiTheme.StylePanel(subs.GetComponent<Image>(), UiTheme.PanelBrown, UiTheme.Panel);
         var subFade = subs.AddComponent<CanvasGroup>();
         var speaker = CreateText(subs.transform, "Speaker", "Speaker", 26, FontStyle.Bold, TextAnchor.UpperLeft);
         var speakerRt = speaker.rectTransform;
@@ -622,6 +697,7 @@ public static class SetupGamePresentation
             menuFade = menuFade,
             subtitleFade = subFade,
             startBtn = startBtn,
+            continueBtn = continueBtn,
             quitBtn = quitBtn
         };
     }
@@ -643,7 +719,8 @@ public static class SetupGamePresentation
         return go;
     }
 
-    private static Text CreateText(Transform parent, string name, string content, int size, FontStyle style, TextAnchor anchor)
+    private static Text CreateText(Transform parent, string name, string content, int size, FontStyle style,
+        TextAnchor anchor, bool display = false)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
@@ -654,7 +731,10 @@ public static class SetupGamePresentation
         text.fontStyle = style;
         text.alignment = anchor;
         text.color = Color.white;
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = display
+            ? Resources.Load<Font>("Fonts/CinzelDecorative-Regular") ?? Resources.Load<Font>("Fonts/Cinzel-Regular")
+            : Resources.Load<Font>("Fonts/EBGaramond") ?? Resources.Load<Font>("Fonts/Cinzel-Regular");
+        if (text.font == null) text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (text.font == null)
         {
             // Unity version fallbacks
@@ -701,6 +781,64 @@ public static class SetupGamePresentation
             }
         }
         return list.OrderBy(g => g.name).ToArray();
+    }
+
+    /// <summary>
+    /// Selects a stable quota spread across a sorted source instead of taking only
+    /// its alphabetic prefix. The first and last assets are both represented.
+    /// </summary>
+    private static GameObject[] TakeQuota(IEnumerable<GameObject> source, int limit)
+    {
+        if (source == null || limit <= 0) return System.Array.Empty<GameObject>();
+        var items = source.Where(g => g != null)
+            .Distinct()
+            .OrderBy(g => g.name, System.StringComparer.Ordinal)
+            .ToArray();
+        if (items.Length <= limit) return items;
+        if (limit == 1) return new[] { items[0] };
+
+        var selected = new GameObject[limit];
+        for (int i = 0; i < limit; i++)
+        {
+            int index = Mathf.RoundToInt(i * (items.Length - 1f) / (limit - 1f));
+            selected[i] = items[index];
+        }
+        return selected;
+    }
+
+    /// <summary>Round-robins deterministic sources while removing duplicate assets.</summary>
+    private static GameObject[] InterleaveUnique(int limit, params IEnumerable<GameObject>[] sources)
+    {
+        if (limit <= 0 || sources == null || sources.Length == 0)
+            return System.Array.Empty<GameObject>();
+
+        var pools = sources
+            .Select(source => (source ?? Enumerable.Empty<GameObject>())
+                .Where(g => g != null)
+                .ToArray())
+            .ToArray();
+        var cursors = new int[pools.Length];
+        var seen = new HashSet<GameObject>();
+        var result = new List<GameObject>(limit);
+
+        while (result.Count < limit)
+        {
+            bool progressed = false;
+            for (int i = 0; i < pools.Length && result.Count < limit; i++)
+            {
+                while (cursors[i] < pools[i].Length)
+                {
+                    var candidate = pools[i][cursors[i]++];
+                    if (!seen.Add(candidate)) continue;
+                    result.Add(candidate);
+                    progressed = true;
+                    break;
+                }
+            }
+            if (!progressed) break;
+        }
+
+        return result.ToArray();
     }
 
     private static void Assign(SerializedObject so, string name, GameObject[] values)

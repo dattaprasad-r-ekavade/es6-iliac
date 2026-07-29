@@ -2,11 +2,19 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Loads Kenney RPG UI sprites and styles panels / buttons.
-/// Prefers Resources/UI (player builds); falls back to AssetDatabase in editor.
+/// Shared presentation palette for the game's restrained, carved-metal UI.
+/// Kenney sprites are retained as subtle nine-slice borders, but the bright
+/// parchment treatment is replaced with translucent charcoal and cool silver.
 /// </summary>
 public static class UiTheme
 {
+    public static readonly Color Panel = new Color(0.035f, 0.04f, 0.045f, 0.94f);
+    public static readonly Color PanelSoft = new Color(0.055f, 0.06f, 0.065f, 0.88f);
+    public static readonly Color Inset = new Color(0.015f, 0.018f, 0.022f, 0.90f);
+    public static readonly Color Silver = new Color(0.82f, 0.84f, 0.82f, 1f);
+    public static readonly Color MutedSilver = new Color(0.58f, 0.61f, 0.60f, 1f);
+    public static readonly Color WarmAccent = new Color(0.70f, 0.58f, 0.38f, 1f);
+
     public static Sprite PanelBrown;
     public static Sprite PanelBeige;
     public static Sprite PanelInset;
@@ -66,11 +74,16 @@ public static class UiTheme
         {
             img.sprite = sprite;
             img.type = Image.Type.Sliced;
-            img.color = tint ?? Color.white;
+            if (sprite == IconCircle)
+                img.color = tint ?? Silver;
+            else if (sprite == PanelInset || sprite == PanelBeige)
+                img.color = IsWhite(tint) ? Inset : tint ?? Inset;
+            else
+                img.color = IsWhite(tint) ? Panel : tint ?? Panel;
         }
         else
         {
-            img.color = tint ?? new Color(0.12f, 0.1f, 0.08f, 0.94f);
+            img.color = tint ?? Panel;
         }
     }
 
@@ -78,24 +91,31 @@ public static class UiTheme
     {
         if (btn == null) return;
         var img = btn.targetGraphic as Image;
-        if (img != null && normal != null)
+        if (img != null)
         {
-            img.sprite = normal;
-            img.type = Image.Type.Sliced;
-            img.color = Color.white;
+            if (normal != null)
+            {
+                img.sprite = normal;
+                img.type = Image.Type.Sliced;
+            }
+            img.color = new Color(0.08f, 0.085f, 0.09f, 0.96f);
         }
         var colors = btn.colors;
         colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(1f, 0.96f, 0.88f, 1f);
-        colors.pressedColor = new Color(0.85f, 0.8f, 0.7f, 1f);
-        colors.selectedColor = Color.white;
+        colors.highlightedColor = new Color(1.35f, 1.35f, 1.32f, 1f);
+        colors.pressedColor = new Color(0.72f, 0.74f, 0.73f, 1f);
+        colors.selectedColor = new Color(1.18f, 1.15f, 1.08f, 1f);
+        colors.disabledColor = new Color(0.42f, 0.42f, 0.42f, 0.55f);
+        colors.colorMultiplier = 1f;
+        colors.fadeDuration = 0.08f;
         btn.colors = colors;
-        if (pressed != null)
-        {
-            var spriteState = btn.spriteState;
-            spriteState.pressedSprite = pressed;
-            btn.spriteState = spriteState;
-            btn.transition = Selectable.Transition.SpriteSwap;
-        }
+        btn.transition = Selectable.Transition.ColorTint;
+    }
+
+    private static bool IsWhite(Color? value)
+    {
+        if (!value.HasValue) return false;
+        var c = value.Value;
+        return c.r > 0.98f && c.g > 0.98f && c.b > 0.98f;
     }
 }

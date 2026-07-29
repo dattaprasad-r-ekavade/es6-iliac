@@ -120,12 +120,19 @@ public static class WorldTagger
     /// </summary>
     public static void ConfigureCameras()
     {
-        var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include);
         foreach (var cam in cameras)
         {
             if (cam == null) continue;
             if (cam.farClipPlane < WorldLayout.CameraFarPlane)
                 cam.farClipPlane = WorldLayout.CameraFarPlane;
+
+            // First-person cameras must not render the player's full-body model;
+            // otherwise its head and shoulders clip through the near plane.
+            bool isPlayerCamera = cam.CompareTag("MainCamera")
+                || (PlayerRef.Transform != null && cam.transform.IsChildOf(PlayerRef.Transform));
+            if (isPlayerCamera)
+                cam.cullingMask &= ~(1 << GameLayers.Player);
         }
     }
 }

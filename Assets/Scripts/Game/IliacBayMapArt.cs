@@ -17,7 +17,8 @@ public static class IliacBayMapArt
 
     private struct Region
     {
-        public float X, Z, Rx, Rz;
+        public WorldLayout.Landmass Landmass;
+        public Vector2 CoastRadii;
         public Color Color;
     }
 
@@ -40,11 +41,20 @@ public static class IliacBayMapArt
         var regions = BuildRegionsFromLayout();
 
         foreach (var r in regions)
-            FillEllipse(pixels, w, h, r.X, r.Z, r.Rx, r.Rz, r.Color);
+            FillLandmass(pixels, w, h, r);
 
         // Coast foam ring
         foreach (var r in regions)
-            StrokeEllipse(pixels, w, h, r.X, r.Z, r.Rx + 18f, r.Rz + 14f, new Color(0.72f, 0.68f, 0.5f, 0.55f), 3);
+            StrokeEllipse(
+                pixels,
+                w,
+                h,
+                r.Landmass.Center.x,
+                r.Landmass.Center.z,
+                r.CoastRadii.x + 18f,
+                r.CoastRadii.y + 14f,
+                new Color(0.72f, 0.68f, 0.5f, 0.55f),
+                3);
 
         // Compass rose hint
         DrawCompass(pixels, w, h);
@@ -67,10 +77,8 @@ public static class IliacBayMapArt
             var land = layout[i];
             regions[i] = new Region
             {
-                X = land.Center.x,
-                Z = land.Center.z,
-                Rx = land.Size.x * 0.5f,
-                Rz = land.Size.z * 0.5f,
+                Landmass = land,
+                CoastRadii = WorldLayout.GetCoastRadii(land),
                 Color = BiomeColor(land.Biome)
             };
         }
@@ -85,24 +93,28 @@ public static class IliacBayMapArt
         _ => new Color(0.24f, 0.44f, 0.22f)
     };
 
-    private static void FillEllipse(Color[] pixels, int w, int h, float cx, float cz, float rx, float rz, Color color)
+    private static void FillLandmass(Color[] pixels, int w, int h, Region region)
     {
-        int minX = Mathf.Max(0, WorldXToPx(cx - rx, w) - 2);
-        int maxX = Mathf.Min(w - 1, WorldXToPx(cx + rx, w) + 2);
-        int minY = Mathf.Max(0, WorldZToPy(cz - rz, h) - 2);
-        int maxY = Mathf.Min(h - 1, WorldZToPy(cz + rz, h) + 2);
+        float cx = region.Landmass.Center.x;
+        float cz = region.Landmass.Center.z;
+        int minX = Mathf.Max(0, WorldXToPx(cx - region.CoastRadii.x, w) - 2);
+        int maxX = Mathf.Min(w - 1, WorldXToPx(cx + region.CoastRadii.x, w) + 2);
+        int minY = Mathf.Max(0, WorldZToPy(cz - region.CoastRadii.y, h) - 2);
+        int maxY = Mathf.Min(h - 1, WorldZToPy(cz + region.CoastRadii.y, h) + 2);
 
         for (int py = minY; py <= maxY; py++)
         for (int px = minX; px <= maxX; px++)
         {
             float wx = PxToWorldX(px, w);
             float wz = PyToWorldZ(py, h);
-            float dx = (wx - cx) / rx;
-            float dz = (wz - cz) / rz;
-            if (dx * dx + dz * dz > 1f) continue;
-            float edge = 1f - Mathf.Clamp01(dx * dx + dz * dz);
+            float coastDistance = WorldLayout.GetNormalizedCoastDistance(
+                new Vector3(wx, 0f, wz),
+                region.Landmass);
+            if (coastDistance > 1f) continue;
+
+            float edge = 1f - Mathf.Clamp01(coastDistance * coastDistance);
             int idx = py * w + px;
-            pixels[idx] = Color.Lerp(pixels[idx], color, 0.55f + edge * 0.45f);
+            pixels[idx] = Color.Lerp(pixels[idx], region.Color, 0.55f + edge * 0.45f);
         }
     }
 

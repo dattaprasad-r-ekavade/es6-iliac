@@ -117,7 +117,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         var ocean = GameObject.CreatePrimitive(PrimitiveType.Plane);
         ocean.name = "IliacBay_Ocean";
         ocean.transform.SetParent(_root, false);
-        ocean.transform.position = new Vector3(0f, 2f, 0f);
+        ocean.transform.position = new Vector3(0f, WorldLayout.WaterLevel, 0f);
         ocean.transform.localScale = Vector3.one * (waterSize / 10f);
         var oceanMat = oceanMaterial != null ? new Material(oceanMaterial) : WorldVisualFix.CreateWaterMaterial();
         if (oceanMaterial != null)
@@ -213,6 +213,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         if (groundR != null) groundR.enabled = false;
 
         BuildTerrainSurface(go.transform, patch, mat, color);
+        BuildCoastBand(go.transform, patch);
 
         // Soft rim plateau — visual only (no collider) so it can't strand the player.
         var rim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -227,7 +228,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
         if (patch.HasCity)
         {
-            float surfaceY = SampleTerrainHeight(patch.Center.x, patch.Center.z, patch) + 0.05f;
+            float surfaceY = TerrainHeightSampler.Sample(patch.Center.x, patch.Center.z, patch) + 0.05f;
             BuildCity(go.transform, patch.CityName, surfaceY, patch.Biome == Biome.Hammerfell);
         }
 
@@ -260,39 +261,75 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
     private void BuildTerrainSurface(Transform parent, LandPatch patch, Material mat, Color color)
     {
-        int res = Mathf.Clamp((int)(Mathf.Max(patch.Size.x, patch.Size.z) / 45f), 32, 80);
-        float halfX = patch.Size.x * 0.49f;
-        float halfZ = patch.Size.z * 0.49f;
+        const float targetSpacing = 32f;
+        Vector2 radii = WorldLayout.GetCoastRadii(patch);
+        int angularSegments = GetCoastSegmentCount(radii, targetSpacing);
+        int radialRings = Mathf.Clamp(
+            Mathf.CeilToInt(Mathf.Max(radii.x, radii.y) / targetSpacing),
+            8,
+            64);
         float tileMeters = patch.Biome == Biome.Hammerfell ? 48f : patch.Biome == Biome.IslandRock ? 40f : 56f;
-        var verts = new Vector3[res * res];
-        var uvs = new Vector2[res * res];
-        var tris = new int[(res - 1) * (res - 1) * 6];
+        var verts = new Vector3[1 + radialRings * angularSegments];
+        var uvs = new Vector2[verts.Length];
+        var tris = new int[angularSegments * 3 + (radialRings - 1) * angularSegments * 6];
 
-        for (int z = 0; z < res; z++)
-        for (int x = 0; x < res; x++)
+        float centerY = TerrainHeightSampler.Sample(
+            patch.Center.x,
+            patch.Center.z,
+            patch);
+        verts[0] = new Vector3(0f, centerY, 0f);
+        uvs[0] = new Vector2(
+            patch.Center.x / tileMeters,
+            patch.Center.z / tileMeters);
+
+        for (int ring = 1; ring <= radialRings; ring++)
         {
-            float u = x / (float)(res - 1);
-            float v = z / (float)(res - 1);
-            float lx = Mathf.Lerp(-halfX, halfX, u);
-            float lz = Mathf.Lerp(-halfZ, halfZ, v);
-            float wx = patch.Center.x + lx;
-            float wz = patch.Center.z + lz;
-            float h = SampleTerrainHeight(wx, wz, patch);
-            verts[z * res + x] = new Vector3(lx, h, lz);
-            uvs[z * res + x] = new Vector2(lx / tileMeters, lz / tileMeters);
+            float normalizedRadius = ring / (float)radialRings;
+            int ringStart = 1 + (ring - 1) * angularSegments;
+            for (int segment = 0; segment < angularSegments; segment++)
+            {
+                float angle = segment / (float)angularSegments * Mathf.PI * 2f;
+                float lx = Mathf.Cos(angle) * radii.x * normalizedRadius;
+                float lz = Mathf.Sin(angle) * radii.y * normalizedRadius;
+                float wx = patch.Center.x + lx;
+                float wz = patch.Center.z + lz;
+                int vertex = ringStart + segment;
+                verts[vertex] = new Vector3(
+                    lx,
+                    TerrainHeightSampler.Sample(wx, wz, patch),
+                    lz);
+                uvs[vertex] = new Vector2(wx / tileMeters, wz / tileMeters);
+            }
         }
 
         int ti = 0;
-        for (int z = 0; z < res - 1; z++)
-        for (int x = 0; x < res - 1; x++)
+        for (int segment = 0; segment < angularSegments; segment++)
         {
-            int i = z * res + x;
-            tris[ti++] = i;
-            tris[ti++] = i + res;
-            tris[ti++] = i + res + 1;
-            tris[ti++] = i;
-            tris[ti++] = i + res + 1;
-            tris[ti++] = i + 1;
+            int current = 1 + segment;
+            int next = 1 + (segment + 1) % angularSegments;
+            tris[ti++] = 0;
+            tris[ti++] = next;
+            tris[ti++] = current;
+        }
+
+        for (int ring = 1; ring < radialRings; ring++)
+        {
+            int innerStart = 1 + (ring - 1) * angularSegments;
+            int outerStart = innerStart + angularSegments;
+            for (int segment = 0; segment < angularSegments; segment++)
+            {
+                int next = (segment + 1) % angularSegments;
+                int inner = innerStart + segment;
+                int nextInner = innerStart + next;
+                int outer = outerStart + segment;
+                int nextOuter = outerStart + next;
+                tris[ti++] = inner;
+                tris[ti++] = nextInner;
+                tris[ti++] = nextOuter;
+                tris[ti++] = inner;
+                tris[ti++] = nextOuter;
+                tris[ti++] = outer;
+            }
         }
 
         var mesh = new Mesh { name = "TerrainMesh" };
@@ -314,49 +351,97 @@ public class IliacBayWorldGenerator : MonoBehaviour
         var mc = terrainGo.AddComponent<MeshCollider>();
         mc.sharedMesh = mesh;
         terrainGo.layer = GameLayers.Ground;
+        terrainGo.isStatic = true;
     }
 
-    private static float SampleTerrainHeight(float worldX, float worldZ, LandPatch patch)
+    /// <summary>
+    /// A thin sand/stone shoulder makes the shared elliptical coast readable and hides
+    /// the transition where the terrain mesh descends below the ocean.
+    /// </summary>
+    private void BuildCoastBand(Transform parent, LandPatch patch)
     {
-        float baseH = Mathf.Max(4f, patch.Size.y);
-        float amp = patch.Biome switch
+        Vector2 radii = WorldLayout.GetCoastRadii(patch);
+        int segments = GetCoastSegmentCount(radii, 32f);
+        const int radialRings = 6;
+        const float innerRadius = 0.84f;
+        const float outerRadius = 0.985f;
+
+        var verts = new Vector3[segments * radialRings];
+        var uvs = new Vector2[verts.Length];
+        var tris = new int[segments * (radialRings - 1) * 6];
+
+        for (int ring = 0; ring < radialRings; ring++)
         {
-            Biome.Hammerfell => 28f,
-            Biome.IslandRock => 35f,
-            Biome.IslandGreen => 22f,
-            _ => patch.Size.y > 40f ? 75f : 42f
-        };
-
-        float lx = worldX - patch.Center.x;
-        float lz = worldZ - patch.Center.z;
-        float halfX = patch.Size.x * 0.49f;
-        float halfZ = patch.Size.z * 0.49f;
-
-        float edgeDistX = halfX - Mathf.Abs(lx);
-        float edgeDistZ = halfZ - Mathf.Abs(lz);
-        float edgeDist = Mathf.Min(edgeDistX, edgeDistZ);
-        float cliff = Mathf.Clamp01(edgeDist / 120f);
-
-        float cityFlat = 1f;
-        if (patch.HasCity)
-        {
-            float dist = new Vector2(lx, lz).magnitude;
-            cityFlat = Mathf.SmoothStep(0f, 1f, (dist - 140f) / 100f);
+            float radialT = ring / (float)(radialRings - 1);
+            float normalizedRadius = Mathf.Lerp(innerRadius, outerRadius, radialT);
+            for (int segment = 0; segment < segments; segment++)
+            {
+                float t = segment / (float)segments;
+                float angle = t * Mathf.PI * 2f;
+                float x = Mathf.Cos(angle) * radii.x * normalizedRadius;
+                float z = Mathf.Sin(angle) * radii.y * normalizedRadius;
+                float sampledY = TerrainHeightSampler.Sample(
+                    patch.Center.x + x,
+                    patch.Center.z + z,
+                    patch);
+                float y = Mathf.Max(
+                    WorldLayout.WaterLevel + 0.08f,
+                    sampledY + 0.18f);
+                int vertex = ring * segments + segment;
+                verts[vertex] = new Vector3(x, y, z);
+                uvs[vertex] = new Vector2(t * 12f, 1f - radialT);
+            }
         }
 
-        float seed = patch.Name.GetHashCode() * 0.001f;
-        float n1 = Mathf.PerlinNoise(worldX * 0.0011f + seed, worldZ * 0.0011f + seed);
-        float n2 = Mathf.PerlinNoise(worldX * 0.0035f - seed, worldZ * 0.0035f + seed);
-        float n3 = Mathf.PerlinNoise(worldX * 0.009f, worldZ * 0.009f);
-        float n4 = Mathf.PerlinNoise(worldX * 0.00035f + 40f, worldZ * 0.00035f - 20f);
-        float hills = (n1 * 2f - 1f) * 0.45f + (n2 * 2f - 1f) * 0.3f + (n3 * 2f - 1f) * 0.15f;
-        float ridges = (n4 * 2f - 1f) * 0.35f;
-        float relief = (hills + ridges) * amp * cityFlat;
+        int ti = 0;
+        for (int ring = 0; ring < radialRings - 1; ring++)
+        {
+            int innerStart = ring * segments;
+            int outerStart = (ring + 1) * segments;
+            for (int segment = 0; segment < segments; segment++)
+            {
+                int next = (segment + 1) % segments;
+                int inner = innerStart + segment;
+                int nextInner = innerStart + next;
+                int outer = outerStart + segment;
+                int nextOuter = outerStart + next;
+                tris[ti++] = inner;
+                tris[ti++] = nextInner;
+                tris[ti++] = nextOuter;
+                tris[ti++] = inner;
+                tris[ti++] = nextOuter;
+                tris[ti++] = outer;
+            }
+        }
 
-        float height = baseH + relief * cliff;
-        if (cliff < 0.35f)
-            height = Mathf.Lerp(2f, height, cliff / 0.35f);
-        return height;
+        var mesh = new Mesh { name = $"{patch.Name}_CoastBand" };
+        mesh.vertices = verts;
+        mesh.uv = uvs;
+        mesh.triangles = tris;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        var band = new GameObject("CoastBand");
+        band.transform.SetParent(parent, false);
+        var filter = band.AddComponent<MeshFilter>();
+        filter.sharedMesh = mesh;
+        var renderer = band.AddComponent<MeshRenderer>();
+        renderer.sharedMaterial = patch.Biome == Biome.IslandRock
+            ? mountainMaterial
+            : sandMaterial;
+        band.isStatic = true;
+    }
+
+    private static int GetCoastSegmentCount(Vector2 radii, float targetSpacing)
+    {
+        float a = Mathf.Max(radii.x, radii.y);
+        float b = Mathf.Min(radii.x, radii.y);
+        float circumference = Mathf.PI * (
+            3f * (a + b) - Mathf.Sqrt((3f * a + b) * (a + 3f * b)));
+        return Mathf.Clamp(
+            Mathf.CeilToInt(circumference / Mathf.Max(8f, targetSpacing)),
+            48,
+            256);
     }
 
     private void BuildCity(Transform parent, string cityName, float surfaceY, bool desertCity)
@@ -370,10 +455,10 @@ public class IliacBayWorldGenerator : MonoBehaviour
         };
         int buildings = cityName switch
         {
-            "Daggerfall" => 140,
-            "Wayrest" => 120,
-            "Sentinel" => 130,
-            _ => 80
+            "Daggerfall" => 105,
+            "Wayrest" => 90,
+            "Sentinel" => 95,
+            _ => 70
         };
 
         CityDistrictBuilder.Build(parent, surfaceY, new CityDistrictBuilder.Config
@@ -403,25 +488,104 @@ public class IliacBayWorldGenerator : MonoBehaviour
         }
 
         var top = island.Find("Top");
-        var parent = top != null ? top : island;
+        var landmarkOrigin = top != null ? top.position : island.position;
 
         GameObject tower;
         if (towerPrefabs != null && towerPrefabs.Length > 0)
         {
-            tower = Instantiate(towerPrefabs[0], parent);
-            tower.transform.localPosition = Vector3.zero;
-            tower.transform.localScale = Vector3.one * 6f;
+            // "Top" is a broad land-sizing marker whose X/Z scale is hundreds of
+            // metres. Parenting the tower to it multiplied the tower's width by
+            // that scale. Keep the landmark under the unscaled island instead.
+            tower = Instantiate(towerPrefabs[0], island);
+            tower.transform.position = landmarkOrigin;
+            tower.transform.localScale = Vector3.one;
+            FitVisualToHeight(tower, 72f);
         }
         else
         {
             tower = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            tower.transform.SetParent(parent, false);
-            tower.transform.localPosition = new Vector3(0f, 40f, 0f);
+            tower.transform.SetParent(island, false);
+            tower.transform.position = landmarkOrigin + Vector3.up * 40f;
             tower.transform.localScale = new Vector3(8f, 40f, 8f);
             ApplyMat(tower, cityMaterial, new Color(0.55f, 0.55f, 0.6f));
         }
 
         tower.name = "AdamantineTower_Homage";
+        EnsureBoundsBoxCollider(tower);
+        tower.isStatic = true;
+    }
+
+    private static void FitVisualToHeight(GameObject visual, float targetHeight)
+    {
+        if (visual == null || targetHeight <= 0.1f) return;
+        float baseY = visual.transform.position.y;
+        if (!TryGetWorldRendererBounds(visual, out var before) || before.size.y <= 0.001f) return;
+
+        float scale = Mathf.Clamp(targetHeight / before.size.y, 0.01f, 5000f);
+        visual.transform.localScale *= scale;
+        if (!TryGetWorldRendererBounds(visual, out var after)) return;
+        visual.transform.position += Vector3.up * (baseY + 0.1f - after.min.y);
+    }
+
+    private static void EnsureBoundsBoxCollider(GameObject root)
+    {
+        if (root == null || root.GetComponentInChildren<Collider>(true) != null) return;
+        var renderers = root.GetComponentsInChildren<Renderer>(true);
+        bool initialized = false;
+        Bounds localBounds = default;
+        foreach (var renderer in renderers)
+        {
+            if (renderer == null) continue;
+            Bounds world = renderer.bounds;
+            for (int corner = 0; corner < 8; corner++)
+            {
+                var worldPoint = world.center + Vector3.Scale(
+                    world.extents,
+                    new Vector3(
+                        (corner & 1) == 0 ? -1f : 1f,
+                        (corner & 2) == 0 ? -1f : 1f,
+                        (corner & 4) == 0 ? -1f : 1f));
+                var localPoint = root.transform.InverseTransformPoint(worldPoint);
+                if (!initialized)
+                {
+                    localBounds = new Bounds(localPoint, Vector3.zero);
+                    initialized = true;
+                }
+                else
+                {
+                    localBounds.Encapsulate(localPoint);
+                }
+            }
+        }
+
+        if (!initialized) return;
+        var box = root.AddComponent<BoxCollider>();
+        box.center = localBounds.center;
+        box.size = new Vector3(
+            Mathf.Max(0.5f, localBounds.size.x),
+            Mathf.Max(1f, localBounds.size.y),
+            Mathf.Max(0.5f, localBounds.size.z));
+    }
+
+    private static bool TryGetWorldRendererBounds(GameObject root, out Bounds bounds)
+    {
+        bounds = default;
+        bool initialized = false;
+        if (root == null) return false;
+        foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+        {
+            if (renderer == null) continue;
+            if (!initialized)
+            {
+                bounds = renderer.bounds;
+                initialized = true;
+            }
+            else
+            {
+                bounds.Encapsulate(renderer.bounds);
+            }
+        }
+        return initialized;
     }
 
     private void ScatterAllProps()
@@ -437,12 +601,8 @@ public class IliacBayWorldGenerator : MonoBehaviour
             int count = patch.PropCount > 0 ? patch.PropCount : 20;
             // Cap for performance on large map
             count = Mathf.Min(count, patch.HasCity ? 70 : 120);
-            bool desert = patch.Biome == Biome.Hammerfell;
-            bool island = patch.Biome == Biome.IslandGreen || patch.Biome == Biome.IslandRock;
             float halfX = patch.Size.x * 0.42f;
             float halfZ = patch.Size.z * 0.42f;
-            float landTopY = Mathf.Max(4f, patch.Size.y);
-
             for (int i = 0; i < count; i++)
             {
                 float x = ((float)_rng.NextDouble() - 0.5f) * 2f * halfX;
@@ -450,23 +610,23 @@ public class IliacBayWorldGenerator : MonoBehaviour
                 if (patch.HasCity && new Vector2(x, z).magnitude < 280f) continue;
 
                 // Prefer clusters away from exact center for High Rock forests
-                if (!desert && !island && _rng.NextDouble() < 0.35)
+                if (patch.Biome == Biome.HighRock && _rng.NextDouble() < 0.35)
                 {
                     x *= 0.7f;
                     z *= 0.7f;
                 }
 
-                var world = land.position + new Vector3(x, landTopY + 40f, z);
-                PlacePropWorld(world, desert, island);
+                var world = land.position + new Vector3(x, ProbeHeight, z);
+                PlacePropWorld(world, patch.Biome);
             }
         }
     }
 
-    private void PlacePropWorld(Vector3 rayOrigin, bool desert, bool island)
+    private void PlacePropWorld(Vector3 rayOrigin, Biome biome)
     {
         // Terrain only: the old ~0 cast could land props on the void catcher slab,
         // and then filtered city surfaces back out by name.
-        if (!Physics.Raycast(rayOrigin, Vector3.down, out var hit, 120f,
+        if (!Physics.Raycast(rayOrigin, Vector3.down, out var hit, ProbeDistance,
                 1 << GameLayers.Ground, QueryTriggerInteraction.Ignore))
         {
             return;
@@ -478,22 +638,30 @@ public class IliacBayWorldGenerator : MonoBehaviour
             return;
         }
 
+        bool desert = biome == Biome.Hammerfell;
+        bool rockyIsland = biome == Biome.IslandRock;
+        bool greenIsland = biome == Biome.IslandGreen;
+
         GameObject[] pool;
         if (desert)
             pool = (desertPrefabs != null && desertPrefabs.Length > 0) ? desertPrefabs : rockPrefabs;
-        else if (island)
+        else if (rockyIsland)
             pool = (rockPrefabs != null && rockPrefabs.Length > 0) ? rockPrefabs : treePrefabs;
+        else if (greenIsland)
+            pool = (treePrefabs != null && treePrefabs.Length > 0) ? treePrefabs : rockPrefabs;
         else
             pool = (treePrefabs != null && treePrefabs.Length > 0) ? treePrefabs : rockPrefabs;
 
         GameObject go;
-        if (pool != null && pool.Length > 0 && _rng.NextDouble() > 0.12)
+        if (pool != null && pool.Length > 0)
         {
             go = Instantiate(pool[_rng.Next(pool.Length)], _root);
             float s = desert
                 ? Mathf.Lerp(1.0f, 2.2f, (float)_rng.NextDouble())
-                : island
+                : rockyIsland
                     ? Mathf.Lerp(1.2f, 2.4f, (float)_rng.NextDouble())
+                    : greenIsland
+                        ? Mathf.Lerp(1.6f, 3.2f, (float)_rng.NextDouble())
                     : Mathf.Lerp(2.2f, 4.5f, (float)_rng.NextDouble());
             go.transform.localScale = Vector3.one * s;
         }
@@ -509,21 +677,32 @@ public class IliacBayWorldGenerator : MonoBehaviour
                 desert ? new Color(0.65f, 0.5f, 0.3f) : new Color(0.12f, 0.38f, 0.14f));
         }
 
-        go.name = desert ? "Prop_Desert" : island ? "Prop_Island" : "Prop_Tree";
+        go.name = desert ? "Prop_Desert" : rockyIsland ? "Prop_IslandRock" : "Prop_Tree";
         go.transform.position = hit.point;
         go.transform.rotation = Quaternion.Euler(0f, (float)_rng.NextDouble() * 360f, 0f);
         WorldTagger.SetLayerRecursive(go, GameLayers.Prop);
 
         // Distance cull helper
         var cull = go.AddComponent<FoliageDistanceCull>();
-        cull.maxDistance = desert ? 420f : 520f;
+        cull.maxDistance = desert ? 420f : rockyIsland ? 460f : 520f;
     }
 
     private void BuildRoadsAndPois()
     {
         var roads = WorldLayout.Roads;
-        BuildRoad(roads[0], "Road_Daggerfall_Wayrest");
-        BuildRoad(roads[1], "Road_Daggerfall_BanditCamp");
+        for (int i = 0; i < roads.Length; i++)
+        {
+            string roadName = i switch
+            {
+                0 => "Road_Daggerfall_Wayrest",
+                1 => "Road_Daggerfall_BanditCamp",
+                2 => "Road_Glenumbra_Wrothgar",
+                3 => "Road_Sentinel_Alikr",
+                4 => "Road_Alikr_Dragontail",
+                _ => $"Road_Regional_{i:00}"
+            };
+            BuildRoad(roads[i], roadName);
+        }
 
         // Bandit camp / coastal ruin (Kenney Survival + Graveyard when wired; else block markers)
         BuildPrefabPoi(WorldLayout.BanditCamp, "POI_BanditCamp", campPrefabs, new Color(0.4f, 0.25f, 0.2f), tentStyle: true);
@@ -558,7 +737,12 @@ public class IliacBayWorldGenerator : MonoBehaviour
             {
                 var from = GroundPoint(Vector3.Lerp(a, b, s / (float)steps));
                 var to = GroundPoint(Vector3.Lerp(a, b, (s + 1) / (float)steps));
-                BuildRoadSegment(root.transform, from, to, $"Road_{name}_{index:000}");
+                BuildRoadSegment(root.transform, from, to, $"{name}_{index:000}");
+
+                // Concentrate a modest amount of dressing along the playable routes
+                // instead of spending the renderer budget uniformly across 6.8 km.
+                if (index % 4 == 0)
+                    PlaceRoadsideDressing(from, to, index);
                 index++;
             }
         }
@@ -589,9 +773,49 @@ public class IliacBayWorldGenerator : MonoBehaviour
         road.transform.position = (a + b) * 0.5f;
         road.transform.rotation = Quaternion.LookRotation(dir.normalized);
         // Slight overlap (1.04) so adjacent segments don't show seams on slopes.
-        road.transform.localScale = new Vector3(8f, 0.25f, len * 1.04f);
+        road.transform.localScale = new Vector3(10f, 0.25f, len * 1.04f);
         road.layer = GameLayers.Ground;
+        road.isStatic = true;
         ApplyMat(road, roadMaterial != null ? roadMaterial : cityMaterial, new Color(0.25f, 0.24f, 0.22f));
+
+        bool causeway = Mathf.Abs(a.y - WorldLayout.CausewayDeckY) < 0.2f
+                        && Mathf.Abs(b.y - WorldLayout.CausewayDeckY) < 0.2f;
+        if (causeway)
+        {
+            BuildCausewayRail(parent, road.transform, -5.1f, len, $"Wall_Causeway_{name}_L");
+            BuildCausewayRail(parent, road.transform, 5.1f, len, $"Wall_Causeway_{name}_R");
+        }
+    }
+
+    private void BuildCausewayRail(Transform parent, Transform road, float lateral, float length, string name)
+    {
+        var rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        rail.name = name;
+        rail.transform.SetParent(parent, false);
+        rail.transform.position = road.position + road.right * lateral + Vector3.up * 0.72f;
+        rail.transform.rotation = road.rotation;
+        rail.transform.localScale = new Vector3(0.32f, 1.2f, length * 1.04f);
+        rail.layer = GameLayers.Structure;
+        rail.isStatic = true;
+        ApplyMat(rail, cityMaterial, new Color(0.38f, 0.36f, 0.33f));
+    }
+
+    private void PlaceRoadsideDressing(Vector3 from, Vector3 to, int index)
+    {
+        var flatDirection = to - from;
+        flatDirection.y = 0f;
+        if (flatDirection.sqrMagnitude < 0.1f) return;
+
+        flatDirection.Normalize();
+        var side = Vector3.Cross(Vector3.up, flatDirection);
+        float sign = (index & 4) == 0 ? -1f : 1f;
+        float distance = Mathf.Lerp(15f, 24f, (float)_rng.NextDouble());
+        var point = (from + to) * 0.5f + side * (distance * sign);
+        point.y = 0f;
+        if (!WorldLayout.TryGetLandmassAt(point, out var patch)) return;
+
+        point.y = ProbeHeight;
+        PlacePropWorld(point, patch.Biome);
     }
 
     private void BuildPrefabPoi(Vector3 pos, string name, GameObject[] pool, Color color, bool tentStyle)
@@ -602,7 +826,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
         if (pool != null && pool.Length > 0)
         {
-            int count = tentStyle ? 7 : 6;
+            int count = tentStyle ? 12 : 10;
             for (int i = 0; i < count; i++)
             {
                 var prefab = pool[_rng.Next(pool.Length)];
@@ -620,15 +844,6 @@ public class IliacBayWorldGenerator : MonoBehaviour
             BuildFortMarkerFallback(root.transform, color);
         }
 
-        var label = new GameObject("Label");
-        label.transform.SetParent(root.transform, false);
-        label.transform.localPosition = new Vector3(0f, 14f, 0f);
-        var tm = label.AddComponent<TextMesh>();
-        tm.text = name.Replace("POI_", "").Replace("_", " ");
-        tm.characterSize = 0.35f;
-        tm.fontSize = 48;
-        tm.anchor = TextAnchor.MiddleCenter;
-        tm.color = new Color(0.95f, 0.85f, 0.6f);
     }
 
     private void BuildFortMarkerFallback(Transform root, Color color)
@@ -654,13 +869,13 @@ public class IliacBayWorldGenerator : MonoBehaviour
     private void PlaceProp(Transform parent, Vector3 localPos, bool desert)
     {
         // Legacy path unused — kept for compile safety if referenced.
-        PlacePropWorld(parent.TransformPoint(localPos + Vector3.up * 40f), desert, false);
+        PlacePropWorld(
+            parent.TransformPoint(localPos + Vector3.up * 40f),
+            desert ? Biome.Hammerfell : Biome.HighRock);
     }
 
     private void SpawnPlayerAt(Vector3 worldPos)
     {
-        worldPos = SnapToGround(worldPos, 1.0f);
-
         var player = new GameObject("Player");
         player.transform.SetParent(_root, false);
         player.transform.position = worldPos;
@@ -675,6 +890,10 @@ public class IliacBayWorldGenerator : MonoBehaviour
         cc.minMoveDistance = 0f;
         cc.stepOffset = 0.35f;
 
+        // CharacterController positions are at the transform origin, not the
+        // capsule's feet. Rest the capsule bottom just above the real surface.
+        player.transform.position = SnapCharacterToGround(worldPos, cc);
+
         CharacterLibrary.AttachHumanVisual(player.transform, "character-male-a", 2.1f);
 
         var camPivot = CreateChild(player.transform, "CameraPivot");
@@ -683,6 +902,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
         camGo.tag = "MainCamera";
         var cam = camGo.AddComponent<Camera>();
         cam.nearClipPlane = 0.05f;
+        cam.cullingMask &= ~(1 << GameLayers.Player);
         // The world spans ~6.8 km; the default 1000 m far plane popped whole cities.
         cam.farClipPlane = WorldLayout.CameraFarPlane;
         camGo.AddComponent<AudioListener>();
@@ -695,6 +915,7 @@ public class IliacBayWorldGenerator : MonoBehaviour
 
         // Face south toward the bay from Daggerfall.
         player.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+        WorldTagger.SetLayerRecursive(player, GameLayers.Player);
     }
 
     /// <summary>
@@ -712,11 +933,40 @@ public class IliacBayWorldGenerator : MonoBehaviour
     /// </summary>
     public static Vector3 SnapToGround(Vector3 worldPos, float clearance = 0.1f)
     {
+        return TryGetGroundPoint(worldPos, out var groundPoint)
+            ? groundPoint + Vector3.up * clearance
+            : worldPos;
+    }
+
+    /// <summary>
+    /// Places a CharacterController so the bottom of its capsule rests just above
+    /// the surface. Unlike a fixed vertical offset, this remains correct if the
+    /// controller's height or centre changes.
+    /// </summary>
+    public static Vector3 SnapCharacterToGround(
+        Vector3 worldPos,
+        CharacterController controller,
+        float skinClearance = 0.02f)
+    {
+        if (!TryGetGroundPoint(worldPos, out var groundPoint))
+            return worldPos;
+
+        float bottomOffset = controller != null
+            ? controller.center.y - controller.height * 0.5f
+            : 0f;
+        float clearance = Mathf.Max(0.01f, skinClearance);
+        return groundPoint - Vector3.up * bottomOffset + Vector3.up * clearance;
+    }
+
+    private static bool TryGetGroundPoint(Vector3 worldPos, out Vector3 groundPoint)
+    {
         var origin = new Vector3(worldPos.x, ProbeHeight, worldPos.z);
         if (Physics.Raycast(origin, Vector3.down, out var hit, ProbeDistance,
-                GameLayers.GroundMask, QueryTriggerInteraction.Ignore))
+                1 << GameLayers.Ground, QueryTriggerInteraction.Ignore)
+            && hit.point.y > WorldLayout.WaterLevel + 0.05f)
         {
-            return hit.point + Vector3.up * clearance;
+            groundPoint = hit.point;
+            return true;
         }
 
         // Nothing on the ground layers — fall back to a broad probe so a world that
@@ -727,12 +977,21 @@ public class IliacBayWorldGenerator : MonoBehaviour
         {
             if (h.collider == null) continue;
             int layer = h.collider.gameObject.layer;
-            if (layer == GameLayers.Void || layer == GameLayers.Water || layer == GameLayers.Prop) continue;
-            if (h.point.y < WorldLayout.WaterLevel) continue;
+            bool groundLike = layer == GameLayers.Ground
+                              || (layer == GameLayers.Default
+                                  && WorldTagger.Classify(h.collider.gameObject.name) == GameLayers.Ground);
+            if (!groundLike || h.point.y <= WorldLayout.WaterLevel + 0.05f) continue;
             if (best == null || h.point.y > best.Value.point.y) best = h;
         }
 
-        return best.HasValue ? best.Value.point + Vector3.up * clearance : worldPos;
+        if (best.HasValue)
+        {
+            groundPoint = best.Value.point;
+            return true;
+        }
+
+        groundPoint = default;
+        return false;
     }
 
     /// <summary>
@@ -770,8 +1029,18 @@ public class IliacBayWorldGenerator : MonoBehaviour
     public static bool HasGroundAt(Vector3 worldPos)
     {
         var origin = new Vector3(worldPos.x, ProbeHeight, worldPos.z);
-        return Physics.Raycast(origin, Vector3.down, ProbeDistance,
-            GameLayers.GroundMask, QueryTriggerInteraction.Ignore);
+        var hits = Physics.RaycastAll(
+            origin,
+            Vector3.down,
+            ProbeDistance,
+            GameLayers.GroundMask,
+            QueryTriggerInteraction.Ignore);
+        foreach (var hit in hits)
+        {
+            if (hit.collider != null && hit.point.y > WorldLayout.WaterLevel + 0.05f)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -779,16 +1048,23 @@ public class IliacBayWorldGenerator : MonoBehaviour
     /// This is the behaviour the old <c>SnapToWalkable</c> accidentally gave every caller;
     /// now only the callers that actually want it get it.
     /// </summary>
-    public static Vector3 GetPlayerSpawn()
+    public static Vector3 GetPlayerSpawn(CharacterController controller = null)
     {
+        if (controller == null && PlayerRef.Transform != null)
+            controller = PlayerRef.Transform.GetComponent<CharacterController>();
+
+        Vector3 target;
         var pad = GameObject.Find("SpawnPad_Daggerfall");
         if (pad != null)
         {
-            var p = pad.transform.position;
-            return new Vector3(p.x, p.y + 1.0f, p.z);
+            target = pad.transform.position;
+        }
+        else
+        {
+            target = WorldLayout.DaggerfallSpawnPad;
         }
 
-        return SnapToGround(WorldLayout.DaggerfallSpawnPad, 1.0f);
+        return SnapCharacterToGround(target, controller);
     }
 
     private const float ProbeHeight = 500f;

@@ -30,6 +30,11 @@ public class IntroCutsceneDirector : MonoBehaviour
     [SerializeField] private float scenicDuration = 22f;
     [SerializeField] private float scenicHoldAtEnd = 1.5f;
 
+    private Vector3 _actorLeftBaseScale;
+    private Vector3 _actorRightBaseScale;
+    private bool _actorLeftScaleCached;
+    private bool _actorRightScaleCached;
+
     private void Reset()
     {
         lines = DefaultLines();
@@ -73,6 +78,18 @@ public class IntroCutsceneDirector : MonoBehaviour
     }
 
     public IEnumerator Play(GameFlowController flow)
+    {
+        try
+        {
+            yield return PlaySequence(flow);
+        }
+        finally
+        {
+            CleanupActors();
+        }
+    }
+
+    private IEnumerator PlaySequence(GameFlowController flow)
     {
         if (lines == null || lines.Length == 0)
         {
@@ -132,6 +149,18 @@ public class IntroCutsceneDirector : MonoBehaviour
             if (stageGo != null) talkStage = stageGo.transform;
         }
 
+        if (actorLeft != null)
+        {
+            _actorLeftBaseScale = actorLeft.localScale;
+            _actorLeftScaleCached = true;
+        }
+
+        if (actorRight != null)
+        {
+            _actorRightBaseScale = actorRight.localScale;
+            _actorRightScaleCached = true;
+        }
+
         if (talkStage != null)
         {
             if (actorLeft != null)
@@ -155,12 +184,29 @@ public class IntroCutsceneDirector : MonoBehaviour
         bool leftTalks = speaker.IndexOf("Liora", System.StringComparison.OrdinalIgnoreCase) >= 0;
         if (actorLeft != null)
         {
-            actorLeft.localScale = leftTalks ? new Vector3(1.15f, 1.15f, 1.15f) : Vector3.one;
+            var baseScale = _actorLeftScaleCached ? _actorLeftBaseScale : actorLeft.localScale;
+            actorLeft.localScale = baseScale * (leftTalks ? 1.15f : 1f);
         }
 
         if (actorRight != null)
         {
-            actorRight.localScale = !leftTalks ? new Vector3(1.15f, 1.15f, 1.15f) : Vector3.one;
+            var baseScale = _actorRightScaleCached ? _actorRightBaseScale : actorRight.localScale;
+            actorRight.localScale = baseScale * (!leftTalks ? 1.15f : 1f);
+        }
+    }
+
+    private void CleanupActors()
+    {
+        if (actorLeft != null)
+        {
+            if (_actorLeftScaleCached) actorLeft.localScale = _actorLeftBaseScale;
+            actorLeft.gameObject.SetActive(false);
+        }
+
+        if (actorRight != null)
+        {
+            if (_actorRightScaleCached) actorRight.localScale = _actorRightBaseScale;
+            actorRight.gameObject.SetActive(false);
         }
     }
 

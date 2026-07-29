@@ -7,6 +7,7 @@ using UnityEngine.UI;
 public class MenuButtonBinder : MonoBehaviour
 {
     [SerializeField] private Button startButton;
+    [SerializeField] private Button continueButton;
     [SerializeField] private Button quitButton;
     [SerializeField] private GameFlowController flow;
 
@@ -14,6 +15,7 @@ public class MenuButtonBinder : MonoBehaviour
     {
         if (flow == null) flow = FindAnyObjectByType<GameFlowController>();
         if (startButton != null) startButton.onClick.AddListener(() => flow?.OnClickStart());
+        if (continueButton != null) continueButton.onClick.AddListener(() => flow?.OnClickContinue());
         if (quitButton != null) quitButton.onClick.AddListener(() => flow?.OnClickQuit());
     }
 }

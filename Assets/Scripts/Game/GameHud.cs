@@ -17,7 +17,17 @@ public class GameHud : MonoBehaviour
         (_mapRoot != null && _mapRoot.activeSelf) ||
         (_journalRoot != null && _journalRoot.activeSelf) ||
         (_invRoot != null && _invRoot.activeSelf) ||
-        (_waitRoot != null && _waitRoot.activeSelf);
+        (_waitRoot != null && _waitRoot.activeSelf) ||
+        (_dialogueRoot != null && _dialogueRoot.activeSelf) ||
+        (_fade != null && _fade.activeSelf);
+
+    private bool InteractiveMenuOpen =>
+        (_pauseRoot != null && _pauseRoot.activeSelf) ||
+        (_mapRoot != null && _mapRoot.activeSelf) ||
+        (_journalRoot != null && _journalRoot.activeSelf) ||
+        (_invRoot != null && _invRoot.activeSelf) ||
+        (_waitRoot != null && _waitRoot.activeSelf) ||
+        (_dialogueRoot != null && _dialogueRoot.activeSelf);
 
     private Canvas _canvas;
     private Image _healthFill, _magickaFill, _staminaFill, _damageFlash, _toastBg;
@@ -87,7 +97,7 @@ public class GameHud : MonoBehaviour
             _damageFlash.color = c;
         }
 
-        if (AnyMenuOpen)
+        if (InteractiveMenuOpen)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -102,6 +112,15 @@ public class GameHud : MonoBehaviour
         var kb = Keyboard.current;
         if (kb == null) return;
 
+        if (_fade != null && _fade.activeSelf) return;
+        if (_dialogueRoot != null && _dialogueRoot.activeSelf)
+        {
+            if (kb.eKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
+                kb.numpadEnterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+                CloseDialogue();
+            return;
+        }
+
         if (kb.mKey.wasPressedThisFrame) Toggle(_mapRoot);
         if (kb.jKey.wasPressedThisFrame) { RefreshJournal(); Toggle(_journalRoot); }
         if (kb.iKey.wasPressedThisFrame) { RefreshInventory(); Toggle(_invRoot); }
@@ -110,7 +129,6 @@ public class GameHud : MonoBehaviour
         {
             if (_pauseRoot != null && _pauseRoot.activeSelf) ClosePause();
             else if (AnyMenuOpen) HideMenus();
-            else if (_dialogueRoot != null && _dialogueRoot.activeSelf) _dialogueRoot.SetActive(false);
             else OpenPause();
         }
 
@@ -135,10 +153,13 @@ public class GameHud : MonoBehaviour
         bool open = !panel.activeSelf;
         HideMenus();
         panel.SetActive(open);
+        Time.timeScale = open ? 0f : 1f;
         if (open)
         {
             GameSfx.Instance?.PlayUiOpen();
             if (panel == _mapRoot) RefreshMapList();
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
         else GameSfx.Instance?.PlayUiClick();
 
@@ -232,7 +253,7 @@ public class GameHud : MonoBehaviour
             float hour = w != null ? w.Hour : 0f;
             int h = Mathf.FloorToInt(hour) % 24;
             int m = Mathf.FloorToInt((hour % 1f) * 60f);
-            _statusText.text = $"Lv {s.Level}   XP {s.Xp}/{s.XpToLevel}   {s.Gold}g   ·   {h:00}:{m:00}   {region} · {weather}";
+            _statusText.text = $"{region}  ·  {weather}  ·  {h:00}:{m:00}  ·  {s.Gold} gold";
         }
 
         if (_combatText != null)
@@ -249,6 +270,8 @@ public class GameHud : MonoBehaviour
         string facing = yaw < 45 || yaw >= 315 ? "N" : yaw < 135 ? "E" : yaw < 225 ? "S" : "W";
         var sb = new StringBuilder();
         sb.Append(facing);
+        string nearestName = null;
+        float nearestDistance = float.MaxValue;
         foreach (var loc in DiscoveryTravelSystem.Instance.Locations)
         {
             if (!loc.Discovered) continue;
@@ -256,9 +279,14 @@ public class GameHud : MonoBehaviour
             if (to.sqrMagnitude < 0.01f) continue;
             float bearing = Quaternion.LookRotation(to).eulerAngles.y;
             float delta = Mathf.DeltaAngle(yaw, bearing);
-            if (Mathf.Abs(delta) < 28f)
-                sb.Append("   ·   ").Append(loc.DisplayName);
+            if (Mathf.Abs(delta) < 28f && to.sqrMagnitude < nearestDistance)
+            {
+                nearestName = loc.DisplayName;
+                nearestDistance = to.sqrMagnitude;
+            }
         }
+        if (!string.IsNullOrEmpty(nearestName))
+            sb.Append("   ·   ").Append(nearestName);
         _compassText.text = sb.ToString();
     }
 
@@ -400,9 +428,14 @@ public class GameHud : MonoBehaviour
     public void ShowDialogue(string speaker, string line)
     {
         if (_dialogueRoot == null) return;
+        HideMenus();
         _dialogueRoot.SetActive(true);
+        Time.timeScale = 0f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
         if (_dialogueSpeaker != null) _dialogueSpeaker.text = speaker;
-        if (_dialogueBody != null) _dialogueBody.text = line + "\n\n<size=18><color=#c9b896>E continue · Esc close</color></size>";
+        if (_dialogueBody != null)
+            _dialogueBody.text = line + "\n\n<size=18><color=#9da09e>E / Enter / Esc  close</color></size>";
 
         // Track this one coroutine rather than StopAllCoroutines(), which would also
         // kill any unrelated HUD coroutine added later.
@@ -412,9 +445,25 @@ public class GameHud : MonoBehaviour
 
     private IEnumerator HideDialogueSoon()
     {
-        yield return new WaitForSeconds(5f);
-        if (_dialogueRoot != null) _dialogueRoot.SetActive(false);
+        yield return new WaitForSecondsRealtime(8f);
+        CloseDialogue();
         _dialogueRoutine = null;
+    }
+
+    private void CloseDialogue()
+    {
+        if (_dialogueRoutine != null)
+        {
+            StopCoroutine(_dialogueRoutine);
+            _dialogueRoutine = null;
+        }
+        if (_dialogueRoot != null) _dialogueRoot.SetActive(false);
+        Time.timeScale = 1f;
+        if (GameFlowController.Instance != null && GameFlowController.Instance.IsInGameplay)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 
     /// <summary>
@@ -471,37 +520,34 @@ public class GameHud : MonoBehaviour
         _hudRoot.transform.SetParent(canvasGo.transform, false);
         StretchFull(_hudRoot.GetComponent<RectTransform>());
 
-        // Compass banner
+        // Thin, low-contrast compass: readable without covering the view.
         var compassBg = MakeImage(_hudRoot.transform, "CompassBg", UiTheme.PanelBrown,
-            new Vector2(0.22f, 0.915f), new Vector2(0.78f, 0.985f), Color.white);
-        _compassText = MakeText(compassBg.transform, "Compass", "", 24, TextAnchor.MiddleCenter,
+            new Vector2(0.33f, 0.952f), new Vector2(0.67f, 0.988f), UiTheme.PanelSoft);
+        _compassText = MakeText(compassBg.transform, "Compass", "", 18, TextAnchor.MiddleCenter,
             new Vector2(0.04f, 0.1f), new Vector2(0.96f, 0.9f), new Color(0.96f, 0.9f, 0.68f),
             wrap: false, display: true, outline: true);
 
-        // Vital bars cluster
-        var vitals = MakeImage(_hudRoot.transform, "Vitals", UiTheme.PanelInset,
-            new Vector2(0.02f, 0.02f), new Vector2(0.30f, 0.17f), new Color(1f, 1f, 1f, 0.95f));
-        _healthFill = MakeSpriteBar(vitals.transform, "Health", new Vector2(0.08f, 0.68f), new Vector2(0.92f, 0.90f), UiTheme.BarRed, new Color(0.85f, 0.2f, 0.15f));
-        _magickaFill = MakeSpriteBar(vitals.transform, "Magicka", new Vector2(0.08f, 0.40f), new Vector2(0.92f, 0.62f), UiTheme.BarBlue, new Color(0.25f, 0.4f, 0.9f));
-        _staminaFill = MakeSpriteBar(vitals.transform, "Stamina", new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.34f), UiTheme.BarGreen, new Color(0.25f, 0.7f, 0.3f));
-        _healthLabel = MakeText(vitals.transform, "HLbl", "", 14, TextAnchor.MiddleRight, new Vector2(0.55f, 0.68f), new Vector2(0.9f, 0.9f), Color.white, false, false, true);
-        _magickaLabel = MakeText(vitals.transform, "MLbl", "", 14, TextAnchor.MiddleRight, new Vector2(0.55f, 0.4f), new Vector2(0.9f, 0.62f), Color.white, false, false, true);
-        _staminaLabel = MakeText(vitals.transform, "SLbl", "", 14, TextAnchor.MiddleRight, new Vector2(0.55f, 0.12f), new Vector2(0.9f, 0.34f), Color.white, false, false, true);
-        MakeText(vitals.transform, "HName", "Health", 13, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.68f), new Vector2(0.45f, 0.9f), new Color(1f, 0.85f, 0.8f), false, false, true);
-        MakeText(vitals.transform, "MName", "Magicka", 13, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.4f), new Vector2(0.45f, 0.62f), new Color(0.8f, 0.88f, 1f), false, false, true);
-        MakeText(vitals.transform, "SName", "Stamina", 13, TextAnchor.MiddleLeft, new Vector2(0.1f, 0.12f), new Vector2(0.45f, 0.34f), new Color(0.85f, 1f, 0.85f), false, false, true);
+        // Skyrim-like spatial rhythm: magicka left, health centre, stamina right.
+        var vitals = MakeImage(_hudRoot.transform, "Vitals", null,
+            new Vector2(0.04f, 0.012f), new Vector2(0.96f, 0.072f), Color.clear);
+        _magickaFill = MakeSpriteBar(vitals.transform, "Magicka", new Vector2(0.00f, 0.20f), new Vector2(0.25f, 0.56f), UiTheme.BarBlue, new Color(0.22f, 0.34f, 0.72f));
+        _healthFill = MakeSpriteBar(vitals.transform, "Health", new Vector2(0.385f, 0.20f), new Vector2(0.615f, 0.56f), UiTheme.BarRed, new Color(0.62f, 0.12f, 0.10f));
+        _staminaFill = MakeSpriteBar(vitals.transform, "Stamina", new Vector2(0.75f, 0.20f), new Vector2(1.00f, 0.56f), UiTheme.BarGreen, new Color(0.20f, 0.52f, 0.22f));
+        _magickaLabel = MakeText(vitals.transform, "MLbl", "", 12, TextAnchor.MiddleRight, new Vector2(0.12f, 0.57f), new Vector2(0.25f, 0.96f), UiTheme.Silver, false, false, true);
+        _healthLabel = MakeText(vitals.transform, "HLbl", "", 12, TextAnchor.MiddleCenter, new Vector2(0.42f, 0.57f), new Vector2(0.58f, 0.96f), UiTheme.Silver, false, false, true);
+        _staminaLabel = MakeText(vitals.transform, "SLbl", "", 12, TextAnchor.MiddleLeft, new Vector2(0.75f, 0.57f), new Vector2(0.88f, 0.96f), UiTheme.Silver, false, false, true);
 
-        // Status strip
-        var statusBg = MakeImage(_hudRoot.transform, "StatusBg", UiTheme.PanelBeige,
-            new Vector2(0.32f, 0.015f), new Vector2(0.98f, 0.065f), new Color(1f, 1f, 1f, 0.92f));
-        _statusText = MakeText(statusBg.transform, "Status", "", 17, TextAnchor.MiddleRight,
-            new Vector2(0.03f, 0.1f), new Vector2(0.97f, 0.9f), new Color(0.25f, 0.2f, 0.14f),
-            wrap: false, display: false, outline: false);
+        // Compact world/status readout in the upper-right.
+        var statusBg = MakeImage(_hudRoot.transform, "StatusBg", null,
+            new Vector2(0.64f, 0.905f), new Vector2(0.975f, 0.945f), Color.clear);
+        _statusText = MakeText(statusBg.transform, "Status", "", 14, TextAnchor.MiddleRight,
+            Vector2.zero, Vector2.one, UiTheme.MutedSilver,
+            wrap: false, display: false, outline: true);
 
-        // Crosshair
-        var cross = MakeImage(_hudRoot.transform, "Crosshair", UiTheme.IconCircle,
-            new Vector2(0.492f, 0.488f), new Vector2(0.508f, 0.512f), new Color(1f, 1f, 1f, 0.75f));
-        if (cross != null) { cross.type = Image.Type.Simple; cross.preserveAspect = true; }
+        // Minimal centre dot.
+        var cross = MakeImage(_hudRoot.transform, "Crosshair", null,
+            new Vector2(0.4985f, 0.4973f), new Vector2(0.5015f, 0.5027f), new Color(0.82f, 0.84f, 0.82f, 0.72f));
+        if (cross != null) cross.type = Image.Type.Simple;
 
         _promptText = MakeText(_hudRoot.transform, "Prompt", "", 22, TextAnchor.MiddleCenter,
             new Vector2(0.3f, 0.38f), new Vector2(0.7f, 0.44f), new Color(0.98f, 0.92f, 0.7f),
@@ -510,7 +556,7 @@ public class GameHud : MonoBehaviour
 
         // Target health readout (replaces one toast per sword swing).
         _enemyBarRoot = MakeImage(_hudRoot.transform, "EnemyBar", UiTheme.PanelInset,
-            new Vector2(0.36f, 0.845f), new Vector2(0.64f, 0.895f), new Color(1f, 1f, 1f, 0.95f)).gameObject;
+            new Vector2(0.38f, 0.858f), new Vector2(0.62f, 0.898f), UiTheme.Inset).gameObject;
         _enemyLabel = MakeText(_enemyBarRoot.transform, "EnemyName", "", 16, TextAnchor.UpperCenter,
             new Vector2(0.03f, 0.5f), new Vector2(0.97f, 1.02f), new Color(0.98f, 0.92f, 0.78f),
             wrap: false, display: false, outline: true);
@@ -525,15 +571,11 @@ public class GameHud : MonoBehaviour
 
         // Toast
         _toastBg = MakeImage(_hudRoot.transform, "ToastBg", UiTheme.PanelBrown,
-            new Vector2(0.25f, 0.72f), new Vector2(0.75f, 0.82f), Color.white);
+            new Vector2(0.30f, 0.755f), new Vector2(0.70f, 0.825f), UiTheme.PanelSoft);
         _toastBg.gameObject.SetActive(false);
         _toastText = MakeText(_toastBg.transform, "Toast", "", 26, TextAnchor.MiddleCenter,
             new Vector2(0.05f, 0.1f), new Vector2(0.95f, 0.9f), new Color(1f, 0.95f, 0.8f),
             wrap: true, display: true, outline: true);
-
-        MakeText(_hudRoot.transform, "Help", "Esc Menu   M Map   J Journal   I Inventory   T Wait   E Talk   LMB Attack   F5/F9 Save", 15, TextAnchor.LowerCenter,
-            new Vector2(0.05f, 0.07f), new Vector2(0.95f, 0.1f), new Color(0.9f, 0.85f, 0.7f, 0.75f),
-            wrap: false, display: false, outline: true);
 
         _damageFlash = MakeImage(_hudRoot.transform, "DamageFlash", null,
             Vector2.zero, Vector2.one, new Color(0.7f, 0.05f, 0.02f, 0f));
@@ -547,7 +589,7 @@ public class GameHud : MonoBehaviour
 
         _waitRoot = MakeDimOverlay(canvasGo.transform, "WaitPanel");
         var waitCard = MakeImage(_waitRoot.transform, "WaitCard", UiTheme.PanelBrown,
-            new Vector2(0.28f, 0.28f), new Vector2(0.72f, 0.72f), Color.white);
+            new Vector2(0.31f, 0.25f), new Vector2(0.69f, 0.75f), UiTheme.Panel);
         MakeText(waitCard.transform, "WaitTitle", "REST", 40, TextAnchor.UpperCenter,
             new Vector2(0.1f, 0.72f), new Vector2(0.9f, 0.95f), new Color(0.96f, 0.9f, 0.7f), false, true, true);
         MakeText(waitCard.transform, "WaitHint", "Recover health, magicka, and stamina.", 20, TextAnchor.UpperCenter,
@@ -558,7 +600,7 @@ public class GameHud : MonoBehaviour
 
         _dialogueRoot = MakeDimOverlay(canvasGo.transform, "DialoguePanel", dimAlpha: 0.35f);
         var dlg = MakeImage(_dialogueRoot.transform, "DlgCard", UiTheme.PanelBrown,
-            new Vector2(0.15f, 0.06f), new Vector2(0.85f, 0.28f), Color.white);
+            new Vector2(0.17f, 0.055f), new Vector2(0.83f, 0.255f), UiTheme.Panel);
         _dialogueSpeaker = MakeText(dlg.transform, "Speaker", "", 26, TextAnchor.UpperLeft,
             new Vector2(0.06f, 0.62f), new Vector2(0.94f, 0.92f), new Color(1f, 0.85f, 0.45f), false, true, true);
         _dialogueBody = MakeText(dlg.transform, "Body", "", 24, TextAnchor.UpperLeft,
@@ -582,7 +624,8 @@ public class GameHud : MonoBehaviour
         }
 
         if (_mapMarkersRoot == null || DiscoveryTravelSystem.Instance == null) return;
-        int child = 0;
+        // Child zero is always the red player marker. Location markers begin at one.
+        int child = 1;
         foreach (var loc in DiscoveryTravelSystem.Instance.Locations)
         {
             if (!loc.Discovered) continue;
@@ -605,7 +648,7 @@ public class GameHud : MonoBehaviour
             marker.anchoredPosition = Vector2.zero;
             child++;
         }
-        for (int i = _mapMarkersRoot.childCount - 1; i >= child; i--)
+        for (int i = _mapMarkersRoot.childCount - 1; i >= child && i > 0; i--)
             Destroy(_mapMarkersRoot.GetChild(i).gameObject);
     }
 
@@ -613,12 +656,12 @@ public class GameHud : MonoBehaviour
     {
         var root = MakeDimOverlay(parent, "MapPanel");
         var card = MakeImage(root.transform, "Card", UiTheme.PanelBrown,
-            new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.92f), Color.white);
+            new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.92f), UiTheme.Panel);
         MakeText(card.transform, "Title", "WORLD MAP", 36, TextAnchor.UpperCenter,
             new Vector2(0.08f, 0.9f), new Vector2(0.92f, 0.98f), new Color(0.96f, 0.9f, 0.7f), false, true, true);
 
         var mapFrame = MakeImage(card.transform, "MapFrame", UiTheme.PanelInset,
-            new Vector2(0.04f, 0.08f), new Vector2(0.58f, 0.88f), Color.white);
+            new Vector2(0.04f, 0.08f), new Vector2(0.58f, 0.88f), UiTheme.Inset);
         var mapGo = new GameObject("MapImage", typeof(RectTransform));
         mapGo.transform.SetParent(mapFrame.transform, false);
         var mapRt = mapGo.GetComponent<RectTransform>();
@@ -642,9 +685,9 @@ public class GameHud : MonoBehaviour
         playerImg.raycastTarget = false;
 
         var inset = MakeImage(card.transform, "ListInset", UiTheme.PanelInset,
-            new Vector2(0.6f, 0.08f), new Vector2(0.96f, 0.88f), Color.white);
+            new Vector2(0.6f, 0.08f), new Vector2(0.96f, 0.88f), UiTheme.Inset);
         listText = MakeText(inset.transform, "Body", "", 20, TextAnchor.UpperLeft,
-            new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.96f), new Color(0.22f, 0.18f, 0.12f),
+            new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.96f), UiTheme.Silver,
             wrap: true, display: false, outline: false);
         return root;
     }
@@ -653,7 +696,7 @@ public class GameHud : MonoBehaviour
     {
         var root = MakeDimOverlay(parent, "PausePanel");
         var card = MakeImage(root.transform, "PauseCard", UiTheme.PanelBrown,
-            new Vector2(0.34f, 0.28f), new Vector2(0.66f, 0.72f), Color.white);
+            new Vector2(0.35f, 0.25f), new Vector2(0.65f, 0.75f), UiTheme.Panel);
         MakeText(card.transform, "PauseTitle", "PAUSED", 42, TextAnchor.UpperCenter,
             new Vector2(0.1f, 0.72f), new Vector2(0.9f, 0.95f), new Color(0.96f, 0.9f, 0.7f), false, true, true);
         MakeText(card.transform, "PauseHint", "Game paused", 18, TextAnchor.UpperCenter,
@@ -668,13 +711,13 @@ public class GameHud : MonoBehaviour
     {
         var root = MakeDimOverlay(parent, name);
         var card = MakeImage(root.transform, "Card", UiTheme.PanelBrown,
-            new Vector2(0.14f, 0.12f), new Vector2(0.86f, 0.88f), Color.white);
+            new Vector2(0.16f, 0.10f), new Vector2(0.84f, 0.90f), UiTheme.Panel);
         MakeText(card.transform, "Title", title, 36, TextAnchor.UpperCenter,
             new Vector2(0.08f, 0.88f), new Vector2(0.92f, 0.98f), new Color(0.96f, 0.9f, 0.7f), false, true, true);
         var inset = MakeImage(card.transform, "Inset", UiTheme.PanelInset,
-            new Vector2(0.05f, 0.06f), new Vector2(0.95f, 0.86f), Color.white);
+            new Vector2(0.05f, 0.06f), new Vector2(0.95f, 0.86f), UiTheme.Inset);
         body = MakeText(inset.transform, "Body", "", 22, TextAnchor.UpperLeft,
-            new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.96f), new Color(0.22f, 0.18f, 0.12f),
+            new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.96f), UiTheme.Silver,
             wrap: true, display: false, outline: false);
         return root;
     }
@@ -691,7 +734,7 @@ public class GameHud : MonoBehaviour
         UiTheme.StyleButton(btn, UiTheme.ButtonLong, UiTheme.ButtonLongPressed);
         btn.onClick.AddListener(action);
         MakeText(go.transform, "Label", label, 24, TextAnchor.MiddleCenter,
-            Vector2.zero, Vector2.one, new Color(0.25f, 0.2f, 0.12f), false, true, false);
+            Vector2.zero, Vector2.one, UiTheme.Silver, false, true, false);
     }
 
     private static GameObject MakeDimOverlay(Transform parent, string name, float dimAlpha = 0.72f)
@@ -728,7 +771,7 @@ public class GameHud : MonoBehaviour
         {
             bgImg.sprite = UiTheme.BarBack;
             bgImg.type = Image.Type.Sliced;
-            bgImg.color = Color.white;
+            bgImg.color = new Color(0.055f, 0.06f, 0.065f, 0.9f);
         }
         else bgImg.color = new Color(0f, 0f, 0f, 0.55f);
 
@@ -744,7 +787,7 @@ public class GameHud : MonoBehaviour
             img.sprite = fillSprite;
             img.type = Image.Type.Filled;
             img.fillMethod = Image.FillMethod.Horizontal;
-            img.color = Color.white;
+            img.color = fallback;
         }
         else
         {

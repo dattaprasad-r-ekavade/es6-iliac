@@ -71,8 +71,8 @@ public class PlayerSafetyGuard : MonoBehaviour
     public static void TeleportToSpawn(Transform player, string toast = null)
     {
         if (player == null) return;
-        var pos = IliacBayWorldGenerator.GetPlayerSpawn();
         var cc = player.GetComponent<CharacterController>();
+        var pos = IliacBayWorldGenerator.GetPlayerSpawn(cc);
         if (cc != null) cc.enabled = false;
         player.position = pos;
         if (cc != null) cc.enabled = true;

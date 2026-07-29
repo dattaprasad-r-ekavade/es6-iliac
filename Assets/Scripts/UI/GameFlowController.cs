@@ -16,6 +16,7 @@ public class GameFlowController : MonoBehaviour
     [SerializeField] private Text subtitleLabel;
     [SerializeField] private Text skipHintLabel;
     [SerializeField] private Button skipButton;
+    [SerializeField] private Button continueButton;
     [SerializeField] private CanvasGroup menuFade;
     [SerializeField] private CanvasGroup subtitleFade;
 
@@ -34,6 +35,7 @@ public class GameFlowController : MonoBehaviour
     private bool _inIntro;
 
     private bool _skipRequested;
+    private bool _continueRequested;
 
     /// <summary>True once the player has control.</summary>
     public bool IsInGameplay { get; private set; }
@@ -44,11 +46,21 @@ public class GameFlowController : MonoBehaviour
         ResolveRefs();
         if (menuRoot != null) menuRoot.SetActive(true);
         if (subtitleRoot != null) subtitleRoot.SetActive(false);
-        if (cinematicCamera != null) cinematicCamera.gameObject.SetActive(false);
+        if (cinematicCamera != null)
+        {
+            // The title uses an overlay canvas and intentionally has no rendering
+            // camera. Keep one listener alive so opening the menu does not emit
+            // "no audio listeners" warnings or mute menu feedback.
+            cinematicCamera.gameObject.SetActive(true);
+            cinematicCamera.enabled = false;
+            var titleListener = cinematicCamera.GetComponent<AudioListener>();
+            if (titleListener != null) titleListener.enabled = true;
+        }
         SetPlayerActive(false);
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         Time.timeScale = 1f;
+        if (continueButton != null) continueButton.interactable = SaveLoadService.HasSaveFile;
 
         if (skipButton != null)
         {
@@ -95,6 +107,14 @@ public class GameFlowController : MonoBehaviour
         StartCoroutine(StartRoutine());
     }
 
+    public void OnClickContinue()
+    {
+        if (_inIntro || IsInGameplay || !SaveLoadService.HasSaveFile) return;
+        _continueRequested = true;
+        OnClickStart();
+        RequestSkip();
+    }
+
     public void RequestSkip()
     {
         if (!_inIntro) return;
@@ -118,6 +138,7 @@ public class GameFlowController : MonoBehaviour
         _inIntro = false;
         IsInGameplay = false;
         _skipRequested = false;
+        _continueRequested = false;
 
         // The scene reload below rebuilds everything; drop cached statics so nothing
         // holds a reference into the destroyed scene.
@@ -195,13 +216,21 @@ public class GameFlowController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        var bootstrap = FindFirstObjectByType<GameSystemsBootstrap>();
+        var bootstrap = FindAnyObjectByType<GameSystemsBootstrap>();
         if (bootstrap == null)
         {
             var go = new GameObject("GameSystemsBootstrap");
             bootstrap = go.AddComponent<GameSystemsBootstrap>();
         }
-        if (player != null) bootstrap.StartGameplaySystems(player);
+        if (player != null)
+        {
+            bootstrap.StartGameplaySystems(player);
+            if (_continueRequested)
+            {
+                SaveLoadService.Instance?.Load();
+                _continueRequested = false;
+            }
+        }
     }
 
     public void ShowSubtitle(string speaker, string line)
@@ -278,7 +307,7 @@ public class GameFlowController : MonoBehaviour
             if (cinematicCamera == null)
             {
                 // Inactive objects are invisible to Find — search all cameras.
-                var cams = FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                var cams = FindObjectsByType<Camera>(FindObjectsInactive.Include);
                 foreach (var c in cams)
                 {
                     if (c != null && c.gameObject.name == "CinematicCamera")
@@ -292,7 +321,7 @@ public class GameFlowController : MonoBehaviour
 
         if (cutscene == null)
         {
-            cutscene = FindFirstObjectByType<IntroCutsceneDirector>();
+            cutscene = FindAnyObjectByType<IntroCutsceneDirector>();
         }
     }
 }

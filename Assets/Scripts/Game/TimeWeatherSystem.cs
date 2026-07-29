@@ -44,6 +44,7 @@ public class TimeWeatherSystem : MonoBehaviour
         _player = player;
         if (sun != null) _baseSun = sun.color;
         EnsureFx();
+        UpdateRegion();
         RollWeatherForRegion(true);
         ApplyVisuals();
     }
@@ -51,6 +52,7 @@ public class TimeWeatherSystem : MonoBehaviour
     public void AdvanceHours(float hours)
     {
         TimeOfDay01 = Mathf.Repeat(TimeOfDay01 + hours / 24f, 1f);
+        UpdateRegion();
         RollWeatherForRegion(true);
         ApplyVisuals();
     }
@@ -58,6 +60,8 @@ public class TimeWeatherSystem : MonoBehaviour
     public void SetTimeOfDay01(float t)
     {
         TimeOfDay01 = Mathf.Repeat(t, 1f);
+        UpdateRegion();
+        RollWeatherForRegion(true);
         ApplyVisuals();
     }
 
@@ -73,21 +77,27 @@ public class TimeWeatherSystem : MonoBehaviour
         float dayFractionPerSecond = minutesPerRealSecond / (24f * 60f);
         TimeOfDay01 = Mathf.Repeat(TimeOfDay01 + dayFractionPerSecond * Time.deltaTime, 1f);
 
-        UpdateRegion();
+        bool regionChanged = UpdateRegion();
         _weatherTimer -= Time.deltaTime;
-        if (_weatherTimer <= 0f) RollWeatherForRegion(false);
+        if (regionChanged || _weatherTimer <= 0f) RollWeatherForRegion(regionChanged);
 
         ApplyVisuals();
         UpdateFxFollow();
     }
 
-    private void UpdateRegion()
+    private bool UpdateRegion()
     {
-        if (_player == null) return;
+        if (_player == null) return false;
+
         var p = _player.position;
-        if (p.z < -800f) CurrentRegion = "Hammerfell";
-        else if (Mathf.Abs(p.x) < 500f && Mathf.Abs(p.z) < 500f) CurrentRegion = "Bay";
-        else CurrentRegion = "HighRock";
+        string region;
+        if (p.z < -800f) region = "Hammerfell";
+        else if (Mathf.Abs(p.x) < 500f && Mathf.Abs(p.z) < 500f) region = "Bay";
+        else region = "HighRock";
+
+        if (CurrentRegion == region) return false;
+        CurrentRegion = region;
+        return true;
     }
 
     private void RollWeatherForRegion(bool force)

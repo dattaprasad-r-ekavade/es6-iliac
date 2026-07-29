@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -44,7 +45,7 @@ public class GameSystemsBootstrap : MonoBehaviour
         var hud = systems.GetComponent<GameHud>() ?? systems.AddComponent<GameHud>();
         var save = systems.GetComponent<SaveLoadService>() ?? systems.AddComponent<SaveLoadService>();
 
-        var sun = FindFirstObjectByType<Light>();
+        var sun = FindAnyObjectByType<Light>();
         time.Configure(sun, player);
         disc.Configure(player);
         hud.Build(player);
@@ -53,7 +54,6 @@ public class GameSystemsBootstrap : MonoBehaviour
         save.SetCheckpoint(player.position);
 
         SpawnWorldContent();
-        save.Save(); // autosave checkpoint at start of gameplay
 
         GameHud.Instance?.ShowToast("Iliac Bay — M Map · J Journal · I Inv · E Talk");
         Debug.Log("[GameSystems] P0/P1 systems online.");
@@ -72,22 +72,7 @@ public class GameSystemsBootstrap : MonoBehaviour
         // Bandit camp — well south of the Daggerfall safe zone.
         var camp = new GameObject("BanditCamp_Glenumbra");
         camp.transform.position = WorldLayout.BanditCamp;
-        for (int i = 0; i < 3; i++)
-        {
-            var pos = WorldLayout.BanditCamp + new Vector3(i * 4f - 4f, 0f, (i % 2) * 3f);
-            SnapToGround(ref pos);
-            EnemyBrain.Spawn("Bandit", pos, new Color(0.45f, 0.2f, 0.15f), 50f + i * 5f,
-                modelId: i == 0 ? "character-male-a" : null, spawnId: $"bandit_camp_{i}");
-        }
-
-        // Ruin undead — far from the Daggerfall safe zone.
-        for (int i = 0; i < 2; i++)
-        {
-            var pos = WorldLayout.CoastalRuin + (i == 0 ? Vector3.right : Vector3.left) * 3f;
-            SnapToGround(ref pos);
-            EnemyBrain.Spawn("Skeleton", pos, new Color(0.75f - i * 0.05f, 0.75f - i * 0.05f, 0.7f), 40f,
-                spawnId: $"coastal_ruin_skeleton_{i}");
-        }
+        ReconcileHostileSpawns();
 
         // Daggerfall NPCs, placed relative to the plaza so they follow it if it moves.
         var plaza = WorldLayout.DaggerfallSpawnPad;
@@ -116,6 +101,56 @@ public class GameSystemsBootstrap : MonoBehaviour
             SpawnNpc(sentinel.Value.TravelPosition + new Vector3(20f, 0f, -10f), "Sentinel Scout",
                 new Color(0.7f, 0.55f, 0.3f),
                 new[] { "Hot wind and hotter steel — this is Sentinel." }, modelId: "character-female-d");
+    }
+
+    /// <summary>
+    /// Make the live hostile population match the killed-id set restored from a save.
+    /// Saved kills remove enemies, while enemies killed after that save are recreated
+    /// when the older save is loaded.
+    /// </summary>
+    public void ReconcileHostileSpawns()
+    {
+        var livingIds = new HashSet<string>();
+        var enemies = FindObjectsByType<EnemyBrain>(FindObjectsInactive.Include);
+        foreach (var enemy in enemies)
+        {
+            if (enemy == null || string.IsNullOrEmpty(enemy.SpawnId)) continue;
+
+            if (WorldState.IsKilled(enemy.SpawnId) || enemy.Health <= 0f || !enemy.gameObject.activeInHierarchy)
+            {
+                Destroy(enemy.gameObject);
+                continue;
+            }
+
+            // A stable spawn id represents one enemy. Remove accidental duplicates.
+            if (!livingIds.Add(enemy.SpawnId))
+                Destroy(enemy.gameObject);
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            var pos = WorldLayout.BanditCamp + new Vector3(i * 4f - 4f, 0f, (i % 2) * 3f);
+            EnsureHostileSpawn(livingIds, $"bandit_camp_{i}", "Bandit", pos,
+                new Color(0.45f, 0.2f, 0.15f), 50f + i * 5f,
+                i == 0 ? "character-male-a" : null);
+        }
+
+        for (int i = 0; i < 2; i++)
+        {
+            var pos = WorldLayout.CoastalRuin + (i == 0 ? Vector3.right : Vector3.left) * 3f;
+            EnsureHostileSpawn(livingIds, $"coastal_ruin_skeleton_{i}", "Skeleton", pos,
+                new Color(0.75f - i * 0.05f, 0.75f - i * 0.05f, 0.7f), 40f, null);
+        }
+    }
+
+    private static void EnsureHostileSpawn(HashSet<string> livingIds, string spawnId, string displayName,
+        Vector3 pos, Color color, float health, string modelId)
+    {
+        if (WorldState.IsKilled(spawnId) || livingIds.Contains(spawnId)) return;
+
+        SnapToGround(ref pos);
+        if (EnemyBrain.Spawn(displayName, pos, color, health, modelId, spawnId) != null)
+            livingIds.Add(spawnId);
     }
 
     private static void SpawnNpc(Vector3 pos, string name, Color color, string[] lines,

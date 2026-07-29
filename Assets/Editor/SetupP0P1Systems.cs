@@ -18,14 +18,14 @@ public static class SetupP0P1Systems
         SetupGamePresentation.SetupAll();
 
         var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-        if (Object.FindFirstObjectByType<GameSystemsBootstrap>() == null)
+        if (Object.FindAnyObjectByType<GameSystemsBootstrap>() == null)
         {
             var go = new GameObject("GameSystemsBootstrap");
             go.AddComponent<GameSystemsBootstrap>();
         }
 
         // Ensure SFX object survived rebuild
-        if (Object.FindFirstObjectByType<GameSfx>() == null)
+        if (Object.FindAnyObjectByType<GameSfx>() == null)
         {
             var systems = GameObject.Find("GameSystems") ?? new GameObject("GameSystems");
             systems.AddComponent<GameSfx>();

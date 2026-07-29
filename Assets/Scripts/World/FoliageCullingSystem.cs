@@ -16,8 +16,10 @@ public class FoliageCullingSystem : MonoBehaviour
 
     private static FoliageCullingSystem _instance;
     private static readonly List<FoliageDistanceCull> Props = new();
+    private static Camera[] _cameraBuffer = new Camera[2];
 
     private int _cursor;
+    private Camera _cullingCamera;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Init()
@@ -66,9 +68,8 @@ public class FoliageCullingSystem : MonoBehaviour
     private void Update()
     {
         if (Props.Count == 0) return;
-        if (!PlayerRef.TryGet(out var player)) return;
+        if (!TryGetCullOrigin(out var origin)) return;
 
-        var origin = player.position;
         int perFrame = Mathf.Max(1, Props.Count / SweepFrames);
 
         for (int n = 0; n < perFrame; n++)
@@ -88,5 +89,58 @@ public class FoliageCullingSystem : MonoBehaviour
             prop.SetVisible((origin - prop.transform.position).sqrMagnitude < max * max);
             _cursor++;
         }
+    }
+
+    private bool TryGetCullOrigin(out Vector3 origin)
+    {
+        if (_cullingCamera == null || !_cullingCamera.isActiveAndEnabled)
+        {
+            _cullingCamera = FindActiveRenderingCamera();
+        }
+
+        if (_cullingCamera != null)
+        {
+            origin = _cullingCamera.transform.position;
+            return true;
+        }
+
+        // The title screen intentionally has no active camera. Retain the previous
+        // player-based behaviour there so props are culled before the intro begins.
+        if (PlayerRef.TryGet(out var player))
+        {
+            origin = player.position;
+            return true;
+        }
+
+        origin = default;
+        return false;
+    }
+
+    private static Camera FindActiveRenderingCamera()
+    {
+        var main = Camera.main;
+        if (main != null && main.isActiveAndEnabled)
+        {
+            return main;
+        }
+
+        int cameraCount = Camera.allCamerasCount;
+        if (cameraCount == 0) return null;
+
+        if (_cameraBuffer.Length < cameraCount)
+        {
+            _cameraBuffer = new Camera[Mathf.NextPowerOfTwo(cameraCount)];
+        }
+
+        cameraCount = Camera.GetAllCameras(_cameraBuffer);
+        Camera best = null;
+        for (int i = 0; i < cameraCount; i++)
+        {
+            var candidate = _cameraBuffer[i];
+            if (candidate == null || !candidate.isActiveAndEnabled) continue;
+            if (best == null || candidate.depth > best.depth) best = candidate;
+        }
+
+        return best;
     }
 }

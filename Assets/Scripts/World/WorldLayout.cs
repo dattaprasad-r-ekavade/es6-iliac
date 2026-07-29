@@ -25,10 +25,11 @@ public static class WorldLayout
     public const float CameraFarPlane = 6000f;
 
     /// <summary>Bounds used to project world positions onto the map UI.</summary>
+    public const float MapExtentPadding = 100f;
     public const float MapMinX = -3200f;
     public const float MapMaxX = 3200f;
-    public const float MapMinZ = -3400f;
-    public const float MapMaxZ = 3600f;
+    public const float MapMinZ = -3650f;
+    public const float MapMaxZ = 3750f;
 
     // ---- Landmasses --------------------------------------------------------
 
@@ -49,6 +50,8 @@ public static class WorldLayout
         public Biome Biome;
         public string CityName;   // null when the patch has no city
         public int PropCount;
+        /// <summary>Authored seed; unlike string.GetHashCode(), this is stable across runtimes.</summary>
+        public int TerrainSeed;
 
         public bool HasCity => !string.IsNullOrEmpty(CityName);
     }
@@ -62,7 +65,8 @@ public static class WorldLayout
             Center = new Vector3(200f, 0f, 3200f),
             Size = new Vector3(2200f, 55f, 900f),
             Biome = Biome.HighRock,
-            PropCount = 180
+            PropCount = 180,
+            TerrainSeed = 1101
         },
         new Landmass
         {
@@ -70,7 +74,8 @@ public static class WorldLayout
             Center = new Vector3(-400f, 0f, 2200f),
             Size = new Vector3(2000f, 28f, 800f),
             Biome = Biome.HighRock,
-            PropCount = 160
+            PropCount = 160,
+            TerrainSeed = 1102
         },
         new Landmass
         {
@@ -79,7 +84,8 @@ public static class WorldLayout
             Size = new Vector3(900f, 24f, 700f),
             Biome = Biome.HighRock,
             CityName = "Daggerfall",
-            PropCount = 90
+            PropCount = 90,
+            TerrainSeed = 1103
         },
         new Landmass
         {
@@ -88,7 +94,8 @@ public static class WorldLayout
             Size = new Vector3(850f, 22f, 650f),
             Biome = Biome.HighRock,
             CityName = "Wayrest",
-            PropCount = 80
+            PropCount = 80,
+            TerrainSeed = 1104
         },
         new Landmass
         {
@@ -96,7 +103,8 @@ public static class WorldLayout
             Center = new Vector3(300f, 0f, -3000f),
             Size = new Vector3(2600f, 16f, 1100f),
             Biome = Biome.Hammerfell,
-            PropCount = 140
+            PropCount = 140,
+            TerrainSeed = 2201
         },
         new Landmass
         {
@@ -105,7 +113,8 @@ public static class WorldLayout
             Size = new Vector3(900f, 18f, 700f),
             Biome = Biome.Hammerfell,
             CityName = "Sentinel",
-            PropCount = 85
+            PropCount = 85,
+            TerrainSeed = 2202
         },
         new Landmass
         {
@@ -113,7 +122,8 @@ public static class WorldLayout
             Center = new Vector3(2400f, 0f, -2400f),
             Size = new Vector3(900f, 60f, 1000f),
             Biome = Biome.Hammerfell,
-            PropCount = 100
+            PropCount = 100,
+            TerrainSeed = 2203
         },
         new Landmass
         {
@@ -121,7 +131,8 @@ public static class WorldLayout
             Center = new Vector3(-2800f, 0f, 200f),
             Size = new Vector3(280f, 16f, 220f),
             Biome = Biome.IslandGreen,
-            PropCount = 40
+            PropCount = 40,
+            TerrainSeed = 3301
         },
         new Landmass
         {
@@ -129,7 +140,8 @@ public static class WorldLayout
             Center = new Vector3(150f, 0f, -100f),
             Size = new Vector3(240f, 28f, 200f),
             Biome = Biome.IslandRock,
-            PropCount = 28
+            PropCount = 28,
+            TerrainSeed = 4401
         },
         new Landmass
         {
@@ -137,7 +149,8 @@ public static class WorldLayout
             Center = new Vector3(-900f, 0f, -700f),
             Size = new Vector3(200f, 14f, 160f),
             Biome = Biome.IslandRock,
-            PropCount = 22
+            PropCount = 22,
+            TerrainSeed = 4402
         }
     };
 
@@ -213,20 +226,50 @@ public static class WorldLayout
         new[]
         {
             new Vector3(-2000f, 0f, 1450f),
-            new Vector3(-1650f, 0f, 1750f),
+            new Vector3(-1860f, 0f, 1510f),
+            new Vector3(-1784f, 0f, 1600f), // Daggerfall east gate
+            new Vector3(-1400f, 0f, 1850f),
             new Vector3(-1200f, 0f, 1900f),
             new Vector3(0f, 0f, 2000f),
             new Vector3(900f, 0f, 1900f),
             new Vector3(1850f, 0f, 1700f),
+            new Vector3(2004f, 0f, 1800f), // Wayrest west gate
+            new Vector3(2120f, 0f, 1680f),
             new Vector3(2200f, 0f, 1600f)
         },
         // Daggerfall -> the bandit camp on the Glenumbra shore.
         new[]
         {
             new Vector3(-2000f, 0f, 1450f),
-            new Vector3(-1700f, 0f, 1800f),
+            new Vector3(-1860f, 0f, 1510f),
+            new Vector3(-1784f, 0f, 1600f), // Daggerfall east gate
             new Vector3(-1400f, 0f, 1900f),
             BanditCamp
+        },
+        // Glenumbra -> Wrothgar, joining the two northern High Rock regions.
+        new[]
+        {
+            new Vector3(-200f, 0f, 2400f),
+            new Vector3(0f, 0f, 2600f),
+            new Vector3(100f, 0f, 2800f),
+            new Vector3(200f, 0f, 3000f)
+        },
+        // Sentinel -> Alik'r, giving the southern city an organic overland route.
+        new[]
+        {
+            new Vector3(-1500f, 0f, -2100f),
+            new Vector3(-1394f, 0f, -2200f), // Sentinel east gate
+            new Vector3(-1200f, 0f, -2500f),
+            new Vector3(-1000f, 0f, -2700f),
+            new Vector3(-850f, 0f, -2850f)
+        },
+        // Alik'r -> Dragontail foothills.
+        new[]
+        {
+            new Vector3(1350f, 0f, -2850f),
+            new Vector3(1600f, 0f, -2750f),
+            new Vector3(1850f, 0f, -2650f),
+            new Vector3(2050f, 0f, -2600f)
         }
     };
 
@@ -253,6 +296,38 @@ public static class WorldLayout
     public const float TerrainHalfExtent = 0.49f;
 
     /// <summary>
+    /// Semi-axes of the shared elliptical coast. Terrain, authoring checks and map art
+    /// must all use these radii rather than independently interpreting <see cref="Landmass.Size"/>.
+    /// </summary>
+    public static Vector2 GetCoastRadii(Landmass landmass)
+    {
+        return new Vector2(
+            landmass.Size.x * TerrainHalfExtent,
+            landmass.Size.z * TerrainHalfExtent);
+    }
+
+    /// <summary>
+    /// Elliptical distance on the XZ plane: zero at the centre, one on the coast and
+    /// greater than one outside it. The Y coordinate is deliberately ignored.
+    /// </summary>
+    public static float GetNormalizedCoastDistance(Vector3 pos, Landmass landmass)
+    {
+        var radii = GetCoastRadii(landmass);
+        if (radii.x <= Mathf.Epsilon || radii.y <= Mathf.Epsilon)
+            return float.PositiveInfinity;
+
+        float dx = (pos.x - landmass.Center.x) / radii.x;
+        float dz = (pos.z - landmass.Center.z) / radii.y;
+        return Mathf.Sqrt(dx * dx + dz * dz);
+    }
+
+    /// <summary>True when an XZ position is on or inside a landmass's shared coast.</summary>
+    public static bool IsInsideCoast(Vector3 pos, Landmass landmass)
+    {
+        return GetNormalizedCoastDistance(pos, landmass) <= 1f;
+    }
+
+    /// <summary>
     /// Which landmass (if any) covers this XZ position.
     ///
     /// Worth calling before authoring any fixed world position: the bandit camp and the
@@ -263,8 +338,7 @@ public static class WorldLayout
     {
         foreach (var land in Landmasses)
         {
-            if (Mathf.Abs(pos.x - land.Center.x) <= land.Size.x * TerrainHalfExtent &&
-                Mathf.Abs(pos.z - land.Center.z) <= land.Size.z * TerrainHalfExtent)
+            if (IsInsideCoast(pos, land))
             {
                 found = land;
                 return true;

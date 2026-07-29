@@ -64,8 +64,10 @@ public static class PrepareUiSprites
             }
 
             var destPath = $"{Dest}/{Path.GetFileName(path)}";
-            AssetDatabase.DeleteAsset(destPath);
-            AssetDatabase.CopyAsset(path, destPath);
+            // Existing Resources copies keep their GUIDs so rebuilding presentation does
+            // not rewrite the scene and every UI reference. Newly added sprites are copied.
+            if (AssetDatabase.LoadAssetAtPath<Texture2D>(destPath) == null)
+                AssetDatabase.CopyAsset(path, destPath);
             n++;
         }
 

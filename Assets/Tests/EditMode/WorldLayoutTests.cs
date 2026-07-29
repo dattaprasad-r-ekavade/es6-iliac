@@ -27,9 +27,11 @@ public class WorldLayoutTests
     {
         foreach (var site in WorldLayout.Sites)
         {
-            Assert.IsTrue(WorldLayout.IsOverLand(site.TravelPosition),
+            Assert.IsTrue(WorldLayout.TryGetLandmassAt(site.TravelPosition, out var land),
                 $"Fast travel to '{site.Id}' would drop the player in open water at " +
                 $"({site.TravelPosition.x:0}, {site.TravelPosition.z:0}).");
+            Assert.IsTrue(WorldLayout.IsInsideCoast(site.TravelPosition, land),
+                $"Fast travel to '{site.Id}' disagrees with the shared coast geometry.");
         }
     }
 
@@ -38,9 +40,11 @@ public class WorldLayoutTests
     {
         foreach (var site in WorldLayout.Sites)
         {
-            Assert.IsTrue(WorldLayout.IsOverLand(site.WorldPosition),
+            Assert.IsTrue(WorldLayout.TryGetLandmassAt(site.WorldPosition, out var land),
                 $"Site '{site.Id}' is centred on open water at " +
                 $"({site.WorldPosition.x:0}, {site.WorldPosition.z:0}).");
+            Assert.IsTrue(WorldLayout.IsInsideCoast(site.WorldPosition, land),
+                $"Site '{site.Id}' disagrees with the shared coast geometry.");
         }
     }
 
@@ -90,6 +94,23 @@ public class WorldLayoutTests
     }
 
     [Test]
+    public void MainlandConnections_AreExplicitAndKeepOriginalRoadsFirst()
+    {
+        Assert.AreEqual(5, WorldLayout.Roads.Length);
+        Assert.AreEqual(new Vector3(-2000f, 0f, 1450f), WorldLayout.Roads[0][0]);
+        Assert.AreEqual(WorldLayout.BanditCamp, WorldLayout.Roads[1][WorldLayout.Roads[1].Length - 1]);
+
+        for (int i = 2; i < WorldLayout.Roads.Length; i++)
+        {
+            var road = WorldLayout.Roads[i];
+            Assert.IsTrue(WorldLayout.TryGetLandmassAt(road[0], out _),
+                $"Mainland connection {i} starts outside the shared coast.");
+            Assert.IsTrue(WorldLayout.TryGetLandmassAt(road[road.Length - 1], out _),
+                $"Mainland connection {i} ends outside the shared coast.");
+        }
+    }
+
+    [Test]
     public void SpawnPad_IsOnTheDaggerfallLandmass()
     {
         Assert.IsTrue(WorldLayout.TryGetLandmassAt(WorldLayout.DaggerfallSpawnPad, out var land),
@@ -103,11 +124,133 @@ public class WorldLayoutTests
     {
         foreach (var land in WorldLayout.Landmasses)
         {
-            var uv = WorldLayout.WorldToMapUV(land.Center);
-            Assert.Greater(uv.x, 0f, $"'{land.Name}' is clamped to the west edge of the map.");
-            Assert.Less(uv.x, 1f, $"'{land.Name}' is clamped to the east edge of the map.");
-            Assert.Greater(uv.y, 0f, $"'{land.Name}' is clamped to the south edge of the map.");
-            Assert.Less(uv.y, 1f, $"'{land.Name}' is clamped to the north edge of the map.");
+            float west = land.Center.x - land.Size.x * 0.5f;
+            float east = land.Center.x + land.Size.x * 0.5f;
+            float south = land.Center.z - land.Size.z * 0.5f;
+            float north = land.Center.z + land.Size.z * 0.5f;
+
+            Assert.GreaterOrEqual(
+                west - WorldLayout.MapMinX,
+                WorldLayout.MapExtentPadding,
+                $"'{land.Name}' lacks west map padding.");
+            Assert.GreaterOrEqual(
+                WorldLayout.MapMaxX - east,
+                WorldLayout.MapExtentPadding,
+                $"'{land.Name}' lacks east map padding.");
+            Assert.GreaterOrEqual(
+                south - WorldLayout.MapMinZ,
+                WorldLayout.MapExtentPadding,
+                $"'{land.Name}' lacks south map padding.");
+            Assert.GreaterOrEqual(
+                WorldLayout.MapMaxZ - north,
+                WorldLayout.MapExtentPadding,
+                $"'{land.Name}' lacks north map padding.");
+        }
+    }
+
+    [Test]
+    public void SharedCoast_IsElliptical()
+    {
+        foreach (var land in WorldLayout.Landmasses)
+        {
+            var radii = WorldLayout.GetCoastRadii(land);
+            var eastCoast = land.Center + new Vector3(radii.x, 0f, 0f);
+            var northCoast = land.Center + new Vector3(0f, 0f, radii.y);
+            var outside = land.Center + new Vector3(radii.x * 1.01f, 0f, 0f);
+            var rectangleCorner = land.Center + new Vector3(radii.x, 0f, radii.y);
+
+            Assert.AreEqual(1f, WorldLayout.GetNormalizedCoastDistance(eastCoast, land), 0.0001f);
+            Assert.AreEqual(1f, WorldLayout.GetNormalizedCoastDistance(northCoast, land), 0.0001f);
+            Assert.IsTrue(WorldLayout.IsInsideCoast(eastCoast, land));
+            Assert.IsFalse(WorldLayout.IsInsideCoast(outside, land));
+            Assert.IsFalse(WorldLayout.IsInsideCoast(rectangleCorner, land),
+                $"'{land.Name}' still treats a rectangular corner as land.");
+        }
+    }
+
+    [Test]
+    public void TerrainSeeds_AreExplicitAndUnique()
+    {
+        var seen = new HashSet<int>();
+        foreach (var land in WorldLayout.Landmasses)
+        {
+            Assert.AreNotEqual(0, land.TerrainSeed, $"'{land.Name}' has no authored terrain seed.");
+            Assert.IsTrue(seen.Add(land.TerrainSeed),
+                $"'{land.Name}' reuses terrain seed {land.TerrainSeed}.");
+        }
+
+        Assert.AreEqual(
+            TerrainHeightSampler.GetStableSeed("IliacBay"),
+            TerrainHeightSampler.GetStableSeed("IliacBay"));
+        Assert.AreNotEqual(
+            TerrainHeightSampler.GetStableSeed("IliacBay"),
+            TerrainHeightSampler.GetStableSeed("HighRock"));
+    }
+
+    [Test]
+    public void TerrainSampler_IsDeterministic()
+    {
+        foreach (var land in WorldLayout.Landmasses)
+        {
+            var radii = WorldLayout.GetCoastRadii(land);
+            var sample = land.Center + new Vector3(radii.x * 0.31f, 0f, radii.y * -0.27f);
+            float first = TerrainHeightSampler.Sample(sample.x, sample.z, land);
+            float second = TerrainHeightSampler.Sample(sample.x, sample.z, land);
+            Assert.AreEqual(first, second, 0f, $"'{land.Name}' terrain is not deterministic.");
+        }
+    }
+
+    [Test]
+    public void TerrainSampler_KeepsRepresentativeInteriorsDry()
+    {
+        var normalisedSamples = new[]
+        {
+            Vector2.zero,
+            new Vector2(0.35f, 0f),
+            new Vector2(-0.3f, 0.25f),
+            new Vector2(0.2f, -0.4f)
+        };
+
+        foreach (var land in WorldLayout.Landmasses)
+        {
+            var radii = WorldLayout.GetCoastRadii(land);
+            foreach (var sample in normalisedSamples)
+            {
+                var world = land.Center + new Vector3(
+                    radii.x * sample.x,
+                    0f,
+                    radii.y * sample.y);
+                Assert.Less(
+                    WorldLayout.GetNormalizedCoastDistance(world, land),
+                    TerrainHeightSampler.ShoreBandStart);
+
+                float height = TerrainHeightSampler.Sample(world.x, world.z, land);
+                Assert.GreaterOrEqual(
+                    height,
+                    WorldLayout.WaterLevel + TerrainHeightSampler.DryInteriorClearance,
+                    $"'{land.Name}' has a submerged interior sample at " +
+                    $"({world.x:0}, {world.z:0}).");
+            }
+        }
+    }
+
+    [Test]
+    public void TerrainSampler_SubmergesOnlyTheOuterCoast()
+    {
+        foreach (var land in WorldLayout.Landmasses)
+        {
+            var radii = WorldLayout.GetCoastRadii(land);
+            var justInside = land.Center + new Vector3(radii.x * 0.999f, 0f, 0f);
+            var outerCoast = land.Center + new Vector3(radii.x, 0f, 0f);
+
+            Assert.Greater(
+                TerrainHeightSampler.Sample(justInside.x, justInside.z, land),
+                WorldLayout.WaterLevel,
+                $"'{land.Name}' submerges a point inside its coast.");
+            Assert.Less(
+                TerrainHeightSampler.Sample(outerCoast.x, outerCoast.z, land),
+                WorldLayout.WaterLevel,
+                $"'{land.Name}' outer coast is coplanar with the ocean.");
         }
     }
 

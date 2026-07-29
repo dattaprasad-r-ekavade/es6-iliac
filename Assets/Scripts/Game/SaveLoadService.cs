@@ -38,7 +38,12 @@ public class SaveLoadService : MonoBehaviour
 
     public static SaveLoadService Instance { get; private set; }
 
-    private string Path => System.IO.Path.Combine(Application.persistentDataPath, "iliac_bay_save.json");
+    /// <summary>Stable save location for menu flows that exist before this component is created.</summary>
+    public static string SaveFilePath =>
+        System.IO.Path.Combine(Application.persistentDataPath, "iliac_bay_save.json");
+
+    /// <summary>True when a save slot exists. Loading still validates its contents and version.</summary>
+    public static bool HasSaveFile => File.Exists(SaveFilePath);
     private Vector3 _checkpoint;
     private bool _hasCheckpoint;
 
@@ -94,7 +99,7 @@ public class SaveLoadService : MonoBehaviour
 
         try
         {
-            File.WriteAllText(Path, JsonUtility.ToJson(data, true));
+            File.WriteAllText(SaveFilePath, JsonUtility.ToJson(data, true));
         }
         catch (Exception e)
         {
@@ -109,7 +114,7 @@ public class SaveLoadService : MonoBehaviour
 
     public void Load()
     {
-        if (!File.Exists(Path))
+        if (!HasSaveFile)
         {
             GameHud.Instance?.ShowToast("No save found");
             return;
@@ -118,7 +123,7 @@ public class SaveLoadService : MonoBehaviour
         SaveData data;
         try
         {
-            data = JsonUtility.FromJson<SaveData>(File.ReadAllText(Path));
+            data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SaveFilePath));
         }
         catch (Exception e)
         {
@@ -146,7 +151,7 @@ public class SaveLoadService : MonoBehaviour
 
     public void ReloadOrCheckpoint()
     {
-        if (File.Exists(Path))
+        if (HasSaveFile)
         {
             Load();
             return;
@@ -167,7 +172,9 @@ public class SaveLoadService : MonoBehaviour
         var player = PlayerRef.Transform;
         if (player != null)
         {
-            MovePlayer(player, new Vector3(data.Px, data.Py, data.Pz));
+            var savedPosition = new Vector3(data.Px, data.Py, data.Pz);
+            var reconciledPosition = ReconcileSavedPlayerHeight(player, savedPosition);
+            MovePlayer(player, reconciledPosition);
             player.rotation = Quaternion.Euler(0f, data.Pyaw, 0f);
         }
 
@@ -188,7 +195,10 @@ public class SaveLoadService : MonoBehaviour
         DiscoveryTravelSystem.Instance?.LoadDiscovered(data.Discovered);
         QuestSystem.Instance?.RestoreState(data.Quests);
         WorldState.LoadKilled(data.KilledEnemies);
-        DespawnAlreadyKilled();
+        if (GameSystemsBootstrap.Instance != null)
+            GameSystemsBootstrap.Instance.ReconcileHostileSpawns();
+        else
+            DespawnAlreadyKilled();
 
         if (PlayerInventory.Instance != null && data.Items != null)
         {
@@ -206,7 +216,7 @@ public class SaveLoadService : MonoBehaviour
     /// </summary>
     private static void DespawnAlreadyKilled()
     {
-        var enemies = FindObjectsByType<EnemyBrain>(FindObjectsSortMode.None);
+        var enemies = FindObjectsByType<EnemyBrain>(FindObjectsInactive.Include);
         foreach (var enemy in enemies)
         {
             if (enemy != null && WorldState.IsKilled(enemy.SpawnId))
@@ -222,5 +232,27 @@ public class SaveLoadService : MonoBehaviour
         if (cc != null) cc.enabled = false;
         player.position = position;
         if (cc != null) cc.enabled = true;
+    }
+
+    /// <summary>
+    /// Terrain is generated data and may change shape between prototype builds. Preserve
+    /// a save's authored X/Z exactly, but repair Y when the old point is now embedded,
+    /// floating far above the surface, or submerged.
+    /// </summary>
+    private static Vector3 ReconcileSavedPlayerHeight(Transform player, Vector3 savedPosition)
+    {
+        var controller = player != null ? player.GetComponent<CharacterController>() : null;
+        var grounded = IliacBayWorldGenerator.SnapCharacterToGround(savedPosition, controller);
+        if (grounded == savedPosition) return savedPosition;
+
+        float verticalError = Mathf.Abs(savedPosition.y - grounded.y);
+        bool unsafeHeight = savedPosition.y <= WorldLayout.WaterLevel + 0.5f
+                            || verticalError > 1.5f;
+        if (!unsafeHeight) return savedPosition;
+
+        Debug.Log(
+            $"[Save] Reconciled saved terrain height from {savedPosition.y:0.00} " +
+            $"to {grounded.y:0.00} without changing X/Z.");
+        return new Vector3(savedPosition.x, grounded.y, savedPosition.z);
     }
 }

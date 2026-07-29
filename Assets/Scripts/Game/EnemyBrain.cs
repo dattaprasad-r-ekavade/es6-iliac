@@ -155,15 +155,6 @@ public class EnemyBrain : MonoBehaviour
         var brain = go.AddComponent<EnemyBrain>();
         brain.Setup(name.Replace("_", " "), hp, spawnId);
 
-        var labelGo = new GameObject("Name");
-        labelGo.transform.SetParent(go.transform, false);
-        labelGo.transform.localPosition = new Vector3(0f, 2.2f, 0f);
-        var tm = labelGo.AddComponent<TextMesh>();
-        tm.text = brain.displayName;
-        tm.characterSize = 0.12f;
-        tm.fontSize = 48;
-        tm.anchor = TextAnchor.MiddleCenter;
-        tm.color = Color.white;
         return go;
     }
 }
