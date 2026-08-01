@@ -161,33 +161,38 @@ Every narrative and production lock for Chapter 01 is closed.
 Ordered by dependency. Each is sized to be picked up cold. **Read the listed sections before
 starting** — they contain decisions that are expensive to contradict.
 
-### W-01 · Region data model, and Estmere as the first region
+### Sequencing — read this before picking a packet
 
-**Blocks:** everything spatial, including W-02's scene extraction.
+**The region rebuild and the Map Editor are both deferred until after VS2.** The architecture
+decision is recorded in `plan.md`; executing it is not urgent, and an earlier draft of this
+document wrongly said otherwise.
 
-The world moves from one continuous 6.8 km bay to Witcher 3-style regions — a city plus a
-dense walkable hinterland per plane, connected by ferries. **Chapter 01 needs only the
-Estmere region**, plus a shipboard prologue and a Caldemar arrival sliver.
+The reasoning:
 
-- Read: `plan.md` § *World architecture — regions, not one bay*
-- Move world data out of static C# arrays into a versioned `kessil.world.json`, scoped to a
-  region rather than a world.
-- Rearchitect `KessilWorldGenerator` (1,107 lines) around a region.
-- **Rewrite `WorldLayoutTests`.** 16 of the 20 EditMode tests assert on the current bay's
-  elliptical coasts, road spines and city-to-landmass links. They will not survive. Replace
-  them, don't delete them — the id-stability and dry-interior assertions still matter.
-- Art direction's "keep the bay thin and fog-limited" was a consequence of the old
-  architecture. **Regions are meant to be dense.** Do not carry the thinness rule over.
+| Milestone | What it needs from the world |
+|---|---|
+| VS1 | terrain that exists, spawn points, something to extract into scenes |
+| VS2 | **grey boxes** — plan.md says "it will look like nothing, that is expected and correct" |
+| VS3 | authored environments. **This is where the Map Editor pays off** |
 
-**Open sequencing question, decide before starting:** the Map Editor MVP is currently queued
-after VS2. With regions, hand-authoring Estmere and *then* building the editor means doing it
-twice. Pragmatic middle: define the region JSON format now, author Estmere with minimal
-tooling, defer the full Tiled pipeline.
+Scene architecture is **geometry-agnostic**: building `Estmere_Exterior` as an additive scene
+with a spawn contract and a fade is the same work whichever geometry sits inside it. Twelve of
+VS2's thirteen scenes are interiors and are region-independent regardless.
 
-**Done when:** Estmere generates from `kessil.world.json`, EditMode tests are green against
-the new model, and the existing PlayMode suite still passes.
+Two traps this ordering avoids:
 
-### W-02 · Bootstrap scene, additive loading, scene transitions
+- **Rebuilding a world VS2 will only grey-box.** The current bay is wrong-shaped and ugly, but
+  it is geometry with 20 passing tests, which is all VS1 and VS2 require.
+- **Building an authoring tool before authoring anything.** Nobody has built a region in this
+  project or this data model, so the requirements would be guesses. Tools built after one
+  painful manual pass are far better than tools built before it.
+
+Both cost 8–14 days during which VS2 — the milestone that converts this plan from speculation
+into a measurable burn-down — would not move.
+
+**Keep the scene plumbing geometry-agnostic** and the deferral costs nothing.
+
+### W-01 · Bootstrap scene, additive loading, scene transitions
 
 - Read: `plan.md` § *Scene and loading architecture*
 - Persistent `Bootstrap` scene owning services, input, UI, audio, saves, loading.
@@ -198,7 +203,7 @@ the new model, and the existing PlayMode suite still passes.
 **Done when:** three scenes load additively with spawn placement, and a failed load recovers
 rather than hanging.
 
-### W-03 · `GameState` service
+### W-02 · `GameState` service
 
 Single owner of input, cursor, time scale and pause. Replaces the scattered checks currently
 spread across `GameHud`, `GameFlowController` and `PlayerCombat`.
@@ -208,18 +213,18 @@ States: gameplay, dialogue, cinematic, menu, loading, death.
 **Watch out:** `GameHud.ShowDialogue` currently sets `Time.timeScale = 0` directly and
 `CloseDialogue` restores it. Those become `GameState` transitions.
 
-### W-04 · Input actions asset
+### W-03 · Input actions asset
 
 One `.inputactions` asset. `com.unity.inputsystem@1.19.0` is already in the manifest but no
 asset exists. Controller support is out of slice scope; keyboard and mouse only.
 
-### W-05 · Prefabs and ScriptableObjects
+### W-04 · Prefabs and ScriptableObjects
 
 Replace `AddComponent` construction with prefabbed player, NPC and UI. This is the change
 that makes everything else testable — the current systems are hard to smoke-test precisely
 because they are built by code at runtime.
 
-### W-06 · `SaveGameV4`
+### W-05 · `SaveGameV4`
 
 **Get the shape right the first time.** Migrating v4 → v5 mid-slice is the avoidable
 disaster here.
@@ -234,7 +239,7 @@ before entering gameplay, and safe handling of existing v3 files.
 
 Make `SaveFilePath` injectable while you are here, then simplify `SmokeTestFixture`.
 
-### W-07 · Topic-based dialogue runtime
+### W-06 · Topic-based dialogue runtime
 
 **The one delta with a real deadline** — converting a tree system to topics later means
 rewriting the data *and* everything authored against it.
@@ -245,29 +250,72 @@ rewriting the data *and* everything authored against it.
 - Conditions must include `evidence_count` — this is what enforces the spoke contract in data
   rather than by review.
 
-### W-08 · Story systems
+### W-07 · Story systems
 
 `StoryDirector` as the sole authority for beat transitions and checkpoints. Data-driven quest
 stages, story flags, route gates, `EvidenceRecord` with a **full readable document body**
 (show the document; never summarise it into a journal line).
 
-### W-09 · `CinematicRunner`
+### W-08 · `CinematicRunner`
 
 Deterministic cues plus an **idempotent end state applied whether watched or skipped**. Three
 beat acceptance tests already depend on this.
 
-### W-10 · VS1 gate
+### W-09 · VS1 gate
 
 A throwaway test quest that crosses three additive scenes, branches, takes evidence, saves,
 quits, continues, restores a companion, mutates the world, and rolls back correctly.
 
 **This is the gate. Do not start VS2 until it passes.**
 
-### Beyond VS1
+### W-10 · VS2 — the grey thread
 
-VS2 is the grey thread — every scene exists as a grey box, every transition works, all four
-routes reach the Caldemar handoff with no editor intervention. It is the de-risking milestone
-and the point at which burn-down becomes measurable. See `plan.md` § *VS2*.
+**The de-risking milestone, and the most important packet in this document.**
+
+Every scene in the scene table exists, even as a grey box with a placeholder sign. Every
+transition works in order with the real spawn and autosave contract. All four routes are
+selectable at the audience and reach the convergence checkpoint as genuinely separate paths,
+not one path with a flag. Cinematics are timed placeholder cards that apply their real end
+state. Dialogue is placeholder text driven by the real topic graph.
+
+- Read: `plan.md` § *VS2*, and `CHAPTER01_BEATS.md` in full.
+- Twelve of the thirteen scenes are interiors and are region-independent. Only
+  `Estmere_Exterior` cares about world shape, and at this stage it is a grey box.
+
+**Gate:** a developer starts a new game and reaches the Caldemar handoff on **all four
+routes** without touching the editor. It will look like nothing. That is expected and correct.
+
+From here the burn-down is measurable: beats with real content, out of 42.
+
+### W-11 · Map Editor MVP · *after VS2*
+
+Now — not before — because you will have authored thirteen scenes and know what the pain
+actually is. A tool built after one manual pass is far better than one built before it.
+
+- Read: `plan.md` § *World-authoring goal — Kessil World Builder*
+- Tiled-backed, with a Kessil importer, validator and one-click headless preview.
+- Source of truth becomes a versioned `kessil.world.json`, not a Unity scene and not
+  hand-edited C#.
+
+**Gate:** a non-Unity user can move a coastline, paint elevation and biome, redraw a road,
+place a city gate and a story spawn, press one button, and get a valid region back — with
+plain-language errors for invalid configurations.
+
+### W-12 · Region rebuild · *after W-11*
+
+Execute the architecture already decided in `plan.md` § *World architecture*. The bay becomes
+Witcher 3-style regions: a city plus a dense walkable hinterland per plane, connected by the
+ferry network.
+
+**Chapter 01 needs only the Estmere region**, plus the shipboard prologue and a Caldemar
+arrival sliver. Caldemar, Qadris and Aldreth as full regions are Chapter 02+ work.
+
+- Rearchitect `KessilWorldGenerator` (1,107 lines) around a region rather than a world.
+- **Rewrite `WorldLayoutTests`.** 16 of the 20 EditMode tests assert on the current bay's
+  elliptical coasts, road spines and city-to-landmass links, and will not survive. Replace
+  them rather than deleting them — the id-stability and dry-interior assertions still matter.
+- Art direction's "keep the bay thin and fog-limited" was a consequence of the *old*
+  architecture. **Regions are meant to be dense.** Do not carry the thinness rule over.
 
 ---
 
@@ -275,11 +323,13 @@ and the point at which burn-down becomes measurable. See `plan.md` § *VS2*.
 
 None of these block current work. Raise them when their packet comes up.
 
+0. ~~Map Editor sequencing~~ — **resolved 2026-08-01.** Both the editor (W-11) and the region
+   rebuild (W-12) come after VS2. See *Sequencing* above.
 1. **The weaponmaster.** The director wants one NPC introducing all weapons, but Chapter 01
    already has `role.instructor_warrior` (Alaric Thorne) in the guard yard, which three of the
    four routes never visit. Either the weaponmaster *is* Thorne and only warriors meet him, or
    he sits somewhere every route passes.
-2. **Map Editor sequencing** — see W-01.
+
 3. Aldreth is a placeholder name (`city_north` is the stable id).
 4. What returned souls look like beyond "humans with purple fume" — the late-game bestiary.
 5. Subtitle standard; frame-time and memory floor. Both VS8-tier.
