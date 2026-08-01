@@ -19,6 +19,7 @@ public static class BuildKessilWorld
     public static void BuildKessil()
     {
         AssetDatabase.Refresh();
+        RuntimePrefabBuilder.EnsurePrefabs();
         EnsureFolders();
 
         var ocean = GetOrCreateLit($"{MaterialsPath}/M_Ocean.mat", new Color(0.08f, 0.28f, 0.48f), 0.0f, 0.9f);
@@ -65,6 +66,8 @@ public static class BuildKessilWorld
         so.FindProperty("propSeed").intValue = 4242;
         so.FindProperty("waterSize").floatValue = 1400f;
         so.FindProperty("spawnPlayer").boolValue = true;
+        so.FindProperty("playerPrefab").objectReferenceValue =
+            AssetDatabase.LoadAssetAtPath<GameObject>(RuntimePrefabBuilder.PlayerPath);
         so.FindProperty("oceanMaterial").objectReferenceValue = ocean;
         so.FindProperty("halbrandMaterial").objectReferenceValue = halbrand;
         so.FindProperty("sarrakhMaterial").objectReferenceValue = sarrakh;
@@ -80,8 +83,10 @@ public static class BuildKessilWorld
 
         gen.GenerateWorld();
 
+        SceneArchitectureBuilder.EnsureMainContext(scene);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
+        SceneArchitectureBuilder.EnsureBuildSettings();
         AssetDatabase.SaveAssets();
 
         var player = GameObject.Find("Player");

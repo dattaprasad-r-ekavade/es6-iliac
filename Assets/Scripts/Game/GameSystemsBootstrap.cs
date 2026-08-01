@@ -6,6 +6,8 @@ using UnityEngine;
 /// </summary>
 public class GameSystemsBootstrap : MonoBehaviour
 {
+    [SerializeField] private NpcArchetype[] npcArchetypes;
+
     public static GameSystemsBootstrap Instance { get; private set; }
 
     private bool _started;
@@ -14,6 +16,8 @@ public class GameSystemsBootstrap : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        if (Application.isPlaying && gameObject.name == "GameSystems")
+            DontDestroyOnLoad(gameObject);
     }
 
     private void OnDestroy()
@@ -29,21 +33,26 @@ public class GameSystemsBootstrap : MonoBehaviour
         PlayerRef.Set(player);
         WorldTagger.SetLayerRecursive(player.gameObject, GameLayers.Player);
 
-        var stats = player.GetComponent<PlayerStats>() ?? player.gameObject.AddComponent<PlayerStats>();
-        var inv = player.GetComponent<PlayerInventory>() ?? player.gameObject.AddComponent<PlayerInventory>();
-        var combat = player.GetComponent<PlayerCombat>() ?? player.gameObject.AddComponent<PlayerCombat>();
-        var interact = player.GetComponent<PlayerInteract>() ?? player.gameObject.AddComponent<PlayerInteract>();
-        player.gameObject.AddComponent<PlayerSafetyGuard>();
+        Require<PlayerStats>(player.gameObject);
+        Require<PlayerInventory>(player.gameObject);
+        var combat = Require<PlayerCombat>(player.gameObject);
+        Require<PlayerInteract>(player.gameObject);
+        Require<PlayerSafetyGuard>(player.gameObject);
         combat.enabled = true;
 
         var systems = GameObject.Find("GameSystems");
-        if (systems == null) systems = new GameObject("GameSystems");
+        if (systems == null)
+        {
+            var prefab = Resources.Load<GameObject>("Prefabs/Runtime/GameSystems");
+            systems = prefab != null ? Instantiate(prefab) : new GameObject("GameSystems");
+            systems.name = "GameSystems";
+        }
 
-        var time = systems.GetComponent<TimeWeatherSystem>() ?? systems.AddComponent<TimeWeatherSystem>();
-        var disc = systems.GetComponent<DiscoveryTravelSystem>() ?? systems.AddComponent<DiscoveryTravelSystem>();
-        var quests = systems.GetComponent<QuestSystem>() ?? systems.AddComponent<QuestSystem>();
-        var hud = systems.GetComponent<GameHud>() ?? systems.AddComponent<GameHud>();
-        var save = systems.GetComponent<SaveLoadService>() ?? systems.AddComponent<SaveLoadService>();
+        var time = Require<TimeWeatherSystem>(systems);
+        var disc = Require<DiscoveryTravelSystem>(systems);
+        Require<QuestSystem>(systems);
+        var hud = Require<GameHud>(systems);
+        var save = Require<SaveLoadService>(systems);
 
         var sun = FindAnyObjectByType<Light>();
         time.Configure(sun, player);
@@ -57,6 +66,14 @@ public class GameSystemsBootstrap : MonoBehaviour
 
         GameHud.Instance?.ShowToast("Kessil Bay — M Map · J Journal · I Inv · E Talk");
         Debug.Log("[GameSystems] P0/P1 systems online.");
+    }
+
+    private static T Require<T>(GameObject owner) where T : Component
+    {
+        var component = owner.GetComponent<T>();
+        if (component != null) return component;
+        throw new MissingComponentException(
+            $"{owner.name} must come from the runtime prefab and contain {typeof(T).Name}.");
     }
 
     /// <summary>
@@ -74,33 +91,8 @@ public class GameSystemsBootstrap : MonoBehaviour
         camp.transform.position = WorldLayout.BanditCamp;
         ReconcileHostileSpawns();
 
-        // Caldemar NPCs, placed relative to the plaza so they follow it if it moves.
-        var plaza = WorldLayout.CaldemarSpawnPad;
-
-        SpawnNpc(plaza + new Vector3(15f, 0f, 10f), "Mira the Provisioner", new Color(0.35f, 0.45f, 0.7f),
-            new[] { "Potions and rumors, traveler.", "Estmere lies far east across the hills." },
-            merchant: true, modelId: "character-female-b");
-
-        SpawnNpc(plaza + new Vector3(-10f, 0f, 25f), "Gate Guard Ralen", new Color(0.4f, 0.4f, 0.45f),
-            new[] { "Keep your blade sheathed in the city.", "Bandits haunt the southern road." },
-            modelId: "character-male-e");
-
-        SpawnNpc(plaza + new Vector3(10f, 0f, -15f), "Captain Alid", new Color(0.55f, 0.4f, 0.25f),
-            new[] { "Clear the Kelrith bandits.", "The bay remembers those who wander it." },
-            questGiver: true, modelId: "character-male-c");
-
-        // Greeters at the other two cities, on their own travel pads.
-        var estmere = WorldLayout.FindSite("city_east");
-        if (estmere.HasValue)
-            SpawnNpc(estmere.Value.TravelPosition + new Vector3(-20f, 0f, 10f), "Estmere Dockhand",
-                new Color(0.3f, 0.5f, 0.4f),
-                new[] { "Welcome to Estmere, jewel of the Esk." }, modelId: "character-male-b");
-
-        var qadris = WorldLayout.FindSite("city_south");
-        if (qadris.HasValue)
-            SpawnNpc(qadris.Value.TravelPosition + new Vector3(20f, 0f, -10f), "Qadris Scout",
-                new Color(0.7f, 0.55f, 0.3f),
-                new[] { "Hot wind and hotter steel — this is Qadris." }, modelId: "character-female-d");
+        foreach (var archetype in npcArchetypes)
+            SpawnNpc(archetype);
     }
 
     /// <summary>
@@ -153,11 +145,20 @@ public class GameSystemsBootstrap : MonoBehaviour
             livingIds.Add(spawnId);
     }
 
-    private static void SpawnNpc(Vector3 pos, string name, Color color, string[] lines,
-        bool merchant = false, bool questGiver = false, string modelId = null)
+    private static void SpawnNpc(NpcArchetype archetype)
     {
+        if (archetype == null || string.IsNullOrWhiteSpace(archetype.Id)) return;
+        var anchor = WorldLayout.FindSite(archetype.AnchorSiteId);
+        if (!anchor.HasValue)
+        {
+            Debug.LogError($"[GameSystems] NPC '{archetype.Id}' has unknown anchor site '{archetype.AnchorSiteId}'.");
+            return;
+        }
+
+        var pos = anchor.Value.TravelPosition + archetype.Offset;
         SnapToGround(ref pos);
-        NpcInteractable.Spawn(name, pos, color, lines, merchant, questGiver, modelId);
+        NpcInteractable.Spawn(archetype.DisplayName, pos, archetype.Tint, archetype.Lines,
+            archetype.Merchant, archetype.QuestGiver, archetype.ModelId);
     }
 
     private static void EnsurePlayerAtCaldemarSpawn(Transform player)

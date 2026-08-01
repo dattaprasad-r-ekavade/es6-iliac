@@ -7,11 +7,13 @@ beat here is not traceable to a sentence there, it is wrong.
 Everspire truth and Chapters 02+. Chapter 01 must not contradict it, and its “What Chapter 01
 must plant” section is required reading before the screenplay pass.
 
-**Status (2026-08-01):** the VS0 beat-graph deliverable is complete. Beat structure,
+**Status (2026-08-01):** the VS0 beat-graph deliverable and VS2 grey-thread gate are complete.
+All four route paths reach B830 through the generated scene contract; real authored content
+remains 0/42 and is the VS3-VS7 work. Beat structure,
 registries, convergence and outcome contracts are locked; dialogue is summarised, not
 written. The two screenplay-blocking narrative locks were closed on 2026-08-01 and are
-recorded under “Premises” and “Resolved locks” below. VS0 as a milestone is still
-**in progress** until the screenplay, regression snapshot and asset ledger are complete.
+recorded under “Premises” and “Resolved locks” below. The regression snapshot and asset
+ledger are complete; the screenplay is deliberately deferred to the VS2→VS3 content window.
 
 ## How to use this
 
@@ -399,8 +401,8 @@ a stationary version into 15 minutes will not fit.
 
 Tutorial failure rules, gear carryover and ancestry starting values were the last three, and
 they are recorded above. What remains before VS0's gate is execution, not decisions: the
-screenplay pass, the regression snapshot, and the asset ledger
-([`ASSET_LEDGER.md`](ASSET_LEDGER.md) — done).
+screenplay pass, which is deliberately deferred. The regression snapshot and asset ledger
+([`ASSET_LEDGER.md`](ASSET_LEDGER.md)) are done.
 
 Remaining questions in the project are all Chapters 02+ and live in
 [`STORY_ARC.md`](STORY_ARC.md).

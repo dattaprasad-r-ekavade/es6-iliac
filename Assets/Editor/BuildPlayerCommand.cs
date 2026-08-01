@@ -15,12 +15,19 @@ public static class BuildPlayerCommand
     [MenuItem("Kessil/Build/Windows Player")]
     public static void BuildWindows()
     {
-        var scenes = new[] { "Assets/Scenes/Main.unity" };
+        var scenes = new[]
+        {
+            SceneArchitectureBuilder.BootstrapPath,
+            SceneArchitectureBuilder.MainPath,
+            SceneArchitectureBuilder.ExteriorPath
+        };
+        var allScenes = new System.Collections.Generic.List<string>(scenes);
+        allScenes.AddRange(GreyThreadSceneBuilder.ScenePaths);
         Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
 
         var options = new BuildPlayerOptions
         {
-            scenes = scenes,
+            scenes = allScenes.ToArray(),
             locationPathName = OutputPath,
             target = BuildTarget.StandaloneWindows64,
             options = BuildOptions.None

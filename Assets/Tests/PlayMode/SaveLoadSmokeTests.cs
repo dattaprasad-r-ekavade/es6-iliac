@@ -129,4 +129,67 @@ public class SaveLoadSmokeTests : SmokeTestFixture
         Assert.DoesNotThrow(() => save.Load(), "A corrupt save threw instead of failing safely.");
         Assert.AreEqual(77, stats.Gold, "A corrupt save modified player state.");
     }
+
+    [Test]
+    public void SaveV4_RoundTripsStoryProfileEvidenceCompanionAndMutations()
+    {
+        SpawnPlayer();
+        var systems = Track(new GameObject("StorySystems_Test"));
+        var story = systems.AddComponent<StoryDirector>();
+        var save = systems.AddComponent<SaveLoadService>();
+        story.SetProfile(new CharacterProfile { Name = "Nara", AncestryId = "anc.isleborn", Pronouns = "she" });
+        story.SelectRoute("route.trade");
+        story.AdvanceTo("chapter.01", "stage.prison", "B630");
+        story.AddEvidence(new EvidenceRecord
+        {
+            Id = "ev.tower_ledger", Title = "Tower Ledger",
+            DocumentBody = "Shipment 14: source column amended from mine to prisoner.", Inspected = true
+        });
+        story.SetCompanion("role.prince", true, "Estmere_Prison", "spawn.escape", 72f);
+        story.MarkOpened("lock.prison_gate");
+        story.MarkLooted("loot.warden_key");
+        story.RecordChoice("choice.king", "imprison");
+        story.AddChanneled(18f);
+        save.Save();
+
+        story.Restore(new StorySnapshot());
+        save.Load();
+
+        Assert.AreEqual("Nara", story.State.Profile.Name);
+        Assert.AreEqual("route.trade", story.State.RouteId);
+        Assert.AreEqual("B630", story.State.BeatId);
+        Assert.IsTrue(story.State.Evidence.Exists(e => e.Id == "ev.tower_ledger" && e.Inspected
+            && e.DocumentBody.Contains("prisoner")));
+        Assert.IsTrue(story.State.Companion.Following);
+        Assert.Contains("lock.prison_gate", story.State.OpenedLocks);
+        Assert.Contains("loot.warden_key", story.State.LootedObjects);
+        Assert.AreEqual(18f, story.State.PlayerChanneled, 0.01f);
+    }
+
+    [Test]
+    public void SaveV4_MigratesV3ExplorationWithoutInventingStoryProgress()
+    {
+        File.WriteAllText(SaveLoadService.SaveFilePath,
+            "{\"Version\":3,\"Gold\":12,\"Discovered\":[\"city_west\"]}");
+        Assert.IsTrue(SaveLoadService.TryReadSave(out var data, out var error), error);
+        Assert.AreEqual(SaveLoadService.CurrentVersion, data.Version);
+        Assert.AreEqual(12, data.Gold);
+        Assert.Contains("city_west", data.Discovered);
+        Assert.AreEqual("B010", data.Story.BeatId);
+        Assert.IsFalse(data.Story.Profile.IsValid);
+    }
+
+    [Test]
+    public void SaveV4_AtomicRewritePreservesPreviousSlotAsBackup()
+    {
+        SpawnPlayer();
+        var save = SpawnSaveService();
+        PlayerStats.Instance.Gold = 10;
+        save.Save();
+        PlayerStats.Instance.Gold = 20;
+        save.Save();
+        Assert.IsTrue(File.Exists(SaveLoadService.SaveFilePath + ".bak"));
+        var backup = JsonUtility.FromJson<SaveData>(File.ReadAllText(SaveLoadService.SaveFilePath + ".bak"));
+        Assert.AreEqual(10, backup.Gold);
+    }
 }

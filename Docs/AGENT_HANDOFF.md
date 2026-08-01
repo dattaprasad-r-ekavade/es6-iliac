@@ -53,13 +53,13 @@ ones (they take the project lock).
 # Compile-check every assembly without opening Unity. Fast, run this constantly.
 python Tools/compile-check.py
 
-# EditMode tests — currently 20/20
+# EditMode tests — currently 45/45
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform EditMode \
   -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"
 
-# PlayMode tests — currently 15/15
+# PlayMode tests — currently 30/30
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform PlayMode \
@@ -113,10 +113,10 @@ early when `Application.isBatchMode`. **Do not revert this.**
 **`LogAssert.ignoreFailingMessages` does not work as a global fix.** It resets at fixture
 boundaries. Fix log noise at the source instead.
 
-**`SaveLoadService.SaveFilePath` is a static pointing at `Application.persistentDataPath`.**
-Any test that saves will overwrite the developer's real save. `SmokeTestFixture` backs it up
-and restores it. Make the path injectable when `SaveGameV4` lands, then delete the
-workaround.
+**Never let tests use the default `SaveLoadService.SaveFilePath`.** SaveGameV4 makes the path
+injectable; `SmokeTestFixture` assigns a unique file in `temporaryCachePath` and removes the
+slot, temporary file and backup on teardown. New save tests must inherit that fixture or
+configure/reset an isolated path themselves.
 
 **`compile-check.py` only sees assemblies that already have a generated csproj.** A brand new
 `.asmdef` reports nothing until Unity refreshes. A clean compile-check does **not** prove new
@@ -134,6 +134,11 @@ present.** This is why save/load round-trips exactly in a bare test scene.
 **`Assets/Scenes/Main.unity` is a destructively generated artifact.** Editor tools rebuild it
 wholesale. Never hand-author anything into it that you cannot regenerate.
 
+**Scene architecture must be regenerated with Main.** `SetupGamePresentation` and
+`BuildKessilWorld` call `SceneArchitectureBuilder`, which restores Main's context, the
+exterior snapshot and build settings. If another destructive generator is introduced, wire
+the same calls into it. Do not hand-edit `Estmere_Exterior`; it is also generated.
+
 **`Game.Tests.asmdef` is Editor-only** (`includePlatforms: ["Editor"]`). PlayMode tests live
 in the separate `Game.PlayModeTests` assembly.
 
@@ -141,16 +146,20 @@ in the separate `Game.PlayModeTests` assembly.
 
 ## 6. Current state
 
+**VS2 is complete (2026-08-01).** The grey-thread route gate runs all four route keys
+(F1-F4) through additive Chapter 01 scenes to B830 / Caldemar Council. The next packet is
+W-11, the external Map Editor MVP.
+
 | | Status |
 |---|---|
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
-| VS1 — technical spine | Not started |
-| VS2 — grey thread | Not started |
-| Tests | EditMode 20/20, PlayMode 15/15 |
-| Build | `Builds/Windows/Kessil.exe`, 138.6 MB, 0 errors |
-| Code | ~7.0k lines runtime, ~2.0k editor, ~3.5k Python tooling |
-| Scenes | one — generated `Main` |
-| Prefabs / ScriptableObjects / `.inputactions` | **none** |
+| VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
+| VS2 — grey thread | **Complete — all four routes reach B830** |
+| Tests | EditMode 45/45, PlayMode 30/30 |
+| Build | `Builds/Windows/Kessil.exe`, 142.1 MB, 0 errors; Bootstrap is scene zero |
+| Code | 50 runtime scripts, 14 editor scripts, plus Python tooling |
+| Scenes | `Bootstrap`, generated `Main`, additive `Estmere_Exterior`, 11 Chapter 01 grey scenes; four test fixtures |
+| Prefabs / ScriptableObjects / `.inputactions` | 4 runtime prefabs; NPC, dialogue, quest and cinematic data assets; one input-actions asset |
 
 Every narrative and production lock for Chapter 01 is closed.
 
@@ -192,7 +201,7 @@ into a measurable burn-down — would not move.
 
 **Keep the scene plumbing geometry-agnostic** and the deferral costs nothing.
 
-### W-01 · Bootstrap scene, additive loading, scene transitions
+### W-01 · Bootstrap scene, additive loading, scene transitions — **complete 2026-08-01**
 
 - Read: `plan.md` § *Scene and loading architecture*
 - Persistent `Bootstrap` scene owning services, input, UI, audio, saves, loading.
@@ -203,20 +212,46 @@ into a measurable burn-down — would not move.
 **Done when:** three scenes load additively with spawn placement, and a failed load recovers
 rather than hanging.
 
-### W-02 · `GameState` service
+**Delivered:** `SceneTransitionService`, `SceneContext`, stable `SceneSpawnPoint` ids,
+black fade overlay, transactional rollback, `BootstrapEntryPoint`, the regenerable
+`Estmere_Exterior` snapshot, and A/B/C plus invalid-scene fixtures. `SceneArchitectureBuilder`
+recreates the architecture after any destructive Main rebuild. `BuildPlayerCommand` packages
+Bootstrap/Main/exterior only; fixtures remain in EditorBuildSettings for PlayMode tests.
+
+**Evidence at the W-01 gate:** compile-check clean; EditMode 20/20; PlayMode 18/18; Windows
+build 142.4 MB, 0 errors. W-02 subsequently landed; the current next packet is W-03.
+
+### W-02 · `GameState` service — **complete 2026-08-01**
 
 Single owner of input, cursor, time scale and pause. Replaces the scattered checks currently
 spread across `GameHud`, `GameFlowController` and `PlayerCombat`.
 
 States: gameplay, dialogue, cinematic, menu, loading, death.
 
-**Watch out:** `GameHud.ShowDialogue` currently sets `Time.timeScale = 0` directly and
-`CloseDialogue` restores it. Those become `GameState` transitions.
+**Migration result:** `GameHud.ShowDialogue` and `CloseDialogue` now push/pop dialogue state;
+they no longer write `Time.timeScale` or cursor state directly.
 
-### W-03 · Input actions asset
+**Delivered:** `GameStateService` owns menu, cinematic, gameplay, dialogue, loading and
+death policy; it is the only runtime writer of time scale and cursor state. Movement,
+combat and NPC interaction consume `GameplayInputAllowed`. Loading uses a guarded state
+stack so success and every rollback restore the exact prior pause policy. Direct-Main play
+anchors a compatibility owner to `GameFlowController`; packaged play owns it in Bootstrap.
 
-One `.inputactions` asset. `com.unity.inputsystem@1.19.0` is already in the manifest but no
-asset exists. Controller support is out of slice scope; keyboard and mouse only.
+**Evidence:** compile-check clean; EditMode 20/20; PlayMode 22/22, including real
+Bootstrap→Main loading-state release; Windows build 142.4 MB, 0 errors. Next packet is W-03.
+
+### W-03 · Input actions asset — **complete 2026-08-01**
+
+One `.inputactions` asset. `com.unity.inputsystem@1.19.0` is already in the manifest.
+Controller support is out of slice scope; keyboard and mouse only.
+
+**Delivered:** `Resources/Input/KessilInputActions.inputactions` contains the single `Game`
+map and every current movement, look, combat, interaction, save/load, HUD and intro action.
+`GameInput` is the typed access point. All six former device-polling consumers now read
+actions; source audit finds no runtime `Keyboard.current` or `Mouse.current` usage.
+
+**Evidence:** compile-check clean; EditMode 31/31 (including action/binding/scope contract
+tests); PlayMode 22/22; Windows build 142.4 MB, 0 errors. Next packet is W-04.
 
 ### W-04 · Prefabs and ScriptableObjects
 
@@ -224,7 +259,22 @@ Replace `AddComponent` construction with prefabbed player, NPC and UI. This is t
 that makes everything else testable — the current systems are hard to smoke-test precisely
 because they are built by code at runtime.
 
-### W-05 · `SaveGameV4`
+**Complete 2026-08-01.** `RuntimePrefabBuilder` regenerates Player, GameSystems, NPC and the
+complete HUD visual hierarchy. Generated Main contains linked Player and GameSystems prefab
+instances and no missing scripts. Runtime startup now requires those authored components
+instead of silently assembling roots with `AddComponent`.
+
+The Unity source-layout debt is closed: `PlayerInventory`, `PlayerCombat`, `PlayerInteract`,
+`NpcInteractable` and `QuestSystem` live in matching source files. Five `NpcArchetype`
+ScriptableObjects carry stable ids, site-relative placement, models, tint, dialogue and role
+flags; the GameSystems prefab references them. HUD button callbacks and visual references
+are rebound after prefab instantiation, so the hierarchy is tunable without losing runtime
+behavior. Do not hand-author prefab instances into generated `Main`.
+
+**Evidence at W-04 close:** compile-check clean; EditMode 35/35; PlayMode 22/22; Windows
+build 142.1 MB, 0 errors.
+
+### W-05 · `SaveGameV4` — **complete 2026-08-01**
 
 **Get the shape right the first time.** Migrating v4 → v5 mid-slice is the avoidable
 disaster here.
@@ -239,7 +289,13 @@ before entering gameplay, and safe handling of existing v3 files.
 
 Make `SaveFilePath` injectable while you are here, then simplify `SmokeTestFixture`.
 
-### W-06 · Topic-based dialogue runtime
+Implemented as schema v4 with atomic temporary-write/replace and `.bak`, menu validation,
+injectable paths, safe v3 migration, current scene/spawn, profile, chapter/stage/beat, route,
+flags, full evidence, choices, companion, outcomes, locks, loot, cinematics, skills,
+equipment and `player.channeled`. Continue transitions to the saved additive scene/spawn
+before applying state.
+
+### W-06 · Topic-based dialogue runtime — **complete 2026-08-01**
 
 **The one delta with a real deadline** — converting a tree system to topics later means
 rewriting the data *and* everything authored against it.
@@ -250,25 +306,48 @@ rewriting the data *and* everything authored against it.
 - Conditions must include `evidence_count` — this is what enforces the spoke contract in data
   rather than by review.
 
-### W-07 · Story systems
+`TopicDialogueService` resolves a shared Resources knowledge base by keyword and chooses the
+most specific valid response. Conditions cover route, flags, evidence count, faction,
+disposition, location and channeling; choices are written back to `StoryDirector`.
+
+### W-07 · Story systems — **complete 2026-08-01**
 
 `StoryDirector` as the sole authority for beat transitions and checkpoints. Data-driven quest
 stages, story flags, route gates, `EvidenceRecord` with a **full readable document body**
 (show the document; never summarise it into a journal line).
 
-### W-08 · `CinematicRunner`
+`StoryDirector` is the single profile/beat/route/flag/consequence authority. Evidence retains
+its full readable body and inspected state. Existing prototype quests now seed from three
+`QuestDefinition` assets rather than C# literals.
+
+### W-08 · `CinematicRunner` — **complete 2026-08-01**
 
 Deterministic cues plus an **idempotent end state applied whether watched or skipped**. Three
 beat acceptance tests already depend on this.
 
-### W-09 · VS1 gate
+The runner sorts timed cues, applies every remaining state cue when skipped, commits the
+same authored end-state contract, records skips and refuses to replay a completed sequence.
+
+### W-09 · VS1 gate — **passed 2026-08-01**
 
 A throwaway test quest that crosses three additive scenes, branches, takes evidence, saves,
 quits, continues, restores a companion, mutates the world, and rolls back correctly.
 
 **This is the gate. Do not start VS2 until it passes.**
 
-### W-10 · VS2 — the grey thread
+`Vs1Gate_ThreeScenesBranchEvidenceSaveContinueCompanionAndRollback` crosses A→B→C, chooses
+the mage branch, acquires readable evidence, mutates locks/loot/world state, saves, moves
+away, destroys/recreates story services, continues back to saved C/spawn, restores the
+companion and rejects every post-save mutation. Current evidence: compile clean, EditMode
+38/38, PlayMode 29/29, Windows build 142.1 MB.
+
+The non-packet VS1 world-authoring prerequisite is also complete:
+`Assets/Resources/Data/World/kessil.world.json` is required at runtime and owns dimensions,
+anchors, ten landmasses, eight sites and five road spines. `WorldLayout` exposes the stable
+API but loads those values from JSON; the map-editor phase can therefore replace the file
+without rewriting gameplay code.
+
+### W-10 · VS2 — the grey thread — **complete 2026-08-01**
 
 **The de-risking milestone, and the most important packet in this document.**
 
@@ -282,12 +361,21 @@ state. Dialogue is placeholder text driven by the real topic graph.
 - Twelve of the thirteen scenes are interiors and are region-independent. Only
   `Estmere_Exterior` cares about world shape, and at this stage it is a grey box.
 
-**Gate:** a developer starts a new game and reaches the Caldemar handoff on **all four
-routes** without touching the editor. It will look like nothing. That is expected and correct.
+**Delivered:** `GreyThreadSceneBuilder` regenerates 11 Chapter 01 rooms with stable contexts,
+spawns, stepped elevations and collision-backed walls. `GreyThreadDirector` traverses the
+prologue, Estmere assignment, distinct Warrior/Mage/Trade/Refuse branches, prison/cave
+convergence, aftermath and Caldemar handoff. F1-F4 are the in-game route selectors. The
+player-preservation fix keeps the generated player alive when the first content scene unloads.
+Screenshots: `Docs/Screenshots/vs2-estmere-palace.png`,
+`Docs/Screenshots/vs2-caldemar-arrival.png`.
+
+**Gate passed:** a developer starts a new game and reaches the Caldemar handoff on **all four
+routes** without touching the editor. It is intentionally grey; the next packet replaces
+these placeholders with authored environments and dialogue.
 
 From here the burn-down is measurable: beats with real content, out of 42.
 
-### W-11 · Map Editor MVP · *after VS2*
+### W-11 · Map Editor MVP · **next**
 
 Now — not before — because you will have authored thirteen scenes and know what the pain
 actually is. A tool built after one manual pass is far better than one built before it.

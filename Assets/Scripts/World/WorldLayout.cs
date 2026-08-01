@@ -13,23 +13,23 @@ public static class WorldLayout
     // ---- Global ------------------------------------------------------------
 
     /// <summary>Y of the ocean plane. Land below this is underwater.</summary>
-    public const float WaterLevel = 2f;
+    public static readonly float WaterLevel = 2f;
 
     /// <summary>Y of the invisible catcher slab under the whole map.</summary>
-    public const float VoidCatcherY = -25f;
+    public static readonly float VoidCatcherY = -25f;
 
     /// <summary>Extent of the ocean plane (square, centred on origin).</summary>
-    public const float OceanSize = 8000f;
+    public static readonly float OceanSize = 8000f;
 
     /// <summary>The world spans ~6.8 km, so cameras need a far plane to match.</summary>
-    public const float CameraFarPlane = 6000f;
+    public static readonly float CameraFarPlane = 6000f;
 
     /// <summary>Bounds used to project world positions onto the map UI.</summary>
-    public const float MapExtentPadding = 100f;
-    public const float MapMinX = -3200f;
-    public const float MapMaxX = 3200f;
-    public const float MapMinZ = -3650f;
-    public const float MapMaxZ = 3750f;
+    public static readonly float MapExtentPadding = 100f;
+    public static readonly float MapMinX = -3200f;
+    public static readonly float MapMaxX = 3200f;
+    public static readonly float MapMinZ = -3650f;
+    public static readonly float MapMaxZ = 3750f;
 
     // ---- Landmasses --------------------------------------------------------
 
@@ -179,11 +179,11 @@ public static class WorldLayout
     public static readonly Vector3 CoastalRuin = new(-1000f, 30f, 2400f);
 
     /// <summary>Deck height for road sections that bridge open water.</summary>
-    public const float CausewayDeckY = WaterLevel + 1.2f;
+    public static readonly float CausewayDeckY = WaterLevel + 1.2f;
 
     /// <summary>Enemies do not aggro inside this radius of the start plaza.</summary>
     public static readonly Vector3 SafeZoneCenter = new(-2000f, 0f, 1450f);
-    public const float SafeZoneRadius = 400f;
+    public static readonly float SafeZoneRadius = 400f;
 
     // ---- Locations (map markers, fast travel, discovery) --------------------
 
@@ -308,7 +308,31 @@ public static class WorldLayout
     /// The terrain mesh of a patch covers Center ± Size * this. Kept here so authoring
     /// checks and the generator agree on where a landmass actually ends.
     /// </summary>
-    public const float TerrainHalfExtent = 0.49f;
+    public static readonly float TerrainHalfExtent = 0.49f;
+
+    static WorldLayout()
+    {
+        var document = WorldLayoutData.LoadRequired();
+        WaterLevel = document.WaterLevel;
+        VoidCatcherY = document.VoidCatcherY;
+        OceanSize = document.OceanSize;
+        CameraFarPlane = document.CameraFarPlane;
+        MapExtentPadding = document.MapExtentPadding;
+        MapMinX = document.MapMinX;
+        MapMaxX = document.MapMaxX;
+        MapMinZ = document.MapMinZ;
+        MapMaxZ = document.MapMaxZ;
+        CausewayDeckY = document.CausewayDeckY;
+        SafeZoneRadius = document.SafeZoneRadius;
+        TerrainHalfExtent = document.TerrainHalfExtent;
+        CaldemarSpawnPad = document.CaldemarSpawnPad;
+        BanditCamp = document.BanditCamp;
+        CoastalRuin = document.CoastalRuin;
+        SafeZoneCenter = document.SafeZoneCenter;
+        Landmasses = WorldLayoutData.BuildLandmasses(document);
+        Sites = WorldLayoutData.BuildSites(document);
+        Roads = WorldLayoutData.BuildRoads(document);
+    }
 
     /// <summary>
     /// Semi-axes of the shared elliptical coast. Terrain, authoring checks and map art

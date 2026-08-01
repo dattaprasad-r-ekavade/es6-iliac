@@ -57,10 +57,15 @@ public class GameFlowController : MonoBehaviour
             if (titleListener != null) titleListener.enabled = true;
         }
         SetPlayerActive(false);
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-        Time.timeScale = 1f;
-        if (continueButton != null) continueButton.interactable = SaveLoadService.HasSaveFile;
+        var gameState = GameStateService.Instance;
+        if (gameState == null)
+            gameState = gameObject.GetComponent<GameStateService>()
+                        ?? gameObject.AddComponent<GameStateService>();
+        // Bootstrap owns Loading until the additive transaction commits. Replacing it here
+        // would clear the restoration stack while Main is still being integrated.
+        if (gameState.CurrentState != GameState.Loading)
+            gameState.SetState(GameState.Menu);
+        if (continueButton != null) continueButton.interactable = SaveLoadService.HasValidSave;
 
         if (skipButton != null)
         {
@@ -81,35 +86,22 @@ public class GameFlowController : MonoBehaviour
         // recorded as a cutscene-skip request.
         if (!_inIntro) return;
 
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        if (kb == null) return;
-        if (kb.spaceKey.wasPressedThisFrame
-            || kb.enterKey.wasPressedThisFrame
-            || kb.numpadEnterKey.wasPressedThisFrame
-            || kb.escapeKey.wasPressedThisFrame
-            || kb.tabKey.wasPressedThisFrame)
-        {
+        if (GameInput.Skip.WasPressedThisFrame())
             RequestSkip();
-        }
-
-        var mouse = UnityEngine.InputSystem.Mouse.current;
-        if (mouse != null && mouse.rightButton.wasPressedThisFrame)
-        {
-            RequestSkip();
-        }
     }
 
     public void OnClickStart()
     {
         if (_inIntro || IsInGameplay) return;
         _inIntro = true;
+        GameStateService.Ensure().SetState(GameState.Cinematic);
         ShowSkipUi(true);
         StartCoroutine(StartRoutine());
     }
 
     public void OnClickContinue()
     {
-        if (_inIntro || IsInGameplay || !SaveLoadService.HasSaveFile) return;
+        if (_inIntro || IsInGameplay || !SaveLoadService.HasValidSave) return;
         _continueRequested = true;
         OnClickStart();
         RequestSkip();
@@ -134,7 +126,7 @@ public class GameFlowController : MonoBehaviour
 
     public void ReturnToMainMenu()
     {
-        Time.timeScale = 1f;
+        GameStateService.Ensure().SetState(GameState.Menu);
         _inIntro = false;
         IsInGameplay = false;
         _skipRequested = false;
@@ -154,10 +146,20 @@ public class GameFlowController : MonoBehaviour
         if (subtitleRoot != null) subtitleRoot.SetActive(false);
         if (menuRoot != null) menuRoot.SetActive(true);
         if (menuFade != null) menuFade.alpha = 1f;
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+        // When launched through Bootstrap, reset the application through Bootstrap so the
+        // persistent transition architecture is restored before Main loads additively.
+        // Direct-Main editor/test flows keep the legacy single-scene reload fallback.
+        if (SceneTransitionService.Instance != null
+            && Application.CanStreamedLevelBeLoaded("Bootstrap"))
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene(
+                "Bootstrap", UnityEngine.SceneManagement.LoadSceneMode.Single);
+        }
+        else
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene(
+                UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+        }
     }
 
     private void ShowSkipUi(bool visible)
@@ -213,14 +215,13 @@ public class GameFlowController : MonoBehaviour
 
         if (subtitleRoot != null) subtitleRoot.SetActive(false);
         SetPlayerActive(true);
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        GameStateService.Ensure().SetState(GameState.Gameplay);
 
         var bootstrap = FindAnyObjectByType<GameSystemsBootstrap>();
         if (bootstrap == null)
         {
-            var go = new GameObject("GameSystemsBootstrap");
-            bootstrap = go.AddComponent<GameSystemsBootstrap>();
+            Debug.LogError("[GameFlow] GameSystems prefab/bootstrap is missing.");
+            return;
         }
         if (player != null)
         {

@@ -32,6 +32,7 @@ public static class SetupGamePresentation
     public static void SetupAll()
     {
         AssetDatabase.Refresh();
+        RuntimePrefabBuilder.EnsurePrefabs();
         PrepareUiSprites.Prepare();
         PrepareCharacterResources();
         PolyHavenMaterialSetup.SetupAll();
@@ -139,14 +140,12 @@ public static class SetupGamePresentation
             if (al != null) al.enabled = false;
         }
 
+        SceneArchitectureBuilder.EnsureMainContext(scene);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
 
-        // Ensure build settings include Main first
-        EditorBuildSettings.scenes = new[]
-        {
-            new EditorBuildSettingsScene(ScenePath, true)
-        };
+        // Bootstrap is the player entry scene; Main remains loadable directly for legacy tests.
+        SceneArchitectureBuilder.EnsureBuildSettings();
 
         AssetDatabase.SaveAssets();
         Debug.Log("[SetupGamePresentation] Menu + cutscene + smooth Kessil Bay ready. Press Play → Start.");
@@ -353,6 +352,8 @@ public static class SetupGamePresentation
         so.FindProperty("propSeed").intValue = 4242;
         so.FindProperty("waterSize").floatValue = 8000f;
         so.FindProperty("spawnPlayer").boolValue = true;
+        so.FindProperty("playerPrefab").objectReferenceValue =
+            AssetDatabase.LoadAssetAtPath<GameObject>(RuntimePrefabBuilder.PlayerPath);
         so.FindProperty("oceanMaterial").objectReferenceValue = ocean;
         so.FindProperty("halbrandMaterial").objectReferenceValue = halbrand;
         so.FindProperty("sarrakhMaterial").objectReferenceValue = sarrakh;
@@ -381,7 +382,14 @@ public static class SetupGamePresentation
     private static void WireSfx()
     {
         var systems = GameObject.Find("GameSystems");
-        if (systems == null) systems = new GameObject("GameSystems");
+        if (systems == null)
+        {
+            RuntimePrefabBuilder.EnsurePrefabs();
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(RuntimePrefabBuilder.SystemsPath);
+            systems = prefab != null
+                ? PrefabUtility.InstantiatePrefab(prefab) as GameObject
+                : new GameObject("GameSystems");
+        }
         var sfx = systems.GetComponent<GameSfx>() ?? systems.AddComponent<GameSfx>();
 
         AudioClip FindClip(params string[] names)

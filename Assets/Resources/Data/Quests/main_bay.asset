@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac26bc5606b3e254f86a6a7cd163e371, type: 3}
+  m_Name: main_bay
+  m_EditorClassIdentifier: Game.Runtime::QuestDefinition
+  id: main_bay
+  title: Winds of the Kessil
+  description: Learn the lay of the bay. Discover Estmere or Qadris, then return
+    to Caldemar's gate.
+  initialStageText: Discover Estmere or Qadris
+  targetCount: 0
+  targetEnemy: 
+  targetLocationId: city_east

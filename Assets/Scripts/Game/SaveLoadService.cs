@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 [Serializable]
 public class SavedQuest
@@ -30,6 +29,10 @@ public class SaveData
     public List<InvItem> Items = new();
     public List<SavedQuest> Quests = new();
     public List<string> KilledEnemies = new();
+    public string SceneId;
+    public string SpawnId;
+    public StorySnapshot Story = new();
+    public string SavedUtc;
 }
 
 public class SaveLoadService : MonoBehaviour
@@ -38,16 +41,22 @@ public class SaveLoadService : MonoBehaviour
     // a v2 slot's discovered-location list no longer resolves. v2 files also live under
     // the old company/product folder and filename, so they are orphaned rather than
     // migrated — the bump is what makes a hand-copied one fail loudly instead of quietly.
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public static SaveLoadService Instance { get; private set; }
 
     /// <summary>Stable save location for menu flows that exist before this component is created.</summary>
-    public static string SaveFilePath =>
-        System.IO.Path.Combine(Application.persistentDataPath, "kessil_save.json");
+    private static string _saveFilePathOverride;
+    public static string SaveFilePath => string.IsNullOrWhiteSpace(_saveFilePathOverride)
+        ? Path.Combine(Application.persistentDataPath, "kessil_save.json")
+        : _saveFilePathOverride;
+
+    public static void ConfigureSaveFilePath(string path) => _saveFilePathOverride = path;
+    public static void ResetSaveFilePath() => _saveFilePathOverride = null;
 
     /// <summary>True when a save slot exists. Loading still validates its contents and version.</summary>
     public static bool HasSaveFile => File.Exists(SaveFilePath);
+    public static bool HasValidSave => TryReadSave(out _, out _);
     private Vector3 _checkpoint;
     private bool _hasCheckpoint;
 
@@ -60,10 +69,8 @@ public class SaveLoadService : MonoBehaviour
 
     private void Update()
     {
-        var kb = Keyboard.current;
-        if (kb == null) return;
-        if (kb.f5Key.wasPressedThisFrame) Save();
-        if (kb.f9Key.wasPressedThisFrame) Load();
+        if (GameInput.Save.WasPressedThisFrame()) Save();
+        if (GameInput.Load.WasPressedThisFrame()) Load();
     }
 
     public void SetCheckpoint(Vector3 pos)
@@ -100,10 +107,18 @@ public class SaveLoadService : MonoBehaviour
             Quests = QuestSystem.Instance != null ? QuestSystem.Instance.CaptureState() : new List<SavedQuest>(),
             KilledEnemies = WorldState.GetKilledIds()
         };
+        data.SceneId = SceneTransitionService.Instance != null
+            ? SceneTransitionService.Instance.ActiveContentSceneName
+            : UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        data.SpawnId = SceneTransitionService.Instance != null
+            ? SceneTransitionService.Instance.ActiveSpawnId
+            : string.Empty;
+        data.Story = StoryDirector.Instance != null ? StoryDirector.Instance.Capture() : new StorySnapshot();
+        data.SavedUtc = DateTime.UtcNow.ToString("O");
 
         try
         {
-            File.WriteAllText(SaveFilePath, JsonUtility.ToJson(data, true));
+            WriteAtomic(JsonUtility.ToJson(data, true));
         }
         catch (Exception e)
         {
@@ -124,28 +139,25 @@ public class SaveLoadService : MonoBehaviour
             return;
         }
 
-        SaveData data;
-        try
+        if (!TryReadSave(out var data, out var error))
         {
-            data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SaveFilePath));
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[Save] Could not read save file: {e.Message}");
-            GameHud.Instance?.ShowToast("Save file unreadable");
+            if (error != null && error.StartsWith("Ignoring", StringComparison.Ordinal))
+                Debug.LogWarning($"[Save] {error}");
+            else
+                Debug.LogError($"[Save] Could not read save file: {error}");
+            GameHud.Instance?.ShowToast("Save file unreadable or incompatible");
             return;
         }
 
-        if (data == null)
+        string currentScene = SceneTransitionService.Instance != null
+            ? SceneTransitionService.Instance.ActiveContentSceneName
+            : UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (SceneTransitionService.Instance != null
+            && !string.IsNullOrWhiteSpace(data.SceneId)
+            && data.SceneId != currentScene
+            && Application.CanStreamedLevelBeLoaded(data.SceneId))
         {
-            GameHud.Instance?.ShowToast("Save file unreadable");
-            return;
-        }
-
-        if (data.Version != CurrentVersion)
-        {
-            Debug.LogWarning($"[Save] Ignoring save from version {data.Version} (current is {CurrentVersion}).");
-            GameHud.Instance?.ShowToast($"Save is from an older build (v{data.Version}) — not loaded");
+            StartCoroutine(TransitionAndApply(data));
             return;
         }
 
@@ -212,6 +224,71 @@ public class SaveLoadService : MonoBehaviour
 
         if (TimeWeatherSystem.Instance != null)
             TimeWeatherSystem.Instance.SetTimeOfDay01(data.TimeOfDay01);
+
+        StoryDirector.Instance?.Restore(data.Story);
+    }
+
+    private System.Collections.IEnumerator TransitionAndApply(SaveData data)
+    {
+        yield return SceneTransitionService.Instance.TransitionTo(data.SceneId, data.SpawnId);
+        if (!string.IsNullOrEmpty(SceneTransitionService.Instance.LastError))
+        {
+            Debug.LogError($"[Save] Could not restore scene '{data.SceneId}': {SceneTransitionService.Instance.LastError}");
+            yield break;
+        }
+        Apply(data);
+        GameHud.Instance?.ShowToast("Game loaded (F9)");
+    }
+
+    public static bool TryReadSave(out SaveData data, out string error)
+    {
+        data = null;
+        error = null;
+        if (!File.Exists(SaveFilePath)) { error = "Save file does not exist."; return false; }
+        try
+        {
+            data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SaveFilePath));
+        }
+        catch (Exception e)
+        {
+            error = e.Message;
+            return false;
+        }
+
+        if (data == null) { error = "JSON contained no save object."; return false; }
+        if (data.Version == 3)
+        {
+            // v3 had no story state. Preserve its exploration state but initialise the
+            // Chapter 01 contract explicitly rather than pretending those fields existed.
+            data.Version = CurrentVersion;
+            data.Story = new StorySnapshot();
+            data.SceneId ??= "Main";
+            return true;
+        }
+        if (data.Version != CurrentVersion)
+        {
+            error = $"Ignoring save from version {data.Version} (current is {CurrentVersion}).";
+            data = null;
+            return false;
+        }
+        data.Story ??= new StorySnapshot();
+        return true;
+    }
+
+    private static void WriteAtomic(string json)
+    {
+        var path = SaveFilePath;
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+        var temporary = path + ".tmp";
+        var backup = path + ".bak";
+        File.WriteAllText(temporary, json);
+        if (File.Exists(path))
+        {
+            File.Copy(path, backup, true);
+            File.Delete(path);
+        }
+        File.Move(temporary, path);
     }
 
     /// <summary>

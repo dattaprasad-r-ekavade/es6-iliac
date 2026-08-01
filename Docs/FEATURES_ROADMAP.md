@@ -11,17 +11,22 @@ Use this doc to track the active delivery goals. `plan.md` owns estimates and ga
 
 ## Active goal: complete Chapter 01
 
+**VS2 update (2026-08-01): complete.** The grey thread now traverses the extracted Estmere
+exterior, 11 regenerable Chapter 01 rooms, all four branches, convergence, aftermath and
+Caldemar Council handoff. Use F1/F2/F3/F4 for Warrior/Mage/Trade/Refuse after gameplay starts.
+The next active milestone is the external Map Editor MVP.
+
 The active deliverable is a content-complete, quality-reduced vertical slice in which the
 entire `storyline.md` opening is playable on all four routes through the Crown Council
-handoff. The story is not being shortened. Free-roam expansion is parked until VS2 proves
-the whole chapter can be traversed without editor intervention.
+handoff. The story is not being shortened. Free-roam expansion remains parked while the
+Map Editor and authored Chapter 01 environments are built.
 
 | Priority | Milestone | Status | Goal / gate |
 |---:|---|---|---|
-| 1 | **VS0 — story package and regression baseline** | **In progress** | finish screenplay, blocking narrative locks, regression snapshot and asset ledger |
-| 2 | **VS1 — persistent technical spine** | Not started | three additive scenes prove branching, evidence, companion, mutation and SaveGameV4 |
-| 3 | **VS2 — rough complete story** | Not started | all 42 beats traversable on all four routes from New Game to Caldemar |
-| 4 | **Map Editor MVP** | Queued after VS2 | edit terrain, biomes, coasts, roads, cities and story anchors without opening Unity |
+| 1 | **VS0 — story package and regression baseline** | Complete except deferred screenplay | preserve the locked story contracts and baseline |
+| 2 | **VS1 — persistent technical spine** | **Complete — W-01–W-09 gate passed** | preserve the technical-spine regression suite |
+| 3 | **VS2 — rough complete story** | **Complete — four routes reach B830** | preserve the grey scene/route contract |
+| 4 | **Map Editor MVP** | **Next** | edit terrain, biomes, coasts, roads, cities and story anchors without opening Unity |
 | 5 | **VS3 — real opening** | Not started | ship through the four audience assignments is real content |
 | 6 | **VS4 — reusable route mechanics** | Not started | combat/magic hooks, sailing, stealth, locks, pickpocket and companion systems proven |
 | 7 | **VS5 — four real routes** | Not started | four authored routes satisfy the shared convergence contract |
@@ -37,11 +42,11 @@ the whole chapter can be traversed without editor intervention.
 - [x] Four-route convergence contract
 - [x] King kill/imprison outcome matrix; prince successor; Crown Envoy title
 - [x] Character-creator production ceiling: 3–4 ancestries, one shared body/rig
-- [ ] Name and characterize the principal cast
-- [ ] Explain why the rescue ship chooses Estmere and why survivors receive a royal audience
+- [x] Name and characterize the principal cast
+- [x] Explain why the rescue ship chooses Estmere and why survivors receive a royal audience
 - [ ] Write the screenplay/dialogue pass against beat ids
-- [ ] Snapshot the current compile, tests, scene, saves and packaged player
-- [ ] Complete the asset/source/license ledger
+- [x] Snapshot the current compile, tests, scene, saves and packaged player
+- [x] Complete the asset/source/license ledger
 
 ### Work intentionally parked until VS2
 
@@ -53,7 +58,7 @@ the whole chapter can be traversed without editor intervention.
 
 ### Queued world-authoring tool
 
-During VS1, move the world definition into versioned JSON. Immediately after VS2, build a
+VS1 moved the world definition into versioned `kessil.world.json`. Immediately after VS2, build a
 Tiled-backed Kessil World Builder before detailed environment production begins. The first
 version uses an external 2D map editor plus a project-specific importer, validators and
 one-click headless Unity preview. A polished standalone 3D editor is an optional post-VS8
@@ -82,8 +87,31 @@ The genre targets this project is built against:
 - [x] Original Kessil Bay setting rename applied in project settings, code, scene and docs
 - [x] Locked Morrowind Clean art-direction palette with automated drift tests
 - [x] Chapter 01 decomposed into 42 stable beats with route/convergence/outcome contracts
-- [x] Compile check passes for 10 Editor, 30 Runtime and 2 Test files (2026-08-01)
-- [x] Latest EditMode run: 20/20 passed (2026-08-01)
+- [x] Compile check passes for 14 Editor, 50 Runtime, 9 PlayMode and 5 EditMode test files (2026-08-01)
+- [x] Latest EditMode run: 45/45 passed (2026-08-01)
+- [x] Latest PlayMode run: 30/30 passed, including all four VS2 routes through the Caldemar
+      handoff (2026-08-01)
+- [x] W-01: Bootstrap scene, additive transition service, stable spawns, fades, recovery,
+      exterior snapshot and three-scene fixtures
+- [x] W-02: one `GameStateService` owns pause, cursor and gameplay-input policy across
+      menu, cinematic, gameplay, dialogue, loading and death
+- [x] W-03: one keyboard/mouse Input System asset; every current consumer uses named actions
+      through `GameInput`; direct device polling removed
+- [x] W-04: Player, GameSystems, NPC and full HUD visual prefabs; matching component files;
+      five site-relative NPC archetype ScriptableObjects; no root-construction fallbacks
+- [x] W-05: atomic SaveGameV4, backup, validation, injectable paths, v3 migration and full
+      story/profile/scene/spawn/companion/equipment/skill state
+- [x] W-06: topic-based shared dialogue knowledge with route, flag, faction, disposition,
+      location, channeled and evidence-count conditions
+- [x] W-07: StoryDirector, route/beat/flag authority, readable evidence documents,
+      dialogue-choice records and authored quest definitions
+- [x] W-08: deterministic CinematicRunner whose skipped and watched end states are identical
+- [x] W-09: three-scene branch/evidence/save/quit/continue/companion/mutation/rollback gate
+- [x] Versioned `kessil.world.json` is the runtime source for dimensions, anchors,
+      landmasses, sites and roads; the existing map geometry remains regression-identical
+- [x] Current packaged Windows build: 142.1 MB, Bootstrap scene zero, 0 errors
+- [x] VS2 captures: `Screenshots/vs2-estmere-palace.png` and
+      `Screenshots/vs2-caldemar-arrival.png`
 - [x] Kessil Bay landmass layout (Halbrand N / Sarrakh S / bay / islands)
 - [x] Cities: **Caldemar**, **Estmere**, **Qadris** (district streets, walls, gates, docks, name signs)
 - [x] Cities ~**4 km** apart (not “one jump”)
@@ -95,9 +123,11 @@ The genre targets this project is built against:
 - [x] Blender 4.5 LTS + Blender MCP scaffolding (`Tools/BlenderMCP/`)
 
 ### Known gaps / pain points
-- [ ] No Chapter 01 runtime architecture or authored story scenes yet
-- [ ] Only one destructive generated `Main` scene; no persistent Bootstrap/additive scenes
-- [ ] Latest packaged build predates the Kessil Bay rename and must be regenerated
+- [x] Chapter 01 quest/dialogue/save/cinematic architecture passes the VS1 gate
+- [x] VS2 grey thread: 11 regenerable Chapter 01 rooms plus `Estmere_Exterior`, route keys
+      (F1-F4), additive transitions, evidence/companion/outcome state and B830 handoff
+- [x] Persistent Bootstrap/additive foundation exists; generated `Main` uses linked runtime
+      prefabs and remains a temporary legacy gameplay container until the story scene split
 - [x] Trees ground-snapped + distance cull (biome pools) — further art polish still welcome
 - [x] World map UI (M) + discovery fog list
 - [x] Fast travel to discovered markers
@@ -105,11 +135,11 @@ The genre targets this project is built against:
 - [ ] Cities still read as kitbash rather than authored density (P2 art)
 - [x] NPCs, dialogue (E), combat, inventory, saves (vertical slice)
 - [x] Quaternius Medieval Village imported (`Assets/ThirdParty/Quaternius/MedievalVillage`)
-- [ ] **Nothing is a prefab** — player, NPCs, enemies, systems and the whole HUD are
-      built by `AddComponent` at runtime, so no value can be tuned without editing C#
+- [x] Player, friendly NPC, systems and the complete HUD visual hierarchy are regenerable
+      prefabs; NPC placement/dialogue/roles are inspectable ScriptableObject data
 - [ ] Cities are only reachable via the causeway roads; the landmasses are separate
       islands with 180–1000 m water gaps between them
-- [ ] HUD is code-built legacy uGUI `Text` (no TextMeshPro, no scrolling lists)
+- [ ] HUD is now prefabbed but still uses legacy uGUI `Text` (no TextMeshPro or scrolling lists)
 
 > **2026-07-26 hardening pass.** The P1 slice was not actually playable as described:
 > `SnapToWalkable` ignored its argument and returned the Caldemar spawn pad, so every
@@ -339,4 +369,11 @@ Still open:
 | 2026-07-26 | **P0+P1 vertical slice shipped** — trees ground-snap + cull; time/weather; map+FT; combat; NPCs; quests; HUD; save/load; roads/POIs | P2 interiors / denser assets |
 | 2026-07-26 | **Prototype hardening** — git + LFS; `WorldLayout` single source of truth; physics layers replace name-matching; spawn-pile bug fixed; POIs moved onto land; causeway roads; foliage culling collapsed to one system; save versioning | Prefabs for player/NPC/systems; texture budget; tests |
 | 2026-08-01 | Scope synchronized around the complete 42-beat Chapter 01 slice; VS0 beat graph complete; compile check green; legacy free-roam backlog parked | Finish VS0 screenplay, blocking locks, regression snapshot and asset ledger |
+| 2026-08-01 | **VS1 W-01 complete** — Bootstrap, additive A→B→C transitions, stable spawns, rollback, exterior snapshot, 18/18 PlayMode, 142.4 MB build | W-02: central `GameState` service |
+| 2026-08-01 | **VS1 W-02 complete** — centralized state/time/cursor/input ownership, guarded loading restoration, Bootstrap boot proof, 22/22 PlayMode, clean build | W-03: Input System actions asset |
+| 2026-08-01 | **VS1 W-03 complete** — one action asset, six consumers migrated, no direct polling, 31/31 EditMode and 22/22 PlayMode | W-04: prefabbed runtime and gameplay data assets |
+| 2026-08-01 | **VS1 W-04 started** — regenerable Player/GameSystems prefabs linked into Main; prefab contract tests; 33/33 EditMode, 22/22 PlayMode, 142.0 MB build | Split shared-file components, then HUD/NPC/data prefabs |
+| 2026-08-01 | **VS1 W-04 complete** — four runtime prefabs, five NPC ScriptableObjects, matching component files, no root fallbacks; 35/35 EditMode, 22/22 PlayMode, 142.1 MB build | W-05: SaveGameV4 |
+| 2026-08-01 | **VS1 complete (W-05–W-09 + world JSON)** — SaveGameV4, topic dialogue, StoryDirector, authored quests/evidence, CinematicRunner, consequence proof and versioned world source; 38/38 EditMode, 29/29 PlayMode, 142.1 MB build | VS2: all 42 beats as a four-route grey thread |
+| 2026-08-01 | **VS2 complete** — 11 regenerable Chapter 01 grey rooms plus `Estmere_Exterior`, F1-F4 route selector, all four routes to B830, player-preserving additive unload, 45/45 EditMode, 30/30 PlayMode, screenshot captures | W-11: external Map Editor MVP |
 | | | |

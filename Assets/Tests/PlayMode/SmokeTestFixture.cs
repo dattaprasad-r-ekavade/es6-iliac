@@ -19,19 +19,14 @@ using UnityEngine;
 public abstract class SmokeTestFixture
 {
     private readonly List<GameObject> _spawned = new();
-    private string _backupPath;
+    private string _testSavePath;
 
     [SetUp]
     public void BaseSetUp()
     {
-        // Preserve any real save, then start every test from "no save exists".
-        var path = SaveLoadService.SaveFilePath;
-        if (File.Exists(path))
-        {
-            _backupPath = path + ".testbackup";
-            File.Copy(path, _backupPath, true);
-            File.Delete(path);
-        }
+        _testSavePath = Path.Combine(Application.temporaryCachePath,
+            $"kessil-test-{GetType().Name}-{System.Guid.NewGuid():N}.json");
+        SaveLoadService.ConfigureSaveFilePath(_testSavePath);
 
         WorldState.Reset();
         PlayerRef.Clear();
@@ -56,15 +51,10 @@ public abstract class SmokeTestFixture
         WorldState.Reset();
         PlayerRef.Clear();
 
-        var path = SaveLoadService.SaveFilePath;
-        if (File.Exists(path)) File.Delete(path);
-
-        if (_backupPath != null && File.Exists(_backupPath))
-        {
-            File.Copy(_backupPath, path, true);
-            File.Delete(_backupPath);
-            _backupPath = null;
-        }
+        foreach (var path in new[] { _testSavePath, _testSavePath + ".tmp", _testSavePath + ".bak" })
+            if (!string.IsNullOrEmpty(path) && File.Exists(path)) File.Delete(path);
+        SaveLoadService.ResetSaveFilePath();
+        _testSavePath = null;
     }
 
     /// <summary>Register an object for automatic teardown.</summary>

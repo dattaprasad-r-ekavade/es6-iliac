@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 /// <summary>
 /// Minimal WASD + mouse-look controller for early 3D world prototyping.
@@ -45,8 +44,6 @@ public class SimplePlayerController : MonoBehaviour
 
         _verticalVelocity = -2f;
         _lookReady = false;
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
 
         // Drop onto ground if we were left floating while disabled.
         SnapToGround();
@@ -54,26 +51,19 @@ public class SimplePlayerController : MonoBehaviour
 
     private void Update()
     {
-        if (GameHud.Instance != null && GameHud.Instance.AnyMenuOpen)
+        if (GameStateService.Instance != null && !GameStateService.Instance.GameplayInputAllowed)
         {
             return;
         }
 
-        var keyboard = Keyboard.current;
-        var mouse = Mouse.current;
-        if (keyboard == null || mouse == null)
+        if (GameInput.PrimaryAttack.WasPressedThisFrame()
+            && Cursor.lockState != CursorLockMode.Locked)
         {
-            return;
-        }
-
-        if (mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            GameStateService.Instance?.SetState(GameState.Gameplay);
         }
 
         // Ignore the huge first mouse delta after cursor lock (common "spin" / stuck feel).
-        Vector2 look = mouse.delta.ReadValue() * lookSensitivity;
+        Vector2 look = GameInput.Look.ReadValue<Vector2>() * lookSensitivity;
         if (!_lookReady)
         {
             _lookReady = true;
@@ -88,15 +78,11 @@ public class SimplePlayerController : MonoBehaviour
             cameraPivot.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
         }
 
-        Vector3 input = Vector3.zero;
-        if (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed) input.z += 1f;
-        if (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed) input.z -= 1f;
-        if (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed) input.x -= 1f;
-        if (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed) input.x += 1f;
-        input = Vector3.ClampMagnitude(input, 1f);
+        Vector2 move = GameInput.Move.ReadValue<Vector2>();
+        Vector3 input = Vector3.ClampMagnitude(new Vector3(move.x, 0f, move.y), 1f);
 
         float speed = moveSpeed;
-        if (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed)
+        if (GameInput.Sprint.IsPressed())
         {
             speed *= sprintMultiplier;
         }
@@ -108,7 +94,7 @@ public class SimplePlayerController : MonoBehaviour
             _verticalVelocity = -2f;
         }
 
-        if (grounded && keyboard.spaceKey.wasPressedThisFrame)
+        if (grounded && GameInput.Jump.WasPressedThisFrame())
         {
             _verticalVelocity = jumpSpeed;
         }

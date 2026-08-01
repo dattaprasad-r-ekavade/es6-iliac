@@ -23,9 +23,9 @@ with substantial replay-only content in the other three routes.
 **Studio:** DataTheCodie Studios · **Engine:** Unity 6000.5.3f1, URP 17.5 · **Platform:**
 Windows player
 
-**Current delivery goal:** finish VS0, then build VS1's persistent technical spine. The
-generic open-world P2 backlog is parked until the complete Chapter 01 grey thread passes
-VS2.
+**Current delivery goal:** build the Map Editor MVP now that VS2's complete Chapter 01 grey
+thread is green. VS1's persistent technical spine and the four-route VS2 gate are complete;
+the generic open-world P2 backlog remains parked until the editor can feed authored scenes.
 
 ### Plain-English stage names
 
@@ -101,7 +101,7 @@ Estimated readiness for the complete authored opening: **20–25%**.
 | Build and tooling | 80% | Windows build, asmdefs, compile checker, 20 EditMode tests |
 | Exterior-world foundation | 60% | elevated land, walled cities, roads, docks, collision, map/travel |
 | General gameplay prototype | 55% | movement, basic combat, inventory, NPCs, enemies, save/load |
-| Story architecture | 20% | 42-beat contract, stable ids, convergence and outcome matrix exist; no runtime graph or staged scenes |
+| Story architecture | 25% | 42-beat contract plus Bootstrap/additive scene and stable-spawn runtime exist; quest/dialogue graph and authored story scenes remain |
 | Route-specific mechanics | 10–15% | basic combat/magic exist; sailing, stealth, locks, and pickpocketing do not |
 | Interiors, cinematics, and actors | 5–10% | useful source assets exist; no authored interiors, performances, or companion flow |
 | Audio, animation, and final feel | 10–15% | SFX library and fonts exist; actors are static and there is no narrative mix |
@@ -123,10 +123,10 @@ story intact while exposing technical or content problems early.
 
 | Order | Goal | Current state | Exit condition |
 |---:|---|---|---|
-| 1 | **Close VS0** | In progress: the 42-beat sheet, registries, convergence contract, eight-path outcome matrix and all blocking narrative locks are done | screenplay, regression snapshot and asset ledger complete |
-| 2 | **Build VS1** | Not started | Bootstrap/additive loading, data-driven story/dialogue, prefabbed runtime, SaveGameV4 and three-scene consequence proof pass |
-| 3 | **Prove VS2** | Not started | all 42 beats traversable as greybox on all four routes without editor intervention |
-| 4 | **Build the Map Editor MVP** | Queued after VS2 | edit and preview world layout without Unity before detailed environments are authored |
+| 1 | **Close VS0** | Complete except screenplay, deliberately deferred to the VS2→VS3 content window | narrative contracts, regression baseline and asset ledger stay authoritative |
+| 2 | **Build VS1** | **Complete: W-01–W-09 and consequence gate pass** | preserve the green technical-spine regression suite |
+| 3 | **Prove VS2** | **Complete: four routes reach B830** | preserve the grey-thread route gate and stable scene contract |
+| 4 | **Build the Map Editor MVP** | **Next** | edit and preview world layout without Unity before detailed environments are authored |
 | 5 | **Replace the grey thread with content** | Not started | VS3–VS7 gates pass in order |
 | 6 | **Package the slice** | Not started | VS8 route/outcome matrix, performance floor, second-machine build and blind playtests pass |
 
@@ -138,25 +138,28 @@ work must serve a Chapter 01 beat or a VS1/VS2 dependency.
 
 Verified in the repository and Unity Editor:
 
-- 30 runtime scripts, about 6.8k lines;
-- one generated `Main` scene;
-- a successful local Windows player (about 140 MB before this audit);
-- 20/20 EditMode tests passing as of 2026-08-01, focused on geography, terrain, routes,
-  stable ids and the locked art-direction palette;
+- 50 runtime scripts plus 14 editor scripts;
+- persistent `Bootstrap`, generated legacy `Main`, additive `Estmere_Exterior`, and 11
+  regenerable Chapter 01 grey scenes, plus four small transition fixtures;
+- a successful local Windows player (142.1 MB) booting through `Bootstrap`;
+- 45/45 EditMode and 30/30 PlayMode tests passing as of 2026-08-01, including scene-contract
+  checks and all four VS2 routes reaching the Caldemar handoff;
 - 5 NPCs, 5 hostile spawns, 3 quests, and 8 discovery/travel markers;
-- prototype save schema v3 persists player stats, inventory, quests, discovery and killed
-  enemies, but has no scene, character-profile, route, evidence, companion or outcome state;
+- SaveGameV4 persists player stats, inventory, quests, discovery, scene/spawn, profile, route,
+  evidence, companion, cinematics, equipment, skills, mutations and outcome state;
 - one 6.8 km generated bay with ten continuous elevated landmasses, three walled cities,
   five regional roads/causeways, and three islands;
 - CC0 environment packs, OFL fonts, UI/combat SFX, and a Blender-generated seven-piece
   desert architecture kit;
-- no gameplay prefabs, ScriptableObject gameplay data, `.inputactions` asset, Animator
-  controllers/clips, additive areas, interiors, PlayMode tests, profiler captures, ambient
-  beds, music, or implemented authored story content.
+- regenerable Player, GameSystems, NPC and full HUD visual prefabs, plus five NPC archetype
+  ScriptableObjects. Animator controllers/clips, authored story interiors, profiler captures,
+  ambient beds, music, and implemented authored story content remain absent. One
+  keyboard/mouse `.inputactions` asset owns every current binding.
 
-`storyline.md` now supplies the narrative outline, but none of its scenes or branches are
-implemented yet. The current executable remains a **prototype build**, not a playable
-version of that opening.
+`storyline.md` now supplies the narrative outline. VS2 has a playable grey implementation:
+placeholder geometry, route input, beat milestones, evidence, companion and outcome state
+all run through B830. Authored screenplay, actors, mechanics and final environments remain
+VS3–VS7 work.
 
 ## Completed hardening
 
@@ -235,14 +238,14 @@ version of that opening.
 
 ## Current validation
 
-- `python Tools/compile-check.py` rerun 2026-08-01: Editor (10 files), Runtime (30 files),
-  and Tests (2 files) assemblies pass.
+- `python Tools/compile-check.py` rerun 2026-08-01: Editor (14 files), Runtime (50 files),
+  PlayMode (9 files), and EditMode Tests (5 files) assemblies pass.
 - Unity console after regeneration and title startup: **0 project errors, 0 project
   warnings**.
-- Unity EditMode rerun 2026-08-01: **20 passed, 0 failed**.
-- Unity **PlayMode** 2026-08-01: **15 passed, 0 failed**, exit code 0, repeated across two
-  consecutive headless runs to confirm the scene-loading tests are not flaky. First automated
-  coverage of gameplay behaviour rather than geometry.
+- Unity EditMode rerun 2026-08-01: **45 passed, 0 failed**.
+- Unity **PlayMode** 2026-08-01: **30 passed, 0 failed**, exit code 0. Scene tests prove
+  additive travel and rollback; state tests prove pause/cursor/input policy, exact restoration
+  after temporary loading, and protection against mismatched state releases.
 - `McpBootstrap` no longer starts the MCP bridge in batch mode. It retried 60 times against a
   server that cannot exist headlessly, and the package's connection errors failed whichever
   test fixture was active — the suite was non-deterministic before this was found.
@@ -254,8 +257,9 @@ version of that opening.
   collider violations, 0 wall collider violations, and 0 approach collider violations**.
 - Physics probes: representative wall and building rays hit their box colliders; the
   south gate walking ray remains clear; every city has five collider-backed approaches.
-- Current Windows x64 build **2026-08-01: `Builds/Windows/Kessil.exe`, 138.6 MB, 0 errors**,
-  built headlessly in 24.1s via `BuildPlayerCommand.BuildWindows`. This replaces the stale
+- Current Windows x64 build **2026-08-01: `Builds/Windows/Kessil.exe`, 142.1 MB, 0 errors**,
+  built headlessly in 24.7s via `BuildPlayerCommand.BuildWindows`, with `Bootstrap` as scene
+  zero. This replaces the stale
   pre-rename `IliacBay.exe`, which still sits beside it in the (gitignored) build folder and
   can be deleted.
 - The packaged player launches to the title screen with **0 exceptions or managed errors in
@@ -309,12 +313,14 @@ with VS1's systems and VS2's grey thread — there is nothing yet for them to te
 - [x] Separate stable internal ids from display strings in world and story documentation.
 - [x] Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
   purchase, fast travel, dialogue pause, death/rescue, and return to menu. **Done 2026-08-01:**
-  `Game.PlayModeTests`, **15/15 green across two consecutive runs**. All eight categories
-  covered, plus older-schema rejection and corrupt-save handling. The New Game, Continue and
-  Return-to-Menu tests drive the real `Main` scene through `GameFlowController`.
+  `Game.PlayModeTests`; the suite is now **29/29 green**. All eight original categories are
+  covered, plus SaveGameV4 migration/atomicity, story/dialogue/cinematic contracts,
+  additive A→B→C travel, transactional rollback and the W-09 consequence gate. New Game,
+  Continue and Return-to-Menu still drive the real generated `Main` flow.
 - [x] Produce a current Kessil Bay Windows build and repeat the packaged launch smoke.
-  **Done 2026-08-01:** `Builds/Windows/Kessil.exe`, 138.6 MB, 0 errors, built headlessly in
-  24.1s. The packaged player launches to the title with **0 exceptions in `Player.log`**.
+  **Updated 2026-08-01 after VS1:** `Builds/Windows/Kessil.exe`, 142.1 MB, 0 errors,
+  built headlessly in 38.3s with Bootstrap as scene zero. The packaged player initializes
+  with **0 exceptions in its smoke log**.
   Driving the packaged build *through* gameplay remains a manual step — but the flows it used
   to be the only evidence for are now covered automatically in-editor.
 - [x] Create an asset ledger with source URL, version, license, proof/date, and whether source
@@ -323,11 +329,18 @@ with VS1's systems and VS2's grey thread — there is nothing yet for them to te
 
 ### P1 — architecture and gameplay debt
 
-- `Main` is a destructive generated artifact. Split it into a persistent `Bootstrap` and
-  additive authored scenes; make editor generation idempotent and non-destructive.
-- Replace code-built actors, systems, and UI with prefabs and ScriptableObject data.
-- Add one Input System actions asset and controller support.
-- Replace scattered pause checks with one `GameState` service.
+- [x] Add persistent `Bootstrap`, additive loading, stable spawn ids, fade/rollback, and an
+  exterior snapshot while keeping destructive `Main` regeneration safe. **W-01 complete
+  2026-08-01.** `Main` remains the temporary legacy gameplay container until story scenes
+  replace it during VS2/VS3.
+- [x] Replace code-built player, friendly-NPC, systems and UI roots with regenerable prefabs;
+  move friendly NPC definitions into ScriptableObject data. **W-04 complete 2026-08-01.**
+- [x] Add one Input System actions asset for the slice's keyboard/mouse bindings. **W-03
+  complete 2026-08-01:** all runtime consumers use `GameInput`; direct device polling is
+  gone. Controller support remains explicitly outside slice scope.
+- [x] Replace scattered pause, cursor and gameplay-input checks with one `GameStateService`.
+  **W-02 complete 2026-08-01.** It owns menu, cinematic, gameplay, dialogue, loading and
+  death modes, including nested loading rollback.
 - Replace random line pools and auto-active quests with conditional dialogue, explicit
   quest stages, story flags, route gates, evidence requirements, and consequences.
 - Add generic interaction, doors, locks, readable evidence, item use, stealth/detection,
@@ -549,23 +562,40 @@ system task and acceptance test. Existing prototype behaviour stays green.
 
 Build the systems the story sits on, before any story content exists.
 
-- `Bootstrap` scene, additive loading, spawn ids, transitions, fades, loading UI, and a
-  recovery path when a load fails.
-- `GameState` as the single owner of input, cursor, time scale and pause.
-- One Input System actions asset. Prefabbed player, NPC and UI; no more `AddComponent`
-  construction.
-- Data-driven quest stages, conditional dialogue, story flags, generic interaction, and the
-  evidence record.
-- `CharacterProfile` and `SaveGameV4`: scene, spawn, profile, chapter, stage, route, flags,
-  evidence, companion state, outcomes. Header validation on the menu.
-- `CinematicRunner` with an idempotent end-state applied whether watched or skipped.
-- Extract the current exterior geography out of generated `Main` without destroying the
-  working world.
+- [x] `Bootstrap` scene, additive loading, spawn ids, transitions, fades, loading overlay,
+  and a recovery path when a load fails. **W-01 complete 2026-08-01.** Three real fixture
+  scenes pass in sequence and both missing-scene and missing-context rollback are tested.
+- [x] `GameStateService` as the single owner of input permission, cursor, time scale and
+  pause. **W-02 complete 2026-08-01.** Flow, HUD, transitions, movement, combat, interaction
+  and death now consume the shared state.
+- [x] One Input System actions asset, with typed `GameInput` access and no direct keyboard or
+  mouse polling. **W-03 complete 2026-08-01.** Keyboard/mouse only per the scope lock.
+- [x] Prefabbed player, NPC, systems and complete HUD visual hierarchy; no runtime
+  `AddComponent` construction for those roots. **W-04 complete 2026-08-01:** secondary
+  `MonoBehaviour` classes now live in matching files; generated Main preserves real Player
+  and GameSystems prefab links; five rename-safe NPC archetype ScriptableObjects hold
+  placement, appearance, dialogue and role data.
+- [x] Data-driven quest stages, topic-based conditional dialogue, story flags, route gates,
+  dialogue choices and readable full-document evidence records. **W-06/W-07 complete
+  2026-08-01.**
+- [x] `CharacterProfile` and `SaveGameV4`: scene/spawn, profile, chapter, stage, route,
+  flags, evidence, companion, mutations, outcomes, cinematics, skills and equipment; atomic
+  backup, menu validation, injectable test paths and safe v3 migration. **W-05 complete
+  2026-08-01.**
+- [x] `CinematicRunner` with deterministic cues and an idempotent end-state applied whether
+  watched or skipped. **W-08 complete 2026-08-01.**
+- [x] Extract the current exterior geography into regenerable `Estmere_Exterior` without
+  destroying the working world.
+- [x] Move global dimensions, anchors, landmasses, sites and roads into versioned
+  `Assets/Resources/Data/World/kessil.world.json`; runtime generation and all prior geometry
+  contracts consume it without changing the current map. **VS1 JSON plumbing complete
+  2026-08-01.**
 
-**Gate:** a throwaway test quest crosses three additive scenes, branches, takes evidence,
-saves, quits, continues, restores a companion, mutates the world, and rolls back correctly.
+**Gate: passed 2026-08-01.** The W-09 consequence proof crosses three additive scenes,
+branches, takes readable evidence, saves, simulates quit/continue, returns to the saved
+scene/spawn, restores its companion and mutations, and rolls post-save changes back.
 
-### VS2 — the grey thread (6–9 days)
+### VS2 — the grey thread (6–9 days) — **complete 2026-08-01**
 
 **The de-risking milestone.** Make the entire chapter traversable before making any of it
 good.
@@ -578,10 +608,23 @@ good.
 - Every cinematic is a timed placeholder card that applies its real end-state.
 - Dialogue is placeholder text driven by the real dialogue graph.
 
-**Gate:** a developer can start a new game and reach the Caldemar handoff on **all four
-routes** without touching the editor. Total playtime will be short and it will look like
-nothing — that is expected and correct. From here the burn-down is measurable: every later
-milestone replaces placeholder with content inside a structure already proven to hold.
+**Delivered:** 11 regenerable Chapter 01 grey scenes plus the extracted `Estmere_Exterior`
+scene are enabled in build settings. Each grey scene has a stable `SceneContext`, named
+spawns, stone walls, a gate, stepped elevation, lights and collision-backed geometry. The
+`GreyThreadDirector` drives the prologue, Estmere assignment, four genuinely different route
+branches, prison convergence, sea-cave title checkpoint, aftermath and Caldemar Council
+handoff. F1/F2/F3/F4 select Warrior/Mage/Trade/Refuse after gameplay starts. A player is
+preserved in persistent Bootstrap while old content scenes unload, fixing the first-scene
+transition destruction bug.
+
+**Evidence:** 45/45 EditMode, 30/30 PlayMode; all four routes end at B830 with evidence,
+prince companion and outcome flags. Representative captures are in
+[`Docs/Screenshots/vs2-estmere-palace.png`](Docs/Screenshots/vs2-estmere-palace.png) and
+[`Docs/Screenshots/vs2-caldemar-arrival.png`](Docs/Screenshots/vs2-caldemar-arrival.png).
+
+**Gate passed:** a developer can start a new game and reach the Caldemar handoff on **all four
+routes** without touching the editor. Total playtime is short and it looks intentionally
+grey; every later milestone now replaces placeholder content inside a proven structure.
 
 ### VS3 — opening: voyage, pulse, wreck, rescue, creator, audience (8–12 days)
 
@@ -793,9 +836,9 @@ tissue between planes, and needs no change.
 
 Build this in two steps:
 
-1. **During VS1:** move world data out of static C# arrays into versioned
-   `kessil.world.json`. This is plumbing only; the current map must still generate exactly
-   as before.
+1. [x] **Completed during VS1:** global dimensions, anchors, landmasses, sites and roads now
+   load from versioned `kessil.world.json`. The current map still generates exactly as
+   before, enforced by the original geometry suite plus a JSON-source contract test.
 2. **Immediately after VS2 and before VS3:** build the usable Tiled-backed Map Editor MVP.
    At that point the whole story structure has been proven, but detailed environments have
    not been authored, so coast, elevation, city, road and story-anchor edits do not force a
@@ -1231,10 +1274,7 @@ The single number worth tracking after VS2: **beats replaced with real content, 
 VS0 beat total.** Before VS2 that number is meaningless, because the structure holding the
 beats is not yet proven.
 
-Current conclusion: **the complete story is viable as a playable slice, but most visible
-content and all runtime branching infrastructure are still pending**. The VS0 beat graph,
-stable ids, convergence contract, outcome matrix and every blocking narrative lock are
-complete. The immediate goal is to write the screenplay — now unblocked — and to build the
-regression snapshot and asset ledger; then begin VS1's three-scene save/load/consequence
-proof. The screenplay and the VS1 spine do not depend on each other and should run in
-parallel. VS2 remains the first build in which `storyline.md` can be walked from end to end.
+Current conclusion: **the complete story is viable as a playable slice, and the grey thread
+is now complete.** VS0's contracts, VS1's technical spine and VS2's four-route traversal are
+green. Visible screenplay, actors, route mechanics and final environments remain VS3-VS7
+work. The Map Editor MVP is next. The delivered VS2 director walks `storyline.md` to B830.

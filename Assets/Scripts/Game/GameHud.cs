@@ -2,7 +2,6 @@ using System.Collections;
 using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
@@ -64,12 +63,27 @@ public class GameHud : MonoBehaviour
 
     public void Build(Transform player)
     {
+        GameStateService.Ensure(gameObject);
         PlayerRef.Set(player);
         EnsureEventSystem();
         UiTheme.EnsureLoaded();
-        BuildUi();
+        var prefab = Resources.Load<GameObject>("Prefabs/Runtime/Hud");
+        if (prefab == null)
+            throw new MissingReferenceException("The runtime HUD prefab has not been generated.");
+        var visualRoot = Instantiate(prefab, transform);
+        visualRoot.name = "GameHudCanvas";
+        BindUiReferences(visualRoot.transform);
+        WireButtons(visualRoot.transform);
         ShowFade(false);
         HideMenus();
+    }
+
+    /// <summary>Editor-builder entry point. Runtime code instantiates the resulting prefab.</summary>
+    public void BuildPrefabVisuals()
+    {
+        UiTheme.EnsureLoaded();
+        BuildUi();
+        if (_mapImage != null) _mapImage.texture = null;
     }
 
     private void Update()
@@ -97,35 +111,33 @@ public class GameHud : MonoBehaviour
             _damageFlash.color = c;
         }
 
-        if (InteractiveMenuOpen)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
-
         if (_mapRoot != null && _mapRoot.activeSelf)
             RefreshMapVisual();
     }
 
     private void HandleInput()
     {
-        var kb = Keyboard.current;
-        if (kb == null) return;
+        var mode = GameStateService.Instance != null
+            ? GameStateService.Instance.CurrentState
+            : GameState.Gameplay;
+        if (mode == GameState.Loading || mode == GameState.Cinematic || mode == GameState.Death)
+            return;
 
         if (_fade != null && _fade.activeSelf) return;
         if (_dialogueRoot != null && _dialogueRoot.activeSelf)
         {
-            if (kb.eKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame ||
-                kb.numpadEnterKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+            if (GameInput.Interact.WasPressedThisFrame()
+                || GameInput.Submit.WasPressedThisFrame()
+                || GameInput.Cancel.WasPressedThisFrame())
                 CloseDialogue();
             return;
         }
 
-        if (kb.mKey.wasPressedThisFrame) Toggle(_mapRoot);
-        if (kb.jKey.wasPressedThisFrame) { RefreshJournal(); Toggle(_journalRoot); }
-        if (kb.iKey.wasPressedThisFrame) { RefreshInventory(); Toggle(_invRoot); }
-        if (kb.tKey.wasPressedThisFrame) Toggle(_waitRoot);
-        if (kb.escapeKey.wasPressedThisFrame)
+        if (GameInput.ToggleMap.WasPressedThisFrame()) Toggle(_mapRoot);
+        if (GameInput.ToggleJournal.WasPressedThisFrame()) { RefreshJournal(); Toggle(_journalRoot); }
+        if (GameInput.ToggleInventory.WasPressedThisFrame()) { RefreshInventory(); Toggle(_invRoot); }
+        if (GameInput.ToggleWait.WasPressedThisFrame()) Toggle(_waitRoot);
+        if (GameInput.Cancel.WasPressedThisFrame())
         {
             if (_pauseRoot != null && _pauseRoot.activeSelf) ClosePause();
             else if (AnyMenuOpen) HideMenus();
@@ -134,16 +146,23 @@ public class GameHud : MonoBehaviour
 
         if (_mapRoot != null && _mapRoot.activeSelf)
         {
-            if (kb.upArrowKey.wasPressedThisFrame) { _mapSelected--; RefreshMapList(); GameSfx.Instance?.PlayUiClick(); }
-            if (kb.downArrowKey.wasPressedThisFrame) { _mapSelected++; RefreshMapList(); GameSfx.Instance?.PlayUiClick(); }
-            if (kb.enterKey.wasPressedThisFrame || kb.fKey.wasPressedThisFrame) TryTravelSelected();
+            if (GameInput.Navigate.WasPressedThisFrame())
+            {
+                float direction = GameInput.Navigate.ReadValue<float>();
+                if (direction > 0f) _mapSelected--;
+                else if (direction < 0f) _mapSelected++;
+                RefreshMapList();
+                GameSfx.Instance?.PlayUiClick();
+            }
+            if (GameInput.Submit.WasPressedThisFrame() || GameInput.Travel.WasPressedThisFrame())
+                TryTravelSelected();
         }
 
         if (_waitRoot != null && _waitRoot.activeSelf)
         {
-            if (kb.digit1Key.wasPressedThisFrame) WaitHours(1f);
-            if (kb.digit2Key.wasPressedThisFrame) WaitHours(8f);
-            if (kb.digit3Key.wasPressedThisFrame) WaitHours(24f);
+            if (GameInput.WaitOneHour.WasPressedThisFrame()) WaitHours(1f);
+            if (GameInput.WaitEightHours.WasPressedThisFrame()) WaitHours(8f);
+            if (GameInput.WaitDay.WasPressedThisFrame()) WaitHours(24f);
         }
     }
 
@@ -153,21 +172,15 @@ public class GameHud : MonoBehaviour
         bool open = !panel.activeSelf;
         HideMenus();
         panel.SetActive(open);
-        Time.timeScale = open ? 0f : 1f;
+        GameStateService.Ensure().SetState(
+            open ? GameState.Menu : GameState.Gameplay,
+            pauseWorld: open);
         if (open)
         {
             GameSfx.Instance?.PlayUiOpen();
             if (panel == _mapRoot) RefreshMapList();
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
         }
         else GameSfx.Instance?.PlayUiClick();
-
-        if (!open && !AnyMenuOpen && GameFlowController.Instance != null)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
     }
 
     private void HideMenus()
@@ -177,7 +190,7 @@ public class GameHud : MonoBehaviour
         if (_invRoot != null) _invRoot.SetActive(false);
         if (_waitRoot != null) _waitRoot.SetActive(false);
         if (_pauseRoot != null) _pauseRoot.SetActive(false);
-        Time.timeScale = 1f;
+        GameStateService.Ensure().SetState(GameState.Gameplay);
     }
 
     private void OpenPause()
@@ -185,27 +198,20 @@ public class GameHud : MonoBehaviour
         HideMenus();
         if (_pauseRoot == null) return;
         _pauseRoot.SetActive(true);
-        Time.timeScale = 0f;
+        GameStateService.Ensure().SetState(GameState.Menu, pauseWorld: true);
         GameSfx.Instance?.PlayUiOpen();
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
     }
 
     private void ClosePause()
     {
         if (_pauseRoot != null) _pauseRoot.SetActive(false);
-        Time.timeScale = 1f;
+        GameStateService.Ensure().SetState(GameState.Gameplay);
         GameSfx.Instance?.PlayUiClick();
-        if (!AnyMenuOpen)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
     }
 
     private void QuitToDesktop()
     {
-        Time.timeScale = 1f;
+        GameStateService.Ensure().SetState(GameState.Menu);
         if (GameFlowController.Instance != null) GameFlowController.Instance.OnClickQuit();
         else
         {
@@ -219,7 +225,7 @@ public class GameHud : MonoBehaviour
 
     private void QuitToMainMenu()
     {
-        Time.timeScale = 1f;
+        GameStateService.Ensure().SetState(GameState.Menu);
         if (GameFlowController.Instance != null) GameFlowController.Instance.ReturnToMainMenu();
         else UnityEngine.SceneManagement.SceneManager.LoadScene(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
@@ -430,9 +436,7 @@ public class GameHud : MonoBehaviour
         if (_dialogueRoot == null) return;
         HideMenus();
         _dialogueRoot.SetActive(true);
-        Time.timeScale = 0f;
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        GameStateService.Ensure().PushState(GameState.Dialogue);
         if (_dialogueSpeaker != null) _dialogueSpeaker.text = speaker;
         if (_dialogueBody != null)
             _dialogueBody.text = line + "\n\n<size=18><color=#9da09e>E / Enter / Esc  close</color></size>";
@@ -458,12 +462,11 @@ public class GameHud : MonoBehaviour
             _dialogueRoutine = null;
         }
         if (_dialogueRoot != null) _dialogueRoot.SetActive(false);
-        Time.timeScale = 1f;
-        if (GameFlowController.Instance != null && GameFlowController.Instance.IsInGameplay)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        var state = GameStateService.Ensure();
+        if (!state.PopState(GameState.Dialogue))
+            state.SetState(GameFlowController.Instance != null && GameFlowController.Instance.IsInGameplay
+                ? GameState.Gameplay
+                : GameState.Menu);
     }
 
     /// <summary>
@@ -611,6 +614,77 @@ public class GameHud : MonoBehaviour
         _fade.transform.SetAsLastSibling();
         var fadeImg = _fade.GetComponent<Image>();
         if (fadeImg != null) fadeImg.color = Color.black;
+    }
+
+    private void BindUiReferences(Transform root)
+    {
+        _canvas = root.GetComponent<Canvas>();
+        _hudRoot = At(root, "Hud").gameObject;
+        _compassText = At<Text>(root, "Hud/CompassBg/Compass");
+        _statusText = At<Text>(root, "Hud/StatusBg/Status");
+        _promptText = At<Text>(root, "Hud/Prompt");
+        _combatText = At<Text>(root, "Hud/Combat");
+        _healthFill = At<Image>(root, "Hud/Vitals/HealthBg/HealthFill");
+        _manaFill = At<Image>(root, "Hud/Vitals/ManaBg/ManaFill");
+        _staminaFill = At<Image>(root, "Hud/Vitals/StaminaBg/StaminaFill");
+        _healthLabel = At<Text>(root, "Hud/Vitals/HLbl");
+        _manaLabel = At<Text>(root, "Hud/Vitals/MLbl");
+        _staminaLabel = At<Text>(root, "Hud/Vitals/SLbl");
+        _enemyBarRoot = At(root, "Hud/EnemyBar").gameObject;
+        _enemyLabel = At<Text>(root, "Hud/EnemyBar/EnemyName");
+        _enemyFill = At<Image>(root, "Hud/EnemyBar/EnemyHealthBg/EnemyHealthFill");
+        _toastBg = At<Image>(root, "Hud/ToastBg");
+        _toastText = At<Text>(root, "Hud/ToastBg/Toast");
+        _damageFlash = At<Image>(root, "Hud/DamageFlash");
+
+        _mapRoot = At(root, "MapPanel").gameObject;
+        _pauseRoot = At(root, "PausePanel").gameObject;
+        _journalRoot = At(root, "JournalPanel").gameObject;
+        _invRoot = At(root, "InvPanel").gameObject;
+        _waitRoot = At(root, "WaitPanel").gameObject;
+        _dialogueRoot = At(root, "DialoguePanel").gameObject;
+        _fade = At(root, "Fade").gameObject;
+        _mapList = At<Text>(root, "MapPanel/Card/ListInset/Body");
+        _journalText = At<Text>(root, "JournalPanel/Card/Inset/Body");
+        _invText = At<Text>(root, "InvPanel/Card/Inset/Body");
+        _dialogueSpeaker = At<Text>(root, "DialoguePanel/DlgCard/Speaker");
+        _dialogueBody = At<Text>(root, "DialoguePanel/DlgCard/Body");
+        _mapImage = At<RawImage>(root, "MapPanel/Card/MapFrame/MapImage");
+        _mapMarkersRoot = At(root, "MapPanel/Card/MapFrame/MapImage/Markers") as RectTransform;
+        _mapPlayerMarker = At(root, "MapPanel/Card/MapFrame/MapImage/Markers/PlayerMarker") as RectTransform;
+        _mapImage.texture = KessilMapArt.GetMapTexture();
+    }
+
+    private void WireButtons(Transform root)
+    {
+        Wire(root, "PausePanel/PauseCard/ResumeBtn", ClosePause);
+        Wire(root, "PausePanel/PauseCard/MainMenuBtn", QuitToMainMenu);
+        Wire(root, "PausePanel/PauseCard/QuitGameBtn", QuitToDesktop);
+        Wire(root, "WaitPanel/WaitCard/1HourBtn", () => WaitHours(1f));
+        Wire(root, "WaitPanel/WaitCard/8HoursBtn", () => WaitHours(8f));
+        Wire(root, "WaitPanel/WaitCard/24HoursBtn", () => WaitHours(24f));
+    }
+
+    private static void Wire(Transform root, string path, UnityEngine.Events.UnityAction action)
+    {
+        var button = At<Button>(root, path);
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(action);
+    }
+
+    private static Transform At(Transform root, string path)
+    {
+        var result = root.Find(path);
+        if (result == null) throw new MissingReferenceException($"HUD prefab is missing '{path}'.");
+        return result;
+    }
+
+    private static T At<T>(Transform root, string path) where T : Component
+    {
+        var component = At(root, path).GetComponent<T>();
+        if (component == null)
+            throw new MissingComponentException($"HUD prefab path '{path}' needs {typeof(T).Name}.");
+        return component;
     }
 
     private void RefreshMapVisual()

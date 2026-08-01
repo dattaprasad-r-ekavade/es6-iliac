@@ -6,6 +6,57 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/Bootstrap.unity
+    guid: a9b77f3050b6c9d4cad6a754d31146b8
+  - enabled: 1
     path: Assets/Scenes/Main.unity
     guid: 86b5a6b040c1cf0419a26283c4102962
+  - enabled: 1
+    path: Assets/Scenes/Estmere_Exterior.unity
+    guid: db4e409f081fc4d47b1d93564c303758
+  - enabled: 1
+    path: Assets/Scenes/Tests/TransitionTest_A.unity
+    guid: b27efaf68f70ae84cae8b5f8a886b3c7
+  - enabled: 1
+    path: Assets/Scenes/Tests/TransitionTest_B.unity
+    guid: 3eee8df2563a2e94ba6552709aebee40
+  - enabled: 1
+    path: Assets/Scenes/Tests/TransitionTest_C.unity
+    guid: d34441105aa3dc74eaf19c30e76b4539
+  - enabled: 1
+    path: Assets/Scenes/Tests/TransitionTest_Invalid.unity
+    guid: 1af73d39e6aa42341a65b44adc9a0aff
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Prologue_Ship.unity
+    guid: 0444d0a4102da0847aadfc0e1f9efa2d
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Estmere_Docks.unity
+    guid: 1f788a4ab6b463c409324d8bfad24916
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Estmere_Palace.unity
+    guid: e66e653ce02b3be46b704cb9ac86d95c
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Tutorial_Warrior.unity
+    guid: 8800e7c48d2efcc439aaf3a16d1407c8
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Estmere_Arcanum.unity
+    guid: 9b66bd39ac0d6f242a09537e144c9f28
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Estmere_Harbor.unity
+    guid: f4ea8584f3c0cc44187cf1f9ef8fb0a7
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Estmere_SecuredTower.unity
+    guid: d5104176bb31a9e4dbcc3add56f4843e
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Estmere_Prison.unity
+    guid: 3ee1f0660be2f17478cea3cdf79f9257
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Estmere_SeaCave.unity
+    guid: 32d6862253a40a24db244a1d40fc6fb8
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Estmere_Palace_Aftermath.unity
+    guid: db512c059c05266498f2407bac44eef9
+  - enabled: 1
+    path: Assets/Scenes/Chapter01/Caldemar_Arrival.unity
+    guid: f95d1dccf905c0a4aa2f01404d152a32
   m_configObjects: {}

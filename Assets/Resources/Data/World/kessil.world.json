@@ -1,0 +1,48 @@
+{
+  "Version": 1,
+  "WaterLevel": 2.0,
+  "VoidCatcherY": -25.0,
+  "OceanSize": 8000.0,
+  "CameraFarPlane": 6000.0,
+  "MapExtentPadding": 100.0,
+  "MapMinX": -3200.0,
+  "MapMaxX": 3200.0,
+  "MapMinZ": -3650.0,
+  "MapMaxZ": 3750.0,
+  "CausewayDeckY": 3.2,
+  "SafeZoneRadius": 400.0,
+  "TerrainHalfExtent": 0.49,
+  "CaldemarSpawnPad": { "x": -2000.0, "y": 24.2, "z": 1450.0 },
+  "BanditCamp": { "x": -1150.0, "y": 30.0, "z": 1950.0 },
+  "CoastalRuin": { "x": -1000.0, "y": 30.0, "z": 2400.0 },
+  "SafeZoneCenter": { "x": -2000.0, "y": 0.0, "z": 1450.0 },
+  "Landmasses": [
+    { "Name": "Halbrand_KarnothHighlands", "Biome": "Halbrand", "Center": { "x": 200.0, "y": 0.0, "z": 3200.0 }, "Size": { "x": 2200.0, "y": 55.0, "z": 900.0 }, "PropCount": 180, "TerrainSeed": 1101 },
+    { "Name": "Halbrand_KelrithCoast", "Biome": "Halbrand", "Center": { "x": -400.0, "y": 0.0, "z": 2200.0 }, "Size": { "x": 2000.0, "y": 28.0, "z": 800.0 }, "PropCount": 160, "TerrainSeed": 1102 },
+    { "Name": "Halbrand_CaldemarPeninsula", "Biome": "Halbrand", "CityId": "city_west", "CityName": "Caldemar", "Center": { "x": -2000.0, "y": 0.0, "z": 1600.0 }, "Size": { "x": 900.0, "y": 24.0, "z": 700.0 }, "PropCount": 90, "TerrainSeed": 1103 },
+    { "Name": "Halbrand_EstmereShore", "Biome": "Halbrand", "CityId": "city_east", "CityName": "Estmere", "Center": { "x": 2200.0, "y": 0.0, "z": 1800.0 }, "Size": { "x": 850.0, "y": 22.0, "z": 650.0 }, "PropCount": 80, "TerrainSeed": 1104 },
+    { "Name": "Sarrakh_Waste", "Biome": "Sarrakh", "Center": { "x": 300.0, "y": 0.0, "z": -3000.0 }, "Size": { "x": 2600.0, "y": 16.0, "z": 1100.0 }, "PropCount": 140, "TerrainSeed": 2201 },
+    { "Name": "Sarrakh_QadrisCoast", "Biome": "Sarrakh", "CityId": "city_south", "CityName": "Qadris", "Center": { "x": -1600.0, "y": 0.0, "z": -2200.0 }, "Size": { "x": 900.0, "y": 18.0, "z": 700.0 }, "PropCount": 85, "TerrainSeed": 2202 },
+    { "Name": "Sarrakh_KilnHills", "Biome": "Sarrakh", "Center": { "x": 2400.0, "y": 0.0, "z": -2400.0 }, "Size": { "x": 900.0, "y": 60.0, "z": 1000.0 }, "PropCount": 100, "TerrainSeed": 2203 },
+    { "Name": "Island_Tolm", "Biome": "IslandGreen", "Center": { "x": -2800.0, "y": 0.0, "z": 200.0 }, "Size": { "x": 280.0, "y": 16.0, "z": 220.0 }, "PropCount": 40, "TerrainSeed": 3301 },
+    { "Name": "Island_Corrath", "Biome": "IslandRock", "Center": { "x": 150.0, "y": 0.0, "z": -100.0 }, "Size": { "x": 240.0, "y": 28.0, "z": 200.0 }, "PropCount": 28, "TerrainSeed": 4401 },
+    { "Name": "Island_Sarn", "Biome": "IslandRock", "Center": { "x": -900.0, "y": 0.0, "z": -700.0 }, "Size": { "x": 200.0, "y": 14.0, "z": 160.0 }, "PropCount": 22, "TerrainSeed": 4402 }
+  ],
+  "Sites": [
+    { "Id": "city_west", "DisplayName": "Caldemar", "IsCity": true, "DiscoverRadius": 280.0, "WorldPosition": { "x": -2000.0, "y": 24.0, "z": 1600.0 }, "TravelPosition": { "x": -2000.0, "y": 25.2, "z": 1450.0 } },
+    { "Id": "city_east", "DisplayName": "Estmere", "IsCity": true, "DiscoverRadius": 280.0, "WorldPosition": { "x": 2200.0, "y": 22.0, "z": 1800.0 }, "TravelPosition": { "x": 2200.0, "y": 23.2, "z": 1550.0 } },
+    { "Id": "city_south", "DisplayName": "Qadris", "IsCity": true, "DiscoverRadius": 280.0, "WorldPosition": { "x": -1600.0, "y": 18.0, "z": -2200.0 }, "TravelPosition": { "x": -1600.0, "y": 19.2, "z": -1950.0 } },
+    { "Id": "isle_west", "DisplayName": "Tolm", "IsCity": false, "DiscoverRadius": 120.0, "WorldPosition": { "x": -2800.0, "y": 16.0, "z": 200.0 }, "TravelPosition": { "x": -2800.0, "y": 17.2, "z": 200.0 } },
+    { "Id": "isle_center", "DisplayName": "Corrath", "IsCity": false, "DiscoverRadius": 120.0, "WorldPosition": { "x": 150.0, "y": 28.0, "z": -100.0 }, "TravelPosition": { "x": 150.0, "y": 29.2, "z": -100.0 } },
+    { "Id": "isle_south", "DisplayName": "Sarn", "IsCity": false, "DiscoverRadius": 100.0, "WorldPosition": { "x": -900.0, "y": 14.0, "z": -700.0 }, "TravelPosition": { "x": -900.0, "y": 15.2, "z": -700.0 } },
+    { "Id": "bandit_camp", "DisplayName": "Kelrith Bandit Camp", "IsCity": false, "DiscoverRadius": 90.0, "WorldPosition": { "x": -1150.0, "y": 30.0, "z": 1950.0 }, "TravelPosition": { "x": -1150.0, "y": 30.0, "z": 1950.0 } },
+    { "Id": "coastal_ruin", "DisplayName": "Coastal Ruin", "IsCity": false, "DiscoverRadius": 90.0, "WorldPosition": { "x": -1000.0, "y": 30.0, "z": 2400.0 }, "TravelPosition": { "x": -1000.0, "y": 30.0, "z": 2400.0 } }
+  ],
+  "Roads": [
+    { "Points": [ { "x": -2000.0, "y": 0.0, "z": 1450.0 }, { "x": -1860.0, "y": 0.0, "z": 1510.0 }, { "x": -1784.0, "y": 0.0, "z": 1600.0 }, { "x": -1400.0, "y": 0.0, "z": 1850.0 }, { "x": -1200.0, "y": 0.0, "z": 1900.0 }, { "x": 0.0, "y": 0.0, "z": 2000.0 }, { "x": 900.0, "y": 0.0, "z": 1900.0 }, { "x": 1850.0, "y": 0.0, "z": 1700.0 }, { "x": 2004.0, "y": 0.0, "z": 1800.0 }, { "x": 2120.0, "y": 0.0, "z": 1680.0 }, { "x": 2200.0, "y": 0.0, "z": 1600.0 } ] },
+    { "Points": [ { "x": -2000.0, "y": 0.0, "z": 1450.0 }, { "x": -1860.0, "y": 0.0, "z": 1510.0 }, { "x": -1784.0, "y": 0.0, "z": 1600.0 }, { "x": -1400.0, "y": 0.0, "z": 1900.0 }, { "x": -1150.0, "y": 30.0, "z": 1950.0 } ] },
+    { "Points": [ { "x": -200.0, "y": 0.0, "z": 2400.0 }, { "x": 0.0, "y": 0.0, "z": 2600.0 }, { "x": 100.0, "y": 0.0, "z": 2800.0 }, { "x": 200.0, "y": 0.0, "z": 3000.0 } ] },
+    { "Points": [ { "x": -1500.0, "y": 0.0, "z": -2100.0 }, { "x": -1394.0, "y": 0.0, "z": -2200.0 }, { "x": -1200.0, "y": 0.0, "z": -2500.0 }, { "x": -1000.0, "y": 0.0, "z": -2700.0 }, { "x": -850.0, "y": 0.0, "z": -2850.0 } ] },
+    { "Points": [ { "x": 1350.0, "y": 0.0, "z": -2850.0 }, { "x": 1600.0, "y": 0.0, "z": -2750.0 }, { "x": 1850.0, "y": 0.0, "z": -2650.0 }, { "x": 2050.0, "y": 0.0, "z": -2600.0 } ] }
+  ]
+}

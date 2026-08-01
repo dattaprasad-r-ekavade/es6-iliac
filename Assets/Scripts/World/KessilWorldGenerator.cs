@@ -38,6 +38,7 @@ public class KessilWorldGenerator : MonoBehaviour
 
     [Header("Player")]
     [SerializeField] private bool spawnPlayer = true;
+    [SerializeField] private GameObject playerPrefab;
 
     private System.Random _rng;
     private Transform _root;
@@ -881,19 +882,26 @@ public class KessilWorldGenerator : MonoBehaviour
 
     private void SpawnPlayerAt(Vector3 worldPos)
     {
-        var player = new GameObject("Player");
-        player.transform.SetParent(_root, false);
+        var prefab = playerPrefab != null
+            ? playerPrefab
+            : Resources.Load<GameObject>("Prefabs/Runtime/Player");
+        if (prefab == null)
+            throw new MissingReferenceException("The runtime Player prefab has not been generated.");
+#if UNITY_EDITOR
+        var player = !Application.isPlaying
+            ? UnityEditor.PrefabUtility.InstantiatePrefab(prefab, _root) as GameObject
+            : Instantiate(prefab, _root);
+#else
+        var player = Instantiate(prefab, _root);
+#endif
+        player.name = "Player";
         player.transform.position = worldPos;
         player.layer = GameLayers.Player;
         PlayerRef.Set(player.transform);
 
-        var cc = player.AddComponent<CharacterController>();
-        cc.height = 1.8f;
-        cc.radius = 0.35f;
-        cc.center = new Vector3(0f, 0.9f, 0f);
-        cc.skinWidth = 0.08f;
-        cc.minMoveDistance = 0f;
-        cc.stepOffset = 0.35f;
+        var cc = player.GetComponent<CharacterController>();
+        if (cc == null)
+            throw new MissingComponentException("Player prefab requires CharacterController.");
 
         // CharacterController positions are at the transform origin, not the
         // capsule's feet. Rest the capsule bottom just above the real surface.
@@ -901,22 +909,15 @@ public class KessilWorldGenerator : MonoBehaviour
 
         CharacterLibrary.AttachHumanVisual(player.transform, "character-male-a", 2.1f);
 
-        var camPivot = CreateChild(player.transform, "CameraPivot");
-        camPivot.transform.localPosition = new Vector3(0f, 1.55f, 0f);
-        var camGo = CreateChild(camPivot.transform, "Main Camera");
-        camGo.tag = "MainCamera";
-        var cam = camGo.AddComponent<Camera>();
-        cam.nearClipPlane = 0.05f;
-        cam.cullingMask &= ~(1 << GameLayers.Player);
-        // The world spans ~6.8 km; the default 1000 m far plane popped whole cities.
-        cam.farClipPlane = WorldLayout.CameraFarPlane;
-        camGo.AddComponent<AudioListener>();
-
-        var controller = player.AddComponent<SimplePlayerController>();
-        controller.SetCameraPivot(camPivot.transform);
+        var controller = player.GetComponent<SimplePlayerController>();
+        var cam = player.GetComponentInChildren<Camera>(true);
+        var camPivot = cam != null && cam.transform.parent != null ? cam.transform.parent : null;
+        if (controller == null)
+            throw new MissingComponentException("Player prefab requires SimplePlayerController.");
+        if (camPivot != null) controller.SetCameraPivot(camPivot);
         // Game flow owns cursor lock / enable during menu → cutscene → play.
         controller.enabled = false;
-        cam.enabled = false;
+        if (cam != null) cam.enabled = false;
 
         // Face south toward the bay from Caldemar.
         player.transform.rotation = Quaternion.Euler(0f, 180f, 0f);

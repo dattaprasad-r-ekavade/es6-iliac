@@ -35,13 +35,34 @@ public class GameFlowSmokeTests : SmokeTestFixture
         for (int i = SceneManager.sceneCount - 1; i >= 0; i--)
         {
             var scene = SceneManager.GetSceneAt(i);
-            if (scene.isLoaded && scene.name == GameplayScene)
+            if (scene.isLoaded && (scene.name == GameplayScene || scene.name == "Bootstrap"))
                 yield return SceneManager.UnloadSceneAsync(scene);
         }
 
         PlayerRef.Clear();
         WorldState.Reset();
         Time.timeScale = 1f;
+    }
+
+    [UnityTest]
+    public IEnumerator BootstrapBoot_ReleasesLoadingStateAtTitle()
+    {
+        yield return SceneManager.LoadSceneAsync("Bootstrap", LoadSceneMode.Single);
+
+        float deadline = Time.realtimeSinceStartup + BootTimeoutSeconds;
+        while ((GameFlowController.Instance == null
+                || SceneTransitionService.Instance == null
+                || SceneTransitionService.Instance.IsTransitioning)
+               && Time.realtimeSinceStartup < deadline)
+            yield return null;
+
+        Assert.IsNotNull(GameFlowController.Instance, "Bootstrap never loaded Main's title flow.");
+        Assert.IsNotNull(GameStateService.Instance, "Bootstrap has no GameStateService.");
+        Assert.AreEqual(GameState.Menu, GameStateService.Instance.CurrentState,
+            "Bootstrap boot did not release its temporary Loading state.");
+        Assert.IsFalse(GameStateService.Instance.IsPaused);
+        Assert.IsFalse(GameStateService.Instance.GameplayInputAllowed);
+        Assert.AreEqual("Main", SceneTransitionService.Instance.ActiveContentSceneName);
     }
 
     [UnityTest]

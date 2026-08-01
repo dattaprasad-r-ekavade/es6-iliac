@@ -8,10 +8,10 @@ public static class KessilMapArt
     // Bounds and landmass shapes come from WorldLayout so the drawn map can no longer
     // drift away from the world it represents — this file used to carry its own
     // hand-copied list of ellipses.
-    public const float WorldMinX = WorldLayout.MapMinX;
-    public const float WorldMaxX = WorldLayout.MapMaxX;
-    public const float WorldMinZ = WorldLayout.MapMinZ;
-    public const float WorldMaxZ = WorldLayout.MapMaxZ;
+    public static readonly float WorldMinX = WorldLayout.MapMinX;
+    public static readonly float WorldMaxX = WorldLayout.MapMaxX;
+    public static readonly float WorldMinZ = WorldLayout.MapMinZ;
+    public static readonly float WorldMaxZ = WorldLayout.MapMaxZ;
 
     private static Texture2D _cached;
 

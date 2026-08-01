@@ -12,6 +12,21 @@ using UnityEngine;
 public class WorldLayoutTests
 {
     [Test]
+    public void VersionedJsonIsTheRuntimeWorldSource()
+    {
+        var source = Resources.Load<TextAsset>(WorldLayoutData.ResourcePath);
+        Assert.IsNotNull(source, "kessil.world.json is missing from Resources.");
+        var document = JsonUtility.FromJson<WorldLayoutDocument>(source.text);
+        Assert.AreEqual(WorldLayoutData.CurrentVersion, document.Version);
+        Assert.AreEqual(document.Landmasses.Length, WorldLayout.Landmasses.Length);
+        Assert.AreEqual(document.Sites.Length, WorldLayout.Sites.Length);
+        Assert.AreEqual(document.Roads.Length, WorldLayout.Roads.Length);
+        Assert.AreEqual(document.CaldemarSpawnPad, WorldLayout.CaldemarSpawnPad);
+        Assert.AreEqual(document.Landmasses[0].TerrainSeed, WorldLayout.Landmasses[0].TerrainSeed);
+        Assert.AreEqual(document.Sites[0].Id, WorldLayout.Sites[0].Id);
+    }
+
+    [Test]
     public void EverySite_HasUniqueId()
     {
         var seen = new HashSet<string>();
