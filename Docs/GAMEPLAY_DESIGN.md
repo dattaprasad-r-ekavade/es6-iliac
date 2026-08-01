@@ -191,21 +191,144 @@ apply it everywhere.
 swing misses because of an unseen roll — is its most disliked feature by a wide margin. The
 project already has working direct combat. Do not touch it.
 
-### In scope
+### Current state of the code — 2026-08-01
 
-- Melee, block, hit reaction
-- Elemental damage schools
-- Healing
-- Real targeting: self, touch, ranged
-- Resource cost and feedback, sufficient for B300's *cast / resource / target* tutorial
+Worth recording, because the gap between this section and `PlayerCombat.cs` is wide.
+
+| | Today |
+|---|---|
+| Melee | 18 damage, 2.4 m, 0.45 s cooldown, 8 stamina |
+| Magic | one spell (Flare), 26 damage, 16 mana, 18 m |
+| Level-up | +12 HP, +8 MP, +8 SP, full restore |
+| Mana regen | 4/sec, always |
+| Stamina regen | 12/sec, **only out of combat** |
+
+Two defects to fix before anything is balanced on top of them:
+
+1. **The inventory is cosmetic.** `InvItem` is `{Id, Name, Count, Kind}` — no stats, no slots,
+   no equip system. The Iron Sword in the player's pack does nothing; melee damage is a
+   hardcoded serialized field.
+2. **Stamina has a dead zone in combat.** Regen is disabled entirely while `InCombat`, combat
+   persists 6 s past the last hit, and swings cost 8 from a 100 pool. That is 12 swings, then
+   six seconds of standing there unable to attack. Give combat a reduced regen rate rather
+   than none.
+
+### Resources — mana is crystal charge
+
+**Mana does not regenerate.** It is charge drawn from soul crystals, which are bought, looted
+or issued.
+
+This is the setting made playable. The arc's central conflict is demand outstripping humane
+supply; a player regenerating free magic for forty hours contradicts it at every second.
+
+| Consequence | Why it matters |
+|---|---|
+| Gold gets a real sink | it currently has almost nowhere to go |
+| `player.channeled` becomes literal | it is the player's receipts, not an abstract counter |
+| Scarcity becomes playable | crystal price and availability tighten as the story bites |
+| The Chapter 08 vote becomes personal | voting abolition disarms the player |
+| Mage and warrior feel structurally different | resource anxiety versus stamina rhythm |
+
+Pace it: crystals cheap and everywhere in Chapters 01–03, tightening later. That is the plot
+arriving in the player's inventory.
+
+**This is a cost, not a punishment.** Casting spends a crystal — ordinary economy. Having spent
+five hundred crystals must change what Terrin says, never how hard enemies hit. The
+never-punish rule for `player.channeled` still stands.
+
+### Weapons — three classes, tiers not variety
+
+One humanoid rig and a minimum animation set means class count is the budget, not weapon count.
+
+| Class | Identity | Animation cost |
+|---|---|---|
+| One-handed + shield | reliable; **can block** | one attack, one block pose |
+| Two-handed | slow, high damage, **cannot block** | one attack |
+| Ranged | the stealth payoff; weak in melee | one draw/release |
+
+Variety comes from **tiers on the same mesh** — stat swaps, not new animations. Thirty weapons
+that swing identically are worth less than three that feel different.
+
+### Equipment
+
+Weapon and armour slots carry stats. `InvItem` grows damage/armour values and `PlayerCombat`
+reads the equipped weapon instead of a hardcoded field. Loot, merchants and route rewards all
+become meaningful; the equipped set joins `SaveGameV4`.
+
+Armour is flat protection with **no associated skill** — Block is the active defensive verb.
+
+### Spells — five, each mechanically distinct
+
+The trap is elements that are damage types with different particle colours. Each must *do*
+something.
+
+| Spell | Effect | Counters |
+|---|---|---|
+| Fire | burn over time | groups, unarmoured |
+| Frost | slows, drains stamina | chargers |
+| Shock | burns enemy mana, chains | casters |
+| Heal | restore, at crystal cost | — |
+| Light | utility: caves, prison, sea cave | — |
+
+Light earns its slot thematically. In a world lit by crystals, carrying a light *is* consuming
+the resource, so every dark corridor is a small decision.
+
+### Progression — skill use, without Morrowind's flaw
+
+**Skills grow by use.** Character `Level` derives from total skill progress and grants the pool
+increases `PlayerStats` already implements, so the existing `+12/+8/+8` code survives and only
+the XP source changes.
+
+Eight skills. Each route grants two, which is what gives the routes lasting mechanical identity
+rather than an hour of tutorial.
+
+| Skill | Covers | Granted by |
+|---|---|---|
+| Blade | one-handed | Warrior |
+| Block | shields, bash, parry | Warrior |
+| Heavy | two-handed | — |
+| Marksman | ranged | Trade |
+| Destruction | fire, frost, shock | Mage |
+| Restoration | heal, light | Mage |
+| Stealth | sneak, detection | Trade |
+| Security | locks, pickpocketing | Trade |
+
+**The Refuse route grants nothing.** The fastest route gives the least — the correct price for
+it, at zero design cost.
+
+#### The five anti-grind rules
+
+Morrowind's system aged badly for specific and fixable reasons. These are not optional; without
+them, use-based progression becomes jumping in a corner for an hour.
+
+1. **Gains come from effect, not action.** Damage dealt to something that can fight back. A
+   swing that hits air gives nothing; a spell cast at a wall gives nothing.
+2. **Gains scale with threat.** The fortieth identical bandit gives near zero.
+3. **Diminishing returns per encounter**, so a single enemy cannot be farmed.
+4. **No attribute multipliers on level-up.** Morrowind's worst tax was planning level-ups to
+   avoid wasting them. Flat pools remove the planning game entirely.
+5. **Magic is self-limiting** — casting costs crystals, so grinding Destruction means buying
+   levels with gold. Self-capping, and the world can notice.
+
+#### The mage's bill
+
+Worth stating plainly, because it is the strongest thing these systems do together: **a mage's
+character growth has a body count.** Getting better at Fire requires casting Fire, which spends
+crystals, which spends souls. A warrior's growth is free.
+
+No line of dialogue achieves that. It also means the Chapter 08 vote lands differently
+depending on how the player played — a mage voting for abolition votes against their own
+progression.
 
 ### Explicitly out of scope
 
 - **Conjuration and summons.** Summons are companions with extra steps.
 - **Travel companions.** See below.
-- Morrowind's level-up and attribute-multiplier systems — opaque and they reward degenerate
-  play.
+- **Attributes.** There is no Strength/Intelligence layer and none is being added. The stat
+  model is three pools, a level and gold — see `PlayerRpg.cs`. Skills grow by use; attributes
+  do not exist to be multiplied.
 - Encumbrance micromanagement.
+- Perk trees. Considered and rejected in favour of use-based skills.
 
 ### Companions — the scope reading
 
@@ -280,5 +403,11 @@ with systems already planned.
 | 8 | Map Editor MVP promoted — it enables landmark navigation | after VS2, as planned |
 | 9 | Everspire sightline validation added to world-layout rules | Map Editor |
 | 10 | `player.channeled` tracked and exposed as a dialogue condition | VS1 data, VS5+ payoff |
+| 11 | Mana becomes non-regenerating crystal charge | VS4 |
+| 12 | Equip system: weapon/armour slots with stats on `InvItem`, read by `PlayerCombat` | VS1 data, VS4 behaviour |
+| 13 | Eight use-based skills; `Level` derives from total skill progress | VS4 |
+| 14 | Three weapon classes with tiers; five distinct spells | VS4 |
+| 15 | Fix the in-combat stamina dead zone — reduced regen, not zero | any time; it is a small bug |
 
-Item 1 is the only one with a real deadline.
+Item 1 is the only one with a real deadline. Items 12 and 13 add fields to `SaveGameV4`, so
+the *data shape* has to be decided in VS1 even though the behaviour lands in VS4.

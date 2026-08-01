@@ -454,7 +454,10 @@ contract, autosave policy, companion handoff, and recovery path if loading fails
 | `GameState` | gameplay, dialogue, cinematic, menu, loading, death; input/cursor/time ownership |
 | `SceneTransitionService` | additive load order, spawn placement, companion handoff, fade, failure recovery |
 | `CinematicRunner` | deterministic cues plus an idempotent end-state applied when watched or skipped |
-| `SaveGameV4` | atomic write/backup, profile plus all story/system state, scene/spawn, versioning, safe v3 handling |
+| `Equipment` | weapon and armour slots with stats on `InvItem`; `PlayerCombat` reads the equipped weapon instead of a hardcoded field |
+| `SkillSystem` | eight use-based skills; `Level` derives from total skill progress; the five anti-grind rules in `Docs/GAMEPLAY_DESIGN.md` |
+| `CrystalCharge` | Mana becomes non-regenerating charge drawn from soul crystals — the setting's scarcity made playable |
+| `SaveGameV4` | atomic write/backup, profile plus all story/system state, scene/spawn, versioning, safe v3 handling, **plus skills and equipped set** |
 
 Author content in ScriptableObjects or another inspectable data format; keep logic in
 reusable runtime systems. Dialogue, quest stages, and cutscene cues must not be buried in
