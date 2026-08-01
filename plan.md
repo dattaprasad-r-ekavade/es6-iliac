@@ -237,6 +237,12 @@ version of that opening.
 - Unity console after regeneration and title startup: **0 project errors, 0 project
   warnings**.
 - Unity EditMode rerun 2026-08-01: **20 passed, 0 failed**.
+- Unity **PlayMode** first run 2026-08-01: **7 passed, 0 failed**, headless via
+  `-runTests -testPlatform PlayMode`, exit code 0. First automated coverage of gameplay
+  behaviour rather than geometry.
+- `McpBootstrap` no longer starts the MCP bridge in batch mode. It retried 60 times against a
+  server that cannot exist headlessly, and the package's connection errors failed whichever
+  test fixture was active — the suite was non-deterministic before this was found.
 - Live title, Continue, first-person Game view, city entrance, and coastline inspected
   after scene regeneration.
 - Scene audit: **2,042 GameObjects, 1,797 renderers, 905 colliders**; 894 are box
@@ -293,8 +299,12 @@ and packaged smoke run are still required for the VS0 regression baseline.
   `ev.prisoner_testimony` is the required state flag. Failure and gear rules are now locked for
   all four routes in `Docs/CHAPTER01_BEATS.md`.
 - [x] Separate stable internal ids from display strings in world and story documentation.
-- [ ] Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
-  purchase, fast travel, dialogue pause, death/rescue, and return to menu.
+- [~] Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
+  purchase, fast travel, dialogue pause, death/rescue, and return to menu. **Started
+  2026-08-01:** `Game.PlayModeTests` assembly stood up and **7/7 green**, covering save/load
+  round trip, post-save rollback, older-schema rejection, corrupt-save handling, and merchant
+  payment (3 cases). Remaining: New Game, Continue, fast travel, dialogue pause, death/rescue,
+  return to menu.
 - [ ] Produce a current Kessil Bay Windows build and repeat the packaged launch smoke.
 - [x] Create an asset ledger with source URL, version, license, proof/date, and whether source
   redistribution is allowed. [`Docs/ASSET_LEDGER.md`](Docs/ASSET_LEDGER.md) — everything is CC0

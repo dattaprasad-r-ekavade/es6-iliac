@@ -23,6 +23,17 @@ public static class McpBootstrap
 
     static McpBootstrap()
     {
+        // Headless runs — the PlayMode/EditMode suites and CI builds — have no editor
+        // client to bridge to, and the package logs a connection error on every retry.
+        // Unity fails any test that observes an unexpected error log, so those retries
+        // failed whichever fixture happened to be active and made the suite
+        // non-deterministic. The bridge is for interactive sessions only.
+        if (Application.isBatchMode)
+        {
+            EditorPrefs.SetBool(AutoStartOnLoad, false);
+            return;
+        }
+
         EditorPrefs.SetBool(UseHttpTransport, true);
         EditorPrefs.SetBool(AutoStartOnLoad, true);
         EditorPrefs.SetBool(SetupCompleted, true);
