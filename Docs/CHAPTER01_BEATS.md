@@ -114,7 +114,32 @@ head/skin/hair variants on **one shared body and rig**, per the art direction lo
 | `anc.isleborn` | Tolm or Sarn | mixed features; no standing in Estmere |
 
 `anc.isleborn` is the outsider option, and the one that best motivates a player who
-refuses the King at B130. Starting values are still open — see “Still open”.
+refuses the King at B130.
+
+### Starting values — locked 2026-08-01
+
+Mapped onto the stat model that **actually exists** in `PlayerRpg.cs`: three pools, a level,
+and gold. There are no attributes, and none are being added for this.
+
+Base is Health 100 / Mana 80 / Stamina 100. **Every ancestry totals 280**, so no ancestry is
+mechanically superior and none can be the "correct" pick.
+
+| Id | Health | Mana | Stamina | Total | Reading |
+|---|---:|---:|---:|---:|---|
+| `anc.coastal` | 95 | 75 | 110 | 280 | dock labour and small boats |
+| `anc.highland` | 110 | 70 | 100 | 280 | hard country, hard people |
+| `anc.southern` | 90 | 95 | 95 | 280 | the realm with the arcane tradition |
+| `anc.isleborn` | 100 | 80 | 100 | 280 | exactly base — the outsider inherits nothing |
+
+Swings are capped at ±15 on any pool, which is legible without being decisive. Starting gold
+is **0 for every ancestry** — the player is a shipwreck survivor with nothing, and that is a
+story fact before it is a balance one.
+
+`anc.isleborn` sitting precisely on base is deliberate: mechanically it says the same thing
+the fiction does.
+
+**These values must not influence route assignment.** `flag.route` comes from declared
+inclination at B120 and nothing else — see the ancestry rule above.
 
 ## Premises
 
@@ -258,6 +283,42 @@ No route may depend on another having happened.
 | B820 | Arrival at Caldemar; the Council is set up | `Caldemar_Arrival` | transition, dialogue | council contact met | arrival is an authored space, not a map marker |
 | B830 | Final Everspire reminder; next objective given | `Caldemar_Arrival` | dialogue/cinematic | `flag.chapter_complete` | a blind player can state what changed and where they are going |
 
+## Failure and gear rules — locked 2026-08-01
+
+### Failure
+
+**No tutorial failure in Chapter 01 is terminal, and the player cannot die during one.**
+
+Defeat resolves into a *state*, never a game over: knocked down in the spar, caught while
+sneaking, arrested for a crime, or driven off during the patrol. Each routes to a recovery
+that costs time and dignity rather than progress.
+
+| Situation | Resolution |
+|---|---|
+| B200 safe spar | knocked down, stand up, instructor comments; cannot kill |
+| B210 patrol encounter | defeat returns to the patrol checkpoint with the encounter reset |
+| B300 practice space | nonlethal by construction; failed casts waste Mana only |
+| B410 caught sneaking | detained, warned, released at the lesson start; repeatable |
+| B420 caught in the tower | ejected to the approach, alarm resets after a cooldown |
+| Crime response | fine or brief detention; never confiscation, never a closed route |
+
+The one hard rule beneath all of these: **a failure state may never remove an evidence item,
+and may never leave the player unable to reach B600.**
+
+### Gear carryover
+
+The player starts Chapter 01 with **nothing** — they came out of the water. Each route issues
+its own appropriate kit, and B500 already promises that stored gear is returned and never
+destroyed.
+
+**All four routes enter B600 unarmed.** Warrior, mage and trade routes lose or surrender
+their kit on the way into the prison; the refuse route never had any. Stored gear returns
+after the escape, at the aftermath.
+
+This is a production decision as much as a fiction one. It means **B630's escape is authored
+once, for an unarmed player**, instead of four times for four loadouts. Route flavour lives
+in dialogue and in the evidence carried, not in what the player is holding.
+
 ## The convergence contract
 
 The load-bearing contract of the whole chapter. Four routes enter B600; one path leaves it.
@@ -269,6 +330,9 @@ The load-bearing contract of the whole chapter. Four routes enter B600; one path
 3. The prince is alive, in the prison, and has not yet spoken to the player.
 4. The player is inside `Estmere_Prison` with a known spawn id.
 5. No route-specific tutorial state is still active.
+6. **The player is unarmed, and route gear is in storage rather than destroyed.** Added
+   2026-08-01 — the contract previously said nothing about equipment, which would have left
+   B630 needing to work for both an armoured warrior and an empty-handed prisoner.
 
 **Leaving B630, all routes guarantee:**
 
@@ -331,7 +395,12 @@ a stationary version into 15 minutes will not fit.
 
 ## Still open
 
-1. Tutorial failure rules and gear carryover across all four routes.
-2. Starting values for the four ancestries (names and origins are locked above).
+**Nothing.** Every narrative and production lock for Chapter 01 is closed as of 2026-08-01.
 
-Both can be settled during VS3. **Nothing on this list blocks the screenplay pass.**
+Tutorial failure rules, gear carryover and ancestry starting values were the last three, and
+they are recorded above. What remains before VS0's gate is execution, not decisions: the
+screenplay pass, the regression snapshot, and the asset ledger
+([`ASSET_LEDGER.md`](ASSET_LEDGER.md) — done).
+
+Remaining questions in the project are all Chapters 02+ and live in
+[`STORY_ARC.md`](STORY_ARC.md).

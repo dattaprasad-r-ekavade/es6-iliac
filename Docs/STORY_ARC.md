@@ -114,6 +114,27 @@ turns out to be.
 Two kingdoms plus two institutions, rather than four kingdoms, keeps the world small enough
 to author while still giving each philosophy a home.
 
+### Cast — role ids for Chapters 02+
+
+Assigned 2026-08-01. **Names are still open; ids are not.** Same rule as Chapter 01 — code
+branches on ids, never on display names, so casting can be deferred indefinitely without
+blocking systems work.
+
+| Id | Role | Faction | First appears |
+|---|---|---|---|
+| `role.council_contact` | Crown Council representative | `faction.council` | Ch 01 B820 — **already cast** as Lucien Ambrose |
+| `role.council_speaker` | Chairs the Council; runs the Ch 08 vote | `faction.council` | Ch 02 |
+| `role.qadris_ruler` | Ruler of Qadris | `faction.qadris` | Qadris spoke |
+| `role.qadris_official` | Takes the player to the settlement that went dark | `faction.qadris` | Qadris spoke — carries the faction's single best scene |
+| `role.arcanum_head` | Head of the Arcanum | `faction.arcanum` | Arcanum spoke |
+| `role.aldreth_leader` | Aldreth's leadership | `faction.abolition` | Aldreth spoke |
+| `role.concord_envoy` | The first Concord member to speak to the player directly | `faction.concord` | Ch 06 at the latest; earlier if seeded |
+| `role.prince` | Terrin Selwyn — **king from B740** | `faction.estmere` | Ch 01; the barometer thereafter |
+
+`role.prince` keeps its id after the coronation. The id is stable; the display name and title
+change. This is the naming policy working exactly as intended, and it is worth not
+"fixing" — a `role.king` would collide with Osric.
+
 ## Chapter structure — hub and spokes
 
 **Two hubs, with different jobs.** Caldemar dispatches; Estmere is where you come back.
@@ -283,8 +304,7 @@ Chapter 02 is actually being written.
    but the forms are undesigned, and they are the entire late-game bestiary.
 3. Whether Chapter 07 gets the third Aldreth variant (a forced early Council vote) or only the
    two forceful ones.
-4. Cast for Chapters 02+: Qadris's ruler, the Arcanum's head, the Aldreth leadership. Role ids
-   can be assigned long before names are.
+4. ~~Cast for Chapters 02+~~ — **role ids assigned 2026-08-01** (below); names still open.
 5. Whether the Ivory Concord gets a named representative, and the earliest chapter in which
    one speaks to the player directly rather than being observed at a distance.
 

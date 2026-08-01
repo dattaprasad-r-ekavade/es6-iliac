@@ -46,3 +46,8 @@ _downloads/
 # Local compile-check / test-run output
 *.check.dll
 TestResults*.xml
+
+# Local asset downloads (353 MB of third-party archives — see Docs/ASSET_LEDGER.md)
+_downloads/
+TempDownloads/
+dev/null/

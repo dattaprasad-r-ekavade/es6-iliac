@@ -288,15 +288,17 @@ and packaged smoke run are still required for the VS0 regression baseline.
 - [x] Define the Everspire pulse rules before VS3 authors the wreck and memory responses.
   **Cause deferred to later chapters; effect authored** — memory disruption for everyone who
   was on the water.
-- [ ] Specify the speed route as intentional content. **Target time locked at 15 minutes**;
-  mandatory information, permitted skips and state flags still to specify. It must be
-  fastest without corrupting later quests.
+- [x] Specify the speed route as intentional content. Target time **15 minutes**; mandatory
+  information is B510's split reveal, skips are permitted but the reveal is repeatable, and
+  `ev.prisoner_testimony` is the required state flag. Failure and gear rules are now locked for
+  all four routes in `Docs/CHAPTER01_BEATS.md`.
 - [x] Separate stable internal ids from display strings in world and story documentation.
 - [ ] Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
   purchase, fast travel, dialogue pause, death/rescue, and return to menu.
 - [ ] Produce a current Kessil Bay Windows build and repeat the packaged launch smoke.
-- [ ] Create an asset ledger with source URL, version, license, proof/date, and whether source
-  redistribution is allowed.
+- [x] Create an asset ledger with source URL, version, license, proof/date, and whether source
+  redistribution is allowed. [`Docs/ASSET_LEDGER.md`](Docs/ASSET_LEDGER.md) — everything is CC0
+  except OFL fonts. Four missing licence files and unrecorded download dates are the only gaps.
 
 ### P1 — architecture and gameplay debt
 
@@ -1100,17 +1102,19 @@ due before VS3:
   from Tolm or Sarn), appearance and origin only.
 - **`route.refuse` target — 15 minutes.** Aggressive; see the risk note in the beat sheet.
 
+Also closed 2026-08-01: **tutorial failure rules and gear carryover** (no failure is terminal;
+all four routes enter B600 unarmed, so B630 is authored once) and **ancestry starting values**
+(mapped onto the three pools that exist in `PlayerRpg.cs`, every ancestry totalling 280).
+
 Still open:
 
-1. Tutorial failure rules and gear carryover across the four routes.
-2. Starting values for the four ancestries.
-3. Subtitle standard and, after the slice, localization scope. *(Protagonist voicing is
-   resolved for the slice: silent, subtitles only.)*
-4. Frame-rate and memory floor at the five stress locations. *(Platform is resolved:
+1. Subtitle standard and, after the slice, localization scope. *(Protagonist voicing is
+   resolved: silent, subtitles only, permanently.)*
+2. Frame-rate and memory floor at the five stress locations. *(Platform is resolved:
    Windows player, keyboard and mouse.)*
 
-**Nothing on this list blocks the screenplay or VS0.** Items 1–2 must be locked before their
-owning VS3–VS5 content begins. Items 3–4 may be settled during VS8.
+**Every Chapter 01 narrative and production lock is now closed.** Both remaining items are
+VS8 measurements rather than decisions, and neither blocks any earlier milestone.
 
 The cave-exit title position and all four route contents are already locked by this plan.
 Setting names are locked by the naming policy above, and character names were locked on
