@@ -89,7 +89,7 @@ most expensive kind of mistake here.
 | Save-persisted ids never embed display names (`city_west`, not `Caldemar`) | renames must stay display-only | `WorldLayoutTests` |
 | Palette colours stay in the muted range; `ArtDirection.Current` is Morrowind Clean | prevents drift back to the engine-project look | `ArtDirectionTests` |
 | Code branches on ids, never on display names | same as above | convention |
-| The title card fires exactly once, only at B640 | authored moment | beat sheet acceptance test |
+| The title card fires exactly once, only at B640 | authored moment | ⚠️ **nothing yet** — B640 is not implemented; see W-10 audit |
 | Watching and skipping a cinematic produce identical flags | save integrity | beat sheet acceptance tests |
 | All four routes enter B600 **unarmed**, gear stored not destroyed | lets B630 be authored once | convergence contract clause 6 |
 | Chapter 01 must never hint that the Everspire is an alarm | it is the Chapter 06 reveal | `STORY_ARC.md` |
@@ -142,6 +142,14 @@ the same calls into it. Do not hand-edit `Estmere_Exterior`; it is also generate
 **`Game.Tests.asmdef` is Editor-only** (`includePlatforms: ["Editor"]`). PlayMode tests live
 in the separate `Game.PlayModeTests` assembly.
 
+**Git diff stats on this repo are wildly misleading.** `.unity` files are enormous generated
+YAML. The VS1+VS2 commit reads as 336,372 insertions; 324,507 of those are scene files, and
+the actual authored change is ~3,700 lines of C#. When measuring work, filter by extension:
+
+```bash
+git show --numstat <sha> -- "*.cs" | awk '$1 ~ /^[0-9]+$/ {a+=$1; d+=$2; n++} END {printf "%d files, +%d / -%d\n", n, a, d}'
+```
+
 ---
 
 ## 6. Current state
@@ -162,6 +170,27 @@ W-11, the external Map Editor MVP.
 | Prefabs / ScriptableObjects / `.inputactions` | 4 runtime prefabs; NPC, dialogue, quest and cinematic data assets; one input-actions asset |
 
 Every narrative and production lock for Chapter 01 is closed.
+
+**Read "What complete means here" under W-10 before starting VS3.** VS2's gate is met
+structurally — 21 of 42 beats exist, route selection is still F1–F4 debug hotkeys, and B640's
+title card is not built. That is the correct state for a de-risking milestone, but it is not
+what "VS2 complete" sounds like.
+
+### Velocity, for planning
+
+| Phase | Conventional effort | Calendar |
+|---|---|---|
+| Prototype → VS0 complete | ~600–1,000 person-hours | 7 days |
+| VS1 + VS2 | ~110–170 person-hours (planned at 14–21 days) | ~1 session |
+
+**Do not extrapolate this rate to VS3–VS7.** VS1 and VS2 are the most leverageable milestones
+in the plan — systems architecture, scene plumbing, save schemas, tests: well-specified,
+self-contained, machine-verifiable. VS5's four authored routes are content, and *does this
+feel like Morrowind* cannot be asserted in a test. Estimates assuming otherwise will be wrong
+by a large factor.
+
+Current planning range for the Chapter 01 POC at 8–10 h/week: **4–8 months**. All eight
+chapters: **2–4 years**.
 
 ---
 
@@ -374,6 +403,33 @@ routes** without touching the editor. It is intentionally grey; the next packet 
 these placeholders with authored environments and dialogue.
 
 From here the burn-down is measurable: beats with real content, out of 42.
+
+#### What "complete" means here — independent audit, 2026-08-01
+
+The gate is met **structurally**, which is exactly what VS2 exists to prove. It is not met in
+content, and the difference matters to whoever picks up VS3.
+
+`GreyThreadDirector` references **21 of the 42 beats**:
+
+> B010 · B060 · B080 · B090 · B130 · B200 · B220 · B300 · B310 · B400 · B420 · B500 · B510 ·
+> B600 · B620 · B630 · B700 · B730 · B760 · B820 · B830
+
+**The 21 absent beats are content, not structure** — the skeleton hits the waypoints and skips
+what lies between them. Two absences are worth calling out specifically:
+
+- **B640, the sea-cave title card**, does not exist. Section 4 lists "the title card fires
+  exactly once, only at B640" as an invariant; nothing currently enforces it because there is
+  nothing to enforce. Do not assume it is wired.
+- **B110, B120 and B130's authored path** does not exist. Route selection is the F1–F4 debug
+  hotkeys. The questioning about the missing prince, the inclination declaration, and the
+  King's assignment are all still to be built — so the *route assignment* is proven while the
+  *scene that assigns it* is not.
+
+This is the correct state for a de-risking milestone: the four-route convergence architecture
+is proven to hold, and the remainder is content poured into a structure that will not move.
+
+**Verified independently 2026-08-01:** EditMode 45/45, PlayMode 30/30, both exit 0, run from a
+clean checkout rather than taken from the docs.
 
 ### W-11 · Map Editor MVP · **next**
 
