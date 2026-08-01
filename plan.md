@@ -677,7 +677,33 @@ reload, death, fast travel and scene re-entry all preserve ruler, law, NPC set, 
 quest stage. A blind player can state who rules Estmere, what changed, why their title
 matters, and why the Everspire matters.
 
-### VS8 — slice hardening and packaged build (10–15 days)
+### VS8 — POC assessment (3–5 days) · rescoped 2026-08-01
+
+**Chapter 01 is an internal proof of concept**, built to prove the pipeline and teach the
+process, not to be sold. The full hardening pass below is therefore **deferred to the real
+release**, at the end of all eight chapters, and VS8 shrinks to what is needed to *judge* the
+POC.
+
+What VS8 keeps:
+
+- The four-route and eight-outcome matrix, run for **structural validity** — no progression
+  blockers, no save corruption, every beat present. This still matters; it is what the POC is
+  proving.
+- Enough readability on the critical path to answer the real question: **does this feel like
+  the game described in the art direction lock?**
+- A packaged build that launches and completes, so the pipeline itself is proven end to end.
+
+What VS8 defers to the release tier: the narrative audio mix, the UI pass at multiple aspect
+ratios, performance profiling against a frame-time floor, editor/debug payload removal,
+notices and credits, second-machine validation, and blind playtesting.
+
+Roughly ten days come out of the slice estimate. They are not deleted — they happen once, for
+the whole game, rather than now for one chapter.
+
+<details>
+<summary>The full hardening scope, retained for the release tier</summary>
+
+### Release hardening and packaged build (10–15 days, deferred)
 
 - Run the QA matrix below on clean saves and on upgraded development saves.
 - Bring the critical path to the readability bar: silhouettes, entrances, lighting,
@@ -696,6 +722,8 @@ matters, and why the Everspire matters.
 console clean. Every beat in `storyline.md` present. The packaged game completes on a
 machine with no editor and no developer present.
 
+</details>
+
 ### Milestone summary
 
 | Milestone | Focus | Days |
@@ -708,13 +736,55 @@ machine with no editor and no developer present.
 | VS5 | Four routes to convergence | 12–20 |
 | VS6 | Prison, escape, title moment | 8–12 |
 | VS7 | Confrontation, succession, handoff | 10–14 |
-| VS8 | Hardening and packaged build | 10–15 |
-| | **Total** | **73–111** |
+| VS8 | **POC assessment** (rescoped 2026-08-01) | 3–5 |
+| | **Total** | **63–101** |
+
+Chapter 01 is an internal POC, so VS8 shrank from 10–15 days to 3–5. The deferred release
+hardening happens once for the whole game rather than now for one chapter.
 
 These are planning ranges, not commitments. The two ranges most likely to move are VS5
 (four routes) and VS4 (sailing and stealth, the least-proven mechanics). If the slice has
 to shrink, it shrinks by reducing route *depth* — never by removing a route, because
 `storyline.md` requires all four.
+
+## World architecture — regions, not one bay · decided 2026-08-01
+
+**The reference is Witcher 3's regions, not Morrowind's continuous landmass.** A city plus a
+dense, walkable hinterland, authored as one plane, with the ferry network connecting planes.
+
+This supersedes the continuous 6.8 km bay. The bay was correct for a continuous world and is
+wrong twice over for this one: too large to fill at the required density, and connected in the
+wrong way.
+
+| Region | Contains | First needed by |
+|---|---|---|
+| **Estmere** | city, docks, palace, prison, Arcanum, harbour, secured tower, sea cave, hinterland | **Chapter 01 — all of it** |
+| Caldemar | Crown Council seat, city, hinterland | Chapter 02. Chapter 01 needs only an **arrival sliver**, not the plane |
+| Qadris | arid city, the settlement that went dark, hinterland | Qadris spoke |
+| Aldreth | highland city, hinterland | Aldreth spoke |
+| Corrath | the Everspire — a small special location, not a full plane | Chapter 06 |
+
+### What this does to Chapter 01's scope
+
+**Chapter 01 needs one region.** `Prologue_Ship` at sea, the Estmere plane, and a Caldemar
+arrival space. Caldemar and Qadris as authored regions are Chapter 02+ work.
+
+That is a scope reduction, not only a rework.
+
+### What it costs
+
+- `WorldLayout` becomes per-region rather than one bay.
+- `KessilWorldGenerator` (1,107 lines) needs rearchitecting around a region, not a world.
+- **`WorldLayoutTests` — 16 of the 20 EditMode tests — are written against the current bay's
+  geometry and will not survive.** They did their job; they need rewriting against the region
+  model. Budget it rather than being surprised by it.
+- Art-direction density rules now apply *per region* instead of globally. The "keep the bay
+  thin and fog-limited" instruction was a consequence of the old architecture and does not
+  carry over — regions are meant to be dense.
+- The five performance stress locations need reselecting.
+
+The ferry network already designed in `Docs/GAMEPLAY_DESIGN.md` is the right connective
+tissue between planes, and needs no change.
 
 ## World-authoring goal — Kessil World Builder
 

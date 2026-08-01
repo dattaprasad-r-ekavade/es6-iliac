@@ -229,8 +229,36 @@ supply; a player regenerating free magic for forty hours contradicts it at every
 | The Chapter 08 vote becomes personal | voting abolition disarms the player |
 | Mage and warrior feel structurally different | resource anxiety versus stamina rhythm |
 
+#### The price curve — locked 2026-08-01
+
+**Roughly 20× across the game, absorbed by skill.** Not the literal meal-to-used-car swing,
+which is nearer 1000× and would end the mage build partway through Chapter 06.
+
+| | Early (Estmere) | Late |
+|---|---|---|
+| Crystal price | about the cost of a meal | about 20× that |
+| Novice casts per crystal | baseline | baseline |
+| Expert casts per crystal | — | **3–4× baseline** |
+
+So a committed mage pays roughly 5× more per cast late-game than they did at the start, while
+a dabbler pays the full 20×. **Scarcity prices out the tourist and squeezes the specialist**,
+which is exactly the right shape: it rewards commitment to the route without collapsing it.
+
+This makes Destruction and Restoration the most economically valuable skills in the game.
+That asymmetry is intentional — no other skill pays a dividend in gold.
+
 Pace it: crystals cheap and everywhere in Chapters 01–03, tightening later. That is the plot
 arriving in the player's inventory.
+
+#### Difficulty and the economy
+
+Difficulty is an Elder-Scrolls-style 1×–6× slider. That interacts with crystal cost directly:
+six times the enemy health means six times the casts means six times the spend, so **on the
+hardest setting a mage goes broke and a warrior does not.**
+
+The slider must therefore scale crystal *prices* alongside enemy health, or hard mode
+silently becomes a warrior-only mode. This is not optional balancing — it is a structural
+consequence of making mana a purchased resource.
 
 **This is a cost, not a punishment.** Casting spends a crystal — ordinary economy. Having spent
 five hundred crystals must change what Terrin says, never how hard enemies hit. The

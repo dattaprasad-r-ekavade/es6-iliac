@@ -187,6 +187,28 @@ up, and it is not optional.
    fragments that are individually insufficient.
 4. Condition its dialogue on `evidence_count`, never on *which* spokes are complete.
 5. Be completable regardless of the player's standing with any other faction.
+6. **Offer three authored entries into one authored space** — see below.
+
+### Route identity — how spokes branch · decided 2026-08-01
+
+Chapter 01 teaches the player, in their first hour, that this game branches on who they choose
+to be. If Chapters 02+ branch only on spoke *order*, that promise is broken by Chapter 03.
+
+The fix is one authored space per spoke with **three ways in**:
+
+| Approach | How the spoke opens |
+|---|---|
+| Martial | hired, escorted, or admitted by force of arms |
+| Arcane | received as a peer or colleague |
+| Larcenous | infiltrates; never formally admitted |
+| None | no assigned entry — uses whichever skills the player actually raised |
+
+One space, three entries, one exit state. That is the Chapter 01 convergence contract applied
+one layer up, and it keeps the promise without tripling the content.
+
+The `route.refuse` player is deliberately unprovided for. They were granted no skills, so their
+approach is whatever they built along the way — emergent rather than assigned. That is the
+continuing price of the fastest route, and it needs no separate authoring.
 
 A spoke that reads differently depending on what came before it is broken, however well it
 plays. That is the same standard B600 already applies to the four Chapter 01 routes.
