@@ -35,11 +35,16 @@ public abstract class SmokeTestFixture
 
         WorldState.Reset();
         PlayerRef.Clear();
+        Time.timeScale = 1f;
     }
 
     [TearDown]
     public void BaseTearDown()
     {
+        // Dialogue and pause menus set timeScale to 0. Leaking that into the next test
+        // would stall every coroutine it runs, so it is restored unconditionally.
+        Time.timeScale = 1f;
+
         // DestroyImmediate rather than Destroy: singleton fields are cleared in
         // OnDestroy, and the next test needs them clear before it starts rather than
         // at the end of the frame.

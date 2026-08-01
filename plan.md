@@ -237,9 +237,9 @@ version of that opening.
 - Unity console after regeneration and title startup: **0 project errors, 0 project
   warnings**.
 - Unity EditMode rerun 2026-08-01: **20 passed, 0 failed**.
-- Unity **PlayMode** first run 2026-08-01: **7 passed, 0 failed**, headless via
-  `-runTests -testPlatform PlayMode`, exit code 0. First automated coverage of gameplay
-  behaviour rather than geometry.
+- Unity **PlayMode** 2026-08-01: **15 passed, 0 failed**, exit code 0, repeated across two
+  consecutive headless runs to confirm the scene-loading tests are not flaky. First automated
+  coverage of gameplay behaviour rather than geometry.
 - `McpBootstrap` no longer starts the MCP bridge in batch mode. It retried 60 times against a
   server that cannot exist headlessly, and the package's connection errors failed whichever
   test fixture was active — the suite was non-deterministic before this was found.
@@ -251,18 +251,23 @@ version of that opening.
   collider violations, 0 wall collider violations, and 0 approach collider violations**.
 - Physics probes: representative wall and building rays hit their box colliders; the
   south gate walking ray remains clear; every city has five collider-backed approaches.
-- The last Windows x64 build was **138.51 MB with 0 build errors and 0 build warnings**, but
-  it predates the Kessil Bay rename and still lives under the old Iliac Bay build name. It
-  is historical regression evidence, not a current release candidate.
-- That historical packaged build's New Journey and Continue flows reached gameplay and
-  its `Player.log` reached `[GameSystems] P0/P1 systems online` with no managed exception
-  or project error.
+- Current Windows x64 build **2026-08-01: `Builds/Windows/Kessil.exe`, 138.6 MB, 0 errors**,
+  built headlessly in 24.1s via `BuildPlayerCommand.BuildWindows`. This replaces the stale
+  pre-rename `IliacBay.exe`, which still sits beside it in the (gitignored) build folder and
+  can be deleted.
+- The packaged player launches to the title screen with **0 exceptions or managed errors in
+  `Player.log`**. Driving it *through* gameplay is still manual; the New Game, Continue and
+  Return-to-Menu paths are now covered automatically in-editor instead.
 - Volume inspection confirms Color Adjustments, Vignette, and Bloom are real referenced
   components rather than null profile entries.
 
-The current automated tests do **not** prove save rollback, menu flow, combat, fast travel,
-story state, route convergence or packaged-player behavior. A new Kessil Bay Windows build
-and packaged smoke run are still required for the VS0 regression baseline.
+**The VS0 regression baseline is complete as of 2026-08-01.** Save rollback, menu flow, boot,
+fast travel, dialogue pause, death recovery and merchant economy are now covered
+automatically, and a current packaged build exists.
+
+What the tests still do **not** prove: combat depth beyond the merchant/economy path, story
+state, route convergence, and packaged-player behaviour past the title screen. Those arrive
+with VS1's systems and VS2's grey thread — there is nothing yet for them to test.
 
 ## Remaining issues and risks
 
@@ -299,13 +304,16 @@ and packaged smoke run are still required for the VS0 regression baseline.
   `ev.prisoner_testimony` is the required state flag. Failure and gear rules are now locked for
   all four routes in `Docs/CHAPTER01_BEATS.md`.
 - [x] Separate stable internal ids from display strings in world and story documentation.
-- [~] Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
-  purchase, fast travel, dialogue pause, death/rescue, and return to menu. **Started
-  2026-08-01:** `Game.PlayModeTests` assembly stood up and **7/7 green**, covering save/load
-  round trip, post-save rollback, older-schema rejection, corrupt-save handling, and merchant
-  payment (3 cases). Remaining: New Game, Continue, fast travel, dialogue pause, death/rescue,
-  return to menu.
-- [ ] Produce a current Kessil Bay Windows build and repeat the packaged launch smoke.
+- [x] Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
+  purchase, fast travel, dialogue pause, death/rescue, and return to menu. **Done 2026-08-01:**
+  `Game.PlayModeTests`, **15/15 green across two consecutive runs**. All eight categories
+  covered, plus older-schema rejection and corrupt-save handling. The New Game, Continue and
+  Return-to-Menu tests drive the real `Main` scene through `GameFlowController`.
+- [x] Produce a current Kessil Bay Windows build and repeat the packaged launch smoke.
+  **Done 2026-08-01:** `Builds/Windows/Kessil.exe`, 138.6 MB, 0 errors, built headlessly in
+  24.1s. The packaged player launches to the title with **0 exceptions in `Player.log`**.
+  Driving the packaged build *through* gameplay remains a manual step — but the flows it used
+  to be the only evidence for are now covered automatically in-editor.
 - [x] Create an asset ledger with source URL, version, license, proof/date, and whether source
   redistribution is allowed. [`Docs/ASSET_LEDGER.md`](Docs/ASSET_LEDGER.md) — everything is CC0
   except OFL fonts. Four missing licence files and unrecorded download dates are the only gaps.
