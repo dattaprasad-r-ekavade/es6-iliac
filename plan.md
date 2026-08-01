@@ -8,6 +8,9 @@ for the world premise and Chapters 02+
 **Gameplay flow authority:** [`Docs/GAMEPLAY_DESIGN.md`](Docs/GAMEPLAY_DESIGN.md) — navigation,
 dialogue, travel, combat scope and the Everspire-as-HUD decision
 
+**Picking this up cold?** Start at [`Docs/AGENT_HANDOFF.md`](Docs/AGENT_HANDOFF.md) — verification
+commands, invariants, known traps and the ordered work packets.
+
 **Target:** a vertical slice in which the complete authored opening chapter is playable end
 to end — shipwreck, rescue, character creation, King's audience, all four tutorial routes,
 the prince reveal, prison escape, cave-exit title crawl, confrontation and regime change,

@@ -7,6 +7,12 @@ in the north and arid Sarrakh in the south.
 > scaffolding. Everything inside the project has been renamed; the folder itself is the
 > last step and needs Unity closed. See the naming policy in [plan.md](plan.md).
 
+## Contributing or resuming work
+
+Start at [`Docs/AGENT_HANDOFF.md`](Docs/AGENT_HANDOFF.md) — it carries the authority map,
+verification commands, invariants, known traps and the ordered work packets. `CLAUDE.md` is
+the short version loaded automatically by Claude Code.
+
 ## Play
 1. Open `Assets/Scenes/Main.unity`
 2. Press **Play**
