@@ -19,8 +19,15 @@ WASD · mouse look · **Shift** sprint · Space jump · Esc unlock cursor
 **LMB/1** melee · **2** flare · **Q** potion · **F5** save · **F9** load
 
 ## Future plan
-See **[Docs/FEATURES_ROADMAP.md](Docs/FEATURES_ROADMAP.md)** — P0+P1 vertical slice is in; P2 is next (interiors, audio, denser art).
-Current hardening work and what's left: **[plan.md](plan.md)**.
+The free-roam P0+P1 prototype foundation exists, but the active deliverable is now the
+**complete Chapter 01 vertical slice** from `storyline.md`. VS0 is in progress: its
+42-beat contract is complete, while screenplay, blocking narrative locks, the regression
+snapshot and asset ledger remain. VS1 (persistent story architecture) is next, followed by
+VS2 (the end-to-end grey thread).
+
+Current goals: **[Docs/FEATURES_ROADMAP.md](Docs/FEATURES_ROADMAP.md)**. Detailed gates,
+risks and estimates: **[plan.md](plan.md)**. Beat contract:
+**[Docs/CHAPTER01_BEATS.md](Docs/CHAPTER01_BEATS.md)**.
 
 ## Rebuild
 **Kessil → Systems → Install P0+P1 + Rebuild World**  

@@ -1,6 +1,6 @@
 # Vertical slice plan — `storyline.md`, fully playable
 
-**Audit date:** 2026-07-28 · **Retargeted to the vertical slice:** 2026-07-29
+**Audit date:** 2026-08-01 · **Retargeted to the vertical slice:** 2026-07-29
 
 **Story authority:** `storyline.md`
 
@@ -15,6 +15,36 @@ with substantial replay-only content in the other three routes.
 
 **Studio:** DataTheCodie Studios · **Engine:** Unity 6000.5.3f1, URP 17.5 · **Platform:**
 Windows player
+
+**Current delivery goal:** finish VS0, then build VS1's persistent technical spine. The
+generic open-world P2 backlog is parked until the complete Chapter 01 grey thread passes
+VS2.
+
+### Plain-English stage names
+
+`VS` only means **Vertical Slice**. It is a stage number, not a feature or secret codename.
+
+| Short name | Plain-English meaning |
+|---|---|
+| VS0 | Finish planning the story and dialogue |
+| VS1 | Build the underlying save, scene, quest and dialogue systems |
+| VS2 | Make the entire story playable in rough grey boxes |
+| **Map Editor MVP** | Build the easy external world-layout editor before detailed environments |
+| VS3 | Replace the rough opening with the real shipwreck, rescue, creator and audience |
+| VS4 | Build the reusable route mechanics: sailing, stealth, locks, pickpocketing and companion AI |
+| VS5 | Build the four actual tutorial routes |
+| VS6 | Build the prince reveal, prison escape and cave title moment |
+| VS7 | Build the confrontation, new ruler and Caldemar handoff |
+| VS8 | Polish, test and package the complete chapter |
+
+Other repeated planning terms:
+
+- **Technical spine** = invisible foundations shared by every story scene.
+- **Grey thread** = the whole story works from beginning to end, but uses plain rooms,
+  placeholder text and simple actors.
+- **Convergence** = all four routes meet when the prince is found.
+- **Gate** = the test that must pass before moving to the next stage.
+- **Stable id** = an internal computer label; players and world authors never need to see it.
 
 ## Scope lock
 
@@ -61,10 +91,10 @@ Estimated readiness for the complete authored opening: **20–25%**.
 
 | Area | Readiness | Evidence |
 |---|---:|---|
-| Build and tooling | 80% | Windows build, asmdefs, compile checker, 15 EditMode tests |
+| Build and tooling | 80% | Windows build, asmdefs, compile checker, 20 EditMode tests |
 | Exterior-world foundation | 60% | elevated land, walled cities, roads, docks, collision, map/travel |
 | General gameplay prototype | 55% | movement, basic combat, inventory, NPCs, enemies, save/load |
-| Story architecture | 10% | complete outline exists; no story graph, flags, choices, or staged scenes |
+| Story architecture | 20% | 42-beat contract, stable ids, convergence and outcome matrix exist; no runtime graph or staged scenes |
 | Route-specific mechanics | 10–15% | basic combat/magic exist; sailing, stealth, locks, and pickpocketing do not |
 | Interiors, cinematics, and actors | 5–10% | useful source assets exist; no authored interiors, performances, or companion flow |
 | Audio, animation, and final feel | 10–15% | SFX library and fonts exist; actors are static and there is no narrative mix |
@@ -73,7 +103,7 @@ Estimated readiness for the complete authored opening: **20–25%**.
 Planning ranges, assuming one focused developer using existing low-poly assets:
 
 - **This vertical slice — every story beat playable, all four routes, greybox finish:**
-  69–106 focused days. Broken down in the milestone table below.
+  73–111 focused days. Broken down in the milestone table below.
 - **Presentable low-poly release candidate:** a further 25–40 days on top of the slice,
   mostly art, animation and audio.
 - **Fully voiced, bespoke cinematic quality:** a separate production tier measured in
@@ -82,15 +112,33 @@ Planning ranges, assuming one focused developer using existing low-poly assets:
 These are planning ranges rather than promises. The milestone gates below keep the full
 story intact while exposing technical or content problems early.
 
+## Current goals — 2026-08-01
+
+| Order | Goal | Current state | Exit condition |
+|---:|---|---|---|
+| 1 | **Close VS0** | In progress: the 42-beat sheet, registries, convergence contract and eight-path outcome matrix are done | screenplay, blocking narrative locks, regression snapshot and asset ledger complete |
+| 2 | **Build VS1** | Not started | Bootstrap/additive loading, data-driven story/dialogue, prefabbed runtime, SaveGameV4 and three-scene consequence proof pass |
+| 3 | **Prove VS2** | Not started | all 42 beats traversable as greybox on all four routes without editor intervention |
+| 4 | **Build the Map Editor MVP** | Queued after VS2 | edit and preview world layout without Unity before detailed environments are authored |
+| 5 | **Replace the grey thread with content** | Not started | VS3–VS7 gates pass in order |
+| 6 | **Package the slice** | Not started | VS8 route/outcome matrix, performance floor, second-machine build and blind playtests pass |
+
+Immediate work is therefore documentation and architecture, not more free-roam POIs,
+crafting, settlements or visual sprawl. Existing exploration systems stay working, but new
+work must serve a Chapter 01 beat or a VS1/VS2 dependency.
+
 ## What is actually in the project
 
 Verified in the repository and Unity Editor:
 
-- 29 runtime scripts, about 6.8k lines;
+- 30 runtime scripts, about 6.8k lines;
 - one generated `Main` scene;
 - a successful local Windows player (about 140 MB before this audit);
-- 15/15 EditMode tests passing, focused on geography, coast, terrain, routes, and layout invariants;
+- 20/20 EditMode tests passing as of 2026-08-01, focused on geography, terrain, routes,
+  stable ids and the locked art-direction palette;
 - 5 NPCs, 5 hostile spawns, 3 quests, and 8 discovery/travel markers;
+- prototype save schema v3 persists player stats, inventory, quests, discovery and killed
+  enemies, but has no scene, character-profile, route, evidence, companion or outcome state;
 - one 6.8 km generated bay with ten continuous elevated landmasses, three walled cities,
   five regional roads/causeways, and three islands;
 - CC0 environment packs, OFL fonts, UI/combat SFX, and a Blender-generated seven-piece
@@ -180,10 +228,11 @@ version of that opening.
 
 ## Current validation
 
-- `python Tools/compile-check.py`: Editor, Runtime, and Tests assemblies pass.
+- `python Tools/compile-check.py` rerun 2026-08-01: Editor (10 files), Runtime (30 files),
+  and Tests (2 files) assemblies pass.
 - Unity console after regeneration and title startup: **0 project errors, 0 project
   warnings**.
-- Unity EditMode: **15 passed, 0 failed**.
+- Unity EditMode rerun 2026-08-01: **20 passed, 0 failed**.
 - Live title, Continue, first-person Game view, city entrance, and coastline inspected
   after scene regeneration.
 - Scene audit: **2,042 GameObjects, 1,797 renderers, 905 colliders**; 894 are box
@@ -192,17 +241,18 @@ version of that opening.
   collider violations, 0 wall collider violations, and 0 approach collider violations**.
 - Physics probes: representative wall and building rays hit their box colliders; the
   south gate walking ray remains clear; every city has five collider-backed approaches.
-- Fresh Windows x64 release build: **138.51 MB, 0 build errors, 0 build warnings**.
-- Packaged New Journey and Continue flows both reached gameplay; the fresh 138.51 MB
-  build's Continue path skipped the intro and loaded the existing v2 slot onto the new
-  terrain.
-- Packaged `Player.log` reached `[GameSystems] P0/P1 systems online` with no managed
-  exception or project error.
+- The last Windows x64 build was **138.51 MB with 0 build errors and 0 build warnings**, but
+  it predates the Kessil Bay rename and still lives under the old Iliac Bay build name. It
+  is historical regression evidence, not a current release candidate.
+- That historical packaged build's New Journey and Continue flows reached gameplay and
+  its `Player.log` reached `[GameSystems] P0/P1 systems online` with no managed exception
+  or project error.
 - Volume inspection confirms Color Adjustments, Vignette, and Bloom are real referenced
   components rather than null profile entries.
 
 The current automated tests do **not** prove save rollback, menu flow, combat, fast travel,
-or packaged-player behavior. Those remain required gates below.
+story state, route convergence or packaged-player behavior. A new Kessil Bay Windows build
+and packaged smoke run are still required for the VS0 regression baseline.
 
 ## Remaining issues and risks
 
@@ -210,30 +260,32 @@ or packaged-player behavior. Those remain required gates below.
 
 *Delivered by VS0 and VS1. Nothing in the slice plan starts authoring until these are done.*
 
-- Convert `storyline.md` into a versioned chapter graph, scene list, dialogue screenplay,
-  cast sheet, evidence list, and outcome matrix. This is implementation detail, not an
-  opportunity to remove or replace authored beats.
-- Lock the continuity contract shared by all routes:
+- [x] Decompose `storyline.md` into 42 stable beats with owning scenes, system
+  dependencies, exit states and acceptance tests in `Docs/CHAPTER01_BEATS.md`.
+- [x] Lock the continuity contract shared by all routes:
   - the prince's location and condition at each stage;
   - which route-specific evidence enters the shared evidence inventory;
   - how each route reaches the same prison checkpoint without contradicting another;
   - how the prince and player reach the sea cave;
   - the cave exit as the title-crawl checkpoint;
   - how they safely return to confront the King after the title moment.
-- Choose the exact authored result for variables left open in `storyline.md`: whether the
-  King can be killed or imprisoned, whether the prince or another heir rules, and which
-  official title is granted. The underlying systems should support alternatives even if
-  the first playable version ships with one canon result.
-- Define allowed character-creation races, appearance controls, backgrounds, pronouns,
-  starting values, and how background/skill declaration maps to the four assignments.
-- Specify the speed route as intentional content: target time, mandatory information,
+- [x] Lock the outcome scope: the player chooses kill or imprison, the prince succeeds,
+  and the player becomes Crown Envoy.
+- [x] Lock the character-creation production ceiling: 3–4 ancestries using one shared body
+  and rig.
+- [ ] Finish the Chapter 01 screenplay and dialogue against the beat ids.
+- [ ] Name and characterize the principal cast; define the four ancestries, backgrounds,
+  starting values and their route recommendations.
+- [ ] Resolve why the rescue ship chooses Estmere and why the survivors receive a royal
+  audience. This blocks the screenplay's opening transition.
+- [ ] Define the Everspire pulse rules before VS3 authors the wreck and memory responses.
+- [ ] Specify the speed route as intentional content: target time, mandatory information,
   permitted skips, and state flags. It must be fastest without corrupting later quests.
-- Separate stable internal IDs from localized display strings. All name changes remain
-  deferred until the user supplies them.
-- Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
+- [x] Separate stable internal ids from display strings in world and story documentation.
+- [ ] Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
   purchase, fast travel, dialogue pause, death/rescue, and return to menu.
-- Add a packaged-player launch smoke check to CI or a repeatable local script.
-- Create an asset ledger with source URL, version, license, proof/date, and whether source
+- [ ] Produce a current Kessil Bay Windows build and repeat the packaged launch smoke.
+- [ ] Create an asset ledger with source URL, version, license, proof/date, and whether source
   redistribution is allowed.
 
 ### P1 — architecture and gameplay debt
@@ -253,7 +305,11 @@ or packaged-player behavior. Those remain required gates below.
 - Upgrade the save format to include current scene/spawn, character profile, story chapter
   and stage, flags, route, evidence, dialogue choices, companion state, King outcome,
   ruler state, granted title, opened locks, looted objects, and skipped cinematics.
-- Version the new save schema and migrate or safely reject current v2 prototype saves.
+- Version the new save schema and migrate, preserve as legacy sandbox, or safely reject
+  current v3 prototype saves.
+- The current Kessil prototype is already schema v3. The story-aware format must therefore
+  be **v4**, not v3; otherwise old stat/world saves could be accepted without route or
+  chapter state.
 - Continue is enabled by file existence; an old-version/corrupt save is rejected safely
   only after entering gameplay. Add lightweight header validation on the menu.
 - Add PlayMode coverage for generated city collision, gate clearance, harbor causeways,
@@ -336,7 +392,7 @@ Use one persistent scene and authored additive scenes. Do not keep expanding the
 | `Estmere_Palace` | first audience, questioning, assignment | one route locked |
 | `Estmere_Exterior` | current exterior extracted from `Main` | safe regional traversal |
 | `Tutorial_Warrior` | training and hunt/patrol | prince/evidence convergence payload |
-| `Estmere_MagesGuild` | spell training and delivery setup | access to restricted prison |
+| `Estmere_Arcanum` | spell training and delivery setup | access to restricted prison |
 | `Estmere_Harbor` | sailing and thief instruction | tower objective complete |
 | `Estmere_SecuredTower` | infiltration objective | evidence/prince route transition |
 | `Estmere_Prison` | general cells, solitary, soul operation, convergence | prince follows player |
@@ -368,7 +424,7 @@ contract, autosave policy, companion handoff, and recovery path if loading fails
 | `GameState` | gameplay, dialogue, cinematic, menu, loading, death; input/cursor/time ownership |
 | `SceneTransitionService` | additive load order, spawn placement, companion handoff, fade, failure recovery |
 | `CinematicRunner` | deterministic cues plus an idempotent end-state applied when watched or skipped |
-| `SaveGameV3` | atomic write/backup, profile plus all story/system state, scene/spawn, versioning, safe migration |
+| `SaveGameV4` | atomic write/backup, profile plus all story/system state, scene/spawn, versioning, safe v3 handling |
 
 Author content in ScriptableObjects or another inspectable data format; keep logic in
 reusable runtime systems. Dialogue, quest stages, and cutscene cues must not be buried in
@@ -421,12 +477,16 @@ crowd scale: named speaking roles are required, background populations are not.
 Nine milestones. Each has a gate that must be green before the next starts, because every
 later milestone depends on the state contract the previous one froze.
 
-Planning range for the whole slice: **69–106 focused days** for one developer using the
+Planning range for the whole slice: **73–111 focused days** for one developer using the
 existing kits. The grey thread (VS2) is the milestone that converts this plan from
 speculation into a measurable burn-down, and it should land inside the first three weeks.
 
 ### VS0 — story production package and regression baseline (4–6 days)
 
+- ✅ **Done 2026-07-29** — [`Docs/CHAPTER01_BEATS.md`](Docs/CHAPTER01_BEATS.md): 42 beats
+  with stable ids, owning scenes, system dependencies, exit states and acceptance tests,
+  plus the route/flag/evidence/cast registries, the convergence contract and the outcome
+  matrix.
 - Break `storyline.md` into numbered beats with ids, objectives, dialogue, choices and
   transition conditions. This is transcription and decomposition, not rewriting.
 - Write the screenplay pass for every scene: ship, rescue, processing, both audiences,
@@ -454,7 +514,7 @@ Build the systems the story sits on, before any story content exists.
   construction.
 - Data-driven quest stages, conditional dialogue, story flags, generic interaction, and the
   evidence record.
-- `CharacterProfile` and `SaveGameV3`: scene, spawn, profile, chapter, stage, route, flags,
+- `CharacterProfile` and `SaveGameV4`: scene, spawn, profile, chapter, stage, route, flags,
   evidence, companion state, outcomes. Header validation on the menu.
 - `CinematicRunner` with an idempotent end-state applied whether watched or skipped.
 - Extract the current exterior geography out of generated `Main` without destroying the
@@ -556,7 +616,7 @@ save/load and sequence breaks cannot strand progression.
 produces identical required state. The title card appears exactly once, at the authored
 cave checkpoint.
 
-### VS7 — confrontation, succession, and the handoff (8–12 days)
+### VS7 — confrontation, succession, and the handoff (10–14 days)
 
 - The return and confrontation path, including why the evidence can be presented rather
   than the player simply being rearrested.
@@ -578,7 +638,7 @@ reload, death, fast travel and scene re-entry all preserve ruler, law, NPC set, 
 quest stage. A blind player can state who rules Estmere, what changed, why their title
 matters, and why the Everspire matters.
 
-### VS8 — slice hardening and packaged build (8–12 days)
+### VS8 — slice hardening and packaged build (10–15 days)
 
 - Run the QA matrix below on clean saves and on upgraded development saves.
 - Bring the critical path to the readability bar: silhouettes, entrances, lighting,
@@ -608,14 +668,84 @@ machine with no editor and no developer present.
 | VS4 | Route mechanics toolkit | 7–11 |
 | VS5 | Four routes to convergence | 12–20 |
 | VS6 | Prison, escape, title moment | 8–12 |
-| VS7 | Confrontation, succession, handoff | 8–12 |
-| VS8 | Hardening and packaged build | 8–12 |
-| | **Total** | **69–106** |
+| VS7 | Confrontation, succession, handoff | 10–14 |
+| VS8 | Hardening and packaged build | 10–15 |
+| | **Total** | **73–111** |
 
 These are planning ranges, not commitments. The two ranges most likely to move are VS5
 (four routes) and VS4 (sailing and stealth, the least-proven mechanics). If the slice has
 to shrink, it shrinks by reducing route *depth* — never by removing a route, because
 `storyline.md` requires all four.
+
+## World-authoring goal — Kessil World Builder
+
+Build this in two steps:
+
+1. **During VS1:** move world data out of static C# arrays into versioned
+   `kessil.world.json`. This is plumbing only; the current map must still generate exactly
+   as before.
+2. **Immediately after VS2 and before VS3:** build the usable Tiled-backed Map Editor MVP.
+   At that point the whole story structure has been proven, but detailed environments have
+   not been authored, so coast, elevation, city, road and story-anchor edits do not force a
+   large art/content rebuild.
+
+The optional polished standalone 3D editor remains post-VS8. It is not needed to start
+authoring the improved world.
+
+This is viable and fits the project unusually well: `WorldLayout` already centralizes
+landmasses, biomes, sites and road spines, and the generator already rebuilds the world
+from those values. The problem is usability, not generation. Today those values are static
+C# arrays and terrain shapes are mostly ellipses plus seeded noise, so changing the world
+still means editing code and regenerating a destructive Unity scene.
+
+### Recommended route
+
+Start with **Tiled** as the easy external 2D authoring surface, then add a Kessil importer,
+validator and one-click headless preview. Tiled is free/open source, supports large maps,
+painted tile layers, polygons, polylines, custom properties, JSON and JavaScript extensions.
+It can therefore prove the workflow before time is spent building a bespoke GUI.
+
+Suggested authoring layers:
+
+- `Elevation` — painted height bands or signed height values on a coarse cell grid;
+- `Biome` — Halbrand, Sarrakh, coast, rock, forest and city-ground masks;
+- `Land` / `Water` — editable coast polygons rather than fixed ellipses;
+- `Roads`, `Rivers`, `Walls` — polylines with width/material/type properties;
+- `Cities` — build-zone polygons with gates, districts, docks and flatten heights;
+- `Sites` — cities, POIs, fast-travel anchors and discovery radii;
+- `StoryAnchors` — stable beat/spawn ids for Chapter 01 and later chapters;
+- `Exclusions` — no-foliage, no-building, encounter and navigation-control zones.
+
+The source of truth becomes a versioned `kessil.world.json`, not a Unity scene and not
+hand-edited C#. A converter reads Tiled JSON, validates stable ids and geometry, writes the
+runtime format, invokes Unity headlessly, and produces a playable build plus top-down and
+perspective preview images. The normal workflow requires no Unity Editor interaction.
+
+### Tool fit
+
+| Tool | Best use here | Limitation |
+|---|---|---|
+| [Tiled](https://www.mapeditor.org/) | recommended macro map, elevation/biome painting, roads, zones, POIs and metadata | 2D authoring; needs generated 3D previews |
+| [Gaea](https://www.quadspinner.com/) | optional natural terrain/erosion heightmaps and masks | weak for cities, walls, quests and precise gameplay layout |
+| [TrenchBroom](https://trenchbroom.github.io/) | optional fast brush-built interiors, caves and compact city blocks | not a regional terrain/world-map editor; requires a custom importer |
+| [Crocotile 3D](https://www.crocotile3d.com/) | simple low-poly modular props and compact tile-built spaces | scene/asset modeller, not authoritative world data |
+
+### Delivery range
+
+- **8–14 focused days:** data refactor, Tiled project/template, importer, validation,
+  undo-safe source files and one-click headless rebuild with preview screenshots.
+- **A further 10–20 days:** dedicated standalone 3D preview, elevation sculpt brushes,
+  prefab palette, live validation, autosave, undo/redo and polished non-technical UX.
+
+The 8–14 day MVP is additional to the 73–111 day story-slice estimate, making the combined
+story-plus-editor planning range **81–125 focused days**. The optional post-slice 3D polish
+is not included in that total.
+
+**Gate:** a non-Unity user can move a coastline, paint elevations/biomes, redraw a road,
+place a city gate and story spawn, press one Build/Preview button, and receive a valid
+Kessil world without editing C# or opening the Unity Editor. Existing stable ids and saves
+survive geometry changes, and invalid water/road/spawn configurations are rejected with
+plain-language errors.
 
 ## Art direction — locked 2026-07-29
 
@@ -775,7 +905,7 @@ animation needs cannot.
 ## Dependencies and critical path
 
 1. Story graph, IDs, and outcome locks precede final dialogue and save schema.
-2. Bootstrap, scene loading, `GameState`, interactions, quest stages, and Save V3 precede
+2. Bootstrap, scene loading, `GameState`, interactions, quest stages, and Save V4 precede
    branch authoring.
 3. Character profile precedes survivor processing and every later player spawn.
 4. Detection/locks/pickpocket/sailing precede the Commerce/Thief route.
@@ -898,7 +1028,7 @@ notices. Two things to know:
   credits; the in-game HUD keeps its own language.
 
 The existing portfolio is Android and bite-sized; this is a Windows open-world RPG chapter
-of 69–106 focused days. That is a deliberate platform and scale change rather than an
+of 73–111 focused days. That is a deliberate platform and scale change rather than an
 extension of current work, and the slice is the cheapest honest test of whether it holds.
 
 ## Narrative and production locks still to resolve
@@ -906,26 +1036,37 @@ extension of current work, and the slice is the cheapest honest test of whether 
 These choices fill implementation gaps left open by the outline; they do not change its
 scope.
 
-1. King and prince identities, appearances, factions, and final dialogue voices.
-2. Tower pulse rules, its causal link to the shipwreck/soul operation, and why the player
-   remembers only part of the event.
-3. Why the rescue ship selects Estmere and why a castaway is brought before the King.
-4. The exact evidence set available on all routes and why the court accepts it.
-5. Supported character races, bodies, appearances, backgrounds, pronouns, and starter
-   equipment.
-6. Tutorial failure rules, gear carryover, and the measured target for the None route.
-7. Whether the King outcome is a player choice or one fixed result, with consequences.
-8. Whether the prince or another legitimate heir succeeds; both are permitted by the
-   story, but content production needs one initial authored answer.
-9. Final official player title and how it appears in dialogue/journal/save metadata.
-10. Subtitle standard and, after the slice, localization scope. *(Protagonist voicing is
-    resolved for the slice: silent, subtitles only.)*
-11. Frame-rate and memory floor at the five stress locations. *(Platform is resolved:
-    Windows player, keyboard and mouse.)*
+**Resolved 2026-07-29** and recorded in [`Docs/CHAPTER01_BEATS.md`](Docs/CHAPTER01_BEATS.md):
 
-Items 1–9 block VS0 and must be answered before authoring starts; they are cheap to decide
-and expensive to change once four routes reference them. Items 10–11 can be settled during
-VS8.
+- **King's fate — a player choice**, kill or imprison. Costs a second authored outcome and
+  doubles the route matrix to eight end-to-end runs; VS7 and VS8 are re-estimated above to
+  absorb it. The beat sheet caps what may differ between branches, which is what keeps the
+  doubling affordable.
+- **Successor — the prince is crowned.** No new character arrives late in the chapter; the
+  cost is that the prince cannot accompany the player to Caldemar.
+- **Player title — Crown Envoy.** Neutral about the ruler and still meaningful in the next
+  chapter.
+- **Character creation — moderate, 3–4 ancestries**, implemented as head/skin/hair variants
+  on **one shared body and rig**. Distinct per-ancestry meshes are out of scope; that is
+  what reconciles this with the one-humanoid-base rule in the art direction lock.
+- **Evidence set — defined.** One unique item per route plus two shared, so the
+  confrontation always has at least three.
+
+Still open:
+
+1. King and prince identities, appearances, factions, and final dialogue voices.
+2. Tower pulse rules, its relationship (if any) to the soul-binding operation, and why the
+   player remembers only part of the event.
+3. Why the rescue ship selects Estmere and why a castaway is brought before the King.
+4. The four ancestries: names, regional origin, and starting values.
+5. Tutorial failure rules, gear carryover, and the measured target for the None route.
+6. Subtitle standard and, after the slice, localization scope. *(Protagonist voicing is
+   resolved for the slice: silent, subtitles only.)*
+7. Frame-rate and memory floor at the five stress locations. *(Platform is resolved:
+   Windows player, keyboard and mouse.)*
+
+Items 1 and 3 block the screenplay and therefore block VS0. Items 2, 4 and 5 must be locked
+before their owning VS3–VS5 content begins. Items 6–7 may be settled during VS8.
 
 The cave-exit title position and all four route contents are already locked by this plan.
 Setting names are locked by the naming policy above; only character names remain open
@@ -948,8 +1089,9 @@ The single number worth tracking after VS2: **beats replaced with real content, 
 VS0 beat total.** Before VS2 that number is meaningless, because the structure holding the
 beats is not yet proven.
 
-Current conclusion: **the complete story is viable as a playable slice, but most of its
-visible content and all of its branching infrastructure are still pending**. The next
-decisive deliverable is VS0's validated story graph and answered locks, then VS1's
-three-scene save/load/consequence proof, then VS2's grey thread — the first build in which
-`storyline.md` can be walked from end to end.
+Current conclusion: **the complete story is viable as a playable slice, but most visible
+content and all runtime branching infrastructure are still pending**. The VS0 beat graph,
+stable ids, convergence contract and outcome matrix are complete. The immediate goal is to
+finish the screenplay, the two blocking narrative locks, the regression snapshot and asset
+ledger; then begin VS1's three-scene save/load/consequence proof. VS2 remains the first
+build in which `storyline.md` can be walked from end to end.

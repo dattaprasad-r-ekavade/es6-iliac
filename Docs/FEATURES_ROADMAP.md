@@ -4,11 +4,63 @@ An open-world first-person RPG set on **Kessil Bay**, between the temperate nort
 (Halbrand) and the arid south (Sarrakh). Original setting, writing and layout; art is
 CC0 / licensed packs plus generated kits, tracked in `Assets/ThirdParty/ATTRIBUTION.md`.
 
-Use this doc to plan future work. Check items off as they land.
+Use this doc to track the active delivery goals. `plan.md` owns estimates and gates;
+`Docs/CHAPTER01_BEATS.md` owns the 42-beat story contract.
 
 ---
 
-## North star
+## Active goal: complete Chapter 01
+
+The active deliverable is a content-complete, quality-reduced vertical slice in which the
+entire `storyline.md` opening is playable on all four routes through the Crown Council
+handoff. The story is not being shortened. Free-roam expansion is parked until VS2 proves
+the whole chapter can be traversed without editor intervention.
+
+| Priority | Milestone | Status | Goal / gate |
+|---:|---|---|---|
+| 1 | **VS0 — story package and regression baseline** | **In progress** | finish screenplay, blocking narrative locks, regression snapshot and asset ledger |
+| 2 | **VS1 — persistent technical spine** | Not started | three additive scenes prove branching, evidence, companion, mutation and SaveGameV4 |
+| 3 | **VS2 — rough complete story** | Not started | all 42 beats traversable on all four routes from New Game to Caldemar |
+| 4 | **Map Editor MVP** | Queued after VS2 | edit terrain, biomes, coasts, roads, cities and story anchors without opening Unity |
+| 5 | **VS3 — real opening** | Not started | ship through the four audience assignments is real content |
+| 6 | **VS4 — reusable route mechanics** | Not started | combat/magic hooks, sailing, stealth, locks, pickpocket and companion systems proven |
+| 7 | **VS5 — four real routes** | Not started | four authored routes satisfy the shared convergence contract |
+| 8 | **VS6 — prison and escape** | Not started | prince reveal, evidence, escort and one-time cave title moment complete |
+| 9 | **VS7 — ending and handoff** | Not started | both King outcomes, coronation, Crown Envoy title and Caldemar handoff persist |
+| 10 | **VS8 — polish and package** | Not started | eight route/outcome runs, packaged build and blind playtests pass |
+| 11 | **Advanced 3D map-editor polish** | Optional after VS8 | direct 3D preview, sculpt brushes, prefab palette and polished UX |
+
+### VS0 remaining checklist
+
+- [x] 42 beats with stable ids, scenes, dependencies, exit states and acceptance tests
+- [x] Route, flag, evidence and cast-role registries
+- [x] Four-route convergence contract
+- [x] King kill/imprison outcome matrix; prince successor; Crown Envoy title
+- [x] Character-creator production ceiling: 3–4 ancestries, one shared body/rig
+- [ ] Name and characterize the principal cast
+- [ ] Explain why the rescue ship chooses Estmere and why survivors receive a royal audience
+- [ ] Write the screenplay/dialogue pass against beat ids
+- [ ] Snapshot the current compile, tests, scene, saves and packaged player
+- [ ] Complete the asset/source/license ledger
+
+### Work intentionally parked until VS2
+
+- New free-roam settlements, dungeons, radiant jobs, crafting, housing and marriage
+- Broad world-density passes outside the Chapter 01 critical path
+- Horses or unrestricted global sailing
+- Additional generic quests beyond regression maintenance
+- Controller/localization/final accessibility work beyond the slice cut-line
+
+### Queued world-authoring tool
+
+During VS1, move the world definition into versioned JSON. Immediately after VS2, build a
+Tiled-backed Kessil World Builder before detailed environment production begins. The first
+version uses an external 2D map editor plus a project-specific importer, validators and
+one-click headless Unity preview. A polished standalone 3D editor is an optional post-VS8
+stage. See the “World-authoring goal” in [plan.md](../plan.md) for layers, alternatives,
+estimates and its gate.
+
+## Long-term product north star
 
 The genre targets this project is built against:
 
@@ -23,10 +75,15 @@ The genre targets this project is built against:
 
 ---
 
-## Current baseline (as of 2026-07)
+## Current baseline (as of 2026-08-01)
 
 ### Done
 - [x] Unity 6 + URP project, MCP agent workflow
+- [x] Original Kessil Bay setting rename applied in project settings, code, scene and docs
+- [x] Locked Morrowind Clean art-direction palette with automated drift tests
+- [x] Chapter 01 decomposed into 42 stable beats with route/convergence/outcome contracts
+- [x] Compile check passes for 10 Editor, 30 Runtime and 2 Test files (2026-08-01)
+- [x] Latest EditMode run: 20/20 passed (2026-08-01)
 - [x] Kessil Bay landmass layout (Halbrand N / Sarrakh S / bay / islands)
 - [x] Cities: **Caldemar**, **Estmere**, **Qadris** (district streets, walls, gates, docks, name signs)
 - [x] Cities ~**4 km** apart (not “one jump”)
@@ -38,6 +95,9 @@ The genre targets this project is built against:
 - [x] Blender 4.5 LTS + Blender MCP scaffolding (`Tools/BlenderMCP/`)
 
 ### Known gaps / pain points
+- [ ] No Chapter 01 runtime architecture or authored story scenes yet
+- [ ] Only one destructive generated `Main` scene; no persistent Bootstrap/additive scenes
+- [ ] Latest packaged build predates the Kessil Bay rename and must be regenerated
 - [x] Trees ground-snapped + distance cull (biome pools) — further art polish still welcome
 - [x] World map UI (M) + discovery fog list
 - [x] Fast travel to discovered markers
@@ -61,9 +121,13 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 
 ---
 
-## Priority backlog (plan in this order)
+## Legacy prototype backlog — parked during Chapter 01
 
-### P0 — Foundation polish (next sessions)
+The checklists below describe the pre-story sandbox. They remain useful history and
+maintenance context, but they are **not the active execution order**. New work comes from
+VS0–VS8 above unless it fixes a regression in an existing system.
+
+### Former P0 — foundation polish
 
 #### 1. Fix trees / foliage
 - [x] Ground-snap trees with raycast onto land colliders
@@ -98,7 +162,7 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 
 ---
 
-### P1 — core loop feature parity — vertical slice landed 2026-07-26
+### Former P1 — core loop prototype landed 2026-07-26
 
 #### Exploration & world
 - [x] Roads between Caldemar↔Estmere + bandit road
@@ -140,7 +204,7 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 
 ---
 
-### P2 — Depth & fidelity
+### Former P2 — depth and fidelity (parked)
 
 - [ ] Interiors (inns, keeps, shops) with load doors or seamless
 - [ ] Lockpicking / pickpocket / crime & bounty
@@ -156,7 +220,10 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 
 ---
 
-## Suggested milestones
+## Superseded prototype milestones
+
+These M1–M7 milestones predate the Chapter 01 retarget. They are retained as historical
+context; VS0–VS8 are now authoritative.
 
 | Milestone | Theme | Exit criteria |
 |---|---|---|
@@ -240,11 +307,17 @@ Rules:
 
 ## Open questions
 
-1. Seamless open world vs cell streaming (cities as scenes)?
-2. First-person only, or a third-person toggle?
-3. Magic-heavy vs low-fantasy Kessil Bay tone?
-4. Multiplayer? (default **no** — single-player)
-5. Target platform beyond Windows editor/player?
+Resolved for the slice: additive authored scenes, first-person, single-player, Windows,
+keyboard/mouse, silent protagonist, subtitles, and the locked Morrowind Clean art direction.
+
+Still open:
+
+1. King/prince and supporting-character names, appearances and factions.
+2. Why the rescue ship chooses Estmere and why the survivors receive a royal audience.
+3. Everspire pulse rules and the player's partial memory.
+4. Four ancestry names, origins and starting values.
+5. Tutorial failure/gear carryover rules and the Refuse-route target time.
+6. Slice frame-time and memory floor at the five stress locations.
 
 ---
 
@@ -265,4 +338,5 @@ Rules:
 | 2026-07-24 | Large cities, skip dialogue, Pirate kit, roadmap created | M1: trees + weather + time |
 | 2026-07-26 | **P0+P1 vertical slice shipped** — trees ground-snap + cull; time/weather; map+FT; combat; NPCs; quests; HUD; save/load; roads/POIs | P2 interiors / denser assets |
 | 2026-07-26 | **Prototype hardening** — git + LFS; `WorldLayout` single source of truth; physics layers replace name-matching; spawn-pile bug fixed; POIs moved onto land; causeway roads; foliage culling collapsed to one system; save versioning | Prefabs for player/NPC/systems; texture budget; tests |
+| 2026-08-01 | Scope synchronized around the complete 42-beat Chapter 01 slice; VS0 beat graph complete; compile check green; legacy free-roam backlog parked | Finish VS0 screenplay, blocking locks, regression snapshot and asset ledger |
 | | | |
