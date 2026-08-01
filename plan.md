@@ -5,6 +5,9 @@
 **Story authority:** `storyline.md` for Chapter 01 · [`Docs/STORY_ARC.md`](Docs/STORY_ARC.md)
 for the world premise and Chapters 02+
 
+**Gameplay flow authority:** [`Docs/GAMEPLAY_DESIGN.md`](Docs/GAMEPLAY_DESIGN.md) — navigation,
+dialogue, travel, combat scope and the Everspire-as-HUD decision
+
 **Target:** a vertical slice in which the complete authored opening chapter is playable end
 to end — shipwreck, rescue, character creation, King's audience, all four tutorial routes,
 the prince reveal, prison escape, cave-exit title crawl, confrontation and regime change,
@@ -419,14 +422,14 @@ contract, autosave policy, companion handoff, and recovery path if loading fails
 | `StoryState` | chapter, stage, selected route, flags, choices, outcome, title |
 | `StoryDirector` | sole authority for beat transitions, idempotent actions, checkpoints, and route convergence |
 | `QuestDefinition` / `QuestStage` | objectives, conditions, transitions, failure/recovery, map markers |
-| `DialogueGraph` | conditional lines, choices, effects, subtitles, speaker/camera cues |
-| `EvidenceRecord` | source route, inspected state, legal weight, confrontation availability |
+| `DialogueGraph` | **topic-based, not tree-based** — keyword hypertext with conditional responses, choices, effects, subtitles, speaker/camera cues. See `Docs/GAMEPLAY_DESIGN.md`; this is the one delta with a VS1 deadline |
+| `EvidenceRecord` | source route, inspected state, legal weight, confrontation availability, **full readable document body** — evidence is shown, never summarised into a journal line |
 | `Interactable` | inspect, talk, loot, use, open, lockpick, pickpocket, activate, board |
 | `DoorAndLock` | keys, difficulty, lock state, animation, crime/noise response |
 | `DetectionSystem` | sight, hearing, suspicion, alert, concealment, route tutorial feedback |
 | `PickpocketSystem` | target inventory, chance/skill rule, detection, consequence |
 | `SailingController` | board, steer, throttle, disembark, reset, objective corridor |
-| `CompanionController` | prince follow/wait/teleport recovery, combat policy, scene handoff |
+| `CompanionController` | prince follow/wait/teleport recovery, combat policy, scene handoff. **Authored sequences only** — no open-world travel companions, so it never has to survive ferries, private sailing or arbitrary world save/load |
 | `WorldMutation` | King/ruler swap, guards/dialogue, prison policy, banners, blocked/open areas |
 | `GameState` | gameplay, dialogue, cinematic, menu, loading, death; input/cursor/time ownership |
 | `SceneTransitionService` | additive load order, spawn placement, companion handoff, fade, failure recovery |
@@ -463,7 +466,13 @@ if someone explains it, or that needs the editor to get past, is not in the slic
 
 Deferred to a later production tier, and listed here so they are not smuggled in:
 
-- Voice acting. Silent protagonist, subtitles only.
+- Voice acting. Silent protagonist, subtitles only. Generated cutscene voice is planned for
+  the release-candidate tier; the slice builds the audio hooks and ships silent, because what
+  the slice must prove is the cutscene state contract, not its performance. **The protagonist
+  is silent permanently** — that is what keeps topic dialogue affordable.
+- Conjuration, summons, and open-world travel companions. Cut outright, not deferred; see
+  `Docs/GAMEPLAY_DESIGN.md`.
+- Diving and underwater content. Swimming is surface-only and deliberately slow.
 - Animation beyond a minimum set: locomotion, attack, block, hit, cast, death, and the
   handful of story-critical performances (imprisonment, the King's removal).
 - Final art, lighting and material passes; interiors beyond what a beat requires; world
@@ -974,9 +983,14 @@ References: [Adobe Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo
 [Sonniss GDC bundle license](https://sonniss.com/gdc-bundle-license/).
 
 No third-party game's meshes, textures, audio, music, writing, logos, names, or UI art
-belong in the deliverable, and no third-party game is named in project material. The UI
-target is described by its own terms — restrained hierarchy, carved stone, aged parchment,
-muted bronze — not by reference to another title.
+belong in the deliverable, and no third-party game is named in **shipped or distributed
+material** — the build, its UI, credits, store text, or marketing. The UI target is described
+there by its own terms — restrained hierarchy, carved stone, aged parchment, muted bronze —
+not by reference to another title.
+
+**Internal planning documents may name other games as design benchmarks**, because their
+design philosophies are the shorthand being used. `plan.md`'s art direction section and
+[`Docs/GAMEPLAY_DESIGN.md`](Docs/GAMEPLAY_DESIGN.md) both do so deliberately.
 
 ## Naming policy — applied 2026-07-29
 
