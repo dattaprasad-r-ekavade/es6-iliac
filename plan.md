@@ -2,7 +2,8 @@
 
 **Audit date:** 2026-08-01 · **Retargeted to the vertical slice:** 2026-07-29
 
-**Story authority:** `storyline.md`
+**Story authority:** `storyline.md` for Chapter 01 · [`Docs/STORY_ARC.md`](Docs/STORY_ARC.md)
+for the world premise and Chapters 02+
 
 **Target:** a vertical slice in which the complete authored opening chapter is playable end
 to end — shipwreck, rescue, character creation, King's audience, all four tutorial routes,
@@ -116,7 +117,7 @@ story intact while exposing technical or content problems early.
 
 | Order | Goal | Current state | Exit condition |
 |---:|---|---|---|
-| 1 | **Close VS0** | In progress: the 42-beat sheet, registries, convergence contract and eight-path outcome matrix are done | screenplay, blocking narrative locks, regression snapshot and asset ledger complete |
+| 1 | **Close VS0** | In progress: the 42-beat sheet, registries, convergence contract, eight-path outcome matrix and all blocking narrative locks are done | screenplay, regression snapshot and asset ledger complete |
 | 2 | **Build VS1** | Not started | Bootstrap/additive loading, data-driven story/dialogue, prefabbed runtime, SaveGameV4 and three-scene consequence proof pass |
 | 3 | **Prove VS2** | Not started | all 42 beats traversable as greybox on all four routes without editor intervention |
 | 4 | **Build the Map Editor MVP** | Queued after VS2 | edit and preview world layout without Unity before detailed environments are authored |
@@ -273,14 +274,20 @@ and packaged smoke run are still required for the VS0 regression baseline.
   and the player becomes Crown Envoy.
 - [x] Lock the character-creation production ceiling: 3–4 ancestries using one shared body
   and rig.
-- [ ] Finish the Chapter 01 screenplay and dialogue against the beat ids.
-- [ ] Name and characterize the principal cast; define the four ancestries, backgrounds,
-  starting values and their route recommendations.
-- [ ] Resolve why the rescue ship chooses Estmere and why the survivors receive a royal
-  audience. This blocks the screenplay's opening transition.
-- [ ] Define the Everspire pulse rules before VS3 authors the wreck and memory responses.
-- [ ] Specify the speed route as intentional content: target time, mandatory information,
-  permitted skips, and state flags. It must be fastest without corrupting later quests.
+- [ ] Finish the Chapter 01 screenplay and dialogue against the beat ids. **Unblocked as of
+  2026-08-01** — both narrative locks that gated it are closed.
+- [x] Name and characterize the principal cast, and define the four ancestries and their
+  origins. House Selwyn, six named recurring roles, four regional ancestries. Only ancestry
+  *starting values* remain, and they are a VS3 item.
+- [x] Resolve why the rescue ship chooses Estmere and why the survivors receive a royal
+  audience. **The rescue ship is the King's own**, searching the prince's route; one premise
+  answers both.
+- [x] Define the Everspire pulse rules before VS3 authors the wreck and memory responses.
+  **Cause deferred to later chapters; effect authored** — memory disruption for everyone who
+  was on the water.
+- [ ] Specify the speed route as intentional content. **Target time locked at 15 minutes**;
+  mandatory information, permitted skips and state flags still to specify. It must be
+  fastest without corrupting later quests.
 - [x] Separate stable internal ids from display strings in world and story documentation.
 - [ ] Add PlayMode smoke tests for New Game, Continue, save → kill → load rollback, merchant
   purchase, fast travel, dialogue pause, death/rescue, and return to menu.
@@ -985,6 +992,7 @@ setting throughout: code, scene object names, editor menus, product name, docs, 
 | Regions | Kelrith Coast, Karnoth Highlands, Sarrakh Waste, Kiln Hills |
 | River | the Esk |
 | Cities | Caldemar (`city_west`), Estmere (`city_east`), Qadris (`city_south`) |
+| Planned city | Aldreth (`city_north`), Karnoth Highlands — Chapters 02+ only; **not in `WorldLayout` and not built** |
 | Islands | Tolm (`isle_west`), Corrath (`isle_center`), Sarn (`isle_south`) |
 | Landmark | the Everspire, on Corrath |
 | Foreign order | the Ivory Concord |
@@ -1052,25 +1060,47 @@ scope.
 - **Evidence set — defined.** One unique item per route plus two shared, so the
   confrontation always has at least three.
 
+**Resolved 2026-08-01** and recorded in [`Docs/CHAPTER01_BEATS.md`](Docs/CHAPTER01_BEATS.md)
+under “Premises”. These were the two locks blocking the screenplay, plus three that were
+due before VS3:
+
+- **Rescue and audience — the rescue ship is the King's own**, out searching the route his
+  son's ship took. Estmere is its home port and the nearest safe harbour. He wants the
+  player because his own crew pulled them from a wreck on that route. The idle-persons law
+  is retained as the legal frame that converts a witness into a conscript at B130, so B100's
+  edict is still required. The King is **not** staged on-screen during the rescue: B040's
+  blackout covers it, so character creation stays at the docks and no shipboard scene is
+  needed.
+- **Cast — House Selwyn.** King Osric Selwyn and Prince Terrin Selwyn. Six recurring roles
+  named; the rescue captain and processing guard stay as titles by decision.
+- **The King is a true believer.** Soul-binding is what he thinks feeds and defends Estmere.
+  B720 must give him a real argument, which is what makes B730 a choice rather than an
+  execution.
+- **The prince is a competent reformer**, intercepted before he could bring his alternative
+  home. B740 therefore leaves a stable settlement.
+- **Everspire pulse — cause unexplained and deferred to later chapters; effect authored.**
+  It disrupted the memory of everyone who was on the water, scaled by proximity. This is the
+  only rule VS3 needs; wider scope would be a main-story commitment this chapter has not
+  made.
+- **Ancestries — four, one per region** (Kelrith Coast, Karnoth Highlands, Sarrakh, isle-born
+  from Tolm or Sarn), appearance and origin only.
+- **`route.refuse` target — 15 minutes.** Aggressive; see the risk note in the beat sheet.
+
 Still open:
 
-1. King and prince identities, appearances, factions, and final dialogue voices.
-2. Tower pulse rules, its relationship (if any) to the soul-binding operation, and why the
-   player remembers only part of the event.
-3. Why the rescue ship selects Estmere and why a castaway is brought before the King.
-4. The four ancestries: names, regional origin, and starting values.
-5. Tutorial failure rules, gear carryover, and the measured target for the None route.
-6. Subtitle standard and, after the slice, localization scope. *(Protagonist voicing is
+1. Tutorial failure rules and gear carryover across the four routes.
+2. Starting values for the four ancestries.
+3. Subtitle standard and, after the slice, localization scope. *(Protagonist voicing is
    resolved for the slice: silent, subtitles only.)*
-7. Frame-rate and memory floor at the five stress locations. *(Platform is resolved:
+4. Frame-rate and memory floor at the five stress locations. *(Platform is resolved:
    Windows player, keyboard and mouse.)*
 
-Items 1 and 3 block the screenplay and therefore block VS0. Items 2, 4 and 5 must be locked
-before their owning VS3–VS5 content begins. Items 6–7 may be settled during VS8.
+**Nothing on this list blocks the screenplay or VS0.** Items 1–2 must be locked before their
+owning VS3–VS5 content begins. Items 3–4 may be settled during VS8.
 
 The cave-exit title position and all four route contents are already locked by this plan.
-Setting names are locked by the naming policy above; only character names remain open
-(item 1).
+Setting names are locked by the naming policy above, and character names were locked on
+2026-08-01. No naming work remains open.
 
 ## Progress ledger
 
@@ -1091,7 +1121,8 @@ beats is not yet proven.
 
 Current conclusion: **the complete story is viable as a playable slice, but most visible
 content and all runtime branching infrastructure are still pending**. The VS0 beat graph,
-stable ids, convergence contract and outcome matrix are complete. The immediate goal is to
-finish the screenplay, the two blocking narrative locks, the regression snapshot and asset
-ledger; then begin VS1's three-scene save/load/consequence proof. VS2 remains the first
-build in which `storyline.md` can be walked from end to end.
+stable ids, convergence contract, outcome matrix and every blocking narrative lock are
+complete. The immediate goal is to write the screenplay — now unblocked — and to build the
+regression snapshot and asset ledger; then begin VS1's three-scene save/load/consequence
+proof. The screenplay and the VS1 spine do not depend on each other and should run in
+parallel. VS2 remains the first build in which `storyline.md` can be walked from end to end.

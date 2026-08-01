@@ -3,10 +3,15 @@
 **Source of truth:** `storyline.md`. This file decomposes it; it does not extend it. If a
 beat here is not traceable to a sentence there, it is wrong.
 
+**World facts:** [`Docs/STORY_ARC.md`](STORY_ARC.md) holds the crystal-economy premise, the
+Everspire truth and Chapters 02+. Chapter 01 must not contradict it, and its “What Chapter 01
+must plant” section is required reading before the screenplay pass.
+
 **Status (2026-08-01):** the VS0 beat-graph deliverable is complete. Beat structure,
 registries, convergence and outcome contracts are locked; dialogue is summarised, not
-written. VS0 as a milestone is still **in progress** until the screenplay, two blocking
-narrative locks, regression snapshot and asset ledger are complete.
+written. The two screenplay-blocking narrative locks were closed on 2026-08-01 and are
+recorded under “Premises” and “Resolved locks” below. VS0 as a milestone is still
+**in progress** until the screenplay, regression snapshot and asset ledger are complete.
 
 ## How to use this
 
@@ -76,20 +81,103 @@ Every route contributes exactly one unique item. `ev.black_crystal` and
 
 ### Cast
 
-Names are placeholders — narrative lock 1 is still open. Role ids are not.
+Named 2026-08-01. Recurring roles carry personal names; two single-scene roles stay as
+titles by decision, not by omission. Role ids remain the only thing code may branch on.
 
-| Id | Role | Scenes | Notes |
-|---|---|---|---|
-| `role.king` | King of Estmere | B090–B130, B700–B730 | the antagonist; outcome is a player choice |
-| `role.prince` | His son and heir | B600–B760 | companion from B630, ruler from B740 |
-| `role.rescue_captain` | Pulls the player from the water | B050–B060 | one scene, high impression |
-| `role.processing_guard` | Survivor triage | B070–B090 | delivers the idle-persons law |
-| `role.instructor_warrior` | Guard-yard trainer | B200–B210 | |
-| `role.instructor_mage` | Arcanum tutor | B300–B310 | |
-| `role.instructor_trade` | Dock crew lead | B400–B410 | |
-| `role.prisoner_a` | Exposition, general population | B510 | becomes `ev.prisoner_testimony` |
-| `role.prisoner_b` | Second voice, avoids one lecture | B510 | |
-| `role.council_contact` | Crown Council representative | B820–B830 | sets up the next chapter |
+| Id | Name | Role | Scenes | Notes |
+|---|---|---|---|---|
+| `role.king` | **Osric Selwyn** | King of Estmere | B090–B130, B700–B730 | the antagonist; outcome is a player choice |
+| `role.prince` | **Terrin Selwyn** | His son and heir | B600–B760 | companion from B630, ruler from B740 |
+| `role.rescue_captain` | *(title only)* | Captain of the King's ship | B050–B060 | commands the vessel that recovers the player; the King is aboard but unseen |
+| `role.processing_guard` | *(title only)* | Survivor triage | B070–B090 | registers survivors, delivers the idle-persons law and the summons |
+| `role.instructor_warrior` | **Armsmaster Alaric Thorne** | Guard-yard trainer | B200–B210 | |
+| `role.instructor_mage` | **Magister Seraphine Quill** | Arcanum tutor | B300–B310 | |
+| `role.instructor_trade` | **Harbourmaster Corvin Ashgrove** | Dock crew lead | B400–B410 | |
+| `role.prisoner_a` | **Bartholomew Reed** | Exposition, general population | B510 | becomes `ev.prisoner_testimony` |
+| `role.prisoner_b` | **Iris Falk** | Second voice, avoids one lecture | B510 | |
+| `role.council_contact` | **Councillor Lucien Ambrose** | Crown Council representative | B820–B830 | sets up the next chapter |
+
+House Selwyn is a long-established line, which is what makes the soul-binding operation
+read as a recent corruption of something once decent rather than a dynasty of villains.
+
+### Ancestries
+
+Four, one per region already on the map — appearance and origin only. Route assignment
+runs through declared inclination at B120, never through ancestry. Implemented as
+head/skin/hair variants on **one shared body and rig**, per the art direction lock.
+
+| Id | Origin | Look |
+|---|---|---|
+| `anc.coastal` | Kelrith Coast | pale, weathered, dock-born |
+| `anc.highland` | Karnoth Highlands | ruddy, heavy-featured |
+| `anc.southern` | Sarrakh | dark, desert-adapted |
+| `anc.isleborn` | Tolm or Sarn | mixed features; no standing in Estmere |
+
+`anc.isleborn` is the outsider option, and the one that best motivates a player who
+refuses the King at B130. Starting values are still open — see “Still open”.
+
+## Premises
+
+Locked 2026-08-01. These are the load-bearing facts the screenplay must honour. They fill
+gaps `storyline.md` left open; none of them contradicts it.
+
+### The rescue is the King's own ship
+
+The vessel that recovers the player is King Osric's ship, out on the water searching the
+route the prince's ship took. Estmere is both its home port and the nearest safe harbour,
+so the destination needs no further justification.
+
+This resolves the two questions that blocked the screenplay at once. The King wants to
+speak to the player because his own crew pulled them from a wreck on his son's route —
+they are a potential witness, not a random vagrant. The idle-persons law does not
+disappear; it becomes the legal frame that lets him convert a witness into a conscript at
+B130. That is tighter than the law alone, and B100's edict is still required.
+
+**The King is never staged on-screen during the rescue.** B040's blackout covers the whole
+recovery. The player wakes at the docks, registers at triage, and only then learns whose
+ship it was. This keeps character creation (B080) before the King ever sees the player,
+costs no new shipboard scene, and makes the audience read as a summons.
+
+### The character creator is diegetically a survivor registration
+
+B080 is the guards recording who came out of the water. This is why creation happens at
+triage rather than anywhere else, and it is how the King's summons can name the player.
+
+### The pulse: unexplained cause, observable effect
+
+**What the Everspire pulse is remains unexplained in this chapter** and is deferred to
+later chapters. `storyline.md` already frames it as a passing mention, so nothing here
+requires a theory of the Tower.
+
+The answer now exists — it is written down in [`Docs/STORY_ARC.md`](STORY_ARC.md) under
+“The Everspire — the truth”. **Chapter 01 must not hint at it.** Knowing the answer is for
+the writer's benefit only, so that nothing planted here has to be walked back later.
+
+**What it did is authored:** the pulse disrupted the memory of everyone who was on the
+water, scaled by proximity. The player is one of many survivors with gaps, and triage at
+B070 can show others in the same state.
+
+The chapter therefore seeds the Tower with evidence rather than assertion, and B110 works
+honestly: the King is knowingly questioning an unreliable witness, which makes his
+frustration real and makes *remembered*, *vague* and *no-memory* all truthful answers
+rather than one truth and two lies.
+
+This is the only pulse rule VS3 needs. Do not author scope beyond “everyone on the water”
+— anything wider is a main-story commitment this chapter has not made.
+
+### The King has a real case
+
+Osric genuinely believes soul-binding is what feeds and defends Estmere, and that his
+son's alternative would have starved the city. He is not sorry. B720 must give him that
+argument rather than a confession — it is what makes the choice at B730 a decision instead
+of an execution.
+
+### The prince earns the crown
+
+Terrin had a worked-out alternative to the crystal trade and was intercepted before he
+could bring it home. He is competent, not naive, so B740 leaves behind a stable
+settlement and the player reads as a decisive ally rather than the protagonist of his
+story.
 
 ## Beats
 
@@ -104,18 +192,18 @@ in `plan.md`'s systems table is a gap in that table.
 | B020 | Ivory Concord warships sighted on the horizon | `Prologue_Ship` | dialogue | player has seen the warships | warship silhouettes render at authored distance under locked fog |
 | B030 | Arcane pulse erupts from the Everspire | `Prologue_Ship` | cinematic, VFX, audio | pulse witnessed | watching and skipping set identical flags |
 | B040 | Shockwave; ship breaks; water entry; blackout | `Prologue_Ship` | cinematic, damaged variant | player in water, screen black | no physics state can strand the player mid-sequence |
-| B050 | Rescue ship pulls the player aboard | `Prologue_Ship` | scene transition | `flag.rescued` | prologue unloads without leaking actors |
+| B050 | The King's ship pulls the player aboard, under blackout | `Prologue_Ship` | scene transition | `flag.rescued` | the King is never on-screen here; prologue unloads without leaking actors |
 | B060 | Arrival at the Estmere docks | `Estmere_Docks` | transition, spawn | player at dock spawn | spawn places feet on ground, not 1 m above |
-| B070 | Survivors processed by guards | `Estmere_Docks` | dialogue, quest stage | triage complete | processing cannot be bypassed by walking away |
-| B080 | **Character creation** | `Estmere_Docks` | `CharacterProfile`, creator UI | `flag.profile_valid` | profile persists through save, reload and every later scene |
+| B070 | Survivors processed by guards; others show the same memory gaps | `Estmere_Docks` | dialogue, quest stage | triage complete | processing cannot be bypassed by walking away; at least one other survivor demonstrates the pulse effect |
+| B080 | **Character creation**, staged as survivor registration | `Estmere_Docks` | `CharacterProfile`, creator UI | `flag.profile_valid` | profile persists through save, reload and every later scene; the recorded name is what the summons later uses |
 
 ### Act 2 — the King's audience · `Estmere_Palace`
 
 | Id | Beat | Scene | Systems | Exit state | Acceptance test |
 |---|---|---|---|---|---|
-| B090 | Taken before the King under the idle-persons law | `Estmere_Palace` | transition, dialogue | player in throne room | arrival works from all triage outcomes |
-| B100 | The edict: "every soul must contribute" | `Estmere_Palace` | dialogue | edict heard | line foreshadows the operation without revealing it |
-| B110 | Questioned about the missing prince | `Estmere_Palace` | dialogue choices | response recorded | remembered / vague / no-memory all reach B120 |
+| B090 | Summoned before the King — it was his ship that recovered the player | `Estmere_Palace` | transition, dialogue | player in throne room | the summons names the player from the B080 registration; arrival works from all triage outcomes |
+| B100 | The edict: "every soul must contribute" | `Estmere_Palace` | dialogue | edict heard | line foreshadows the operation without revealing it, and supplies the legal frame for B130 |
+| B110 | Questioned about the missing prince | `Estmere_Palace` | dialogue choices | response recorded | remembered / vague / no-memory are all honest under the pulse rule and all reach B120 |
 | B120 | Player declares skill or inclination | `Estmere_Palace` | dialogue choices, profile | inclination recorded | every background maps to exactly one route |
 | B130 | **Route assignment** | `Estmere_Palace` | `StoryDirector` | `flag.route` set | refusal and invalid/default selection both resolve to `route.refuse` |
 
@@ -128,15 +216,15 @@ No route may depend on another having happened.
 | B200 | Guard-yard instruction: movement, melee, block, hit feedback | `Tutorial_Warrior` | combat tutorial hooks | basics demonstrated | safe spar cannot kill the player |
 | B210 | Hunt/patrol with a real encounter | `Tutorial_Warrior` | navigation, encounter pacing | patrol resolved | death or failure returns to a checkpoint, never a softlock |
 | B220 | A wounded prisoner is found in secret transport | `Tutorial_Warrior` | interaction, evidence | `ev.transport_order`, prince located | converges with valid payload |
-| B300 | Spell instruction: cast, resource, target | `Estmere_Arcanum` | magic tutorial hooks | basics demonstrated | practice space is nonlethal |
+| B300 | Spell instruction: cast, resource, target | `Estmere_Arcanum` | magic tutorial hooks | basics demonstrated | practice space is nonlethal; Quill plants climbing demand as an Arcanum *achievement* — new spells, more consumption — never as a warning |
 | B310 | Soul-crystal delivery to the restricted wing | `Estmere_Arcanum` | interaction, access rules | `ev.crystal_manifest` | restricted access cannot be entered early |
 | B320 | An accident opens a sealed cell | `Estmere_Prison` | staged event | prince located | the accident fires exactly once |
 | B400 | Sailing lesson, bounded and controllable | `Estmere_Harbor` | `SailingController` | boat handled | boarding, disembarking and reset all recover cleanly |
 | B410 | Sneaking, lockpicking, pickpocketing | `Estmere_Harbor` | detection, locks, pickpocket | basics demonstrated | being caught is recoverable, never terminal |
 | B420 | Secured-tower infiltration; retrieve the object | `Estmere_SecuredTower` | detection, locks | `ev.tower_ledger`, prince located | tower connects spatially to the prison |
 | B500 | Arrest and transfer to general population | `Estmere_Prison` | transition | player imprisoned | gear is stored and returned, never destroyed |
-| B510 | Prisoners reveal the soul operation | `Estmere_Prison` | conditional dialogue | `ev.prisoner_testimony` | exposition is split across two speakers, skippable, and repeatable |
-| B520 | Route to solitary | `Estmere_Prison` | interaction | prince located | measurably the fastest of the four routes |
+| B510 | Prisoners reveal the soul operation | `Estmere_Prison` | conditional dialogue | `ev.prisoner_testimony` | exposition is split across Reed and Falk, skippable, repeatable, and delivered while the player moves rather than as a stationary scene; must establish that **organic sourcing is normal and legal** and that Estmere is the leading shipper (see `Docs/STORY_ARC.md`) |
+| B520 | Route to solitary | `Estmere_Prison` | interaction | prince located | measurably the fastest of the four routes; **target completion 15 minutes** from B500 |
 
 ### Act 4 — convergence, escape, and the title moment
 
@@ -155,10 +243,10 @@ No route may depend on another having happened.
 |---|---|---|---|---|---|
 | B700 | Return to the palace without being rearrested | `Estmere_Palace_Aftermath` | world state | player in throne room | the reason is dramatised, not asserted |
 | B710 | Evidence presented; the prince testifies | `Estmere_Palace_Aftermath` | evidence, dialogue | case made | all four evidence sets are sufficient |
-| B720 | The King's defence | `Estmere_Palace_Aftermath` | dialogue | defence heard | he is given a real argument, not a confession |
+| B720 | The King's defence | `Estmere_Palace_Aftermath` | dialogue | defence heard | he is given a real argument, not a confession: legitimate supply ran dry, Estmere's defence and prosperity ran on it, and Terrin's alternative needed years the city did not have |
 | B730 | **Outcome — player chooses: kill or imprison** | `Estmere_Palace_Aftermath` | dialogue choice, `WorldMutation` | `flag.king_outcome` | both branches reach one valid post-coup world |
 | B740 | The prince is crowned | `Estmere_Palace_Aftermath` | `WorldMutation` | `flag.ruler = prince` | reload and re-entry cannot produce two rulers or none |
-| B750 | Soul-binding outlawed; prisoners released | `Estmere_Palace_Aftermath` | `WorldMutation` | `flag.ban_enacted` | prison population, doors, banners and dialogue all update |
+| B750 | **Prisoner** soul-binding outlawed; prisoners released | `Estmere_Palace_Aftermath` | `WorldMutation` | `flag.ban_enacted` | the ban is on prisoner sourcing only, per `storyline.md:55` — organic sourcing remains legal; prison population, doors, banners and dialogue all update |
 | B760 | Player named **Crown Envoy** | `Estmere_Palace_Aftermath` | `StoryState` | `flag.title_granted` | title appears in dialogue, journal and save metadata |
 
 ### Act 6 — handoff · `Caldemar_Arrival`
@@ -220,12 +308,30 @@ affordable.
 | Character creation | **Moderate — 3–4 ancestries** | Head, skin and hair variants on **one shared body and rig**, per the art direction lock. Distinct ancestry meshes are out of scope |
 | Protagonist voicing | Silent, subtitles only | Set by the slice definition |
 
+Closed 2026-08-01 — these are the two locks that were blocking the screenplay, plus three
+that were due before VS3:
+
+| Lock | Decision | Consequence |
+|---|---|---|
+| Why Estmere, why an audience | **The rescue ship is the King's own**, searching the prince's route | One premise answers both questions; the idle-persons law survives as the frame for B130 rather than the reason for B090 |
+| Rescue staging | **Established by dialogue after the fact** | No shipboard scene; B080 stays at the docks and the King never meets a faceless player |
+| Cast names | House **Selwyn**; six recurring roles named, two single-scene roles stay titles | Screenplay pass is unblocked; role ids unchanged |
+| Everspire pulse | **Cause unexplained and deferred; effect authored** — memory disruption for everyone who was on the water | B110's three answers are all honest; VS3 authors the effect only, never the cause |
+| `route.refuse` target | **15 minutes** from B500 | Aggressively fast. B510 must deliver its reveal in motion, not as a stationary scene — see the risk note below |
+| Ancestries | **Four, one per region**, appearance and origin only | Route assignment stays with declared inclination at B120 |
+
+### Risk note — the 15-minute refuse route
+
+B510 must still split the soul-operation reveal across Reed and Falk, remain skippable and
+remain repeatable. At 15 minutes that is tight, and the failure mode is the exposition dump
+this beat sheet forbids. The way it works is to play the reveal **while the player is
+moving toward solitary** — overheard fragments plus two short directed exchanges — rather
+than as a scene the player stands still for. Author it that way from the start; retrofitting
+a stationary version into 15 minutes will not fit.
+
 ## Still open
 
-1. Character names for every role above (role ids are stable regardless).
-2. Everspire pulse rules, and why the player remembers only part of the event.
-3. Why the rescue ship chooses Estmere, and why a castaway is brought before a king.
-4. Tutorial failure rules, gear carryover, and the measured target time for `route.refuse`.
-5. The four ancestries: names, regional origin, and starting values.
+1. Tutorial failure rules and gear carryover across all four routes.
+2. Starting values for the four ancestries (names and origins are locked above).
 
-Items 1 and 3 block the screenplay pass. Items 2, 4 and 5 can be settled during VS3.
+Both can be settled during VS3. **Nothing on this list blocks the screenplay pass.**
