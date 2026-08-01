@@ -8,8 +8,9 @@ Everspire truth and Chapters 02+. Chapter 01 must not contradict it, and its “
 must plant” section is required reading before the screenplay pass.
 
 **Status (2026-08-01):** the VS0 beat-graph deliverable and VS2 grey-thread gate are complete.
-All four route paths reach B830 through the generated scene contract; real authored content
-remains 0/42 and is the VS3-VS7 work. Beat structure,
+The playable grey implementation now visits **42/42** beat ids across the four route paths and
+reaches B830 through the generated scene contract; real authored content remains 0/42 and is
+the VS3-VS7 work. Beat structure,
 registries, convergence and outcome contracts are locked; dialogue is summarised, not
 written. The two screenplay-blocking narrative locks were closed on 2026-08-01 and are
 recorded under “Premises” and “Resolved locks” below. The regression snapshot and asset

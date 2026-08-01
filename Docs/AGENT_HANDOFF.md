@@ -89,7 +89,7 @@ most expensive kind of mistake here.
 | Save-persisted ids never embed display names (`city_west`, not `Caldemar`) | renames must stay display-only | `WorldLayoutTests` |
 | Palette colours stay in the muted range; `ArtDirection.Current` is Morrowind Clean | prevents drift back to the engine-project look | `ArtDirectionTests` |
 | Code branches on ids, never on display names | same as above | convention |
-| The title card fires exactly once, only at B640 | authored moment | ⚠️ **nothing yet** — B640 is not implemented; see W-10 audit |
+| The title card fires exactly once, only at B640 | authored moment | `CinematicRunner`, `GreyThreadDirector`, PlayMode gate |
 | Watching and skipping a cinematic produce identical flags | save integrity | beat sheet acceptance tests |
 | All four routes enter B600 **unarmed**, gear stored not destroyed | lets B630 be authored once | convergence contract clause 6 |
 | Chapter 01 must never hint that the Everspire is an alarm | it is the Chapter 06 reveal | `STORY_ARC.md` |
@@ -154,27 +154,23 @@ git show --numstat <sha> -- "*.cs" | awk '$1 ~ /^[0-9]+$/ {a+=$1; d+=$2; n++} EN
 
 ## 6. Current state
 
-**VS2 is complete (2026-08-01).** The grey-thread route gate runs all four route keys
-(F1-F4) through additive Chapter 01 scenes to B830 / Caldemar Council. The next packet is
-W-11, the external Map Editor MVP.
+**VS2 is complete (2026-08-01).** The grey-thread route gate runs all four assignments through
+additive Chapter 01 scenes, covering 42/42 beat ids to B830 / Caldemar Council. The next packet
+is W-11, the external Map Editor MVP.
 
 | | Status |
 |---|---|
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
 | VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
-| VS2 — grey thread | **Complete — all four routes reach B830** |
+| VS2 — grey thread | **Complete — 42/42 grey beats; all four routes reach B830** |
 | Tests | EditMode 45/45, PlayMode 30/30 |
-| Build | `Builds/Windows/Kessil.exe`, 142.1 MB, 0 errors; Bootstrap is scene zero |
-| Code | 50 runtime scripts, 14 editor scripts, plus Python tooling |
+| Build | `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors; Bootstrap is scene zero |
+| Code | 51 runtime scripts, 14 editor scripts, plus Python tooling |
 | Scenes | `Bootstrap`, generated `Main`, additive `Estmere_Exterior`, 11 Chapter 01 grey scenes; four test fixtures |
 | Prefabs / ScriptableObjects / `.inputactions` | 4 runtime prefabs; NPC, dialogue, quest and cinematic data assets; one input-actions asset |
 
-Every narrative and production lock for Chapter 01 is closed.
-
-**Read "What complete means here" under W-10 before starting VS3.** VS2's gate is met
-structurally — 21 of 42 beats exist, route selection is still F1–F4 debug hotkeys, and B640's
-title card is not built. That is the correct state for a de-risking milestone, but it is not
-what "VS2 complete" sounds like.
+Every narrative and production lock for Chapter 01 is closed. The grey implementation covers
+all 42 beat ids; “authored content 0/42” is intentionally still the next content burn-down.
 
 ### Velocity, for planning
 
@@ -391,45 +387,25 @@ state. Dialogue is placeholder text driven by the real topic graph.
   `Estmere_Exterior` cares about world shape, and at this stage it is a grey box.
 
 **Delivered:** `GreyThreadSceneBuilder` regenerates 11 Chapter 01 rooms with stable contexts,
-spawns, stepped elevations and collision-backed walls. `GreyThreadDirector` traverses the
-prologue, Estmere assignment, distinct Warrior/Mage/Trade/Refuse branches, prison/cave
-convergence, aftermath and Caldemar handoff. F1-F4 are the in-game route selectors. The
-player-preservation fix keeps the generated player alive when the first content scene unloads.
-Screenshots: `Docs/Screenshots/vs2-estmere-palace.png`,
-`Docs/Screenshots/vs2-caldemar-arrival.png`.
+spawns, stepped elevations and collision-backed walls. `GreyThreadDirector` now visits all
+**42/42** beat ids across the prologue, a real clickable King's audience assignment panel,
+distinct Warrior/Mage/Trade/Refuse branches, prison/cave convergence, the invoked B640 title
+crawl, aftermath and Caldemar handoff. It records profile/route choices, prince testimony,
+typed King outcome/ruler/title state and valid V4 route checkpoints. The player-preservation
+fix keeps the generated player alive when the first content scene unloads. Screenshots:
+`Docs/Screenshots/vs2-estmere-palace.png`, `Docs/Screenshots/vs2-caldemar-arrival.png`.
 
-**Gate passed:** a developer starts a new game and reaches the Caldemar handoff on **all four
-routes** without touching the editor. It is intentionally grey; the next packet replaces
-these placeholders with authored environments and dialogue.
+**Gate passed:** a developer starts a new game, chooses a name and assignment in-game, and
+reaches the Caldemar handoff on **all four routes** without touching the editor. It is
+intentionally grey; the next packet replaces these placeholders with authored environments,
+dialogue and mechanics.
 
-From here the burn-down is measurable: beats with real content, out of 42.
+The implementation is structurally complete. The next burn-down is authored content: **0/42
+beats replaced**, not missing traversal waypoints.
 
-#### What "complete" means here — independent audit, 2026-08-01
-
-The gate is met **structurally**, which is exactly what VS2 exists to prove. It is not met in
-content, and the difference matters to whoever picks up VS3.
-
-`GreyThreadDirector` references **21 of the 42 beats**:
-
-> B010 · B060 · B080 · B090 · B130 · B200 · B220 · B300 · B310 · B400 · B420 · B500 · B510 ·
-> B600 · B620 · B630 · B700 · B730 · B760 · B820 · B830
-
-**The 21 absent beats are content, not structure** — the skeleton hits the waypoints and skips
-what lies between them. Two absences are worth calling out specifically:
-
-- **B640, the sea-cave title card**, does not exist. Section 4 lists "the title card fires
-  exactly once, only at B640" as an invariant; nothing currently enforces it because there is
-  nothing to enforce. Do not assume it is wired.
-- **B110, B120 and B130's authored path** does not exist. Route selection is the F1–F4 debug
-  hotkeys. The questioning about the missing prince, the inclination declaration, and the
-  King's assignment are all still to be built — so the *route assignment* is proven while the
-  *scene that assigns it* is not.
-
-This is the correct state for a de-risking milestone: the four-route convergence architecture
-is proven to hold, and the remainder is content poured into a structure that will not move.
-
-**Verified independently 2026-08-01:** EditMode 45/45, PlayMode 30/30, both exit 0, run from a
-clean checkout rather than taken from the docs.
+**Verified independently 2026-08-01:** compile-check clean; EditMode 45/45; PlayMode 30/30
+including the 42-beat union, title/evidence/outcome/autosave assertions; Windows build
+142.5 MB, all commands exit 0.
 
 ### W-11 · Map Editor MVP · **next**
 

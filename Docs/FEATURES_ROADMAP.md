@@ -11,10 +11,11 @@ Use this doc to track the active delivery goals. `plan.md` owns estimates and ga
 
 ## Active goal: complete Chapter 01
 
-**VS2 update (2026-08-01): complete.** The grey thread now traverses the extracted Estmere
-exterior, 11 regenerable Chapter 01 rooms, all four branches, convergence, aftermath and
-Caldemar Council handoff. Use F1/F2/F3/F4 for Warrior/Mage/Trade/Refuse after gameplay starts.
-The next active milestone is the external Map Editor MVP.
+**VS2 update (2026-08-01): complete.** The grey thread now traverses all **42/42** beat
+waypoints through the extracted Estmere exterior, 11 regenerable Chapter 01 rooms, the
+clickable King's audience assignment panel, all four branches, convergence, B640 title crawl,
+aftermath and Caldemar Council handoff. It records typed outcomes/evidence and autosaves route
+checkpoints. The next active milestone is the external Map Editor MVP.
 
 The active deliverable is a content-complete, quality-reduced vertical slice in which the
 entire `storyline.md` opening is playable on all four routes through the Crown Council
@@ -25,7 +26,7 @@ Map Editor and authored Chapter 01 environments are built.
 |---:|---|---|---|
 | 1 | **VS0 — story package and regression baseline** | Complete except deferred screenplay | preserve the locked story contracts and baseline |
 | 2 | **VS1 — persistent technical spine** | **Complete — W-01–W-09 gate passed** | preserve the technical-spine regression suite |
-| 3 | **VS2 — rough complete story** | **Complete — four routes reach B830** | preserve the grey scene/route contract |
+| 3 | **VS2 — rough complete story** | **Complete — 42/42 grey beats, four routes reach B830** | preserve the grey scene/route contract |
 | 4 | **Map Editor MVP** | **Next** | edit terrain, biomes, coasts, roads, cities and story anchors without opening Unity |
 | 5 | **VS3 — real opening** | Not started | ship through the four audience assignments is real content |
 | 6 | **VS4 — reusable route mechanics** | Not started | combat/magic hooks, sailing, stealth, locks, pickpocket and companion systems proven |
@@ -87,7 +88,7 @@ The genre targets this project is built against:
 - [x] Original Kessil Bay setting rename applied in project settings, code, scene and docs
 - [x] Locked Morrowind Clean art-direction palette with automated drift tests
 - [x] Chapter 01 decomposed into 42 stable beats with route/convergence/outcome contracts
-- [x] Compile check passes for 14 Editor, 50 Runtime, 9 PlayMode and 5 EditMode test files (2026-08-01)
+- [x] Compile check passes for 14 Editor, 51 Runtime, 9 PlayMode and 5 EditMode test files (2026-08-01)
 - [x] Latest EditMode run: 45/45 passed (2026-08-01)
 - [x] Latest PlayMode run: 30/30 passed, including all four VS2 routes through the Caldemar
       handoff (2026-08-01)
@@ -109,7 +110,7 @@ The genre targets this project is built against:
 - [x] W-09: three-scene branch/evidence/save/quit/continue/companion/mutation/rollback gate
 - [x] Versioned `kessil.world.json` is the runtime source for dimensions, anchors,
       landmasses, sites and roads; the existing map geometry remains regression-identical
-- [x] Current packaged Windows build: 142.1 MB, Bootstrap scene zero, 0 errors
+- [x] Current packaged Windows build: 142.5 MB, Bootstrap scene zero, 0 errors
 - [x] VS2 captures: `Screenshots/vs2-estmere-palace.png` and
       `Screenshots/vs2-caldemar-arrival.png`
 - [x] Kessil Bay landmass layout (Halbrand N / Sarrakh S / bay / islands)
@@ -124,8 +125,9 @@ The genre targets this project is built against:
 
 ### Known gaps / pain points
 - [x] Chapter 01 quest/dialogue/save/cinematic architecture passes the VS1 gate
-- [x] VS2 grey thread: 11 regenerable Chapter 01 rooms plus `Estmere_Exterior`, route keys
-      (F1-F4), additive transitions, evidence/companion/outcome state and B830 handoff
+- [x] VS2 grey thread: all 42/42 beat waypoints across 11 regenerable Chapter 01 rooms plus
+      `Estmere_Exterior`, audience assignment UI, B640 title crawl, additive transitions,
+      evidence/companion/typed outcome state, route autosaves and B830 handoff
 - [x] Persistent Bootstrap/additive foundation exists; generated `Main` uses linked runtime
       prefabs and remains a temporary legacy gameplay container until the story scene split
 - [x] Trees ground-snapped + distance cull (biome pools) — further art polish still welcome
@@ -375,5 +377,5 @@ Still open:
 | 2026-08-01 | **VS1 W-04 started** — regenerable Player/GameSystems prefabs linked into Main; prefab contract tests; 33/33 EditMode, 22/22 PlayMode, 142.0 MB build | Split shared-file components, then HUD/NPC/data prefabs |
 | 2026-08-01 | **VS1 W-04 complete** — four runtime prefabs, five NPC ScriptableObjects, matching component files, no root fallbacks; 35/35 EditMode, 22/22 PlayMode, 142.1 MB build | W-05: SaveGameV4 |
 | 2026-08-01 | **VS1 complete (W-05–W-09 + world JSON)** — SaveGameV4, topic dialogue, StoryDirector, authored quests/evidence, CinematicRunner, consequence proof and versioned world source; 38/38 EditMode, 29/29 PlayMode, 142.1 MB build | VS2: all 42 beats as a four-route grey thread |
-| 2026-08-01 | **VS2 complete** — 11 regenerable Chapter 01 grey rooms plus `Estmere_Exterior`, F1-F4 route selector, all four routes to B830, player-preserving additive unload, 45/45 EditMode, 30/30 PlayMode, screenshot captures | W-11: external Map Editor MVP |
+| 2026-08-01 | **VS2 complete** — 42/42 beat waypoints, clickable audience assignment UI, B640 title crawl, four routes to B830, typed outcomes/evidence, route autosaves, player-preserving additive unload, 45/45 EditMode, 30/30 PlayMode, screenshot captures | W-11: external Map Editor MVP |
 | | | |

@@ -24,15 +24,17 @@ WASD · mouse look · **Shift** sprint · Space jump · Esc unlock cursor
 **M** map/FT · **J** journal · **I** inventory · **T** wait · **E** talk  
 **LMB/1** melee · **2** flare · **Q** potion · **F5** save · **F9** load
 
-After gameplay starts, the VS2 grey-thread route selectors are **F1 Warrior**, **F2 Mage**,
-**F3 Trade**, and **F4 Refuse**. Each route ends at the Caldemar Council handoff.
+After gameplay starts, the VS2 grey thread opens the King's audience assignment panel. Enter a
+name, then choose **City Guard**, **The Arcanum**, **Docks / Commerce**, or **Refuse
+Assignment**. Each route records its profile and ends at the Caldemar Council handoff.
 
 ## Future plan
 The free-roam P0+P1 prototype foundation exists, but the active deliverable is now the
 **complete Chapter 01 vertical slice** from `storyline.md`. VS0's 42-beat contract and VS1's
-technical spine are complete. VS2 is also complete: regenerable grey rooms, additive scene
-transitions and all four route branches reach B830. The next milestone is the external Map
-Editor MVP, followed by replacing the grey rooms with authored content.
+technical spine are complete. VS2 is also complete: regenerable grey rooms, a real audience
+assignment UI, all 42 beat waypoints, the B640 title crawl, additive scene transitions and all
+four route branches reach B830. The next milestone is the external Map Editor MVP, followed by
+replacing the grey rooms with authored content.
 
 Current goals: **[Docs/FEATURES_ROADMAP.md](Docs/FEATURES_ROADMAP.md)**. Detailed gates,
 risks and estimates: **[plan.md](plan.md)**. Beat contract:

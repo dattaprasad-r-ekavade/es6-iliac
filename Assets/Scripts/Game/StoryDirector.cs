@@ -100,6 +100,27 @@ public sealed class StoryDirector : MonoBehaviour
         return ValidRoutes.Contains(routeId);
     }
 
+    /// <summary>Commits the typed consequence state as well as its readable flags.</summary>
+    public void SetOutcome(string kingOutcome, string rulerId, string grantedTitle)
+    {
+        if (!string.IsNullOrWhiteSpace(kingOutcome))
+        {
+            state.KingOutcome = kingOutcome;
+            SetFlag("flag.king_outcome", kingOutcome);
+        }
+        if (!string.IsNullOrWhiteSpace(rulerId))
+        {
+            state.RulerId = rulerId;
+            SetFlag("flag.ruler", rulerId);
+        }
+        if (!string.IsNullOrWhiteSpace(grantedTitle))
+        {
+            state.GrantedTitle = grantedTitle;
+            SetFlag("flag.title_granted");
+        }
+        Changed?.Invoke();
+    }
+
     public void AdvanceTo(string chapterId, string stageId, string beatId)
     {
         if (!string.IsNullOrWhiteSpace(chapterId)) state.ChapterId = chapterId;

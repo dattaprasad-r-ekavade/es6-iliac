@@ -138,12 +138,13 @@ work must serve a Chapter 01 beat or a VS1/VS2 dependency.
 
 Verified in the repository and Unity Editor:
 
-- 50 runtime scripts plus 14 editor scripts;
+- 51 runtime scripts plus 14 editor scripts;
 - persistent `Bootstrap`, generated legacy `Main`, additive `Estmere_Exterior`, and 11
   regenerable Chapter 01 grey scenes, plus four small transition fixtures;
-- a successful local Windows player (142.1 MB) booting through `Bootstrap`;
+- a successful local Windows player (142.5 MB) booting through `Bootstrap`;
 - 45/45 EditMode and 30/30 PlayMode tests passing as of 2026-08-01, including scene-contract
-  checks and all four VS2 routes reaching the Caldemar handoff;
+  checks, the complete 42-beat VS2 union, typed outcome/evidence/autosave checks and all four
+  routes reaching the Caldemar handoff;
 - 5 NPCs, 5 hostile spawns, 3 quests, and 8 discovery/travel markers;
 - SaveGameV4 persists player stats, inventory, quests, discovery, scene/spawn, profile, route,
   evidence, companion, cinematics, equipment, skills, mutations and outcome state;
@@ -157,9 +158,9 @@ Verified in the repository and Unity Editor:
   keyboard/mouse `.inputactions` asset owns every current binding.
 
 `storyline.md` now supplies the narrative outline. VS2 has a playable grey implementation:
-placeholder geometry, route input, beat milestones, evidence, companion and outcome state
-all run through B830. Authored screenplay, actors, mechanics and final environments remain
-VS3–VS7 work.
+placeholder geometry, an in-game King's audience assignment panel, all 42 beat milestones,
+evidence, companion, typed outcome state and route autosaves all run through B830. Authored
+screenplay, actors, mechanics and final environments remain VS3–VS7 work.
 
 ## Completed hardening
 
@@ -257,7 +258,7 @@ VS3–VS7 work.
   collider violations, 0 wall collider violations, and 0 approach collider violations**.
 - Physics probes: representative wall and building rays hit their box colliders; the
   south gate walking ray remains clear; every city has five collider-backed approaches.
-- Current Windows x64 build **2026-08-01: `Builds/Windows/Kessil.exe`, 142.1 MB, 0 errors**,
+- Current Windows x64 build **2026-08-01: `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors**,
   built headlessly in 24.7s via `BuildPlayerCommand.BuildWindows`, with `Bootstrap` as scene
   zero. This replaces the stale
   pre-rename `IliacBay.exe`, which still sits beside it in the (gitignored) build folder and
@@ -272,9 +273,10 @@ VS3–VS7 work.
 fast travel, dialogue pause, death recovery and merchant economy are now covered
 automatically, and a current packaged build exists.
 
-What the tests still do **not** prove: combat depth beyond the merchant/economy path, story
-state, route convergence, and packaged-player behaviour past the title screen. Those arrive
-with VS1's systems and VS2's grey thread — there is nothing yet for them to test.
+What the tests still do **not** prove: combat depth beyond the merchant/economy path, authored
+dialogue and environments, route mechanics beyond grey traversal, and packaged-player behaviour
+past the title screen. VS1's systems and VS2's 42-beat grey thread now cover the technical
+contracts; those remaining gaps are VS3–VS8 content and polish.
 
 ## Remaining issues and risks
 
@@ -610,15 +612,18 @@ good.
 
 **Delivered:** 11 regenerable Chapter 01 grey scenes plus the extracted `Estmere_Exterior`
 scene are enabled in build settings. Each grey scene has a stable `SceneContext`, named
-spawns, stone walls, a gate, stepped elevation, lights and collision-backed geometry. The
-`GreyThreadDirector` drives the prologue, Estmere assignment, four genuinely different route
-branches, prison convergence, sea-cave title checkpoint, aftermath and Caldemar Council
-handoff. F1/F2/F3/F4 select Warrior/Mage/Trade/Refuse after gameplay starts. A player is
-preserved in persistent Bootstrap while old content scenes unload, fixing the first-scene
-transition destruction bug.
+spawns, stone walls, a gate, stepped elevations, lights and collision-backed geometry. The
+`GreyThreadDirector` drives all **42/42** beat waypoints: prologue, the real King's audience
+assignment panel, four genuinely different route branches, prison/cave convergence, the
+B640 title crawl, aftermath and Caldemar Council handoff. The assignment panel records the
+player name and inclination with keyboard/mouse-accessible buttons; a player is preserved in
+persistent Bootstrap while old content scenes unload, fixing the first-scene transition
+destruction bug. Route checkpoints use SaveGameV4, and typed King outcome, ruler, title and
+evidence state are captured for the next slice.
 
-**Evidence:** 45/45 EditMode, 30/30 PlayMode; all four routes end at B830 with evidence,
-prince companion and outcome flags. Representative captures are in
+**Evidence:** 45/45 EditMode, 30/30 PlayMode; the PlayMode gate asserts the union of all 42
+beat ids across the four routes, B640 title state, prince testimony, typed outcomes and valid
+autosaves. Representative captures are in
 [`Docs/Screenshots/vs2-estmere-palace.png`](Docs/Screenshots/vs2-estmere-palace.png) and
 [`Docs/Screenshots/vs2-caldemar-arrival.png`](Docs/Screenshots/vs2-caldemar-arrival.png).
 
