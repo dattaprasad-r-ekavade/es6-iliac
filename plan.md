@@ -815,6 +815,27 @@ wrong way.
 | Aldreth | highland city, hinterland | Aldreth spoke |
 | Corrath | the Everspire — a small special location, not a full plane | Chapter 06 |
 
+### Region dimensions — locked 2026-08-01
+
+Derived from a **7–8 minute walk across a city, north–south**, at the corrected 3.5 m/s walk
+speed. Full derivation in [`Docs/GAMEPLAY_DESIGN.md`](Docs/GAMEPLAY_DESIGN.md) §
+*Traversal and scale*.
+
+| | Size |
+|---|---|
+| City core | ~1.2 km across |
+| Region (city + hinterland) | **2 km × 2 km square**, bounded by open sea |
+| Corner to corner | ~10 min on foot |
+
+Each region is a square in open water, connected by ferries. This bounds the map in fiction
+rather than with an invisible wall, and makes regions independently authorable and loadable —
+no seams, no cross-region streaming, no terrain continuity to maintain.
+
+Compare to the retired architecture: 6.8 km of continuous thin terrain. The trade is roughly
+40:1 area for density, and that is the correct direction.
+
+**Build Estmere first and measure what it actually costs before committing to four regions.**
+
 ### What this does to Chapter 01's scope
 
 **Chapter 01 needs one region.** `Prologue_Ship` at sea, the Estmere plane, and a Caldemar

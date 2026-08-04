@@ -6,7 +6,12 @@ using UnityEngine;
 [RequireComponent(typeof(CharacterController))]
 public class SimplePlayerController : MonoBehaviour
 {
-    [SerializeField] private float moveSpeed = 8f;
+    // 3.5 m/s walk, ~6.5 m/s sprint. The old 8 m/s walk was faster than a sprinting human
+    // and made every world feel small — you crossed a city in forty seconds, so distance
+    // carried no weight and travel systems had nothing to be worth using for. It also sat
+    // above EnemyBrain's 4.2 m/s, meaning nothing could ever catch the player. See
+    // Docs/GAMEPLAY_DESIGN.md § Traversal and scale.
+    [SerializeField] private float moveSpeed = 3.5f;
     [SerializeField] private float sprintMultiplier = 1.85f;
     [SerializeField] private float lookSensitivity = 0.12f;
     [SerializeField] private float gravity = -24f;

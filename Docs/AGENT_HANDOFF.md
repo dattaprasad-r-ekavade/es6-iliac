@@ -427,8 +427,13 @@ Execute the architecture already decided in `plan.md` § *World architecture*. T
 Witcher 3-style regions: a city plus a dense walkable hinterland per plane, connected by the
 ferry network.
 
+**Dimensions are locked:** city core ~1.2 km, region 2 km × 2 km square bounded by open sea,
+~10 minutes corner to corner at the 3.5 m/s walk. Do not re-derive these — see
+`GAMEPLAY_DESIGN.md` § *Traversal and scale*.
+
 **Chapter 01 needs only the Estmere region**, plus the shipboard prologue and a Caldemar
 arrival sliver. Caldemar, Qadris and Aldreth as full regions are Chapter 02+ work.
+**Build Estmere and measure what it actually costs before committing to four.**
 
 - Rearchitect `KessilWorldGenerator` (1,107 lines) around a region rather than a world.
 - **Rewrite `WorldLayoutTests`.** 16 of the 20 EditMode tests assert on the current bay's
@@ -438,6 +443,32 @@ arrival sliver. Caldemar, Qadris and Aldreth as full regions are Chapter 02+ wor
   architecture. **Regions are meant to be dense.** Do not carry the thinness rule over.
 
 ---
+
+### W-13 · Humanoid base spike · *can run any time, in parallel*
+
+**A spike, not a feature.** The one humanoid rig carries every character across eight
+chapters, and nobody currently knows what that costs. Find out cheaply before it becomes a
+constraint discovered late.
+
+Current state: characters come from `Resources/Characters` via `CharacterLibrary` — Kenney
+mini-characters, which the art direction spike already identified as "saturated toybox
+characters against a muted world". They are placeholder, not a base.
+
+Steps:
+
+1. One humanoid mesh — free CC0, or generated.
+2. **Mixamo auto-rig**: upload the mesh, take the rig and the free animation library.
+3. Pull the minimum set only: idle, walk, run, attack, block, hit, death.
+4. Import, retarget, wire to `SimplePlayerController` and `EnemyBrain`.
+
+**Record the Mixamo account and source in `ASSET_LEDGER.md`.** The licence is royalty-free
+for games but is not public domain, and the ledger already tracks that distinction.
+
+**What it answers:** whether one rig plus clothing variation can carry every character in the
+game, and what retarget quality looks like on a real mesh. Both are currently guesses.
+
+Budget: half a session to a session. Do not build a character system off the back of it —
+the entire hostile roster is humans and humans who came back wrong.
 
 ## 8. Decisions still needed
 

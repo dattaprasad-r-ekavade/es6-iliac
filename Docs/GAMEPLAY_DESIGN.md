@@ -153,6 +153,62 @@ navigation before any work is done.
 navigation requires hand-placed, distinctive, readable-at-distance geography, which a
 procedurally generated 6.8 km bay cannot currently provide.
 
+## Traversal and scale — locked 2026-08-01
+
+The two numbers everything spatial derives from.
+
+### Movement speed
+
+| | Value |
+|---|---|
+| Walk | **3.5 m/s** |
+| Sprint | ~6.5 m/s (×1.85) |
+| Enemy pursuit (`EnemyBrain`) | 4.2 m/s |
+
+Previously the walk was **8 m/s** — faster than a sprinting human, and faster than anything
+that could chase the player. Two things were broken by it:
+
+1. **Every world felt small.** A city crossed in forty seconds carries no weight, and the
+   ferry network had nothing to be worth using for. Morrowind reads as enormous partly
+   because you move slowly; distance is only meaningful if it costs time.
+2. **Nothing could catch the player.** Enemies at 4.2 m/s were half the player's walking
+   speed, so combat was always optional and disengaging was free.
+
+At 3.5 m/s the pursuit speed now sits 20% above a walk and 35% below a sprint, which is the
+correct chase dynamic: you cannot stroll away from a fight, but you can outrun it by spending
+stamina.
+
+### Region scale
+
+**The metric is a 7–8 minute walk across a city, north–south.** At 3.5 m/s that is
+approximately **1.2 km**.
+
+| | Size |
+|---|---|
+| City core | ~1.2 km across — 7–8 min on foot |
+| Region (city + hinterland) | **2 km × 2 km square** |
+| Region corner to corner | ~10 min on foot |
+
+For calibration: Balmora is roughly 300 m across and Novigrad's walkable core is near a
+kilometre. A 1.2 km city is genuinely large — build one and measure the real cost before
+committing to four.
+
+The same 7–8 minute metric at the old 8 m/s would have demanded a **3.4–3.8 km** city, larger
+than the entire current bay's usable land. The metric was achievable; the speed was not.
+
+### The square-and-sea architecture
+
+Each region is a square bounded by open water. Ferries connect regions; the sea reads as
+endless through fog and skybox, and the actual bound is a turn-back from the boat.
+
+This solves the hardest problem in open-world design — ending the map without a wall — in
+fiction rather than in geometry. Players accept "we cannot sail further" from a boat in a way
+they never accept an invisible wall in a field.
+
+It also makes regions **independently authorable and independently loadable**: no seams to
+blend, no streaming across borders, no cross-region terrain continuity to maintain. For a solo
+project that is worth a great deal.
+
 ## Travel — sailing is the infrastructure
 
 Morrowind's travel is a system the player learns rather than a menu: public routes, guild
