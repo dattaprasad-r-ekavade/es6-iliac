@@ -139,6 +139,11 @@ wholesale. Never hand-author anything into it that you cannot regenerate.
 exterior snapshot and build settings. If another destructive generator is introduced, wire
 the same calls into it. Do not hand-edit `Estmere_Exterior`; it is also generated.
 
+**Kenney mini-characters cannot be Humanoid rigs.** They have no knee joint, so Unity's
+avatar generation fails on `Required human bone 'LeftLowerLeg' not found`. Do not spend time
+trying to retarget animation onto them — see W-13. Setting them to Human anyway leaves a
+broken state that logs a rig error on every import; `CharacterRigTests` guards against it.
+
 **`Game.Tests.asmdef` is Editor-only** (`includePlatforms: ["Editor"]`). PlayMode tests live
 in the separate `Game.PlayModeTests` assembly.
 
@@ -444,31 +449,55 @@ arrival sliver. Caldemar, Qadris and Aldreth as full regions are Chapter 02+ wor
 
 ---
 
-### W-13 · Humanoid base spike · *can run any time, in parallel*
+### W-13 · Humanoid base spike — **result 2026-08-01: the current characters cannot be rigged**
 
-**A spike, not a feature.** The one humanoid rig carries every character across eight
-chapters, and nobody currently knows what that costs. Find out cheaply before it becomes a
-constraint discovered late.
+**Spike answered. The blocker was never the animation source — it is the mesh.**
 
-Current state: characters come from `Resources/Characters` via `CharacterLibrary` — Kenney
-mini-characters, which the art direction spike already identified as "saturated toybox
-characters against a muted world". They are placeholder, not a base.
+Unity's Humanoid rig requires 15 bones. Every Kenney mini-character in
+`Resources/Characters` fails avatar generation with:
 
-Steps:
+```
+Rig Error: Invalid Avatar Rig Configuration. Missing or invalid transform:
+    Required human bone 'LeftLowerLeg' not found
+```
 
-1. One humanoid mesh — free CC0, or generated.
-2. **Mixamo auto-rig**: upload the mesh, take the rig and the free animation library.
-3. Pull the minimum set only: idle, walk, run, attack, block, hit, death.
-4. Import, retarget, wire to `SimplePlayerController` and `EnemyBrain`.
+They have **no knee joint** — single-segment legs. All 12 human models fail. This is a
+skeleton limitation, not an import setting, so **no amount of Mixamo work would have made
+them animate.** They were already rejected on art grounds ("saturated toybox characters
+against a muted world"); they are now independently disqualified on technical grounds.
 
-**Record the Mixamo account and source in `ASSET_LEDGER.md`.** The licence is royalty-free
-for games but is not public domain, and the ledger already tracks that distinction.
+`Kessil → Characters → Convert To Humanoid Rig` attempts the conversion and **reverts
+automatically if no valid avatar results**, because Human-without-an-avatar is strictly worse
+than Generic — it logs a rig error on every import and still plays nothing.
+`Kessil → Characters → Revert To Generic Rig` forces cleanup. `CharacterRigTests` guards
+against anything being left in the broken middle state.
 
-**What it answers:** whether one rig plus clothing variation can carry every character in the
-game, and what retarget quality looks like on a real mesh. Both are currently guesses.
+The models are currently Generic with no avatar, which is correct for static use.
 
-Budget: half a session to a session. Do not build a character system off the back of it —
-the entire hostile roster is humans and humans who came back wrong.
+#### What the replacement mesh must have
+
+Use the tool to evaluate any candidate — drop it in `Resources/Characters`, run Convert, and
+the test tells you whether it took. Required at minimum:
+
+- Hips, spine, head
+- Upper **and lower** arms, plus hands
+- Upper **and lower** legs, plus feet
+
+Anything stylised enough to drop the knee or elbow will fail the same way.
+
+#### Remaining manual step
+
+Sourcing the mesh and animations needs a browser and an Adobe account, so it is not
+agent-work. Fetch: one humanoid mesh, Mixamo auto-rig, then idle / walk / run / attack /
+block / hit / death. Record the account and source in `ASSET_LEDGER.md` — the licence is
+royalty-free for games but is not public domain.
+
+**Deliberately not built yet:** the `AnimationDriver` and Animator controller. With no valid
+rig and no clips, that code could not be tested, and untested speculative code is against the
+standard this project holds. Build it against the real rig, where it can be verified.
+
+Budget when the mesh lands: half a session. Do not build a character system off the back of
+it — the entire hostile roster is humans and humans who came back wrong.
 
 ## 8. Decisions still needed
 
