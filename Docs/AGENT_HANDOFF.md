@@ -59,7 +59,7 @@ python Tools/compile-check.py
   -runTests -testPlatform EditMode \
   -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"
 
-# PlayMode tests — currently 101/101
+# PlayMode tests — currently 114/114
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform PlayMode \
@@ -146,6 +146,15 @@ avatar generation fails on `Required human bone 'LeftLowerLeg' not found`. Do no
 trying to retarget animation onto them — see W-13. Setting them to Human anyway leaves a
 broken state that logs a rig error on every import; `CharacterRigTests` guards against it.
 
+**`SceneArchitectureBuilder.EnsureBuildSettings` replaces the build list wholesale.** Any
+scene not named in it silently stops being loadable at runtime. `Estmere_Region` was dropped
+this way and the game became unable to reach its own exterior. Add new scenes there, not only
+where they are generated.
+
+**A MonoBehaviour must live in a file matching its class name** or Unity will not serialise it
+into a generated scene. `PickpocketTarget` shared `PickpocketSystem.cs` and the prison ended
+up with a holder object and no component on it, with no error anywhere.
+
 **A generated scene without a `SceneContext` cannot be entered.** `SceneTransitionService`
 fails the transition and the player is stranded wherever they were — New Game reached
 `Prologue_Ship` and stopped there permanently until this was found. Any new generated scene
@@ -175,7 +184,7 @@ is W-11, the external Map Editor MVP.
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
 | VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
 | VS2 — grey thread | **Complete — 42/42 grey beats; all four routes reach B830** |
-| Tests | EditMode 61/61, PlayMode 101/101 |
+| Tests | EditMode 61/61, PlayMode 114/114 |
 | Build | `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors; Bootstrap is scene zero |
 | Code | 51 runtime scripts, 14 editor scripts, plus Python tooling |
 | Scenes | `Bootstrap`, generated `Main`, additive `Estmere_Exterior`, 11 Chapter 01 grey scenes; four test fixtures |
@@ -473,6 +482,28 @@ Do not "fix" that by making the gate interactive — it would then depend on UI 
   pickpocketing or sailing yet. That is VS5.
 - No exit doors inside interiors — the director returns the player, so a human who wanders
   cannot leave on their own.
+
+### W-16 · Interiors as places — **complete 2026-08-11**
+
+Closes the four gaps W-15 left open.
+
+- **Multi-room interiors.** `GreyThreadSceneCatalog` declares rooms and contents per scene;
+  the builder lays chambers out behind the entrance hall joined by real doorways. Prison is
+  four rooms, palace and Arcanum three.
+- **Exits.** `InteriorExit` returns the player to the door they entered by. The prologue, sea
+  cave and aftermath deliberately have none — a door there would let the player walk out of
+  the ending, and a test holds that.
+- **Mechanics in the world.** Tower has a lock and a watcher, prison has a mark and a watcher,
+  harbour has a boat, guard yard and Arcanum have training targets.
+- **The audience is testable.** `GreyThreadAssignmentPanel.Submit` is what its buttons call;
+  the director exposes `AssignmentPanel` and `AwaitingAssignment`.
+
+**An end-to-end test that walked the chapter to reach the audience was written and removed.**
+It depended on six chained scene transitions and could not be made reliable. If you try it
+again, know that it has already failed once for that reason.
+
+**Still open:** interiors have no NPCs to talk to — the billboard actors are region dressing
+only. Topic dialogue exists and is wired to nothing in a scene.
 
 ### W-11 · Map Editor MVP · **next**
 
