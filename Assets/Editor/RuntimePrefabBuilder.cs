@@ -81,6 +81,7 @@ public static class RuntimePrefabBuilder
         systems.AddComponent<StoryDirector>();
         systems.AddComponent<TopicDialogueService>();
         systems.AddComponent<CinematicRunner>();
+        systems.AddComponent<ObjectiveService>();
         systems.AddComponent<GreyThreadDirector>();
         var bootstrap = systems.AddComponent<GameSystemsBootstrap>();
         var npcAssets = CreateNpcAssets();

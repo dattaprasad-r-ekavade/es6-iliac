@@ -271,7 +271,21 @@ public class GameHud : MonoBehaviour
 
     private void RefreshCompass()
     {
-        if (_compassText == null || _player == null || DiscoveryTravelSystem.Instance == null) return;
+        if (_compassText == null || _player == null) return;
+
+        // An active objective takes the compass line. Directions, not a marker — the bearing
+        // is generated live from the player's position so it cannot go stale.
+        var objective = ObjectiveService.Instance;
+        if (objective != null && objective.HasObjective)
+        {
+            string bearing = objective.BearingLine();
+            _compassText.text = string.IsNullOrEmpty(bearing)
+                ? objective.Title
+                : $"{objective.Title}  ·  {bearing}";
+            return;
+        }
+
+        if (DiscoveryTravelSystem.Instance == null) return;
         float yaw = _player.eulerAngles.y;
         string facing = yaw < 45 || yaw >= 315 ? "N" : yaw < 135 ? "E" : yaw < 225 ? "S" : "W";
         var sb = new StringBuilder();

@@ -38,6 +38,7 @@ public static class EstmereRegionBuilder
         BuildCityWall(root);
         BuildDistricts(root, random);
         BuildAnchors(root);
+        BuildCrowd(root, random);
         BuildSpawn(root);
         BuildLighting(root);
 
@@ -208,10 +209,51 @@ public static class EstmereRegionBuilder
         }
     }
 
+    /// <summary>
+    /// Street population. Arena-style billboards, seeded so the crowd stands in the same
+    /// places every rebuild, and kept off the anchor footprints and the gate approaches.
+    ///
+    /// These are dressing, not actors — they make the city read as inhabited. Speaking roles
+    /// are placed by the story, not here.
+    /// </summary>
+    private static void BuildCrowd(Transform root, System.Random random)
+    {
+        var crowd = new GameObject("Crowd").transform;
+        crowd.SetParent(root, false);
+
+        var palette = ArtDirection.Active.Palette;
+        var tints = new[] { palette.CityStone, palette.Road, palette.Sand, palette.Mountain };
+        var reserved = ReservedFootprints();
+        float half = EstmereRegion.CityHalf;
+
+        int placed = 0;
+        for (int attempt = 0; attempt < 400 && placed < 90; attempt++)
+        {
+            var spot = new Vector3(
+                EstmereRegion.CityCenter.x + ((float)random.NextDouble() * 2f - 1f) * half,
+                EstmereRegion.GroundHeight,
+                EstmereRegion.CityCenter.z + ((float)random.NextDouble() * 2f - 1f) * half);
+
+            if (IsReserved(spot, reserved)) continue;
+
+            var tint = tints[random.Next(tints.Length)];
+            var actor = BillboardActor.Spawn($"Citizen_{placed}", spot, tint, 1.75f + (float)random.NextDouble() * 0.2f);
+            actor.transform.root.SetParent(crowd, true);
+            placed++;
+        }
+    }
+
     private static void BuildSpawn(Transform root)
     {
+        // SceneTransitionService refuses to enter a scene with no SceneContext, so the region
+        // needs one exactly like the generated interiors do — this is what makes it a place
+        // the transition system can hand the player to rather than just a loaded scene.
+        var context = new GameObject("SceneContext");
+        context.transform.SetParent(root, false);
+        context.AddComponent<SceneContext>().Configure("Estmere_Region", "spawn.region");
+
         var spawn = new GameObject("spawn.region");
-        spawn.transform.SetParent(root, false);
+        spawn.transform.SetParent(context.transform, false);
         spawn.transform.position = EstmereRegion.PlayerSpawn;
         spawn.AddComponent<SceneSpawnPoint>().Configure("spawn.region");
     }

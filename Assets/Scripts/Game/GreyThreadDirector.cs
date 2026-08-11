@@ -25,6 +25,16 @@ public sealed class GreyThreadDirector : MonoBehaviour
     private string _pendingName;
     private bool _interactiveStarted;
 
+    /// <summary>
+    /// When true the player walks to each location themselves instead of the director
+    /// transitioning for them. This is what turns a traversable beat list into a playable
+    /// chapter; the automated gate runs with it off so it stays deterministic.
+    /// </summary>
+    private bool _playerDriven;
+
+    /// <summary>The generated exterior the player returns to between story locations.</summary>
+    public const string RegionScene = "Estmere_Region";
+
     private void Awake() => Instance = this;
 
     private void OnDestroy()
@@ -47,6 +57,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
     public void BeginInteractiveRoute()
     {
         if (IsRunning) return;
+        _playerDriven = true;
         _routeRoutine = StartCoroutine(RunRouteRoutine(null, true));
     }
 
@@ -87,8 +98,9 @@ public sealed class GreyThreadDirector : MonoBehaviour
         Story.SetFlag("flag.profile_valid");
         SaveCheckpoint();
 
-        yield return Visit("Estmere_Exterior", "spawn.caldemar", "B080", "stage.estmere");
-        if (Failed()) yield break;
+        // Character creation happens at the triage table, not in a different scene — B080 is
+        // the guards recording who came out of the water.
+        AdvanceBeat("B080", "stage.estmere", "The guards record your name, ancestry and origin.");
 
         yield return Visit("Estmere_Palace", "spawn.entry", "B090", "stage.assignment");
         if (Failed()) yield break;
@@ -225,6 +237,15 @@ public sealed class GreyThreadDirector : MonoBehaviour
             yield break;
         }
 
+        if (_playerDriven && TryFindAnchorFor(sceneName, out var anchor))
+        {
+            yield return WalkTo(anchor, transition);
+            if (Failed()) yield break;
+            AdvanceBeat(beatId, stageId, GreyThreadSceneCatalog.Find(sceneName)?.Title ?? sceneName);
+            SaveCheckpoint();
+            yield break;
+        }
+
         yield return transition.TransitionTo(sceneName, spawnId, unloadPrevious: true);
         if (!string.IsNullOrEmpty(transition.LastError))
         {
@@ -237,6 +258,69 @@ public sealed class GreyThreadDirector : MonoBehaviour
         SaveCheckpoint();
         yield return null;
     }
+
+    private static bool TryFindAnchorFor(string sceneName, out EstmereRegion.Anchor anchor)
+    {
+        foreach (var candidate in EstmereRegion.Anchors)
+        {
+            if (candidate.SceneName != sceneName) continue;
+            anchor = candidate;
+            return true;
+        }
+        anchor = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Put the player outside, tell them where to go in words, and wait until they get there
+    /// and open the door themselves.
+    ///
+    /// Directions rather than a marker, per GAMEPLAY_DESIGN.md. The bearing line is generated
+    /// from the player's live position, so it cannot go stale.
+    /// </summary>
+    private IEnumerator WalkTo(EstmereRegion.Anchor anchor, SceneTransitionService transition)
+    {
+        if (transition.ActiveContentSceneName != RegionScene)
+        {
+            yield return transition.TransitionTo(RegionScene, "spawn.region", unloadPrevious: true);
+            if (!string.IsNullOrEmpty(transition.LastError))
+            {
+                LastError = transition.LastError;
+                IsRunning = false;
+                yield break;
+            }
+
+            // Step back out of the door just used, rather than being flung to the docks.
+            if (PlayerRef.TryGet(out var player))
+            {
+                var back = RegionReturn.ReturnPosition();
+                var controller = player.GetComponent<CharacterController>();
+                if (controller != null) controller.enabled = false;
+                player.position = back;
+                if (controller != null) controller.enabled = true;
+            }
+        }
+
+        Objective?.Set($"Go to {anchor.DisplayName}", DirectionsTo(anchor), anchor.Id);
+
+        while (transition.ActiveContentSceneName != anchor.SceneName)
+        {
+            if (!IsRunning) yield break;
+            yield return null;
+        }
+
+        Objective?.Clear();
+    }
+
+    /// <summary>Written directions, in the register a person would actually use.</summary>
+    private static string DirectionsTo(EstmereRegion.Anchor anchor)
+    {
+        bool inside = EstmereRegion.IsInsideCity(anchor.Position);
+        string where = inside ? "inside the walls" : "beyond the walls, along the coast";
+        return $"{anchor.DisplayName} lies {where}. Follow the streets and look for the door.";
+    }
+
+    private static ObjectiveService Objective => ObjectiveService.Instance;
 
     private IEnumerator PlayTitleCrawl()
     {

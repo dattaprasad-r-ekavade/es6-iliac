@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 7597173134450729320}
   - component: {fileID: 8161283971359312945}
   - component: {fileID: 765859729690659200}
+  - component: {fileID: 394767337683171264}
   - component: {fileID: 4462137196742147087}
   - component: {fileID: 1257454185899463076}
   - component: {fileID: 278538794779779441}
@@ -198,13 +199,6 @@ MonoBehaviour:
     OpenedLocks: []
     LootedObjects: []
     SkippedCinematics: []
-    Skills: []
-    Equipment:
-      WeaponId: 
-      HeadId: 
-      BodyId: 
-      HandsId: 
-      FeetId: 
     PlayerChanneled: 0
 --- !u!114 &8161283971359312945
 MonoBehaviour:
@@ -231,6 +225,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e181bae3c326934eab0ee6432a1ad92, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Runtime::CinematicRunner
+--- !u!114 &394767337683171264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4676925192812901622}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 69730309a306ff44c939d240d0da97ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Runtime::ObjectiveService
 --- !u!114 &4462137196742147087
 MonoBehaviour:
   m_ObjectHideFlags: 0

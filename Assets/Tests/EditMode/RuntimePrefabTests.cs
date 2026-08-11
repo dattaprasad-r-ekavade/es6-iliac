@@ -31,6 +31,7 @@ public sealed class RuntimePrefabTests
         Assert.IsNotNull(prefab.GetComponent<GameSfx>());
         Assert.IsNotNull(prefab.GetComponent<StoryDirector>());
         Assert.IsNotNull(prefab.GetComponent<GreyThreadDirector>());
+        Assert.IsNotNull(prefab.GetComponent<ObjectiveService>());
         Assert.IsNotNull(prefab.GetComponent<TopicDialogueService>());
         Assert.IsNotNull(prefab.GetComponent<CinematicRunner>());
         Assert.IsNotNull(prefab.GetComponent<GameSystemsBootstrap>());
