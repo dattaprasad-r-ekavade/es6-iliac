@@ -52,7 +52,7 @@ public class PlayerCombat : MonoBehaviour
             SetBlocking(false);
             TryMelee();
         }
-        if (GameInput.SecondaryAttack.WasPressedThisFrame()) CastFlare();
+        if (GameInput.SecondaryAttack.WasPressedThisFrame()) SpellCaster.Instance?.Cast();
         if (GameInput.UsePotion.WasPressedThisFrame()) PlayerInventory.Instance?.UseHotPotion();
     }
 
@@ -84,36 +84,18 @@ public class PlayerCombat : MonoBehaviour
         var enemy = hit.collider.GetComponentInParent<EnemyBrain>();
         if (enemy == null) return false;
 
+        float threat = enemy.MaxHealth;
         enemy.TakeDamage(weapon.Damage);
         GameSfx.Instance?.PlayMeleeHit();
         EnterCombat();
-        PlayerStats.Instance?.AddXp(4);
+        // Advancement is use-based now, so the swing trains the weapon's skill rather than
+        // paying flat XP. Only landed hits get here — swinging at air trains nothing.
+        SkillSystem.Instance?.ReportUse(weapon.SkillId, weapon.Damage, threat);
         return true;
     }
 
-    private void CastFlare()
-    {
-        if (PlayerStats.Instance == null || !PlayerStats.Instance.SpendMana(16f))
-        {
-            GameHud.Instance?.ShowToast("Not enough mana");
-            return;
-        }
-        var origin = _cam != null ? _cam.position : transform.position + Vector3.up;
-        var dir = _cam != null ? _cam.forward : transform.forward;
-        if (Physics.SphereCast(origin, 0.5f, dir, out var hit, 18f,
-                GameLayers.CombatMask, QueryTriggerInteraction.Ignore))
-        {
-            var enemy = hit.collider.GetComponentInParent<EnemyBrain>();
-            if (enemy != null)
-            {
-                enemy.TakeDamage(26f);
-                EnterCombat();
-                PlayerStats.Instance.AddXp(6);
-            }
-        }
-        GameSfx.Instance?.PlayMagic();
-        GameHud.Instance?.ShowToast("Flare!");
-    }
+    // The single hardcoded Flare that used to live here is replaced by SpellCatalog and
+    // SpellCaster: five spells, each doing something mechanically different.
 
     public void EnterCombat() { InCombat = true; _combatTimer = combatForgetTime; }
     public void ClearCombat() { InCombat = false; _combatTimer = 0f; }

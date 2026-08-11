@@ -14,6 +14,8 @@ GameObject:
   - component: {fileID: 2323758036743799881}
   - component: {fileID: 5888078293229038671}
   - component: {fileID: 3669178472920454872}
+  - component: {fileID: 2773838655574384475}
+  - component: {fileID: 8969925210316992607}
   - component: {fileID: 5347602472700864800}
   - component: {fileID: 6757564039864109011}
   - component: {fileID: 237470898598375695}
@@ -126,6 +128,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40ecda0ecf5c01d4bba5248bd5b79b27, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Game.Runtime::PlayerEquipment
+--- !u!114 &2773838655574384475
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5675362767747181958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5152fd6f28e4ee4ebd37ca8501ac3b6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Runtime::SpellCaster
+--- !u!114 &8969925210316992607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5675362767747181958}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3757e1ca9af8d44caa96a853da6b004, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Game.Runtime::SkillSystem
 --- !u!114 &5347602472700864800
 MonoBehaviour:
   m_ObjectHideFlags: 0

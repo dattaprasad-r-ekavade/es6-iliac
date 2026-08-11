@@ -63,6 +63,8 @@ public static class RuntimePrefabBuilder
         player.AddComponent<PlayerStats>();
         player.AddComponent<PlayerInventory>();
         player.AddComponent<PlayerEquipment>();
+        player.AddComponent<SpellCaster>();
+        player.AddComponent<SkillSystem>();
         player.AddComponent<PlayerCombat>().enabled = false;
         player.AddComponent<PlayerInteract>();
         player.AddComponent<PlayerSafetyGuard>();

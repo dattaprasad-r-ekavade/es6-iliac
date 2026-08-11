@@ -36,6 +36,8 @@ public class GameSystemsBootstrap : MonoBehaviour
         Require<PlayerStats>(player.gameObject);
         Require<PlayerInventory>(player.gameObject);
         Require<PlayerEquipment>(player.gameObject);
+        Require<SpellCaster>(player.gameObject);
+        Require<SkillSystem>(player.gameObject);
         var combat = Require<PlayerCombat>(player.gameObject);
         Require<PlayerInteract>(player.gameObject);
         Require<PlayerSafetyGuard>(player.gameObject);

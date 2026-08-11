@@ -29,6 +29,8 @@ public class SaveData
     /// <summary>Equipped set. Ids only — EquipmentCatalog supplies the numbers.</summary>
     public string WeaponId;
     public string ArmourId;
+    /// <summary>Use-based skill progress. Character level derives from the total.</summary>
+    public List<SavedSkill> SkillLevels = new();
     public float TimeOfDay01;
     public List<string> Discovered = new();
     public List<InvItem> Items = new();
@@ -109,6 +111,7 @@ public class SaveLoadService : MonoBehaviour
             Channeled = stats.Channeled,
             WeaponId = PlayerEquipment.Instance != null ? PlayerEquipment.Instance.WeaponId : null,
             ArmourId = PlayerEquipment.Instance != null ? PlayerEquipment.Instance.ArmourId : null,
+            SkillLevels = SkillSystem.Instance != null ? SkillSystem.Instance.Capture() : new List<SavedSkill>(),
             TimeOfDay01 = TimeWeatherSystem.Instance != null ? TimeWeatherSystem.Instance.TimeOfDay01 : 0.4f,
             Discovered = DiscoveryTravelSystem.Instance != null ? DiscoveryTravelSystem.Instance.GetDiscoveredIds() : new List<string>(),
             Items = PlayerInventory.Instance != null ? new List<InvItem>(PlayerInventory.Instance.Items) : new List<InvItem>(),
@@ -216,6 +219,7 @@ public class SaveLoadService : MonoBehaviour
             stats.RestoreProgress(data.Level, data.Xp);
             stats.RestoreChanneled(data.Channeled);
             PlayerEquipment.Instance?.Restore(data.WeaponId, data.ArmourId);
+            SkillSystem.Instance?.Restore(data.SkillLevels);
         }
 
         DiscoveryTravelSystem.Instance?.LoadDiscovered(data.Discovered);

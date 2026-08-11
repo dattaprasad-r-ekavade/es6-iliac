@@ -28,6 +28,39 @@ public class EnemyBrain : MonoBehaviour
     private Vector3 _home;
     private float _leashRange;
 
+    // Elemental status. Each element does something different rather than being a damage
+    // type with a different colour — see Docs/GAMEPLAY_DESIGN.md § Spells.
+    private float _burnDps, _burnUntil;
+    private float _chillFactor = 1f, _chillUntil;
+    private float _staggerUntil;
+
+    public bool IsBurning => Time.time < _burnUntil;
+    public bool IsChilled => Time.time < _chillUntil;
+    public bool IsStaggered => Time.time < _staggerUntil;
+
+    /// <summary>Current move speed after chill. Never negative.</summary>
+    public float CurrentMoveSpeed => moveSpeed * (IsChilled ? _chillFactor : 1f);
+
+    /// <summary>Fire: damage over time. Beats groups and the unarmoured.</summary>
+    public void ApplyBurn(float damagePerSecond, float duration)
+    {
+        _burnDps = Mathf.Max(_burnDps, damagePerSecond);
+        _burnUntil = Mathf.Max(_burnUntil, Time.time + duration);
+    }
+
+    /// <summary>Frost: slows. Beats chargers.</summary>
+    public void ApplyChill(float speedFactor, float duration)
+    {
+        _chillFactor = Mathf.Clamp(Mathf.Min(_chillFactor, speedFactor), 0.1f, 1f);
+        _chillUntil = Mathf.Max(_chillUntil, Time.time + duration);
+    }
+
+    /// <summary>Shock: interrupts. Beats anything mid-action.</summary>
+    public void ApplyStagger(float duration)
+    {
+        _staggerUntil = Mathf.Max(_staggerUntil, Time.time + duration);
+    }
+
     private void Awake()
     {
         _hp = maxHealth;
@@ -46,7 +79,19 @@ public class EnemyBrain : MonoBehaviour
     private void Update()
     {
         if (_hp <= 0f) return;
+
+        if (IsBurning)
+        {
+            TakeDamage(_burnDps * Time.deltaTime);
+            if (_hp <= 0f) return;
+        }
+        if (!IsChilled) _chillFactor = 1f;
+
         if (!PlayerRef.TryGet(out var player)) return;
+
+        // Staggered enemies neither close nor swing. This is what makes shock a control
+        // element rather than a third damage number.
+        if (IsStaggered) return;
 
         _atkCd -= Time.deltaTime;
         var to = player.position - transform.position;
@@ -63,7 +108,7 @@ public class EnemyBrain : MonoBehaviour
         {
             var dir = to.normalized;
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir), Time.deltaTime * 6f);
-            var move = dir * moveSpeed;
+            var move = dir * CurrentMoveSpeed;
             move.y = -9f;
             _cc.Move(move * Time.deltaTime);
         }
