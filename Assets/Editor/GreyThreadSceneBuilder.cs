@@ -56,6 +56,9 @@ public static class GreyThreadSceneBuilder
 
         var geometry = new GameObject("GreyGeometry").transform;
         geometry.SetParent(root.transform, false);
+
+        // Room 0 is the entrance hall and keeps the authored silhouette the VS2 gate and the
+        // screenshots were built against. Deeper chambers extend along +Z behind it.
         var floor = CreateBlock(geometry, "RaisedStoneFloor", new Vector3(0f, -0.25f, 0f), new Vector3(30f, 0.5f, 22f), Stone(spec));
         floor.isStatic = true;
         BuildSteps(geometry, spec);
@@ -63,6 +66,10 @@ public static class GreyThreadSceneBuilder
         BuildColumns(geometry, spec);
         BuildAccent(geometry, spec);
         CreateTitle(geometry, spec);
+
+        BuildDeeperRooms(geometry, spec);
+        if (spec.HasExitDoor) BuildExit(root.transform);
+        BuildMechanic(root.transform, spec);
 
         var lightGo = new GameObject("GreyThread_Light");
         lightGo.transform.SetParent(root.transform, false);
@@ -82,6 +89,153 @@ public static class GreyThreadSceneBuilder
         fill.transform.position = new Vector3(0f, 5.5f, 2.5f);
 
         EditorSceneManager.SaveScene(scene, path);
+    }
+
+    /// <summary>Depth of one chamber, and the width of the doorway joining two.</summary>
+    private const float RoomDepth = 24f;
+    private const float DoorWidth = 6f;
+
+    /// <summary>
+    /// Chambers beyond the entrance hall, each joined to the last by a real doorway.
+    ///
+    /// One box is a placeholder. Three connected rooms with doors between them is somewhere a
+    /// player can be briefly lost, which is the difference a playtest can actually report on.
+    /// </summary>
+    private static void BuildDeeperRooms(Transform parent, GreyThreadSceneCatalog.SceneSpec spec)
+    {
+        if (spec.Rooms <= 1) return;
+        var stone = Stone(spec);
+
+        for (int room = 1; room < spec.Rooms; room++)
+        {
+            float z = 10f + RoomDepth * (room - 0.5f);
+            var holder = new GameObject("Room_" + room).transform;
+            holder.SetParent(parent, false);
+
+            CreateBlock(holder, "Floor", new Vector3(0f, -0.25f, z), new Vector3(26f, 0.5f, RoomDepth), stone);
+            CreateBlock(holder, "Ceiling", new Vector3(0f, 7f, z), new Vector3(26f, 0.5f, RoomDepth), stone);
+            CreateBlock(holder, "Wall_Left", new Vector3(-13f, 3.5f, z), new Vector3(0.8f, 7f, RoomDepth), stone);
+            CreateBlock(holder, "Wall_Right", new Vector3(13f, 3.5f, z), new Vector3(0.8f, 7f, RoomDepth), stone);
+
+            float farZ = z + RoomDepth * 0.5f;
+            bool last = room == spec.Rooms - 1;
+            if (last)
+            {
+                CreateBlock(holder, "Wall_Far", new Vector3(0f, 3.5f, farZ), new Vector3(26f, 7f, 0.8f), stone);
+            }
+            else
+            {
+                float side = (26f - DoorWidth) * 0.5f;
+                float offset = (DoorWidth + side) * 0.5f;
+                CreateBlock(holder, "Wall_Far_L", new Vector3(-offset, 3.5f, farZ), new Vector3(side, 7f, 0.8f), stone);
+                CreateBlock(holder, "Wall_Far_R", new Vector3(offset, 3.5f, farZ), new Vector3(side, 7f, 0.8f), stone);
+                CreateBlock(holder, "Wall_Far_Top", new Vector3(0f, 6.2f, farZ), new Vector3(DoorWidth, 1.6f, 0.8f), stone);
+            }
+
+            var lamp = new GameObject("Room_" + room + "_Light");
+            lamp.transform.SetParent(holder, false);
+            lamp.transform.localPosition = new Vector3(0f, 5f, z);
+            var light = lamp.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.range = 22f;
+            light.intensity = 1.5f;
+            light.color = Color.Lerp(spec.Accent, Color.white, 0.3f);
+        }
+
+        // Open the entrance hall back wall where the corridor now begins, or the deeper rooms
+        // are unreachable and the interior is a box with wasted geometry behind it.
+        float backSide = (30f - DoorWidth) * 0.5f;
+        float backOffset = (DoorWidth + backSide) * 0.5f;
+        var back = parent.Find("Wall_Back");
+        if (back != null) Object.DestroyImmediate(back.gameObject);
+        CreateBlock(parent, "Wall_Back_L", new Vector3(-backOffset, 3f, 10f), new Vector3(backSide, 6f, 0.8f), stone);
+        CreateBlock(parent, "Wall_Back_R", new Vector3(backOffset, 3f, 10f), new Vector3(backSide, 6f, 0.8f), stone);
+    }
+
+    /// <summary>The way out, beside the entrance the player arrived through.</summary>
+    private static void BuildExit(Transform root)
+    {
+        var exit = new GameObject("InteriorExit");
+        exit.transform.SetParent(root, false);
+        exit.transform.localPosition = new Vector3(0f, 1.5f, -9f);
+        var trigger = exit.AddComponent<BoxCollider>();
+        trigger.isTrigger = true;
+        trigger.size = new Vector3(10f, 3f, 3f);
+        exit.AddComponent<InteriorExit>().Configure("Back to Estmere");
+    }
+
+    /// <summary>
+    /// Put the route mechanic in the deepest chamber, so the player has to walk to it.
+    /// Without this the VS4 systems are code that nothing in the game ever touches.
+    /// </summary>
+    private static void BuildMechanic(Transform root, GreyThreadSceneCatalog.SceneSpec spec)
+    {
+        if (spec.Mechanic == GreyThreadSceneCatalog.Feature.None) return;
+
+        float deepZ = 10f + RoomDepth * (Mathf.Max(1, spec.Rooms) - 0.5f);
+        var holder = new GameObject("Mechanic_" + spec.Mechanic).transform;
+        holder.SetParent(root, false);
+        holder.localPosition = new Vector3(0f, 0f, deepZ);
+
+        switch (spec.Mechanic)
+        {
+            case GreyThreadSceneCatalog.Feature.Lock:
+            {
+                var door = CreateBlock(holder, "LockedDoor", new Vector3(0f, 2f, 6f), new Vector3(5f, 4f, 0.6f), Accent(spec));
+                door.AddComponent<DoorAndLock>().Configure(true, 25f, "tower_key");
+                AddWatcher(holder, new Vector3(6f, 0f, -2f), -120f);
+                break;
+            }
+
+            case GreyThreadSceneCatalog.Feature.Pickpocket:
+            {
+                var mark = new GameObject("Mark");
+                mark.transform.SetParent(holder, false);
+                mark.transform.localPosition = new Vector3(-4f, 0f, 2f);
+                mark.AddComponent<PickpocketTarget>().Configure(15f,
+                    new PickpocketTarget.Holding { Id = "cell_key", Name = "Cell Key", Kind = "key" });
+                AddWatcher(holder, new Vector3(5f, 0f, 3f), -140f);
+                break;
+            }
+
+            case GreyThreadSceneCatalog.Feature.Boat:
+            {
+                var hull = CreateBlock(holder, "Boat", new Vector3(0f, 0.6f, 4f), new Vector3(3f, 1.2f, 7f), Accent(spec));
+                hull.AddComponent<SailingController>();
+                break;
+            }
+
+            case GreyThreadSceneCatalog.Feature.CombatDummy:
+                AddTrainingActor(holder, "SparringDummy", "Sparring Dummy", 80f, "tutorial_dummy", 4f);
+                break;
+
+            case GreyThreadSceneCatalog.Feature.SpellTarget:
+                AddTrainingActor(holder, "PracticeTarget", "Practice Effigy", 120f, "arcanum_effigy", 5f);
+                break;
+        }
+    }
+
+    private static void AddWatcher(Transform holder, Vector3 localPosition, float facingDegrees)
+    {
+        var watcher = new GameObject("Watcher");
+        watcher.transform.SetParent(holder, false);
+        watcher.transform.localPosition = localPosition;
+        watcher.transform.localRotation = Quaternion.Euler(0f, facingDegrees, 0f);
+        watcher.AddComponent<DetectionWatcher>();
+    }
+
+    private static void AddTrainingActor(Transform holder, string objectName, string displayName,
+        float health, string spawnId, float z)
+    {
+        var actor = new GameObject(objectName);
+        actor.transform.SetParent(holder, false);
+        actor.transform.localPosition = new Vector3(0f, 0f, z);
+        var capsule = actor.AddComponent<CapsuleCollider>();
+        capsule.height = 1.8f;
+        capsule.radius = 0.4f;
+        capsule.center = Vector3.up * 0.9f;
+        actor.AddComponent<EnemyBrain>().Setup(displayName, health, spawnId);
+        WorldTagger.SetLayerRecursive(actor, GameLayers.Enemy);
     }
 
     private static void BuildWalls(Transform parent, GreyThreadSceneCatalog.SceneSpec spec)

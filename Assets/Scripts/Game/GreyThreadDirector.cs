@@ -344,6 +344,15 @@ public sealed class GreyThreadDirector : MonoBehaviour
         AdvanceBeat("B640", "stage.escape", "KESSIL BAY");
     }
 
+    /// <summary>
+    /// The audience panel, once it is up. Exposed so the VS2 gate can answer the King the way
+    /// a player does, rather than skipping the one scene where the route is chosen.
+    /// </summary>
+    public GreyThreadAssignmentPanel AssignmentPanel => _assignmentPanel;
+
+    /// <summary>True while the director is waiting for the player to answer the King.</summary>
+    public bool AwaitingAssignment { get; private set; }
+
     private IEnumerator WaitForAssignment()
     {
         _pendingRoute = null;
@@ -356,7 +365,9 @@ public sealed class GreyThreadDirector : MonoBehaviour
 
         _assignmentPanel.Show();
         GameStateService.Ensure().SetState(GameState.Menu, pauseWorld: true);
+        AwaitingAssignment = true;
         while (string.IsNullOrWhiteSpace(_pendingRoute)) yield return null;
+        AwaitingAssignment = false;
         _assignmentPanel.Hide();
         GameStateService.Ensure().SetState(GameState.Gameplay);
     }

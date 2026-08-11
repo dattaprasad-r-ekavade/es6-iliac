@@ -19,7 +19,7 @@ public class RegionSmokeTests : SmokeTestFixture
     [UnityTearDown]
     public IEnumerator UnloadRegion()
     {
-        var cleanup = SceneManager.CreateScene("RegionCleanup_" + Time.frameCount);
+        var cleanup = SceneManager.CreateScene("RegionCleanup_" + System.Guid.NewGuid().ToString("N"));
         SceneManager.SetActiveScene(cleanup);
 
         var region = SceneManager.GetSceneByName(RegionScene);

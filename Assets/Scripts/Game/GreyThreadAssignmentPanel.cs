@@ -113,8 +113,23 @@ public sealed class GreyThreadAssignmentPanel : MonoBehaviour
     private void SubmitRoute(string route)
     {
         string name = _nameField != null ? _nameField.text.Trim() : string.Empty;
+        Submit(name, route);
+    }
+
+    /// <summary>
+    /// Submit an assignment without a click.
+    ///
+    /// This exists so the VS2 gate can drive the *real* audience path instead of bypassing
+    /// it. Before this the gate ran with the panel disabled entirely, which meant the one
+    /// scene where the player chooses their route was the one scene no test covered.
+    ///
+    /// An empty name falls back rather than failing — B120 records what the guards wrote
+    /// down, and a survivor who would not give a name still gets recorded as something.
+    /// </summary>
+    public void Submit(string name, string route)
+    {
         if (string.IsNullOrWhiteSpace(name)) name = "The Castaway";
-        Submitted?.Invoke(name, route);
+        Submitted?.Invoke(name, GreyThreadSceneCatalog.NormalizeRoute(route));
     }
 
     private static Text MakeText(Transform parent, string name, string content, int size,

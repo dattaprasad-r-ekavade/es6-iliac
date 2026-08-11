@@ -21,7 +21,7 @@ public class PlayableChapterSmokeTests : SmokeTestFixture
     [UnityTearDown]
     public IEnumerator Cleanup()
     {
-        var cleanup = SceneManager.CreateScene("PlayableCleanup_" + Time.frameCount);
+        var cleanup = SceneManager.CreateScene("PlayableCleanup_" + System.Guid.NewGuid().ToString("N"));
         SceneManager.SetActiveScene(cleanup);
 
         for (int i = SceneManager.sceneCount - 1; i >= 0; i--)

@@ -8,6 +8,25 @@ using UnityEngine;
 /// </summary>
 public static class GreyThreadSceneCatalog
 {
+    /// <summary>
+    /// The VS4 mechanic an interior exists to teach or use. This is what stops the mechanics
+    /// from being systems nothing touches — each route's beat now has somewhere it happens.
+    /// </summary>
+    public enum Feature
+    {
+        None,
+        /// <summary>A locked door worth picking. B420's tower infiltration.</summary>
+        Lock,
+        /// <summary>A pocket worth lifting, and a guard who might notice. B410 and B510.</summary>
+        Pickpocket,
+        /// <summary>A moored boat. B400's sailing lesson.</summary>
+        Boat,
+        /// <summary>A sparring dummy that fights back a little. B200's guard yard.</summary>
+        CombatDummy,
+        /// <summary>Crystals to spend and something to cast at. B300's spell instruction.</summary>
+        SpellTarget
+    }
+
     public sealed class SceneSpec
     {
         public readonly string Name;
@@ -15,28 +34,56 @@ public static class GreyThreadSceneCatalog
         public readonly string Title;
         public readonly Color Accent;
 
-        public SceneSpec(string name, string sceneId, string title, Color accent)
+        /// <summary>Chambers the interior is built from. One is a box; three is a place.</summary>
+        public readonly int Rooms;
+
+        public readonly Feature Mechanic;
+
+        /// <summary>False for the region-adjacent spaces the story moves the player out of.</summary>
+        public readonly bool HasExitDoor;
+
+        public SceneSpec(string name, string sceneId, string title, Color accent,
+            int rooms = 1, Feature mechanic = Feature.None, bool hasExitDoor = true)
         {
             Name = name;
             SceneId = sceneId;
             Title = title;
             Accent = accent;
+            Rooms = Mathf.Max(1, rooms);
+            Mechanic = mechanic;
+            HasExitDoor = hasExitDoor;
         }
     }
 
     private static readonly SceneSpec[] Specs =
     {
-        new("Prologue_Ship", "scene.prologue_ship", "The Wrecked Ship", new Color(0.30f, 0.42f, 0.52f)),
-        new("Estmere_Docks", "scene.estmere_docks", "Estmere Docks", new Color(0.36f, 0.50f, 0.42f)),
-        new("Estmere_Palace", "scene.estmere_palace", "Estmere Palace", new Color(0.53f, 0.40f, 0.24f)),
-        new("Tutorial_Warrior", "scene.tutorial_warrior", "Guard Drill Yard", new Color(0.60f, 0.27f, 0.18f)),
-        new("Estmere_Arcanum", "scene.estmere_arcanum", "The Arcanum", new Color(0.28f, 0.34f, 0.62f)),
-        new("Estmere_Harbor", "scene.estmere_harbor", "Merchant Harbor", new Color(0.24f, 0.52f, 0.55f)),
-        new("Estmere_SecuredTower", "scene.estmere_secured_tower", "Secured East Tower", new Color(0.48f, 0.32f, 0.24f)),
-        new("Estmere_Prison", "scene.estmere_prison", "Estmere Prison", new Color(0.30f, 0.30f, 0.34f)),
-        new("Estmere_SeaCave", "scene.estmere_sea_cave", "The Sea Cave", new Color(0.20f, 0.37f, 0.45f)),
-        new("Estmere_Palace_Aftermath", "scene.estmere_palace_aftermath", "Palace Aftermath", new Color(0.46f, 0.25f, 0.20f)),
-        new("Caldemar_Arrival", "scene.caldemar_arrival", "Caldemar Council Gate", new Color(0.55f, 0.43f, 0.25f))
+        // The prologue is a directed sequence the player is carried through, so it has no
+        // way back out to a city that has not been reached yet.
+        new("Prologue_Ship", "scene.prologue_ship", "The Wrecked Ship", new Color(0.30f, 0.42f, 0.52f),
+            rooms: 2, hasExitDoor: false),
+
+        new("Estmere_Docks", "scene.estmere_docks", "Estmere Docks", new Color(0.36f, 0.50f, 0.42f),
+            rooms: 2),
+        new("Estmere_Palace", "scene.estmere_palace", "Estmere Palace", new Color(0.53f, 0.40f, 0.24f),
+            rooms: 3),
+        new("Tutorial_Warrior", "scene.tutorial_warrior", "Guard Drill Yard", new Color(0.60f, 0.27f, 0.18f),
+            rooms: 2, mechanic: Feature.CombatDummy),
+        new("Estmere_Arcanum", "scene.estmere_arcanum", "The Arcanum", new Color(0.28f, 0.34f, 0.62f),
+            rooms: 3, mechanic: Feature.SpellTarget),
+        new("Estmere_Harbor", "scene.estmere_harbor", "Merchant Harbor", new Color(0.24f, 0.52f, 0.55f),
+            rooms: 2, mechanic: Feature.Boat),
+        new("Estmere_SecuredTower", "scene.estmere_secured_tower", "Secured East Tower", new Color(0.48f, 0.32f, 0.24f),
+            rooms: 3, mechanic: Feature.Lock),
+        new("Estmere_Prison", "scene.estmere_prison", "Estmere Prison", new Color(0.30f, 0.30f, 0.34f),
+            rooms: 4, mechanic: Feature.Pickpocket),
+
+        // The cave and everything after it are one-way story spaces.
+        new("Estmere_SeaCave", "scene.estmere_sea_cave", "The Sea Cave", new Color(0.20f, 0.37f, 0.45f),
+            rooms: 3, hasExitDoor: false),
+        new("Estmere_Palace_Aftermath", "scene.estmere_palace_aftermath", "Palace Aftermath", new Color(0.46f, 0.25f, 0.20f),
+            rooms: 2, hasExitDoor: false),
+        new("Caldemar_Arrival", "scene.caldemar_arrival", "Caldemar Council Gate", new Color(0.55f, 0.43f, 0.25f),
+            rooms: 2, hasExitDoor: false)
     };
 
     public static IReadOnlyList<SceneSpec> Scenes => Specs;

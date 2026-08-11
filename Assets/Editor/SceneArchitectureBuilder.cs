@@ -82,6 +82,10 @@ public static class SceneArchitectureBuilder
             InvalidTestScenePath
         });
         paths.AddRange(GreyThreadSceneBuilder.ScenePaths);
+        // The region is the walkable exterior the whole chapter returns to. This method
+        // replaces the build list wholesale, so anything omitted here silently stops being
+        // loadable at runtime - which is exactly how the region went missing once.
+        paths.Add(EstmereRegionBuilder.ScenePath);
 
         var scenes = new List<EditorBuildSettingsScene>();
         foreach (var path in paths)
