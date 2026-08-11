@@ -109,6 +109,40 @@ public sealed class PlayerEquipment : MonoBehaviour
         OnChanged?.Invoke();
     }
 
+    private string _stashedWeaponId;
+    private string _stashedArmourId;
+
+    /// <summary>True while gear is held by a gaoler rather than by the player.</summary>
+    public bool GearIsStashed { get; private set; }
+
+    /// <summary>
+    /// Strip the equipped set and remember it.
+    ///
+    /// The convergence contract requires all four routes to enter B600 unarmed so that B630's
+    /// escape can be authored once, and the beat sheet requires gear to be *stored, never
+    /// destroyed*. Items stay in the pack; only the equipped set is surrendered.
+    /// </summary>
+    public void StashGear()
+    {
+        if (GearIsStashed) return;
+        _stashedWeaponId = WeaponId;
+        _stashedArmourId = ArmourId;
+        GearIsStashed = true;
+        WeaponId = EquipmentCatalog.UnarmedId;
+        ArmourId = string.Empty;
+        OnChanged?.Invoke();
+    }
+
+    /// <summary>Hand it back. Safe to call when nothing was stashed.</summary>
+    public void RestoreStashedGear()
+    {
+        if (!GearIsStashed) return;
+        GearIsStashed = false;
+        Restore(_stashedWeaponId, _stashedArmourId);
+        _stashedWeaponId = null;
+        _stashedArmourId = null;
+    }
+
     /// <summary>Restore from a save. Ids are validated against the catalog on the way in.</summary>
     public void Restore(string weaponId, string armourId)
     {

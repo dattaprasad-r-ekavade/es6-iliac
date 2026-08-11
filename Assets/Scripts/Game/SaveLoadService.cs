@@ -24,8 +24,6 @@ public class SaveData
     public int Level, Xp, Gold;
     public float Health, Mana, Stamina;
     public float MaxHealth, MaxMana, MaxStamina;
-    /// <summary>Lifetime crystals burned. Story state, not a stat — see PlayerStats.Channeled.</summary>
-    public int Channeled;
     /// <summary>Equipped set. Ids only — EquipmentCatalog supplies the numbers.</summary>
     public string WeaponId;
     public string ArmourId;
@@ -108,7 +106,6 @@ public class SaveLoadService : MonoBehaviour
             MaxHealth = stats.MaxHealth,
             MaxMana = stats.MaxMana,
             MaxStamina = stats.MaxStamina,
-            Channeled = stats.Channeled,
             WeaponId = PlayerEquipment.Instance != null ? PlayerEquipment.Instance.WeaponId : null,
             ArmourId = PlayerEquipment.Instance != null ? PlayerEquipment.Instance.ArmourId : null,
             SkillLevels = SkillSystem.Instance != null ? SkillSystem.Instance.Capture() : new List<SavedSkill>(),
@@ -217,7 +214,8 @@ public class SaveLoadService : MonoBehaviour
             stats.MaxStamina = data.MaxStamina;
             // Level/Xp/Channeled have private setters — use the restore helpers.
             stats.RestoreProgress(data.Level, data.Xp);
-            stats.RestoreChanneled(data.Channeled);
+            // Channeling is persisted in the story snapshot, which is what dialogue reads.
+            stats.RestoreChanneled(Mathf.RoundToInt(data.Story?.PlayerChanneled ?? 0f));
             PlayerEquipment.Instance?.Restore(data.WeaponId, data.ArmourId);
             SkillSystem.Instance?.Restore(data.SkillLevels);
         }

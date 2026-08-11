@@ -128,10 +128,32 @@ public class ResourceSmokeTests : SmokeTestFixture
         Assert.AreEqual(3f, stats.Mana, 0.001f, "Levelling silently resupplied the player.");
     }
 
+    /// <summary>
+    /// Channeling is persisted in the story snapshot rather than beside the stats, because
+    /// that is the copy topic dialogue reads through the `player.channeled` condition.
+    /// Burning a crystal must reach it, or the counter rises and the world never notices.
+    /// </summary>
+    [Test]
+    public void BurningACrystal_ReachesTheStoryStateDialogueReads()
+    {
+        SpawnPlayer();
+        var story = Track(new GameObject("StoryDirector_Test")).AddComponent<StoryDirector>();
+        var stats = PlayerStats.Instance;
+
+        stats.Mana = 0f;
+        stats.SpendMana(1f);
+
+        Assert.AreEqual(1, stats.Channeled, "The runtime counter did not move.");
+        Assert.AreEqual(
+            1f, story.State.PlayerChanneled, 0.001f,
+            "Burning a crystal never reached StoryDirector, so dialogue would never react.");
+    }
+
     [Test]
     public void Channeled_SurvivesASaveRoundTrip()
     {
         SpawnPlayer();
+        Track(new GameObject("StoryDirector_Test")).AddComponent<StoryDirector>();
         var save = SpawnSaveService();
         var stats = PlayerStats.Instance;
 

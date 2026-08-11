@@ -128,6 +128,12 @@ public class PlayerStats : MonoBehaviour
 
         Mana = Mathf.Min(MaxMana, Mana + SoulCrystals.LesserCharge);
         Channeled++;
+
+        // StoryDirector owns the persisted total, because that is what topic dialogue reads
+        // through the `player.channeled` condition. Without this report the counter would
+        // rise and the world would never notice — which is the whole reason it is tracked.
+        StoryDirector.Instance?.AddChanneled(1f);
+
         GameSfx.Instance?.PlayMagic();
         GameHud.Instance?.ShowToast("You draw on a soul crystal.");
         OnChanged?.Invoke();

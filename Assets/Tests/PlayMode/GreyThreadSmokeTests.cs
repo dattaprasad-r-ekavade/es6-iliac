@@ -53,6 +53,9 @@ public sealed class GreyThreadSmokeTests : SmokeTestFixture
 
         var systems = Track(new GameObject("GameSystems_Vs2"));
         var story = systems.AddComponent<StoryDirector>();
+        // VS4 mechanics now hang off the route beats, so the gate exercises them too.
+        var equipment = player.AddComponent<PlayerEquipment>();
+        var skills = player.AddComponent<SkillSystem>();
         var director = systems.AddComponent<GreyThreadDirector>();
         systems.AddComponent<SaveLoadService>();
 
@@ -87,6 +90,20 @@ public sealed class GreyThreadSmokeTests : SmokeTestFixture
             Assert.AreEqual("role.prince", story.State.RulerId);
             Assert.AreEqual("title.crown_envoy", story.State.GrantedTitle);
             Assert.IsTrue(routeVisited.Contains("B640"), "Every route must pass the title-crawl beat.");
+
+            // VS4 wiring. Route assignment grants two skills; refuse grants none, which is
+            // the continuing price of the fastest path.
+            var granted = Skills.GrantedBy(route);
+            if (route == "route.refuse")
+                Assert.IsEmpty(granted, "Refuse should grant no skills.");
+            foreach (var skillId in granted)
+                Assert.Greater(skills.LevelOf(skillId), 0f,
+                    $"{route} did not grant {skillId} at assignment.");
+
+            // Gear taken at the prison must have been handed back on the way out, or the
+            // player reaches the confrontation stripped.
+            Assert.IsFalse(equipment.GearIsStashed,
+                $"{route} finished with the player's gear still confiscated.");
         }
 
         string[] expectedBeats =

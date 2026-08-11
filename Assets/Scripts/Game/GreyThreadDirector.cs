@@ -112,6 +112,10 @@ public sealed class GreyThreadDirector : MonoBehaviour
         AdvanceBeat("B120", "stage.assignment", "Your name and inclination are recorded.");
         AdvanceBeat("B130", "stage.assignment", "The King assigns your route.");
         Story.SetFlag("flag.route", route);
+
+        // Assignment grants the route's two skills. route.refuse grants none — the fastest
+        // route gives the least, which is its continuing price.
+        SkillSystem.Instance?.GrantRouteSkills(route);
         SaveCheckpoint();
 
         switch (route)
@@ -119,6 +123,8 @@ public sealed class GreyThreadDirector : MonoBehaviour
             case "route.warrior":
                 yield return Visit("Tutorial_Warrior", "spawn.entry", "B200", "stage.warrior");
                 if (Failed()) yield break;
+                IssueGear("iron_sword", "Iron Sword", "weapon");
+                IssueGear("padded_jerkin", "Padded Jerkin", "armour");
                 AdvanceBeat("B210", "stage.warrior", "The hunt and patrol resolve in a real encounter.");
                 AddEvidence("ev.transport_order", "Transport Order", "A sealed order moves a prisoner beneath the city.");
                 AdvanceBeat("B220", "stage.warrior", "The patrol uncovers a secret prisoner transport.");
@@ -126,12 +132,16 @@ public sealed class GreyThreadDirector : MonoBehaviour
             case "route.mage":
                 yield return Visit("Estmere_Arcanum", "spawn.entry", "B300", "stage.mage");
                 if (Failed()) yield break;
+                // The Arcanum issues the charge its lesson consumes. B310's manifest is what
+                // makes the player look at where that charge came from.
+                IssueGear(SoulCrystals.LesserId, SoulCrystals.LesserName, SoulCrystals.ItemKind, 5);
                 AddEvidence("ev.crystal_manifest", "Crystal Manifest", "The source column names prisoners transferred under royal seal.");
                 AdvanceBeat("B310", "stage.mage", "The soul-crystal delivery exposes an impossible source column.");
                 break;
             case "route.trade":
                 yield return Visit("Estmere_Harbor", "spawn.entry", "B400", "stage.trade");
                 if (Failed()) yield break;
+                IssueGear("hunting_bow", "Hunting Bow", "weapon");
                 AdvanceBeat("B410", "stage.trade", "Sailing, stealth, locks and pickpocketing are introduced.");
                 yield return Visit("Estmere_SecuredTower", "spawn.entry", "B420", "stage.trade");
                 if (Failed()) yield break;
@@ -147,6 +157,10 @@ public sealed class GreyThreadDirector : MonoBehaviour
         }
         SaveCheckpoint();
 
+        // Convergence contract clause 6: every route enters B600 unarmed, with gear stored
+        // rather than destroyed. This is what lets B630's escape be authored once.
+        PlayerEquipment.Instance?.StashGear();
+
         yield return Visit("Estmere_Prison", "spawn.route", "B320", "stage.convergence");
         if (Failed()) yield break;
         AdvanceBeat("B600", "stage.convergence", "The prince is located.");
@@ -159,6 +173,8 @@ public sealed class GreyThreadDirector : MonoBehaviour
         yield return Visit("Estmere_SeaCave", "spawn.escape", "B620", "stage.escape");
         if (Failed()) yield break;
         AddEvidence("ev.black_crystal", "Black Crystal", "A resonant shard remembers the voices of the prisoners.");
+        // The evidence room holds what was taken on the way in.
+        PlayerEquipment.Instance?.RestoreStashedGear();
         Story.SetCompanion("role.prince", true, "Estmere_SeaCave", "spawn.escape", 100f);
         AdvanceBeat("B630", "stage.escape", "The prince follows you into the sea cave.");
         Story.SetFlag("flag.prince_following");
@@ -283,6 +299,16 @@ public sealed class GreyThreadDirector : MonoBehaviour
                 DeclaredInclination = routeId
             });
         }
+    }
+
+    /// <summary>
+    /// Hand the player route gear and equip it. Routes grant different kit, which is what
+    /// makes the four openings mechanically distinct rather than differently captioned.
+    /// </summary>
+    private static void IssueGear(string itemId, string displayName, string kind, int count = 1)
+    {
+        PlayerInventory.Instance?.Add(itemId, displayName, count, kind);
+        PlayerEquipment.Instance?.AutoEquipBest();
     }
 
     private void AdvanceBeat(string beatId, string stageId, string text)

@@ -158,6 +158,51 @@ public class EquipmentSmokeTests : SmokeTestFixture
         Assert.AreEqual("mail_hauberk", equipment.ArmourId, "Worn armour was lost on load.");
     }
 
+    /// <summary>
+    /// Convergence contract clause 6: every route enters B600 unarmed, gear stored and not
+    /// destroyed. It is what lets B630's escape be authored once instead of four times.
+    /// </summary>
+    [Test]
+    public void StashedGear_LeavesThePlayerUnarmed_AndComesBackIntact()
+    {
+        var player = SpawnPlayer();
+        var equipment = player.AddComponent<PlayerEquipment>();
+        var inventory = PlayerInventory.Instance;
+        inventory.Add("steel_sword", "Steel Sword", 1, "weapon");
+        inventory.Add("mail_hauberk", "Mail Hauberk", 1, "armour");
+        equipment.Equip("steel_sword");
+        equipment.Equip("mail_hauberk");
+
+        equipment.StashGear();
+
+        Assert.IsTrue(equipment.GearIsStashed);
+        Assert.AreEqual(EquipmentCatalog.UnarmedId, equipment.WeaponId, "The player entered convergence armed.");
+        Assert.AreEqual(0f, equipment.ArmourValue, 0.001f, "The player entered convergence armoured.");
+        Assert.AreEqual(1, inventory.CountOf("steel_sword"), "Stashing destroyed the gear instead of storing it.");
+
+        equipment.RestoreStashedGear();
+
+        Assert.IsFalse(equipment.GearIsStashed);
+        Assert.AreEqual("steel_sword", equipment.WeaponId, "Stored gear did not come back.");
+        Assert.AreEqual("mail_hauberk", equipment.ArmourId, "Stored armour did not come back.");
+    }
+
+    [Test]
+    public void StashingTwice_DoesNotLoseTheOriginalGear()
+    {
+        var player = SpawnPlayer();
+        var equipment = player.AddComponent<PlayerEquipment>();
+        PlayerInventory.Instance.Add("steel_sword", "Steel Sword", 1, "weapon");
+        equipment.Equip("steel_sword");
+
+        equipment.StashGear();
+        equipment.StashGear(); // a second confiscation must not overwrite the record with "unarmed"
+        equipment.RestoreStashedGear();
+
+        Assert.AreEqual("steel_sword", equipment.WeaponId,
+            "A repeated stash overwrote the stored set and the gear was lost.");
+    }
+
     /// <summary>A save naming gear that no longer exists must degrade, not throw.</summary>
     [Test]
     public void RestoringUnknownGear_FallsBackToUnarmed()

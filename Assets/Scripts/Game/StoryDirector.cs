@@ -35,17 +35,6 @@ public sealed class CompanionState
     public float Health = 100f;
 }
 
-[Serializable] public sealed class SkillProgress { public string Id; public float Progress; }
-
-[Serializable]
-public sealed class EquipmentState
-{
-    public string WeaponId;
-    public string HeadId;
-    public string BodyId;
-    public string HandsId;
-    public string FeetId;
-}
 
 [Serializable]
 public sealed class StorySnapshot
@@ -65,8 +54,11 @@ public sealed class StorySnapshot
     public List<string> OpenedLocks = new();
     public List<string> LootedObjects = new();
     public List<string> SkippedCinematics = new();
-    public List<SkillProgress> Skills = new();
-    public EquipmentState Equipment = new();
+    /// <summary>
+    /// Lifetime crystals burned. Owned here rather than in <see cref="SaveData"/> because
+    /// topic dialogue reads it through the `player.channeled` condition — this is the copy
+    /// the world reacts to.
+    /// </summary>
     public float PlayerChanneled;
 }
 
@@ -201,8 +193,6 @@ public sealed class StoryDirector : MonoBehaviour
         state.OpenedLocks ??= new List<string>();
         state.LootedObjects ??= new List<string>();
         state.SkippedCinematics ??= new List<string>();
-        state.Skills ??= new List<SkillProgress>();
-        state.Equipment ??= new EquipmentState();
     }
 
     private void AddUnique(List<string> values, string id)
