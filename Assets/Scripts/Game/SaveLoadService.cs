@@ -24,6 +24,8 @@ public class SaveData
     public int Level, Xp, Gold;
     public float Health, Mana, Stamina;
     public float MaxHealth, MaxMana, MaxStamina;
+    /// <summary>Lifetime crystals burned. Story state, not a stat — see PlayerStats.Channeled.</summary>
+    public int Channeled;
     public float TimeOfDay01;
     public List<string> Discovered = new();
     public List<InvItem> Items = new();
@@ -101,6 +103,7 @@ public class SaveLoadService : MonoBehaviour
             MaxHealth = stats.MaxHealth,
             MaxMana = stats.MaxMana,
             MaxStamina = stats.MaxStamina,
+            Channeled = stats.Channeled,
             TimeOfDay01 = TimeWeatherSystem.Instance != null ? TimeWeatherSystem.Instance.TimeOfDay01 : 0.4f,
             Discovered = DiscoveryTravelSystem.Instance != null ? DiscoveryTravelSystem.Instance.GetDiscoveredIds() : new List<string>(),
             Items = PlayerInventory.Instance != null ? new List<InvItem>(PlayerInventory.Instance.Items) : new List<InvItem>(),
@@ -204,8 +207,9 @@ public class SaveLoadService : MonoBehaviour
             stats.MaxHealth = data.MaxHealth;
             stats.MaxMana = data.MaxMana;
             stats.MaxStamina = data.MaxStamina;
-            // Level/Xp have private setters — use the restore helper.
+            // Level/Xp/Channeled have private setters — use the restore helpers.
             stats.RestoreProgress(data.Level, data.Xp);
+            stats.RestoreChanneled(data.Channeled);
         }
 
         DiscoveryTravelSystem.Instance?.LoadDiscovered(data.Discovered);

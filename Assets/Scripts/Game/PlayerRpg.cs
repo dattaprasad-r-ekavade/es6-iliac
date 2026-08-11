@@ -17,15 +17,33 @@ public class PlayerStats : MonoBehaviour
     public int Gold;
     public event Action OnChanged;
 
+    /// <summary>
+    /// Lifetime crystals burned. Tracked, never punished — it changes what the world says to
+    /// the player, never how hard enemies hit. See Docs/GAMEPLAY_DESIGN.md.
+    /// </summary>
+    public int Channeled { get; private set; }
+
+    /// <summary>Stamina regained per second while a fight is live.</summary>
+    public const float CombatStaminaRegen = 4f;
+
+    /// <summary>Stamina regained per second out of combat.</summary>
+    public const float RestStaminaRegen = 12f;
+
     private void Awake() => Instance = this;
     private void OnDestroy() { if (Instance == this) Instance = null; }
 
     private void Update()
     {
         if (Health <= 0f) return;
-        Mana = Mathf.Min(MaxMana, Mana + 4f * Time.deltaTime);
-        if (!PlayerCombat.Instance || !PlayerCombat.Instance.InCombat)
-            Stamina = Mathf.Min(MaxStamina, Stamina + 12f * Time.deltaTime);
+
+        // Mana does not regenerate. It is charge drawn from soul crystals — the setting's
+        // scarcity is not real if the player's own bar refills for free.
+
+        // Combat regen used to be zero, which gave 12 swings and then six seconds of standing
+        // there unable to attack. Reduced, not absent.
+        bool fighting = PlayerCombat.Instance != null && PlayerCombat.Instance.InCombat;
+        float regen = fighting ? CombatStaminaRegen : RestStaminaRegen;
+        Stamina = Mathf.Min(MaxStamina, Stamina + regen * Time.deltaTime);
     }
 
     public void AddXp(int amount)
@@ -39,8 +57,9 @@ public class PlayerStats : MonoBehaviour
             MaxMana += 8f;
             MaxStamina += 8f;
             Health = MaxHealth;
-            Mana = MaxMana;
             Stamina = MaxStamina;
+            // Mana is charge, not a pool: levelling raises the ceiling but does not hand out
+            // free crystals. Refilling here would make every level-up a silent resupply.
             GameSfx.Instance?.PlayLevelUp();
             GameHud.Instance?.ShowToast($"Level Up! You are now level {Level}");
         }
@@ -69,12 +88,41 @@ public class PlayerStats : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Spend charge, drawing on a crystal if the reserve is short. Returns false only when
+    /// the player has neither enough charge nor a crystal to burn.
+    /// </summary>
     public bool SpendMana(float amount)
     {
+        if (Mana < amount && !TryDrawCrystal()) return false;
         if (Mana < amount) return false;
         Mana -= amount;
         OnChanged?.Invoke();
         return true;
+    }
+
+    /// <summary>
+    /// Burn one crystal for charge. Deliberately announced: the player should feel every one
+    /// of these, because the whole arc is an argument about what they cost.
+    /// </summary>
+    public bool TryDrawCrystal()
+    {
+        var inventory = PlayerInventory.Instance;
+        if (inventory == null || !inventory.Consume(SoulCrystals.LesserId)) return false;
+
+        Mana = Mathf.Min(MaxMana, Mana + SoulCrystals.LesserCharge);
+        Channeled++;
+        GameSfx.Instance?.PlayMagic();
+        GameHud.Instance?.ShowToast("You draw on a soul crystal.");
+        OnChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>Restore the lifetime channel count from a save.</summary>
+    public void RestoreChanneled(int channeled)
+    {
+        Channeled = Mathf.Max(0, channeled);
+        OnChanged?.Invoke();
     }
 
     private void Die()
@@ -94,10 +142,13 @@ public class PlayerStats : MonoBehaviour
         OnChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Recovery after death or rescue. Health and stamina come back; charge does not, because
+    /// dying is not a way to refill crystals you did not spend gold on.
+    /// </summary>
     public void FullRestore()
     {
         Health = MaxHealth;
-        Mana = MaxMana;
         Stamina = MaxStamina;
         OnChanged?.Invoke();
     }

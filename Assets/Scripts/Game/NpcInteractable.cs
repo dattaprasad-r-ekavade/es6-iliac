@@ -12,24 +12,48 @@ public class NpcInteractable : MonoBehaviour
     public void Interact()
     {
         string line = Lines[Random.Range(0, Lines.Length)];
-        if (IsMerchant)
-        {
-            var stats = PlayerStats.Instance;
-            var inventory = PlayerInventory.Instance;
-            if (stats != null && inventory != null && stats.Gold >= 10)
-            {
-                stats.Gold -= 10;
-                inventory.Add("health_potion", "Health Potion", 1, "potion");
-                line = "Potion for ten gold. Don't die out there.";
-            }
-            else line = "Come back with coin if you want supplies.";
-        }
+        if (IsMerchant) line = Trade();
         if (IsQuestGiver)
         {
             line = "Clear the Kelrith bandits and the road will thank you.";
             QuestSystem.Instance?.NotifyLocation("bandit_camp");
         }
         GameHud.Instance?.ShowDialogue(NpcName, line);
+    }
+
+    private const int PotionPrice = 10;
+
+    /// <summary>
+    /// Placeholder shop: one purchase per interaction, restocking whichever supply the player
+    /// is shortest of. A real shop UI replaces this — but the gold must always change hands
+    /// first, because it silently stopped doing so once already (2026-07-26 audit).
+    ///
+    /// Crystals are offered only when the player is nearly out, so the merchant does not
+    /// compete with potions while the player is well supplied.
+    /// </summary>
+    private string Trade()
+    {
+        var stats = PlayerStats.Instance;
+        var inventory = PlayerInventory.Instance;
+        if (stats == null || inventory == null)
+            return "Come back with coin if you want supplies.";
+
+        bool shortOfCharge = inventory.CountOf(SoulCrystals.LesserId) < 2;
+        if (shortOfCharge && stats.Gold >= SoulCrystals.LesserBasePrice)
+        {
+            stats.Gold -= SoulCrystals.LesserBasePrice;
+            inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 1, SoulCrystals.ItemKind);
+            return $"A lesser crystal, {SoulCrystals.LesserBasePrice} gold. They came dearer last season.";
+        }
+
+        if (stats.Gold >= PotionPrice)
+        {
+            stats.Gold -= PotionPrice;
+            inventory.Add("health_potion", "Health Potion", 1, "potion");
+            return "Potion for ten gold. Don't die out there.";
+        }
+
+        return "Come back with coin if you want supplies.";
     }
 
     public static GameObject Spawn(string name, Vector3 pos, Color color, string[] lines,

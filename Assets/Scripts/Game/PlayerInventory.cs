@@ -23,6 +23,7 @@ public class PlayerInventory : MonoBehaviour
         if (Items.Count != 0) return;
         Add("iron_sword", "Iron Sword", 1, "weapon");
         Add("health_potion", "Health Potion", 3, "potion");
+        Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 3, SoulCrystals.ItemKind);
         Add("torch", "Torch", 1, "misc");
     }
 
@@ -35,6 +36,13 @@ public class PlayerInventory : MonoBehaviour
         else Items.Add(new InvItem { Id = id, Name = name, Count = count, Kind = kind });
         if (Time.frameCount > 2) GameSfx.Instance?.PlayPickup();
         OnChanged?.Invoke();
+    }
+
+    /// <summary>Stack size held for an item id, or zero.</summary>
+    public int CountOf(string id)
+    {
+        var existing = Items.Find(i => i.Id == id);
+        return existing != null ? existing.Count : 0;
     }
 
     public bool Consume(string id, int count = 1)
