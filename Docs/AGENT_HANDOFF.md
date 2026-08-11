@@ -1,6 +1,6 @@
 # Agent handoff — how to pick up this project cold
 
-**Updated:** 2026-08-04
+**Updated:** 2026-08-11
 
 This project is developed by rotating AI agents with no shared memory between sessions.
 **This document is the memory.** Read it before doing anything else.
@@ -46,20 +46,20 @@ Do not resolve a question from the wrong file.
 
 ## 3. Verification — commands that actually work
 
-All four are verified working as of 2026-08-01. Unity must be **closed** for the headless
+All four are verified working as of 2026-08-11. Unity must be **closed** for the headless
 ones (they take the project lock).
 
 ```bash
 # Compile-check every assembly without opening Unity. Fast, run this constantly.
 python Tools/compile-check.py
 
-# EditMode tests — currently 47/47
+# EditMode tests — currently 61/61
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform EditMode \
   -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"
 
-# PlayMode tests — currently 83/83
+# PlayMode tests — currently 101/101
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform PlayMode \
@@ -146,6 +146,11 @@ avatar generation fails on `Required human bone 'LeftLowerLeg' not found`. Do no
 trying to retarget animation onto them — see W-13. Setting them to Human anyway leaves a
 broken state that logs a rig error on every import; `CharacterRigTests` guards against it.
 
+**A generated scene without a `SceneContext` cannot be entered.** `SceneTransitionService`
+fails the transition and the player is stranded wherever they were — New Game reached
+`Prologue_Ship` and stopped there permanently until this was found. Any new generated scene
+must build a `SceneContext` and at least one `SceneSpawnPoint`.
+
 **`Game.Tests.asmdef` is Editor-only** (`includePlatforms: ["Editor"]`). PlayMode tests live
 in the separate `Game.PlayModeTests` assembly.
 
@@ -170,7 +175,7 @@ is W-11, the external Map Editor MVP.
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
 | VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
 | VS2 — grey thread | **Complete — 42/42 grey beats; all four routes reach B830** |
-| Tests | EditMode 47/47, PlayMode 83/83 |
+| Tests | EditMode 61/61, PlayMode 101/101 |
 | Build | `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors; Bootstrap is scene zero |
 | Code | 51 runtime scripts, 14 editor scripts, plus Python tooling |
 | Scenes | `Bootstrap`, generated `Main`, additive `Estmere_Exterior`, 11 Chapter 01 grey scenes; four test fixtures |
@@ -438,6 +443,36 @@ scene uses them yet. VS5 is where the routes are authored against them.
 **Still missing from VS4:** tutorial prompt and objective framework, checkpoints and
 recoverable fail states, and `CompanionController` — which is scoped to authored sequences
 only, so it is best built alongside the prison escape rather than in isolation.
+
+### W-15 · Playable Chapter 01, Arena-style — **complete 2026-08-11**
+
+The chapter is played rather than watched. Built procedurally so that playtesting can happen
+before any art exists — the same reason Arena and Daggerfall were procedural.
+
+| Piece | Files |
+|---|---|
+| 2.4 km region, walled 1.6 km city, sea bound | `EstmereRegion`, `EstmereRegionBuilder` |
+| Doors into interiors, return-to-door | `RegionPortal`, `RegionReturn` |
+| Arena billboard characters | `BillboardActor` |
+| Written directions, live bearing | `ObjectiveService` |
+| Player-driven beats | `GreyThreadDirector` player-driven mode |
+
+**How it plays.** Boot → title → START → prologue plays automatically → the player stands in
+the region with an objective. Walking to a door and pressing E enters that interior, its beats
+fire, and the player is returned to the door they used with the next objective set.
+
+**The automated VS2 gate still runs with player-driven mode off**, so it stays deterministic.
+Do not "fix" that by making the gate interactive — it would then depend on UI input.
+
+**Known gaps for the next session:**
+
+- The King's audience blocks on `WaitForAssignment()`, a UI panel. Fine when a human plays;
+  it is why the gate runs non-interactively.
+- Interiors are still single grey rooms. The region is a place; the interiors are not yet.
+- VS4 mechanics are wired to route beats but nothing in an interior *uses* detection, locks,
+  pickpocketing or sailing yet. That is VS5.
+- No exit doors inside interiors — the director returns the player, so a human who wanders
+  cannot leave on their own.
 
 ### W-11 · Map Editor MVP · **next**
 
