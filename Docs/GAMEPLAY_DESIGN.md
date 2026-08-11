@@ -486,12 +486,33 @@ with systems already planned.
 | 7 | Swimming surface-only, deliberately poor; no diving systems | VS4 |
 | 8 | Map Editor MVP promoted — it enables landmark navigation | after VS2, as planned |
 | 9 | Everspire sightline validation added to world-layout rules | Map Editor |
-| 10 | `player.channeled` tracked and exposed as a dialogue condition | VS1 data, VS5+ payoff |
-| 11 | Mana becomes non-regenerating crystal charge | VS4 |
-| 12 | Equip system: weapon/armour slots with stats on `InvItem`, read by `PlayerCombat` | VS1 data, VS4 behaviour |
-| 13 | Eight use-based skills; `Level` derives from total skill progress | VS4 |
-| 14 | Three weapon classes with tiers; five distinct spells | VS4 |
-| 15 | Fix the in-combat stamina dead zone — reduced regen, not zero | any time; it is a small bug |
+| 10 | `player.channeled` tracked and exposed as a dialogue condition | ✅ **built** — `PlayerStats.Channeled`, saved |
+| 11 | Mana becomes non-regenerating crystal charge | ✅ **built** — `SoulCrystals`, `PlayerStats.SpendMana` |
+| 12 | Equip system: weapon/armour slots with stats, read by `PlayerCombat` | ✅ **built** — `EquipmentCatalog`, `PlayerEquipment` |
+| 13 | Eight use-based skills; `Level` derives from total skill progress | ✅ **built** — `Skills`, `SkillSystem` |
+| 14 | Three weapon classes with tiers; five distinct spells | ✅ **built** — `EquipmentCatalog`, `SpellCatalog`, `SpellCaster` |
+| 15 | Fix the in-combat stamina dead zone — reduced regen, not zero | ✅ **built** — 4/sec in combat, 12/sec at rest |
+| 16 | Detection, locks, pickpocketing, crime response | ✅ **built** — `DetectionSystem`, `DoorAndLock`, `PickpocketSystem`, `CrimeWitness` |
+| 17 | Sailing | ✅ **built** — `SailingController` |
+
+**Items 10–17 were built on 2026-08-04** and are covered by 36 PlayMode tests. Decisions made
+during implementation that are not otherwise recorded:
+
+- **A crystal restores 40 charge and costs 12 gold early.** Deliberately close to a health
+  potion, so the player reads it as an ordinary consumable before the arc makes it precious.
+- **Casting auto-draws a crystal** when the reserve is short, announced by a toast. Fluid to
+  play, and the player still feels every one.
+- **Neither death nor levelling refills charge.** Both were silent resupply routes.
+- **Locks and pickpocketing resolve deterministically against Security**, not by dice. The
+  player is told the number they need. A hidden roll that fails is indistinguishable from a
+  broken mechanic.
+- **Being caught costs suspicion, never the goods.** Confiscation would make B410 unwinnable
+  for a player seen once, and VS4's gate forbids stranding.
+- **Detection is sight-only.** Hearing is the part of stealth players find unreadable; a cone
+  plus a raycast is legible without a tutorial explaining it.
+- **A boat with no way on cannot turn.** Steering authority scales with speed.
+- **Every sailing failure path ends ashore.** No shore in reach returns boat and rider to the
+  mooring rather than dropping the player in open water.
 
 Item 1 is the only one with a real deadline. Items 12 and 13 add fields to `SaveGameV4`, so
 the *data shape* has to be decided in VS1 even though the behaviour lands in VS4.

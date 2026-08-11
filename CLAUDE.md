@@ -26,11 +26,11 @@ python Tools/compile-check.py    # fast, run constantly
 
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" -runTests -testPlatform EditMode \
-  -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"     # 45/45
+  -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"     # 47/47
 
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" -runTests -testPlatform PlayMode \
-  -testResults "<scratch>/pm.xml" -logFile "<scratch>/pm.log"     # 30/30
+  -testResults "<scratch>/pm.xml" -logFile "<scratch>/pm.log"     # 83/83
 ```
 
 **Done means:** compile-check clean, EditMode green, PlayMode green. Never report success

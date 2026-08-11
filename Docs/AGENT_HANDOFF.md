@@ -1,6 +1,6 @@
 # Agent handoff — how to pick up this project cold
 
-**Updated:** 2026-08-01
+**Updated:** 2026-08-04
 
 This project is developed by rotating AI agents with no shared memory between sessions.
 **This document is the memory.** Read it before doing anything else.
@@ -53,13 +53,13 @@ ones (they take the project lock).
 # Compile-check every assembly without opening Unity. Fast, run this constantly.
 python Tools/compile-check.py
 
-# EditMode tests — currently 45/45
+# EditMode tests — currently 47/47
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform EditMode \
   -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"
 
-# PlayMode tests — currently 30/30
+# PlayMode tests — currently 83/83
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform PlayMode \
@@ -125,8 +125,10 @@ test files compile — run the actual test command.
 **Unity fails tests on unexpected `Debug.LogError`.** If the code under test logs one on
 purpose, declare it with `LogAssert.Expect(LogType.Error, new Regex(...))`.
 
-**`PlayerStats.Update` regenerates mana and stamina every frame.** Use `[Test]` rather than
-`[UnityTest]` when asserting on those, so no frames advance.
+**`PlayerStats.Update` regenerates stamina every frame** (4/sec in combat, 12/sec at rest).
+Use `[Test]` rather than `[UnityTest]` when asserting on stamina, so no frames advance.
+**Mana does not regenerate at all** — it is crystal charge. If you find yourself adding mana
+regen to make a test pass, the test is wrong.
 
 **`KessilWorldGenerator.SnapCharacterToGround` returns its input unchanged when no terrain is
 present.** This is why save/load round-trips exactly in a bare test scene.
@@ -168,7 +170,7 @@ is W-11, the external Map Editor MVP.
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
 | VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
 | VS2 — grey thread | **Complete — 42/42 grey beats; all four routes reach B830** |
-| Tests | EditMode 45/45, PlayMode 30/30 |
+| Tests | EditMode 47/47, PlayMode 83/83 |
 | Build | `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors; Bootstrap is scene zero |
 | Code | 51 runtime scripts, 14 editor scripts, plus Python tooling |
 | Scenes | `Bootstrap`, generated `Main`, additive `Estmere_Exterior`, 11 Chapter 01 grey scenes; four test fixtures |
@@ -411,6 +413,31 @@ beats replaced**, not missing traversal waypoints.
 **Verified independently 2026-08-01:** compile-check clean; EditMode 45/45; PlayMode 30/30
 including the 42-beat union, title/evidence/outcome/autosave assertions; Windows build
 142.5 MB, all commands exit 0.
+
+### W-14 · VS4 mechanics — **complete 2026-08-04**
+
+Built ahead of W-11 because none of it needs art or a browser, and it turns the game from a
+story skeleton into something with RPG mechanics. All of it is headlessly testable — grey
+capsules swing swords perfectly well.
+
+| System | Files |
+|---|---|
+| Crystal charge, channeling, stamina fix | `SoulCrystals`, `PlayerRpg` |
+| Equipment, three weapon classes, armour, blocking | `EquipmentCatalog`, `PlayerEquipment` |
+| Five distinct spells | `SpellCatalog`, `SpellCaster`, plus burn/chill/stagger on `EnemyBrain` |
+| Eight use-based skills, five anti-grind rules | `Skills`, `SkillSystem` |
+| Detection, locks, pickpocketing, crime | `DetectionSystem`, `DetectionWatcher`, `DoorAndLock`, `PickpocketSystem`, `CrimeWitness` |
+| Sailing | `SailingController` |
+
+**36 new PlayMode tests.** Design decisions made during the build are recorded in
+`GAMEPLAY_DESIGN.md` § *Deltas*.
+
+**Not yet wired into content.** These systems exist and are tested in isolation; no Chapter 01
+scene uses them yet. VS5 is where the routes are authored against them.
+
+**Still missing from VS4:** tutorial prompt and objective framework, checkpoints and
+recoverable fail states, and `CompanionController` — which is scoped to authored sequences
+only, so it is best built alongside the prison escape rather than in isolation.
 
 ### W-11 · Map Editor MVP · **next**
 
