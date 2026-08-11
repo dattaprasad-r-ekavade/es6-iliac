@@ -30,7 +30,7 @@ python Tools/compile-check.py    # fast, run constantly
 
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" -runTests -testPlatform PlayMode \
-  -testResults "<scratch>/pm.xml" -logFile "<scratch>/pm.log"     # 114/114
+  -testResults "<scratch>/pm.xml" -logFile "<scratch>/pm.log"     # 122/122
 ```
 
 **Done means:** compile-check clean, EditMode green, PlayMode green. Never report success

@@ -24,7 +24,10 @@ the short version loaded automatically by Claude Code.
 ## Controls
 WASD · mouse look · **Shift** sprint · Space jump · Esc unlock cursor  
 **M** map/FT · **J** journal · **I** inventory · **T** wait · **E** talk  
-**LMB/1** melee · **2** flare · **Q** potion · **F5** save · **F9** load
+**LMB/1** melee · **RMB/LAlt** block · **2** cast · **Q** potion · **F5** save · **F9** load
+
+Talk to the named cast with **E**, then pick a subject with **1–9**. Keywords you learn from
+one person can be asked of another.
 
 After gameplay starts, the VS2 grey thread opens the King's audience assignment panel. Enter a
 name, then choose **City Guard**, **The Arcanum**, **Docks / Commerce**, or **Refuse

@@ -59,7 +59,7 @@ python Tools/compile-check.py
   -runTests -testPlatform EditMode \
   -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"
 
-# PlayMode tests — currently 114/114
+# PlayMode tests — currently 122/122
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform PlayMode \
@@ -184,7 +184,7 @@ is W-11, the external Map Editor MVP.
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
 | VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
 | VS2 — grey thread | **Complete — 42/42 grey beats; all four routes reach B830** |
-| Tests | EditMode 61/61, PlayMode 114/114 |
+| Tests | EditMode 61/61, PlayMode 122/122 |
 | Build | `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors; Bootstrap is scene zero |
 | Code | 51 runtime scripts, 14 editor scripts, plus Python tooling |
 | Scenes | `Bootstrap`, generated `Main`, additive `Estmere_Exterior`, 11 Chapter 01 grey scenes; four test fixtures |
@@ -502,8 +502,36 @@ Closes the four gaps W-15 left open.
 It depended on six chained scene transitions and could not be made reliable. If you try it
 again, know that it has already failed once for that reason.
 
-**Still open:** interiors have no NPCs to talk to — the billboard actors are region dressing
-only. Topic dialogue exists and is wired to nothing in a scene.
+**Closed by W-17:** interiors now hold the named cast and topic conversation works.
+
+### W-17 · The cast, and talking to them — **complete 2026-08-11**
+
+The topic system was built, tested and wired to nothing in any scene. There was nobody to
+talk to. Now there is.
+
+- `SpeakingActor` — a billboard with a role id. Topics offered are the intersection of what
+  it can answer and what the player knows to ask, so the menu can never offer a keyword that
+  produces silence.
+- `GameHud.ShowTopicMenu` — pick a subject by number, not a line from a tree. The menu
+  persists until the player leaves, and rebuilds after each answer because asking can teach
+  new keywords.
+- **Fourteen topics.** Four shared (anyone answers), the rest role-locked, so the same keyword
+  answers differently depending on who is asked. That asymmetry is the reason for a shared
+  knowledge base rather than a tree, and it has its own test.
+- `PlayerInteract` prefers a `SpeakingActor` over an `NpcInteractable`, so the named cast open
+  a conversation where street dressing only barks.
+
+**The "soul crystals" topic carries a story requirement, not colour.** It states that crystals
+are given at a natural death or bought from beast-drovers, and that this is lawful and has fed
+Estmere for two centuries. `STORY_ARC.md` names establishing organic sourcing as normal and
+legal the single most important thing Chapter 01 must plant — without it the audience
+concludes all crystal use is monstrous and the eight-chapter argument collapses into an
+abolition story. **Do not cut or soften that topic.**
+
+Cast placement follows the beat sheet: processing guard at the docks, Thorne in the guard
+yard, Quill in the Arcanum, Ashgrove at the harbour, Reed and Falk in the prison, Osric in the
+palace, Ambrose at Caldemar. B510 requires the prison reveal split across two speakers; a test
+holds that both are present.
 
 ### W-11 · Map Editor MVP · **next**
 
