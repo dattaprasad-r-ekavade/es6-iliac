@@ -26,6 +26,9 @@ public class SaveData
     public float MaxHealth, MaxMana, MaxStamina;
     /// <summary>Lifetime crystals burned. Story state, not a stat — see PlayerStats.Channeled.</summary>
     public int Channeled;
+    /// <summary>Equipped set. Ids only — EquipmentCatalog supplies the numbers.</summary>
+    public string WeaponId;
+    public string ArmourId;
     public float TimeOfDay01;
     public List<string> Discovered = new();
     public List<InvItem> Items = new();
@@ -104,6 +107,8 @@ public class SaveLoadService : MonoBehaviour
             MaxMana = stats.MaxMana,
             MaxStamina = stats.MaxStamina,
             Channeled = stats.Channeled,
+            WeaponId = PlayerEquipment.Instance != null ? PlayerEquipment.Instance.WeaponId : null,
+            ArmourId = PlayerEquipment.Instance != null ? PlayerEquipment.Instance.ArmourId : null,
             TimeOfDay01 = TimeWeatherSystem.Instance != null ? TimeWeatherSystem.Instance.TimeOfDay01 : 0.4f,
             Discovered = DiscoveryTravelSystem.Instance != null ? DiscoveryTravelSystem.Instance.GetDiscoveredIds() : new List<string>(),
             Items = PlayerInventory.Instance != null ? new List<InvItem>(PlayerInventory.Instance.Items) : new List<InvItem>(),
@@ -210,6 +215,7 @@ public class SaveLoadService : MonoBehaviour
             // Level/Xp/Channeled have private setters — use the restore helpers.
             stats.RestoreProgress(data.Level, data.Xp);
             stats.RestoreChanneled(data.Channeled);
+            PlayerEquipment.Instance?.Restore(data.WeaponId, data.ArmourId);
         }
 
         DiscoveryTravelSystem.Instance?.LoadDiscovered(data.Discovered);

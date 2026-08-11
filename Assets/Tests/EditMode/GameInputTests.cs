@@ -13,7 +13,7 @@ public sealed class GameInputTests
 
         string[] required =
         {
-            "Move", "Look", "Jump", "Sprint", "PrimaryAttack", "SecondaryAttack",
+            "Move", "Look", "Jump", "Sprint", "PrimaryAttack", "SecondaryAttack", "Block",
             "UsePotion", "Interact", "Save", "Load", "ToggleMap", "ToggleJournal",
             "ToggleInventory", "ToggleWait", "Cancel", "Submit", "Navigate", "Travel",
             "WaitOneHour", "WaitEightHours", "WaitDay", "Skip",

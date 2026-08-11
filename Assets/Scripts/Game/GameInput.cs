@@ -31,6 +31,8 @@ public static class GameInput
     public static InputAction Sprint => Find("Sprint");
     public static InputAction PrimaryAttack => Find("PrimaryAttack");
     public static InputAction SecondaryAttack => Find("SecondaryAttack");
+    /// <summary>Held, not pressed. Only effective with a one-handed weapon equipped.</summary>
+    public static InputAction Block => Find("Block");
     public static InputAction UsePotion => Find("UsePotion");
     public static InputAction Interact => Find("Interact");
     public static InputAction Save => Find("Save");

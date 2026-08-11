@@ -13,6 +13,7 @@ public sealed class RuntimePrefabTests
         Assert.IsNotNull(prefab.GetComponent<SimplePlayerController>());
         Assert.IsNotNull(prefab.GetComponent<PlayerStats>());
         Assert.IsNotNull(prefab.GetComponent<PlayerInventory>());
+        Assert.IsNotNull(prefab.GetComponent<PlayerEquipment>());
         Assert.IsNotNull(prefab.GetComponent<PlayerCombat>());
         Assert.IsNotNull(prefab.GetComponent<PlayerInteract>());
         Assert.IsNotNull(prefab.GetComponent<PlayerSafetyGuard>());

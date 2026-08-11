@@ -66,9 +66,25 @@ public class PlayerStats : MonoBehaviour
         OnChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Take a hit. Worn armour is flat reduction, and blocking halves what gets through —
+    /// armour has no skill of its own because Block is the active defensive verb.
+    ///
+    /// A minimum of 1 always lands, so armour can never make the player invulnerable.
+    /// </summary>
     public void Damage(float amount)
     {
-        Health = Mathf.Max(0f, Health - amount);
+        float incoming = amount;
+
+        var combat = PlayerCombat.Instance;
+        if (combat != null && combat.IsBlocking) incoming *= 0.5f;
+
+        var equipment = PlayerEquipment.Instance;
+        if (equipment != null) incoming -= equipment.ArmourValue;
+
+        incoming = Mathf.Max(1f, incoming);
+
+        Health = Mathf.Max(0f, Health - incoming);
         GameHud.Instance?.FlashDamage();
         OnChanged?.Invoke();
         if (Health <= 0f) Die();

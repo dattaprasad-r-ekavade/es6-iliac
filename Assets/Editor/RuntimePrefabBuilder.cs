@@ -62,6 +62,7 @@ public static class RuntimePrefabBuilder
         controller.enabled = false;
         player.AddComponent<PlayerStats>();
         player.AddComponent<PlayerInventory>();
+        player.AddComponent<PlayerEquipment>();
         player.AddComponent<PlayerCombat>().enabled = false;
         player.AddComponent<PlayerInteract>();
         player.AddComponent<PlayerSafetyGuard>();
