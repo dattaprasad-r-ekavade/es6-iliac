@@ -1,0 +1,199 @@
+using System.Collections;
+using System.Linq;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.TestTools;
+
+/// <summary>
+/// Talking to people.
+///
+/// The topic system was built, tested and wired to nothing in any scene — there was nobody in
+/// the game to talk to. These cover the actual conversation: the named cast exist where the
+/// beat sheet says they are, the same keyword answers differently depending on who is asked,
+/// and asking teaches keywords you can carry to somebody else.
+///
+/// That last property is the whole point of Morrowind's model rather than a conversation
+/// tree, so it is the one most worth protecting.
+/// </summary>
+public class DialogueSmokeTests : SmokeTestFixture
+{
+    private string _loaded;
+
+    [UnityTearDown]
+    public IEnumerator UnloadScene()
+    {
+        var cleanup = SceneManager.CreateScene("DialogueCleanup_" + System.Guid.NewGuid().ToString("N"));
+        SceneManager.SetActiveScene(cleanup);
+
+        if (!string.IsNullOrEmpty(_loaded))
+        {
+            var scene = SceneManager.GetSceneByName(_loaded);
+            if (scene.IsValid() && scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
+            _loaded = null;
+        }
+    }
+
+    private IEnumerator Load(string sceneName)
+    {
+        _loaded = sceneName;
+        yield return SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+        yield return null;
+    }
+
+    private TopicDialogueService SpawnDialogue()
+    {
+        var go = Track(new GameObject("Dialogue_Test"));
+        go.AddComponent<StoryDirector>();
+        return go.AddComponent<TopicDialogueService>();
+    }
+
+    // --- the cast exist ------------------------------------------------------
+
+    [UnityTest]
+    public IEnumerator TheNamedCastStandInTheirOwnScenes()
+    {
+        var expected = new (string scene, string actorId)[]
+        {
+            ("Estmere_Docks", "role.processing_guard"),
+            ("Tutorial_Warrior", "role.instructor_warrior"),
+            ("Estmere_Arcanum", "role.instructor_mage"),
+            ("Estmere_Harbor", "role.instructor_trade"),
+            ("Estmere_Palace", "role.king"),
+            ("Caldemar_Arrival", "role.council_contact")
+        };
+
+        foreach (var (scene, actorId) in expected)
+        {
+            yield return Load(scene);
+
+            var actors = Object.FindObjectsByType<SpeakingActor>(FindObjectsSortMode.None);
+            Assert.IsTrue(
+                actors.Any(a => a.ActorId == actorId),
+                $"{scene} has no {actorId} to talk to.");
+
+            yield return UnloadScene();
+        }
+    }
+
+    [UnityTest]
+    public IEnumerator ThePrisonHasBothVoices_SoTheRevealIsNotOneLecture()
+    {
+        yield return Load("Estmere_Prison");
+
+        var actors = Object.FindObjectsByType<SpeakingActor>(FindObjectsSortMode.None);
+        Assert.IsTrue(actors.Any(a => a.ActorId == "role.prisoner_a"), "Reed is missing.");
+        Assert.IsTrue(actors.Any(a => a.ActorId == "role.prisoner_b"), "Falk is missing.");
+
+        // B510 requires the soul-operation reveal to be split across two speakers rather than
+        // delivered as one unskippable exposition dump.
+        Assert.GreaterOrEqual(actors.Length, 2,
+            "The prison reveal has fewer than two voices to split it between.");
+    }
+
+    // --- the conversation ----------------------------------------------------
+
+    [Test]
+    public void EveryCastMemberOffersSomethingToAskAbout()
+    {
+        SpawnDialogue();
+        var go = Track(new GameObject("Actor_Test"));
+        var actor = go.AddComponent<SpeakingActor>();
+        actor.Configure("role.instructor_warrior", "Alaric Thorne", "faction.estmere",
+            "scene.tutorial_warrior", "the blade");
+
+        TopicDialogueService.Instance.LearnTopic("the blade");
+
+        var topics = actor.AvailableTopics();
+        Assert.IsNotEmpty(topics, "An actor with authored topics offered nothing to ask about.");
+        CollectionAssert.Contains(topics, "the blade");
+    }
+
+    /// <summary>
+    /// The point of a shared knowledge base: the same keyword gets a different answer from a
+    /// different person. A conversation tree cannot do this without duplicating the tree.
+    /// </summary>
+    [Test]
+    public void TheSameKeywordAnswersDifferentlyDependingOnWhoIsAsked()
+    {
+        SpawnDialogue();
+
+        var thorneGo = Track(new GameObject("Thorne"));
+        var thorne = thorneGo.AddComponent<SpeakingActor>();
+        thorne.Configure("role.instructor_warrior", "Thorne", "faction.estmere", "scene.tutorial_warrior");
+
+        var quillGo = Track(new GameObject("Quill"));
+        var quill = quillGo.AddComponent<SpeakingActor>();
+        quill.Configure("role.instructor_mage", "Quill", "faction.arcanum", "scene.estmere_arcanum");
+
+        // "the transport" is Thorne's alone; Quill has nothing to say about it.
+        Assert.IsNotNull(thorne.Ask("the transport"), "Thorne would not answer his own topic.");
+        Assert.IsNull(quill.Ask("the transport"), "Quill answered a topic authored for Thorne.");
+    }
+
+    [Test]
+    public void AnyoneWillAnswerTheSharedTopics()
+    {
+        SpawnDialogue();
+        var go = Track(new GameObject("Anyone"));
+        var actor = go.AddComponent<SpeakingActor>();
+        actor.Configure("role.prisoner_a", "Reed", null, "scene.estmere_prison");
+
+        Assert.IsNotNull(actor.Ask("estmere"),
+            "A shared topic went unanswered, so common knowledge is not actually common.");
+    }
+
+    /// <summary>
+    /// Asking teaches the keyword, so it can be carried to somebody else. This is the verb the
+    /// whole model exists for.
+    /// </summary>
+    [Test]
+    public void AskingATopicLearnsIt_SoItCanBeTakenToSomeoneElse()
+    {
+        var service = SpawnDialogue();
+        var go = Track(new GameObject("Guard"));
+        var guard = go.AddComponent<SpeakingActor>();
+        guard.Configure("role.processing_guard", "Guard", "faction.estmere", "scene.estmere_docks");
+
+        service.LearnTopic("the law");
+        guard.Ask("the law");
+
+        CollectionAssert.Contains(service.KnownTopics.ToArray(), "the law",
+            "Asking about something did not add it to what the player knows.");
+    }
+
+    [Test]
+    public void AnUnknownKeywordProducesNothing_RatherThanAnEmptyLine()
+    {
+        SpawnDialogue();
+        var go = Track(new GameObject("Anyone"));
+        var actor = go.AddComponent<SpeakingActor>();
+        actor.Configure("role.prisoner_a", "Reed", null, "scene.estmere_prison");
+
+        Assert.IsNull(actor.Ask("the price of fish"),
+            "An unauthored keyword returned something instead of nothing.");
+    }
+
+    /// <summary>
+    /// The menu is built from what the actor will actually answer, so it can never offer a
+    /// keyword that produces silence when picked.
+    /// </summary>
+    [Test]
+    public void TheTopicMenuNeverOffersAKeywordThatWouldGoUnanswered()
+    {
+        var service = SpawnDialogue();
+        var go = Track(new GameObject("Quill"));
+        var quill = go.AddComponent<SpeakingActor>();
+        quill.Configure("role.instructor_mage", "Quill", "faction.arcanum", "scene.estmere_arcanum");
+
+        // Teach a keyword only Thorne answers; Quill must not offer it.
+        service.LearnTopic("the transport");
+
+        foreach (var keyword in quill.AvailableTopics())
+            Assert.IsNotNull(quill.Ask(keyword),
+                $"The menu offered '{keyword}' but the actor had no answer for it.");
+
+        CollectionAssert.DoesNotContain(quill.AvailableTopics(), "the transport",
+            "Quill offered a topic authored for someone else.");
+    }
+}

@@ -70,6 +70,7 @@ public static class GreyThreadSceneBuilder
         BuildDeeperRooms(geometry, spec);
         if (spec.HasExitDoor) BuildExit(root.transform);
         BuildMechanic(root.transform, spec);
+        BuildCast(root.transform, spec);
 
         var lightGo = new GameObject("GreyThread_Light");
         lightGo.transform.SetParent(root.transform, false);
@@ -236,6 +237,69 @@ public static class GreyThreadSceneBuilder
         capsule.center = Vector3.up * 0.9f;
         actor.AddComponent<EnemyBrain>().Setup(displayName, health, spawnId);
         WorldTagger.SetLayerRecursive(actor, GameLayers.Enemy);
+    }
+
+    /// <summary>
+    /// Put the chapter's named cast where the beat sheet says they are.
+    ///
+    /// Until now the topic dialogue system was fully built, tested, and wired to nothing in
+    /// any scene - there was nobody to talk to. These are billboard actors with role ids, so
+    /// the same knowledge base answers differently depending on who is asked.
+    /// </summary>
+    private static void BuildCast(Transform root, GreyThreadSceneCatalog.SceneSpec spec)
+    {
+        switch (spec.Name)
+        {
+            case "Estmere_Docks":
+                Cast(root, "role.processing_guard", "Processing Guard", "faction.estmere",
+                    spec, new Vector3(-4f, 0f, 3f), "the law", "the wreck", "estmere");
+                break;
+
+            case "Tutorial_Warrior":
+                Cast(root, "role.instructor_warrior", "Armsmaster Alaric Thorne", "faction.estmere",
+                    spec, new Vector3(4f, 0f, 3f), "the blade", "the transport", "the king");
+                break;
+
+            case "Estmere_Arcanum":
+                Cast(root, "role.instructor_mage", "Magister Seraphine Quill", "faction.arcanum",
+                    spec, new Vector3(-4f, 0f, 3f), "casting", "the arcanum", "soul crystals");
+                break;
+
+            case "Estmere_Harbor":
+                Cast(root, "role.instructor_trade", "Harbourmaster Corvin Ashgrove", "faction.estmere",
+                    spec, new Vector3(4f, 0f, 3f), "sailing", "the tower", "estmere");
+                break;
+
+            case "Estmere_Prison":
+                Cast(root, "role.prisoner_a", "Bartholomew Reed", null,
+                    spec, new Vector3(-5f, 0f, 2f), "the operation", "soul crystals");
+                Cast(root, "role.prisoner_b", "Iris Falk", null,
+                    spec, new Vector3(5f, 0f, 2f), "the count", "the operation");
+                break;
+
+            case "Estmere_Palace":
+                Cast(root, "role.king", "King Osric Selwyn", "faction.estmere",
+                    spec, new Vector3(0f, 0f, 6f), "the king", "the everspire");
+                break;
+
+            case "Caldemar_Arrival":
+                Cast(root, "role.council_contact", "Councillor Lucien Ambrose", "faction.council",
+                    spec, new Vector3(0f, 0f, 4f), "the everspire", "estmere");
+                break;
+        }
+    }
+
+    private static void Cast(Transform root, string actorId, string displayName, string factionId,
+        GreyThreadSceneCatalog.SceneSpec spec, Vector3 position, params string[] opensWith)
+    {
+        var actor = BillboardActor.Spawn(displayName.Replace(' ', '_'), position,
+            Color.Lerp(spec.Accent, Color.white, 0.35f), 1.85f);
+        var root_go = actor.transform.root;
+        root_go.SetParent(root, true);
+        root_go.localPosition = position;
+
+        root_go.gameObject.AddComponent<SpeakingActor>()
+            .Configure(actorId, displayName, factionId, spec.SceneId, opensWith);
     }
 
     private static void BuildWalls(Transform parent, GreyThreadSceneCatalog.SceneSpec spec)

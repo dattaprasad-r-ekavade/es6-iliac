@@ -206,6 +206,56 @@ public static class RuntimePrefabBuilder
         CreateDialogue("topic_prince_trade", "the prince",
             "Merchant manifests put the prince's last transport beneath the east tower.",
             null, null, new DialogueCondition { Key = "route", Value = "route.trade" });
+
+        // --- shared knowledge: what anyone in Estmere will tell a stranger ---------
+        CreateDialogue("topic_estmere", "estmere",
+            "Estmere lives on the crystal trade. Every soul must contribute - the King says so, and the law agrees.",
+            null, null);
+        CreateDialogue("topic_soul_crystals", "soul crystals",
+            "Crystals hold a soul, and a soul holds the light. Most are given at a natural death, or bought from the beast-drovers. That is the lawful way, and it has fed this city for two hundred years.",
+            null, null);
+        CreateDialogue("topic_the_king", "the king",
+            "Osric Selwyn. His line has held Estmere longer than the walls have. He has not been himself since the heir went missing.",
+            null, null);
+        CreateDialogue("topic_everspire", "the everspire",
+            "The tower on Corrath. It flashed, and half the bay felt it. Nobody will say what it was, and the Ivory Concord have not moved their ships since.",
+            null, null);
+
+        // --- role-specific: only this actor answers ------------------------------
+        CreateDialogue("topic_guard_law", "the law",
+            "No idling in Estmere. You will be found work, or work will be found for you. That is the whole of it.",
+            "role.processing_guard", null);
+        CreateDialogue("topic_guard_memory", "the wreck",
+            "Everyone we pulled out has the same hole in their memory. You are not special, and you are not lying. Sit down.",
+            "role.processing_guard", null);
+
+        CreateDialogue("topic_thorne_blade", "the blade",
+            "Keep the point up and your weight behind it. A guard who swings like a woodcutter is a guard who gets carried home.",
+            "role.instructor_warrior", null);
+        CreateDialogue("topic_thorne_transport", "the transport",
+            "A cart goes under the wall twice a month with the shutters nailed. I am told not to look at it. I look at it.",
+            "role.instructor_warrior", null);
+
+        CreateDialogue("topic_quill_casting", "casting",
+            "Charge is drawn, not conjured. Spend a crystal and you have spent something that was alive. The Arcanum has learned to say this quickly.",
+            "role.instructor_mage", null);
+        CreateDialogue("topic_quill_progress", "the arcanum",
+            "Four new workings this year alone. We do more with a crystal than my teachers dreamed - and we get through rather more of them doing it.",
+            "role.instructor_mage", null);
+
+        CreateDialogue("topic_ashgrove_sailing", "sailing",
+            "Wind first, tiller second. A boat with no way on will not answer the helm, and neither will you if you stand about.",
+            "role.instructor_trade", null);
+        CreateDialogue("topic_ashgrove_tower", "the tower",
+            "The east tower takes deliveries it never signs for. The ledger is up there. I did not tell you that.",
+            "role.instructor_trade", null);
+
+        CreateDialogue("topic_reed_operation", "the operation",
+            "They take us down at night, one at a time, and the ones who go down do not come back up. Ask Falk. She counts.",
+            "role.prisoner_a", null);
+        CreateDialogue("topic_falk_count", "the count",
+            "Nineteen since midwinter. I keep it scratched behind the bench. Somebody should know the number when this ends.",
+            "role.prisoner_b", null);
     }
 
     private static DialogueTopic CreateDialogue(string id, string keyword, string response,

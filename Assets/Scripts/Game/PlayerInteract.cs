@@ -14,6 +14,11 @@ public class PlayerInteract : MonoBehaviour
         if (Physics.SphereCast(origin, 0.4f, direction, out var hit, range,
                 GameLayers.InteractMask, QueryTriggerInteraction.Ignore))
         {
+            // Named cast first: a SpeakingActor opens the topic menu, where an
+            // NpcInteractable only barks one line.
+            var speaker = hit.collider.GetComponentInParent<SpeakingActor>();
+            if (speaker != null) { speaker.Talk(); return; }
+
             var npc = hit.collider.GetComponentInParent<NpcInteractable>();
             if (npc != null) npc.Interact(); else GameHud.Instance?.ShowToast("Nothing to use");
         }

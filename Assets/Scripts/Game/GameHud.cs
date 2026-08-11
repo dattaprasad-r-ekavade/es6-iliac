@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections;
 using System.Text;
 using UnityEngine;
@@ -126,6 +127,10 @@ public class GameHud : MonoBehaviour
         if (_fade != null && _fade.activeSelf) return;
         if (_dialogueRoot != null && _dialogueRoot.activeSelf)
         {
+            // While a topic menu is open the number keys choose what to ask about. Closing
+            // still works, so the player is never trapped in a conversation.
+            if (_topicSpeaker != null && _topicKeywords.Count > 0 && TryPickTopic()) return;
+
             if (GameInput.Interact.WasPressedThisFrame()
                 || GameInput.Submit.WasPressedThisFrame()
                 || GameInput.Cancel.WasPressedThisFrame())
@@ -461,6 +466,96 @@ public class GameHud : MonoBehaviour
         _dialogueRoutine = StartCoroutine(HideDialogueSoon());
     }
 
+    private SpeakingActor _topicSpeaker;
+    private readonly List<string> _topicKeywords = new();
+
+    /// <summary>Whether a topic menu is currently open. Exposed for tests.</summary>
+    public bool TopicMenuOpen => _topicSpeaker != null && _dialogueRoot != null && _dialogueRoot.activeSelf;
+
+    /// <summary>The keywords currently on offer. Exposed for tests.</summary>
+    public IReadOnlyList<string> OfferedTopics => _topicKeywords;
+
+    /// <summary>
+    /// Show the keywords an actor will answer. Morrowind's model — the player picks a subject
+    /// rather than a line, so what they know to ask is the real inventory.
+    ///
+    /// The menu does not auto-hide the way a one-line barks does; a conversation ends when the
+    /// player ends it.
+    /// </summary>
+    public void ShowTopicMenu(SpeakingActor speaker, IReadOnlyList<string> keywords)
+    {
+        if (_dialogueRoot == null || speaker == null) return;
+
+        _topicSpeaker = speaker;
+        _topicKeywords.Clear();
+        if (keywords != null)
+            for (int i = 0; i < keywords.Count && i < 9; i++) _topicKeywords.Add(keywords[i]);
+
+        HideMenus();
+        _dialogueRoot.SetActive(true);
+        GameStateService.Ensure().PushState(GameState.Dialogue);
+        if (_dialogueSpeaker != null) _dialogueSpeaker.text = speaker.DisplayName;
+
+        if (_dialogueRoutine != null) { StopCoroutine(_dialogueRoutine); _dialogueRoutine = null; }
+        RenderTopicList();
+    }
+
+    private void RenderTopicList()
+    {
+        if (_dialogueBody == null) return;
+
+        var sb = new StringBuilder();
+        sb.Append("What do you want to ask about?\n\n");
+        for (int i = 0; i < _topicKeywords.Count; i++)
+            sb.Append(i + 1).Append(".  ").Append(_topicKeywords[i]).Append('\n');
+        sb.Append("\n<size=18><color=#9da09e>1-9 ask  ·  E / Enter / Esc  leave</color></size>");
+        _dialogueBody.text = sb.ToString();
+    }
+
+    /// <summary>Answer a topic, then hand the list back so the conversation continues.</summary>
+    public bool AskTopic(int index)
+    {
+        if (_topicSpeaker == null || index < 0 || index >= _topicKeywords.Count) return false;
+
+        string keyword = _topicKeywords[index];
+        string response = _topicSpeaker.Ask(keyword);
+        if (string.IsNullOrEmpty(response)) return false;
+
+        if (_dialogueBody != null)
+        {
+            _dialogueBody.text = response +
+                "\n\n<size=18><color=#9da09e>1-9 ask again  ·  E / Enter / Esc  leave</color></size>";
+        }
+
+        // Asking can teach new keywords, so the menu is rebuilt from what is now askable.
+        _topicKeywords.Clear();
+        foreach (var available in _topicSpeaker.AvailableTopics())
+        {
+            if (_topicKeywords.Count >= 9) break;
+            _topicKeywords.Add(available);
+        }
+        return true;
+    }
+
+    private bool TryPickTopic()
+    {
+        var keyboard = UnityEngine.InputSystem.Keyboard.current;
+        if (keyboard == null) return false;
+
+        var digits = new[]
+        {
+            keyboard.digit1Key, keyboard.digit2Key, keyboard.digit3Key,
+            keyboard.digit4Key, keyboard.digit5Key, keyboard.digit6Key,
+            keyboard.digit7Key, keyboard.digit8Key, keyboard.digit9Key
+        };
+
+        for (int i = 0; i < digits.Length && i < _topicKeywords.Count; i++)
+            if (digits[i] != null && digits[i].wasPressedThisFrame)
+                return AskTopic(i);
+
+        return false;
+    }
+
     private IEnumerator HideDialogueSoon()
     {
         yield return new WaitForSecondsRealtime(8f);
@@ -475,6 +570,8 @@ public class GameHud : MonoBehaviour
             StopCoroutine(_dialogueRoutine);
             _dialogueRoutine = null;
         }
+        _topicSpeaker = null;
+        _topicKeywords.Clear();
         if (_dialogueRoot != null) _dialogueRoot.SetActive(false);
         var state = GameStateService.Ensure();
         if (!state.PopState(GameState.Dialogue))
