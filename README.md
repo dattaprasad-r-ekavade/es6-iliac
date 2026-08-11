@@ -17,9 +17,9 @@ the short version loaded automatically by Claude Code.
 1. Open `Assets/Scenes/Bootstrap.unity`
 2. Press **Play**
 3. Click **START** on the menu
-4. The prologue plays, then you are standing in Estmere. The compass line gives written
-   directions to your objective; walk there and press **E** at the door.
-4. Skip dialogue anytime (**Space** / **SKIP**) → scenic flyover → play at Caldemar
+4. Skip the intro any time with **Space** / **SKIP**
+5. The prologue plays, then you are standing in Estmere. The compass line gives written
+   directions to your objective — walk there and press **E** at the door.
 
 ## Controls
 WASD · mouse look · **Shift** sprint · Space jump · Esc unlock cursor  
