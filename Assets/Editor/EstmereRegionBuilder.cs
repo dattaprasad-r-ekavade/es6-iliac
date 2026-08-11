@@ -1,0 +1,275 @@
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+/// <summary>
+/// Generates the Estmere region scene from <see cref="EstmereRegion"/>.
+///
+/// The look is Arena's: flat-topped blocks, gridded streets, a rectangular curtain wall with
+/// cardinal gates. It is procedural because hand-authoring a 2.4 km region is not available to
+/// this project — the same reason Arena and Daggerfall were procedural.
+///
+/// **Deterministic.** Everything is driven from a fixed seed, so regenerating produces the
+/// identical city. A city that reshuffles on every rebuild cannot be playtested, because no
+/// two sessions would be discussing the same place.
+///
+/// Like `Main`, this scene is a build artifact. Do not hand-author into it.
+/// </summary>
+public static class EstmereRegionBuilder
+{
+    public const string ScenePath = "Assets/Scenes/Estmere_Region.unity";
+    private const int Seed = 20260804;
+
+    private const float BlockSize = 60f;
+    private const float StreetWidth = 14f;
+
+    [MenuItem("Kessil/Architecture/Build Estmere Region")]
+    public static void Build()
+    {
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        var root = new GameObject("EstmereRegion").transform;
+        var random = new System.Random(Seed);
+
+        BuildGround(root);
+        BuildSea(root);
+        BuildCityWall(root);
+        BuildDistricts(root, random);
+        BuildAnchors(root);
+        BuildSpawn(root);
+        BuildLighting(root);
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        RegisterInBuildSettings();
+        Debug.Log($"[EstmereRegion] Built {EstmereRegion.RegionSize} m region at {ScenePath}.");
+    }
+
+    // --- terrain -------------------------------------------------------------
+
+    private static void BuildGround(Transform root)
+    {
+        var ground = Block(root, "Ground",
+            new Vector3(0f, EstmereRegion.GroundHeight - 1f, 0f),
+            new Vector3(EstmereRegion.LandHalfExtent * 2f, 2f, EstmereRegion.LandHalfExtent * 2f),
+            Palette(0));
+        WorldTagger.SetLayerRecursive(ground, GameLayers.Ground);
+    }
+
+    /// <summary>
+    /// The sea is the region's bound. It reads as endless under fog, and the player turns back
+    /// from it rather than hitting an invisible wall in a field.
+    /// </summary>
+    private static void BuildSea(Transform root)
+    {
+        var sea = Block(root, "Sea",
+            new Vector3(0f, EstmereRegion.WaterLevel - 0.5f, 0f),
+            new Vector3(EstmereRegion.RegionSize * 3f, 1f, EstmereRegion.RegionSize * 3f),
+            Palette(4));
+        WorldTagger.SetLayerRecursive(sea, GameLayers.Ground);
+    }
+
+    // --- city ----------------------------------------------------------------
+
+    private static void BuildCityWall(Transform root)
+    {
+        var walls = new GameObject("CityWall").transform;
+        walls.SetParent(root, false);
+
+        float half = EstmereRegion.CityHalf;
+        float h = EstmereRegion.WallHeight;
+        float t = EstmereRegion.WallThickness;
+        var c = EstmereRegion.CityCenter;
+
+        // Each side is split either side of its cardinal gate, so the opening is real geometry
+        // rather than a gap the player discovers is solid.
+        float segment = half - EstmereRegion.GateWidth * 0.5f;
+        float offset = half - segment * 0.5f;
+
+        foreach (int sign in new[] { -1, 1 })
+        {
+            WallSegment(walls, $"Wall_N_{sign}", new Vector3(c.x + sign * offset, c.y + h * 0.5f, c.z + half),
+                new Vector3(segment, h, t));
+            WallSegment(walls, $"Wall_S_{sign}", new Vector3(c.x + sign * offset, c.y + h * 0.5f, c.z - half),
+                new Vector3(segment, h, t));
+            WallSegment(walls, $"Wall_E_{sign}", new Vector3(c.x + half, c.y + h * 0.5f, c.z + sign * offset),
+                new Vector3(t, h, segment));
+            WallSegment(walls, $"Wall_W_{sign}", new Vector3(c.x - half, c.y + h * 0.5f, c.z + sign * offset),
+                new Vector3(t, h, segment));
+        }
+    }
+
+    private static void WallSegment(Transform parent, string name, Vector3 position, Vector3 scale)
+    {
+        var go = Block(parent, name, position, scale, Palette(1));
+        WorldTagger.SetLayerRecursive(go, GameLayers.Structure);
+    }
+
+    /// <summary>
+    /// City blocks on a grid, with streets between them. Heights vary by a seeded roll, which
+    /// is what gives the skyline an Arena silhouette without any of it being authored.
+    /// </summary>
+    private static void BuildDistricts(Transform root, System.Random random)
+    {
+        var district = new GameObject("Districts").transform;
+        district.SetParent(root, false);
+
+        float half = EstmereRegion.CityHalf;
+        float stride = BlockSize + StreetWidth;
+        int count = Mathf.FloorToInt(half * 2f / stride);
+        var reserved = ReservedFootprints();
+
+        for (int ix = 0; ix < count; ix++)
+        {
+            for (int iz = 0; iz < count; iz++)
+            {
+                var centre = new Vector3(
+                    EstmereRegion.CityCenter.x - half + stride * (ix + 0.5f),
+                    EstmereRegion.GroundHeight,
+                    EstmereRegion.CityCenter.z - half + stride * (iz + 0.5f));
+
+                if (IsReserved(centre, reserved)) continue;
+                if (IsOnGateApproach(centre)) continue;
+
+                float height = 8f + (float)random.NextDouble() * 14f;
+                var go = Block(district, $"Block_{ix}_{iz}",
+                    centre + Vector3.up * (height * 0.5f),
+                    new Vector3(BlockSize, height, BlockSize),
+                    Palette(2 + (ix + iz) % 2));
+                WorldTagger.SetLayerRecursive(go, GameLayers.Structure);
+            }
+        }
+    }
+
+    /// <summary>Keep the ground clear where story anchors and the player spawn will land.</summary>
+    private static List<(Vector3 pos, float radius)> ReservedFootprints()
+    {
+        var reserved = new List<(Vector3, float)>();
+        foreach (var anchor in EstmereRegion.Anchors)
+            reserved.Add((anchor.Position, anchor.Footprint * 1.4f));
+        reserved.Add((EstmereRegion.PlayerSpawn, 40f));
+        return reserved;
+    }
+
+    private static bool IsReserved(Vector3 centre, List<(Vector3 pos, float radius)> reserved)
+    {
+        foreach (var (pos, radius) in reserved)
+        {
+            var flat = new Vector3(centre.x - pos.x, 0f, centre.z - pos.z);
+            if (flat.magnitude < radius + BlockSize * 0.5f) return true;
+        }
+        return false;
+    }
+
+    /// <summary>A gate the player cannot walk through is worse than no gate at all.</summary>
+    private static bool IsOnGateApproach(Vector3 centre)
+    {
+        foreach (var gate in EstmereRegion.Gates)
+        {
+            var world = EstmereRegion.CityCenter + new Vector3(gate.x, 0f, gate.z);
+            bool alongX = Mathf.Abs(world.x) > Mathf.Abs(world.z);
+            float lateral = alongX ? Mathf.Abs(centre.z - world.z) : Mathf.Abs(centre.x - world.x);
+            if (lateral < EstmereRegion.GateWidth) return true;
+        }
+        return false;
+    }
+
+    // --- anchors -------------------------------------------------------------
+
+    private static void BuildAnchors(Transform root)
+    {
+        var anchors = new GameObject("Anchors").transform;
+        anchors.SetParent(root, false);
+
+        foreach (var anchor in EstmereRegion.Anchors)
+        {
+            var holder = new GameObject(anchor.Id).transform;
+            holder.SetParent(anchors, false);
+            holder.position = anchor.Position;
+            holder.rotation = Quaternion.Euler(0f, anchor.FacingDegrees, 0f);
+
+            float size = anchor.Footprint;
+            var shell = Block(holder, "Shell",
+                Vector3.up * 9f, new Vector3(size, 18f, size), Palette(1));
+            WorldTagger.SetLayerRecursive(shell, GameLayers.Structure);
+
+            // The doorway is a trigger in front of the shell, not a hole in it — the interior
+            // is a separate scene, so nothing needs to be modelled through the wall.
+            var portal = new GameObject("Portal");
+            portal.transform.SetParent(holder, false);
+            portal.transform.localPosition = new Vector3(0f, 1.5f, size * 0.5f + 1.5f);
+            var trigger = portal.AddComponent<BoxCollider>();
+            trigger.isTrigger = true;
+            trigger.size = new Vector3(6f, 3f, 3f);
+            var link = portal.AddComponent<RegionPortal>();
+            link.Configure(anchor.Id, anchor.DisplayName, anchor.SceneName, anchor.SpawnId);
+        }
+    }
+
+    private static void BuildSpawn(Transform root)
+    {
+        var spawn = new GameObject("spawn.region");
+        spawn.transform.SetParent(root, false);
+        spawn.transform.position = EstmereRegion.PlayerSpawn;
+        spawn.AddComponent<SceneSpawnPoint>().Configure("spawn.region");
+    }
+
+    private static void BuildLighting(Transform root)
+    {
+        var sunGo = new GameObject("Sun");
+        sunGo.transform.SetParent(root, false);
+        sunGo.transform.rotation = Quaternion.Euler(42f, 150f, 0f);
+        var sun = sunGo.AddComponent<Light>();
+        sun.type = LightType.Directional;
+        sun.intensity = 1.05f;
+        sun.shadows = LightShadows.Soft;
+    }
+
+    // --- helpers -------------------------------------------------------------
+
+    private static GameObject Block(Transform parent, string name, Vector3 position, Vector3 scale, Material material)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = position;
+        go.transform.localScale = scale;
+        go.GetComponent<Renderer>().sharedMaterial = material;
+        return go;
+    }
+
+    /// <summary>
+    /// Palette-locked materials. This is what makes generated geometry read as a style rather
+    /// than as greybox — the render layer does the work, per the art direction lock, and
+    /// ArtDirectionTests rejects any colour outside the muted range.
+    /// </summary>
+    private static Material Palette(int index)
+    {
+        var palette = ArtDirection.Active.Palette;
+        var colour = (index % 5) switch
+        {
+            0 => palette.Halbrand,   // ground
+            1 => palette.CityStone,  // walls and anchor shells
+            2 => palette.CityStone,
+            3 => palette.Road,       // alternating city blocks
+            _ => palette.Ocean
+        };
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var material = new Material(shader) { name = $"M_Region_{index}" };
+        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", colour);
+        else material.color = colour;
+        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.05f);
+        return material;
+    }
+
+    private static void RegisterInBuildSettings()
+    {
+        var scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
+        if (scenes.Exists(s => s.path == ScenePath)) return;
+        scenes.Add(new EditorBuildSettingsScene(ScenePath, true));
+        EditorBuildSettings.scenes = scenes.ToArray();
+    }
+}

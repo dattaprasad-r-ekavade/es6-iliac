@@ -59,4 +59,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Chapter01/Caldemar_Arrival.unity
     guid: f95d1dccf905c0a4aa2f01404d152a32
+  - enabled: 1
+    path: Assets/Scenes/Estmere_Region.unity
+    guid: f0884479187bd754b9eeafda005f6557
   m_configObjects: {}
