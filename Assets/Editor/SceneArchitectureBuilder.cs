@@ -69,23 +69,41 @@ public static class SceneArchitectureBuilder
         EditorUtility.SetDirty(spawn);
     }
 
+    /// <summary>
+    /// Every scene that ships inside a player, in load order. **Bootstrap must stay first** —
+    /// it is scene zero and everything boots through it.
+    ///
+    /// <see cref="EnsureBuildSettings"/> and <c>BuildPlayerCommand</c> both derive from this.
+    /// They used to keep separate hand-written lists, and that is how `Capital_Region` came to
+    /// be present in `EditorBuildSettings` — so fine in the editor and in every PlayMode test —
+    /// while being **absent from every shipped player**. A build that cannot load the region
+    /// strands the player on New Game, and nothing in the editor would ever show it.
+    ///
+    /// One list, two consumers. Do not add a third.
+    /// </summary>
+    public static List<string> ShippingScenePaths()
+    {
+        var paths = new List<string> { BootstrapPath, MainPath, ExteriorPath };
+        paths.AddRange(GreyThreadSceneBuilder.ScenePaths);
+
+        // The walkable exterior the whole chapter returns to.
+        paths.Add(CapitalRegionBuilder.ScenePath);
+        return paths;
+    }
+
+    /// <summary>
+    /// Transition fixtures. They belong in build settings so PlayMode tests can load them, and
+    /// they must never reach a player, which is the one reason this list is separate.
+    /// </summary>
+    public static string[] TestScenePaths => new[]
+    {
+        TestSceneAPath, TestSceneBPath, TestSceneCPath, InvalidTestScenePath
+    };
+
     public static void EnsureBuildSettings()
     {
-        var paths = new List<string>(new[]
-        {
-            BootstrapPath,
-            MainPath,
-            ExteriorPath,
-            TestSceneAPath,
-            TestSceneBPath,
-            TestSceneCPath,
-            InvalidTestScenePath
-        });
-        paths.AddRange(GreyThreadSceneBuilder.ScenePaths);
-        // The region is the walkable exterior the whole chapter returns to. This method
-        // replaces the build list wholesale, so anything omitted here silently stops being
-        // loadable at runtime - which is exactly how the region went missing once.
-        paths.Add(CapitalRegionBuilder.ScenePath);
+        var paths = ShippingScenePaths();
+        paths.AddRange(TestScenePaths);
 
         var scenes = new List<EditorBuildSettingsScene>();
         foreach (var path in paths)

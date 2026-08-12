@@ -141,7 +141,7 @@ Verified in the repository and Unity Editor:
 - 51 runtime scripts plus 14 editor scripts;
 - persistent `Bootstrap`, generated legacy `Main`, additive `Capital_Exterior`, and 11
   regenerable Chapter 01 grey scenes, plus four small transition fixtures;
-- a successful local Windows player (142.5 MB) booting through `Bootstrap`;
+- a successful local Windows player (143.8 MB) booting through `Bootstrap`;
 - 45/45 EditMode and 30/30 PlayMode tests passing as of 2026-08-01, including scene-contract
   checks, the complete 42-beat VS2 union, typed outcome/evidence/autosave checks and all four
   routes reaching the Caldemar handoff;
@@ -258,7 +258,7 @@ screenplay, actors, mechanics and final environments remain VS3–VS7 work.
   collider violations, 0 wall collider violations, and 0 approach collider violations**.
 - Physics probes: representative wall and building rays hit their box colliders; the
   south gate walking ray remains clear; every city has five collider-backed approaches.
-- Current Windows x64 build **2026-08-01: `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors**,
+- Current Windows x64 build **2026-08-12: `Builds/Windows/Kessil.exe`, 143.8 MB, 0 errors**,
   built headlessly in 24.7s via `BuildPlayerCommand.BuildWindows`, with `Bootstrap` as scene
   zero. This replaces the stale
   pre-rename `IliacBay.exe`, which still sits beside it in the (gitignored) build folder and

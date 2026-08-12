@@ -58,7 +58,7 @@ ones (they take the project lock).
 # Compile-check every assembly without opening Unity. Fast, run this constantly.
 python Tools/compile-check.py
 
-# EditMode tests — currently 95/95
+# EditMode tests — currently 99/99
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform EditMode \
@@ -168,6 +168,17 @@ must build a `SceneContext` and at least one `SceneSpawnPoint`.
 **`Game.Tests.asmdef` is Editor-only** (`includePlatforms: ["Editor"]`). PlayMode tests live
 in the separate `Game.PlayModeTests` assembly.
 
+**There are two scene lists, and only one of them ships.** `EditorBuildSettings` governs the
+editor and PlayMode tests. `BuildPlayerCommand` decides what goes into a **player**. These were
+maintained separately, and that is how `Capital_Region` came to be in build settings — so
+present in the editor and in every passing test — while being **absent from every shipped
+build**, stranding the player on New Game with no exterior to walk into. No editor test could
+have seen it.
+
+Both now derive from `SceneArchitectureBuilder.ShippingScenePaths()`. **Do not add a third
+list.** `GreyThreadSceneTests` holds the region, Bootstrap-at-zero, on-disk existence, and that
+test fixtures never ship.
+
 **Unity does not serialise runtime-created textures or materials into a saved scene.** An
 editor builder that does `new Texture2D(...)` and assigns it to a renderer produces something
 that looks right until the editor reopens the scene, at which point the reference is null.
@@ -211,8 +222,8 @@ is W-11, the external Map Editor MVP.
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
 | VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
 | VS2 — grey thread | **Complete — 42/42 grey beats; all four routes reach B830** |
-| Tests | EditMode 95/95, PlayMode 124/124 |
-| Build | `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors; Bootstrap is scene zero |
+| Tests | EditMode 99/99, PlayMode 124/124 |
+| Build | `Builds/Windows/Kessil.exe`, 143.8 MB, 0 errors; Bootstrap is scene zero; **15 scenes incl. `Capital_Region`** |
 | Code | 53 runtime scripts, 15 editor scripts, plus Python tooling |
 | Scenes | `Bootstrap`, generated `Main`, `Capital_Region`, additive `Capital_Exterior`, 11 Chapter 01 grey scenes; four test fixtures. **All named for the building, never the city** |
 | Prefabs / ScriptableObjects / `.inputactions` | 4 runtime prefabs; NPC, dialogue, quest and cinematic data assets; one input-actions asset |
@@ -453,7 +464,7 @@ beats replaced**, not missing traversal waypoints.
 
 **Verified independently 2026-08-01:** compile-check clean; EditMode 45/45; PlayMode 30/30
 including the 42-beat union, title/evidence/outcome/autosave assertions; Windows build
-142.5 MB, all commands exit 0.
+143.8 MB, all commands exit 0.
 
 ### W-14 · VS4 mechanics — **complete 2026-08-04**
 

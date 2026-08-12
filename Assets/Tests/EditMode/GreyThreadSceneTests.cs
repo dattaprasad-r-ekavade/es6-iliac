@@ -76,6 +76,57 @@ public sealed class GreyThreadSceneTests
         }
     }
 
+    /// <summary>
+    /// The shipping scene list is what actually goes into a player, and it is not the same
+    /// thing as `EditorBuildSettings`.
+    ///
+    /// `BuildPlayerCommand` used to hand-maintain its own copy. `Capital_Region` was added to
+    /// `EnsureBuildSettings` and not to that copy, so the region was present in the editor —
+    /// every PlayMode test loaded it happily — and **absent from every shipped build**, which
+    /// strands the player on New Game with nothing to walk into. No editor test could see it.
+    ///
+    /// Both now derive from `ShippingScenePaths`. These hold that it stays true.
+    /// </summary>
+    [Test]
+    public void TheShippingSceneList_ContainsEverythingAPlayerNeeds()
+    {
+        var shipping = SceneArchitectureBuilder.ShippingScenePaths();
+
+        CollectionAssert.Contains(shipping, CapitalRegionBuilder.ScenePath,
+            "The region is missing from the shipping scene list. A build without it cannot "
+            + "load the exterior, and New Game dead-ends.");
+        CollectionAssert.Contains(shipping, SceneArchitectureBuilder.BootstrapPath);
+
+        foreach (var spec in GreyThreadSceneCatalog.Scenes)
+            CollectionAssert.Contains(shipping, $"Assets/Scenes/Chapter01/{spec.Name}.unity",
+                $"{spec.Name} would not ship.");
+    }
+
+    [Test]
+    public void BootstrapIsSceneZero()
+    {
+        Assert.AreEqual(SceneArchitectureBuilder.BootstrapPath,
+            SceneArchitectureBuilder.ShippingScenePaths()[0],
+            "Bootstrap is no longer scene zero, so the player boots into something else.");
+    }
+
+    [Test]
+    public void TestFixturesNeverShip()
+    {
+        var shipping = SceneArchitectureBuilder.ShippingScenePaths();
+        foreach (var fixturePath in SceneArchitectureBuilder.TestScenePaths)
+            CollectionAssert.DoesNotContain(shipping, fixturePath,
+                $"{fixturePath} is a test fixture and would ship to players.");
+    }
+
+    [Test]
+    public void EveryShippingScene_ExistsOnDisk()
+    {
+        foreach (var path in SceneArchitectureBuilder.ShippingScenePaths())
+            Assert.IsTrue(File.Exists(path),
+                $"{path} is in the shipping list but not on disk; the build would silently drop it.");
+    }
+
     [Test]
     public void GreyScenesAreEnabledInBuildSettings()
     {

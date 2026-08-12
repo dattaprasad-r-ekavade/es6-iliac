@@ -15,14 +15,20 @@ public static class BuildPlayerCommand
     [MenuItem("Kessil/Build/Windows Player")]
     public static void BuildWindows()
     {
-        var scenes = new[]
+        // Derived, never hand-listed. This method used to maintain its own copy of the scene
+        // list, which is how the region shipped missing from the player while being present in
+        // EditorBuildSettings — so every editor test passed and the actual build stranded the
+        // player on New Game.
+        var allScenes = SceneArchitectureBuilder.ShippingScenePaths()
+            .FindAll(File.Exists);
+
+        if (allScenes.Count == 0)
         {
-            SceneArchitectureBuilder.BootstrapPath,
-            SceneArchitectureBuilder.MainPath,
-            SceneArchitectureBuilder.ExteriorPath
-        };
-        var allScenes = new System.Collections.Generic.List<string>(scenes);
-        allScenes.AddRange(GreyThreadSceneBuilder.ScenePaths);
+            Debug.LogError("[Build] No shipping scenes exist on disk. Regenerate them first.");
+            EditorApplication.Exit(1);
+            return;
+        }
+
         Directory.CreateDirectory(Path.GetDirectoryName(OutputPath));
 
         var options = new BuildPlayerOptions
