@@ -278,34 +278,32 @@ public static class EstmereRegionBuilder
         go.transform.SetParent(parent, false);
         go.transform.localPosition = position;
         go.transform.localScale = scale;
-        go.GetComponent<Renderer>().sharedMaterial = material;
+
+        var renderer = go.GetComponent<Renderer>();
+        renderer.sharedMaterial = material;
+        ProceduralSurface.ApplyTiling(renderer, scale);
         return go;
     }
 
     /// <summary>
-    /// Palette-locked materials. This is what makes generated geometry read as a style rather
-    /// than as greybox — the render layer does the work, per the art direction lock, and
-    /// ArtDirectionTests rejects any colour outside the muted range.
+    /// Palette-locked surfaces, drawn by <see cref="ProceduralSurface"/> and baked to assets by
+    /// <see cref="ProceduralSurfaceBaker"/>.
+    ///
+    /// These used to be flat untinted colours, which is what made the region read as coloured
+    /// greybox rather than as a place: a 60 m building painted one uniform value has no texel
+    /// grain and no drawn edges, so there is nothing for the eye to find. The textures carry
+    /// both, and they are still palette-locked because every pixel in them is derived from
+    /// `ArtDirection.Palette` rather than authored.
     /// </summary>
-    private static Material Palette(int index)
+    private static Material Palette(int index) => ProceduralSurfaceBaker.MaterialFor((index % 5) switch
     {
-        var palette = ArtDirection.Active.Palette;
-        var colour = (index % 5) switch
-        {
-            0 => palette.Halbrand,   // ground
-            1 => palette.CityStone,  // walls and anchor shells
-            2 => palette.CityStone,
-            3 => palette.Road,       // alternating city blocks
-            _ => palette.Ocean
-        };
+        0 => ProceduralSurface.Kind.Ground,    // open land
+        1 => ProceduralSurface.Kind.Stone,     // curtain wall and anchor shells
+        2 => ProceduralSurface.Kind.Plaster,   // alternating city blocks
+        3 => ProceduralSurface.Kind.Roof,
+        _ => ProceduralSurface.Kind.Water
+    });
 
-        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-        var material = new Material(shader) { name = $"M_Region_{index}" };
-        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", colour);
-        else material.color = colour;
-        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.05f);
-        return material;
-    }
 
     private static void RegisterInBuildSettings()
     {

@@ -30,7 +30,10 @@ public static class ArtDirectionTool
         ("04-coast-horizon",  new Vector3(-2260f, 55f, 1500f), new Vector3(-2800f, 18f, 900f))
     };
 
-    [MenuItem("Kessil/Art Direction/Apply Morrowind Clean (locked)")]
+    [MenuItem("Kessil/Art Direction/Apply Arena Miniature (locked)")]
+    public static void ApplyArenaMiniature() => ApplyAndRebuild(ArtDirection.Look.ArenaMiniature);
+
+    [MenuItem("Kessil/Art Direction/Apply Morrowind Clean (comparison only)")]
     public static void ApplyMorrowind() => ApplyAndRebuild(ArtDirection.Look.MorrowindClean);
 
     [MenuItem("Kessil/Art Direction/Apply PS1 Crunch (comparison only)")]
@@ -40,10 +43,10 @@ public static class ArtDirectionTool
     /// Headless entry point for restoring the locked look — used after a comparison run,
     /// which necessarily leaves the project in whichever preset it captured last.
     /// </summary>
-    public static void LockMorrowindClean()
+    public static void LockArenaMiniature()
     {
         EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-        ApplyAndRebuild(ArtDirection.Look.MorrowindClean);
+        ApplyAndRebuild(ArtDirection.Look.ArenaMiniature);
     }
 
     /// <summary>
@@ -75,6 +78,13 @@ public static class ArtDirectionTool
         ApplyRenderScale(preset);
         ApplyTextureFilter(preset);
         ApplyMaterialPalette(preset);
+
+        // The generated surfaces carry the palette in their texels, so a look change has to
+        // redraw them. Skipping this leaves the previous palette baked into every wall in the
+        // region — the same failure that made ApplyAndRebuild the only sanctioned way to switch.
+        ProceduralSurface.Invalidate();
+        ProceduralSurfaceBaker.BakeAll();
+
         ApplyGrading(preset);
         ArtDirection.ApplyEnvironment(preset);
         ApplyFogBaseline(preset);
@@ -224,8 +234,13 @@ public static class ArtDirectionTool
     private static void ApplyFogBaseline(in ArtDirection.Preset preset)
     {
         RenderSettings.fog = true;
-        RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogDensity = 0.0015f * preset.FogDensityScale;
+
+        // ApplyEnvironment has already chosen the mode for this preset — linear for contoured
+        // looks, exponential for atmospheric ones. Only the density belongs here, and setting
+        // the mode again would silently undo that choice.
+        if (!ArtDirection.UsesContour(preset))
+            RenderSettings.fogDensity = 0.0015f * preset.FogDensityScale;
+
         RenderSettings.fogColor = ArtDirection.Grade(new Color(0.55f, 0.65f, 0.75f), preset);
     }
 
@@ -312,8 +327,9 @@ public static class ArtDirectionTool
         shot.Apply();
         RenderTexture.active = prev;
 
-        var suffix = look == ArtDirection.Look.Ps1Crunch ? "ps1" : "morrowind";
-        var path = $"{ShotDir}/{shotName}-{suffix}.png";
+        // Named from the enum rather than from a two-way ternary, which silently mislabelled
+        // every shot the moment a third look existed.
+        var path = $"{ShotDir}/{shotName}-{look.ToString().ToLowerInvariant()}.png";
         File.WriteAllBytes(path, shot.EncodeToPNG());
 
         cam.targetTexture = null;

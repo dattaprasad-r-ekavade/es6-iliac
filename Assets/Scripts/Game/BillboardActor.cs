@@ -16,6 +16,13 @@ public sealed class BillboardActor : MonoBehaviour
     [SerializeField] private float height = 1.9f;
     [SerializeField] private Color tint = Color.grey;
 
+    /// <summary>
+    /// Seeds the figure. Using the actor's name means a character's build, dress and headwear
+    /// are a property of who they are, so the same person looks the same in every session
+    /// without any of it being authored or saved.
+    /// </summary>
+    [SerializeField] private string figureKey = "";
+
     private Transform _billboard;
     private static Material _sharedTemplate;
 
@@ -29,12 +36,16 @@ public sealed class BillboardActor : MonoBehaviour
         quad.name = "Billboard";
         quad.transform.SetParent(root.transform, false);
         quad.transform.localPosition = Vector3.up * (height * 0.5f);
-        quad.transform.localScale = new Vector3(height * 0.55f, height, 1f);
+        // Match the sprite's aspect exactly, or point-filtered texels come out rectangular and
+        // the whole look reads as a stretched image rather than as a drawing.
+        quad.transform.localScale = new Vector3(
+            height * (CharacterSprite.Width / (float)CharacterSprite.Height), height, 1f);
         Object.Destroy(quad.GetComponent<Collider>());
 
         var actor = quad.AddComponent<BillboardActor>();
         actor.height = height;
         actor.tint = tint;
+        actor.figureKey = name;
         actor.Apply();
 
         // The hit volume lives on the root, not the quad, so a rotating billboard does not
@@ -48,10 +59,21 @@ public sealed class BillboardActor : MonoBehaviour
         return actor;
     }
 
+    /// <summary>
+    /// Rebuild the sprite on load.
+    ///
+    /// Without this the figure only existed if <see cref="Spawn"/> had just run: the material
+    /// and texture are created in code, and Unity does not serialise runtime-created assets into
+    /// a saved scene, so every billboard in a generated scene came back with a null material
+    /// after the editor reopened it. Regenerating costs 2,048 pixels, which is cheaper than
+    /// storing it would be.
+    /// </summary>
+    private void Awake() => Apply();
+
     private void Apply()
     {
         var renderer = GetComponent<MeshRenderer>();
-        renderer.sharedMaterial = MaterialFor(tint);
+        renderer.sharedMaterial = MaterialFor(figureKey, tint);
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         _billboard = transform;
     }
@@ -70,40 +92,17 @@ public sealed class BillboardActor : MonoBehaviour
     }
 
     /// <summary>
-    /// A crude standing figure drawn in code: head, torso, legs, in the actor's tint against
-    /// transparency. Deliberately simple — it is a silhouette, and the art direction lock says
-    /// silhouette reads at any fidelity while surface detail does not.
+    /// The figure, drawn by <see cref="CharacterSprite"/>: flat colour fields separated by a
+    /// hard contour rather than by shading.
+    ///
+    /// This used to draw three rectangles inline. The art direction lock says silhouette reads
+    /// at any fidelity while surface detail does not — which is true, and was being used to
+    /// excuse a silhouette that was not actually drawn. The outline is what turns flat fields
+    /// into a drawing instead of a greybox.
     /// </summary>
-    private static Material MaterialFor(Color tint)
+    private static Material MaterialFor(string figureKey, Color tint)
     {
-        const int size = 32;
-        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
-        {
-            filterMode = FilterMode.Point,
-            wrapMode = TextureWrapMode.Clamp
-        };
-
-        var clear = new Color(0f, 0f, 0f, 0f);
-        var dark = tint * 0.55f; dark.a = 1f;
-        var body = tint; body.a = 1f;
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float u = (x + 0.5f) / size;
-                float v = (y + 0.5f) / size;
-                float dx = Mathf.Abs(u - 0.5f);
-
-                Color c = clear;
-                if (v > 0.80f && dx < 0.11f) c = dark;                      // head
-                else if (v > 0.42f && v <= 0.80f && dx < 0.20f) c = body;    // torso
-                else if (v <= 0.42f && dx < 0.16f && dx > 0.03f) c = dark;   // legs
-
-                texture.SetPixel(x, y, c);
-            }
-        }
-        texture.Apply();
+        var texture = CharacterSprite.Build(CharacterSprite.From(figureKey, tint));
 
         if (_sharedTemplate == null)
             _sharedTemplate = new Material(

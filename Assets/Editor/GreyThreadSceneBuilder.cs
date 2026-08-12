@@ -397,17 +397,25 @@ public static class GreyThreadSceneBuilder
         go.transform.localScale = scale;
         go.layer = GameLayers.Structure;
         var renderer = go.GetComponent<Renderer>();
-        if (renderer != null) renderer.sharedMaterial = material;
+        if (renderer != null)
+        {
+            renderer.sharedMaterial = material;
+            ProceduralSurface.ApplyTiling(renderer, scale);
+        }
         return go;
     }
 
-    private static Material Stone(GreyThreadSceneCatalog.SceneSpec spec)
-    {
-        var material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-        material.name = spec.Name + "_Stone";
-        material.color = Color.Lerp(new Color(0.12f, 0.14f, 0.17f), spec.Accent, 0.28f);
-        return material;
-    }
+    /// <summary>
+    /// The interior shell. Shared and asset-backed, so every room in the chapter batches into
+    /// one material and carries the same drawn masonry as the region outside.
+    ///
+    /// This used to be a per-scene flat colour tinted toward <c>spec.Accent</c>, which is what
+    /// made interiors read as coloured boxes. Scene identity now lives entirely in
+    /// <see cref="Accent"/> — the story marker and braziers — where a strong colour is a
+    /// landmark rather than a wall.
+    /// </summary>
+    private static Material Stone(GreyThreadSceneCatalog.SceneSpec spec) =>
+        ProceduralSurfaceBaker.MaterialFor(ProceduralSurface.Kind.Stone);
 
     private static Material Accent(GreyThreadSceneCatalog.SceneSpec spec)
     {
