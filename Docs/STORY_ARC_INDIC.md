@@ -1,17 +1,22 @@
 # Story arc — Indic variant
 
-**Written:** 2026-08-12 · **Parallel to:** [`STORY_ARC.md`](STORY_ARC.md)
+**Written:** 2026-08-12 · **Adopted as the setting:** 2026-08-12
+
+> **This is the authority for names, factions and themes.** It supersedes
+> [`STORY_ARC.md`](STORY_ARC.md), which is kept because it still owns the chapter
+> structure, the spoke contract, the convergence rules and the endings — none of which
+> this file restates. Adopted in code the same day: cast, topic keywords, scene titles and
+> world display names all moved.
 
 ## What this is
 
 The same story, the same beats, the same eight-chapter shape — renamed and rethemed around
 concepts drawn from Indian philosophical and mythological traditions.
 
-**This is a variant, not a replacement.** `STORY_ARC.md` remains authoritative until somebody
-decides otherwise. Nothing here changes plot, structure, mechanics or milestones. What it
+**This changes names and themes, not plot, structure, mechanics or milestones.** What it
 changes is what things are called and, more usefully, *what the argument is about* — because
 several parts of this story map onto real debates in Indian thought far more precisely than
-onto their current Western-fantasy dress.
+onto their original Western-fantasy dress.
 
 ### A note on source material
 
@@ -98,7 +103,8 @@ naming now states plainly what the transaction is. Every point of prana was some
 
 ## Cast
 
-Role ids are unchanged — they are already setting-neutral, so this is a pure display swap.
+Role ids are unchanged — they were already setting-neutral, which is why adoption was a pure
+display swap. Implemented 2026-08-12.
 
 | Role id | Current | Indic variant |
 |---|---|---|
@@ -316,30 +322,45 @@ Short list of concepts that carry weight here, so a writer can reach for them ac
 
 ---
 
-## What adopting this would actually cost
+## What adopting this cost — done 2026-08-12
 
-Cheaper than it looks, because of discipline already in place.
+Cheaper than it looked, because of discipline already in place.
 
-**Free.** Route ids, flag ids, evidence ids, skill ids, cast role ids, anchor ids and ancestry
-ids are all setting-neutral already, and `WorldLayoutTests` plus `EstmereRegionTests` enforce
-it. Every one of these is a display-string swap with no code change.
+**Free, as predicted.** Route ids, flag ids, evidence ids, skill ids, cast role ids, anchor
+ids and ancestry ids were all setting-neutral already, and `WorldLayoutTests` plus
+`CapitalRegionTests` enforce it. Every one of these was a display-string swap with no code
+change. This is the naming policy paying for itself in a single afternoon.
 
-**Cheap.** Display names in `EstmereRegion.Anchors`, `GreyThreadSceneCatalog` titles, the
-dialogue topic assets, and the fourteen authored topic responses. Text edits.
+**Cheap, as predicted.** Display names in `CapitalRegion.Anchors`, `GreyThreadSceneCatalog`
+titles, the dialogue topic assets and the authored topic responses. Text edits.
 
-**Not free — and this is a real finding.** Scene *ids* violate the naming policy:
+Two further id-level violations turned up during the swap and were fixed at the same time:
+`faction.estmere` → `faction.crown`, `faction.arcanum` → `faction.order`, and
+`ArtDirection.Palette.Halbrand/Sarrakh` → `Temperate/Arid`.
+
+**The real finding, and a correction to how it was first described.** Scene identity violated
+the policy — but not in the place this document originally claimed.
+
+`SaveData.SceneId` does **not** hold a `scene.*` id. `SaveLoadService` assigns it
+`ActiveContentSceneName`, the Unity scene *name*, because that is what
+`CanStreamedLevelBeLoaded` and `TransitionTo` take. `SceneContext.SceneId` holds the
+`scene.*` id and is never persisted.
+
+So the cost was the opposite shape of the prediction: renaming the *ids* was free and touched
+no save, while renaming the scene *assets* — which this document said could stay — is what
+actually invalidated saves. Both were done, the assets being regenerated build artifacts:
 
 ```
-scene.estmere_palace   scene.estmere_prison   scene.caldemar_arrival   ...
+scene.estmere_palace → scene.palace        Estmere_Palace   → Palace
+scene.caldemar_arrival → scene.council_arrival   Caldemar_Arrival → Council_Arrival
 ```
 
-The policy in `plan.md` says save-persisted identifiers are setting-neutral and gives
-`city_west` as the model. These embed display names, so renaming the setting orphans any save
-that stores a scene id — which `SaveGameV4` does, via `SaveData.SceneId`.
+`SaveLoadService.MigrateSceneName` maps the old names forward, and
+`GreyThreadSceneTests.SceneIdsAndNames_DoNotEmbedSettingPlaceNames` stops it recurring.
 
-**This is worth fixing whether or not this variant is ever adopted.** The right form is
-`scene.palace`, `scene.prison`, `scene.council_arrival` — the building, not the city. Scene
-*file* names can stay as they are; they are assets, not saved state.
+**Not done.** The `Kessil*` class names and the `Kessil/` editor menu root still carry the
+project's original codename. That is internal, unpersisted and invisible to the player;
+whether the project itself becomes Ratna Bay is a separate decision.
 
 ---
 

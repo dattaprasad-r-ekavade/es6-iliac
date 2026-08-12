@@ -1,4 +1,13 @@
-# Story arc — the crystal question
+# Story arc — original naming (superseded)
+
+> **Superseded 2026-08-12 by [`STORY_ARC_INDIC.md`](STORY_ARC_INDIC.md)**, which is now the
+> authority for names, factions and themes. This file is kept rather than deleted because it
+> still owns things the variant does not restate: the hub-and-spoke chapter structure, the
+> spoke contract, the convergence rules, the reveal gate and the three endings. Where the two
+> disagree on a **name**, the variant wins. Where this file is the only one that says
+> something, it stands.
+
+ — the crystal question
 
 **Locked:** 2026-08-01 · **Covers:** the world premise and Chapters 02+
 

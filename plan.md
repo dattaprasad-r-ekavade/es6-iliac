@@ -139,7 +139,7 @@ work must serve a Chapter 01 beat or a VS1/VS2 dependency.
 Verified in the repository and Unity Editor:
 
 - 51 runtime scripts plus 14 editor scripts;
-- persistent `Bootstrap`, generated legacy `Main`, additive `Estmere_Exterior`, and 11
+- persistent `Bootstrap`, generated legacy `Main`, additive `Capital_Exterior`, and 11
   regenerable Chapter 01 grey scenes, plus four small transition fixtures;
 - a successful local Windows player (142.5 MB) booting through `Bootstrap`;
 - 45/45 EditMode and 30/30 PlayMode tests passing as of 2026-08-01, including scene-contract
@@ -436,17 +436,17 @@ Use one persistent scene and authored additive scenes. Do not keep expanding the
 |---|---|---|
 | `Bootstrap` | persistent services, input, UI, audio, saves, loading | services initialized once |
 | `Prologue_Ship` | voyage, Tower/warships, pulse, wreck, water | player marked rescued |
-| `Estmere_Docks` | rescue arrival, processing, character creator | valid character profile |
-| `Estmere_Palace` | first audience, questioning, assignment | one route locked |
-| `Estmere_Exterior` | current exterior extracted from `Main` | safe regional traversal |
+| `Docks` | rescue arrival, processing, character creator | valid character profile |
+| `Palace` | first audience, questioning, assignment | one route locked |
+| `Capital_Exterior` | current exterior extracted from `Main` | safe regional traversal |
 | `Tutorial_Warrior` | training and hunt/patrol | prince/evidence convergence payload |
-| `Estmere_Arcanum` | spell training and delivery setup | access to restricted prison |
-| `Estmere_Harbor` | sailing and thief instruction | tower objective complete |
-| `Estmere_SecuredTower` | infiltration objective | evidence/prince route transition |
-| `Estmere_Prison` | general cells, solitary, soul operation, convergence | prince follows player |
-| `Estmere_SeaCave` | shared escape and title-crawl vista | prologue escape complete |
-| `Estmere_Palace_Aftermath` | confrontation and outcome | ruler/title/world mutation saved |
-| `Caldemar_Arrival` | Council mission handoff and Tower reminder | opening chapter complete |
+| `Order_Hall` | spell training and delivery setup | access to restricted prison |
+| `Harbor` | sailing and thief instruction | tower objective complete |
+| `Secured_Tower` | infiltration objective | evidence/prince route transition |
+| `Prison` | general cells, solitary, soul operation, convergence | prince follows player |
+| `Sea_Cave` | shared escape and title-crawl vista | prologue escape complete |
+| `Palace_Aftermath` | confrontation and outcome | ruler/title/world mutation saved |
+| `Council_Arrival` | Council mission handoff and Tower reminder | opening chapter complete |
 
 Reuse an authored scene for multiple states when safe; use world-state variants rather
 than duplicating whole environments. Every transition needs a spawn ID, fade/load
@@ -586,7 +586,7 @@ Build the systems the story sits on, before any story content exists.
   2026-08-01.**
 - [x] `CinematicRunner` with deterministic cues and an idempotent end-state applied whether
   watched or skipped. **W-08 complete 2026-08-01.**
-- [x] Extract the current exterior geography into regenerable `Estmere_Exterior` without
+- [x] Extract the current exterior geography into regenerable `Capital_Exterior` without
   destroying the working world.
 - [x] Move global dimensions, anchors, landmasses, sites and roads into versioned
   `Assets/Resources/Data/World/kessil.world.json`; runtime generation and all prior geometry
@@ -610,7 +610,7 @@ good.
 - Every cinematic is a timed placeholder card that applies its real end-state.
 - Dialogue is placeholder text driven by the real dialogue graph.
 
-**Delivered:** 11 regenerable Chapter 01 grey scenes plus the extracted `Estmere_Exterior`
+**Delivered:** 11 regenerable Chapter 01 grey scenes plus the extracted `Capital_Exterior`
 scene are enabled in build settings. Each grey scene has a stable `SceneContext`, named
 spawns, stone walls, a gate, stepped elevations, lights and collision-backed geometry. The
 `GreyThreadDirector` drives all **42/42** beat waypoints: prologue, the real King's audience
@@ -928,56 +928,84 @@ Kessil world without editing C# or opening the Unity Editor. Existing stable ids
 survive geometry changes, and invalid water/road/spawn configurations are rejected with
 plain-language errors.
 
-## Art direction — locked 2026-07-29
+## Art direction — **Arena Miniature, locked 2026-08-12**
 
-**North star: Morrowind. Realistic execution bar: Dread Delusion.** Those are not in
-tension — Dread Delusion is Morrowind's art direction reproduced by a team of about three,
-which makes it the existence proof that this direction survives being made by almost
-nobody.
+> Supersedes the Morrowind Clean lock of 2026-07-29. Morrowind remains the north star for
+> **flow** — reading-driven quests, directions over markers, topic dialogue. It is no longer
+> the target for **look**.
 
-Implemented in `Assets/Scripts/World/ArtDirection.cs`, applied via
-**Kessil → Art Direction**. It is the render-layer counterpart to `WorldLayout`: geometry
-in one file, look in the other.
+**Elder Scrolls: Arena's geometry, read through the visual grammar of Rajput and Pahari
+miniature painting.**
 
-### What is being targeted, and what is not
+The two references agree far more than they should. Both are flat and frontal. Both draw
+architecture as elevation rather than in perspective. Both separate adjacent fields with a
+drawn outline instead of shading them. Both work in a small set of unmixed pigments. What
+Arena did because a 1994 renderer could not do better, miniature painting did on purpose —
+so committing to it converts the engine's cheapest possible output into a deliberate
+reference rather than a visible limitation.
 
-| Aspect of Morrowind | Target | Why |
-|---|---|---|
-| Poly budgets, texture res, lighting model | **Exceed comfortably** | Its characters ran 5–10k tris on 2002 hardware; this is free now |
-| Distinctive regional silhouettes | **Match** | A design decision, not an art skill |
-| Regional identity — Halbrand vs Sarrakh | **Match** | Palette and kit discipline; costs nothing |
-| Hand-painted texture craft | **Approximate** | Via a small reused material library, not per-object art |
-| Content density | **Explicitly not** | Morrowind hand-placed 316k objects across ~100 man-years |
+Implemented in `Assets/Scripts/World/ArtDirection.cs` (palette, fog, grading),
+`ProceduralSurface.cs` (every world texture) and `CharacterSprite.cs` (every figure).
+Applied via **Kessil → Art Direction**.
 
-The density line is the one that matters. Chapter spaces are dense; the 6.8 km bay stays
-thin and fog-limited. Do not attempt Morrowind's object count.
+### Why this is not a re-run of the PS1 Crunch rejection
+
+PS1 Crunch was rejected on 2026-07-29 for a recorded reason: point filtering and a 0.55
+render scale only pay off against genuinely low-resolution textures, and the library was
+1–2K PBR from Poly Haven and Quaternius. Committing would have meant re-authoring every
+texture at 64–128 px — *"more work, not less."*
+
+**That verdict was correct about a filter laid over high-resolution art.** It inverts when
+the art is authored at that resolution to begin with, which is what Arena scale means. The
+textures are now drawn in code at 64 px, so the texels are real and point filtering is
+finally rendering what is actually there. This is the case the spike said would change the
+answer, not a reversal of it.
+
+### What this buys, and what it does not
+
+| | |
+|---|---|
+| **Kills the humanoid blocker** | W-13 established that the mesh, not the rig, was the wall. Characters are sprites, so rigging, skinning, retargeting, animator controllers and facial work are gone as a category |
+| **Textures become code** | At 64 px a texture is a function: deterministic, regenerable, git-diffable, and unable to drift off-palette because it has no colours of its own |
+| **Eight regions become eight seeds** | `CapitalRegionBuilder` already generates a 2.4 km region from one seed |
+| **Writing does not shrink at all** | Chapter 01 is a 42-beat contract; eight chapters is ~340 beats plus topic dialogue and evidence per spoke. That is the majority of the remaining work and it costs the same in any art style |
+| **Sprites are still art** | Arena's characters were painted at 5–8 rotation angles. The current generator draws one frontal figure. Rotations are real remaining work — far less than rigging, and the one place AI generation genuinely fits |
+
+**The thing to refuse deliberately:** Arena is remembered as vast and shallow, its
+procedural towns famously interchangeable. Take the breadth, not the emptiness. Procedural
+everywhere, authored density on the critical path.
 
 ### Budgets
 
 | | Target |
 |---|---|
-| Characters | 2,000–5,000 tris |
-| Architecture modules | 200–800 tris |
-| Textures | 256² standard, 512² hero |
-| Material library | ~25 tileable + 3–4 trim sheets, **total**, reused everywhere |
-| Real-time lights | Few; bake or fake the rest |
-| Draw distance | 150–300 m, with fog carrying the falloff |
+| Characters | **Billboard sprites, 32×64 px, drawn in code.** No meshes, no rigs |
+| Architecture modules | Flat-topped blocks, 12 tris. Generated, not modelled |
+| Textures | **64² and code-generated.** Uncompressed, no mipmaps, point-filtered |
+| Material library | 8 surfaces, **total** (`ProceduralSurface.Kind`), shared and batched |
+| Real-time lights | Few; the look is flatly lit by design, not by budget |
+| Draw distance | 220–340 m linear cutoff. Not atmospheric haze — miniature painting has none |
 
 ### The rules that hold it together
 
-1. **The palette is not negotiable.** 6–8 colours per region, authored in
-   `ArtDirection.Palette` and written onto the world materials. Assets are held to the
-   palette; the palette does not adapt to assets. This is what prevents the earlier
-   three-visual-languages problem from recurring.
-2. **Reuse materials, do not author per-object textures.** Morrowind reused a small texture
-   set across its kits far more than people remember, and that is the affordable half of
-   its look.
-3. **Silhouette over surface detail.** A distinctive shape reads at any fidelity; a detailed
-   texture on a generic shape does not.
-4. **Fog is an aesthetic, not an apology.** It defines the palette and hides the draw
-   distance at the same time.
-5. **One humanoid base.** Vary characters by clothing and colour, not by mesh. Hoods,
-   helmets and dim interiors mean faces never have to carry a scene.
+1. **The palette is not negotiable.** 6–8 pigments, authored in `ArtDirection.Palette` and
+   *derived into* every texel by `ProceduralSurface`. Nothing has colours of its own. This is
+   what prevents the earlier three-visual-languages problem from recurring.
+2. **Flat fields, never gradients.** Every pixel is one of a few quantised shades. A
+   continuous value reads as dirt and takes the palette down with it.
+   `ProceduralSurfaceTests` caps the distinct colours per surface, because this is invisible
+   in code review and obvious on screen.
+3. **The contour is the whole trick.** Flat fields with no separation are greybox; the same
+   fields with a hard dark outline are a drawing. Miniature painters outlined for exactly
+   this reason — it keeps the colour flat, which is what makes pigment sing, and still reads
+   form. One neighbour check per pixel.
+4. **One ink.** A contour blended against whatever sits under it becomes several colours and
+   stops being flat. Compute it once, per surface.
+5. **Silhouette over surface detail.** True at 64 px in a way it never quite was at 2K — and
+   it is not a licence to skip drawing the silhouette, which is what the old head/torso/legs
+   billboard was doing under cover of this rule.
+6. **No sprite rotations yet.** Figures are frontal. This is the largest known gap in the
+   direction, and it is honest work rather than a blocker.
 
 ### Pipeline, by asset type
 
@@ -986,16 +1014,20 @@ opposite categories rather than used interchangeably.
 
 | Asset type | Method | Why |
 |---|---|---|
-| Modular architecture — prison, palace, ship deck | **Procedural Blender scripts** (`Tools/Blender/`) | Needs exact module sizes that snap; deterministic and git-diffable. AI generation cannot hold dimensions |
-| Cultural hero architecture — the Everspire, Sarrakh domes, Estmere's skyline | **AI generation** via blender-mcp (Rodin / Hunyuan3D) | One-off organic shapes with no tiling requirement — generative 3D's strongest category, and the same category Morrowind's most memorable assets fall into |
-| Nature, rocks, foliage | Existing CC0 (Quaternius, Poly Haven) | Already solved |
-| Characters | One rigged humanoid base + Mixamo/AccuRIG animation | The least-solved area; contain it rather than fight it |
-| Materials and textures | Small tileable library, AI-assisted, palette-locked | Consistency beats individual quality |
-| **The look layer** | `ArtDirection.cs` — fog, grading, palette, filtering, sky | **Highest ROI.** Code and settings, not art |
+| Modular architecture — prison, palace, ship deck | **Generated blocks** (`GreyThreadSceneBuilder`) | Flat-topped geometry is 12 tris. Modelling it would cost more than generating it |
+| The region — streets, walls, districts, skyline | **Seeded generation** (`CapitalRegionBuilder`, `Seed = 20260804`) | Hand-authoring 2.4 km is not available to this project, which is the same reason Arena was procedural |
+| Cultural hero architecture — the Stambha, Maru domes, Ratnapur's skyline | **AI generation** via blender-mcp, *only if it still earns its place* | One-off shapes with no tiling requirement. Reassess: a hero mesh among flat blocks may read as an intruder rather than a landmark |
+| Nature, rocks, foliage | **Generated**, superseding the CC0 kits | Poly Haven and Quaternius are 1–2K PBR. Under point filtering and a flat palette they now fight the look rather than help it |
+| Characters | **`CharacterSprite`** — code-drawn, contoured, deterministic from the actor's name | No rig, no retargeting, no knee joints, no animation system. This is the blocker W-13 found, removed rather than solved |
+| Materials and textures | **`ProceduralSurface`** — 8 surfaces at 64 px, drawn from the palette | Consistency is guaranteed rather than maintained: they have no colours of their own |
+| **The look layer** | `ArtDirection.cs` — palette, contour, fog, grading, filtering, sky | **Highest ROI.** Code and settings, not art |
 
-The last row is the thesis: for a developer who codes but does not model, the render layer
-returns more visual improvement per day than asset work does, and it is the half that can
-be iterated in seconds.
+The last two rows are the thesis, and the direction extends it: for a developer who codes
+but does not paint, a texture that is a *function* returns more per hour than a texture that
+is a file — and unlike a file, it cannot drift off-palette.
+
+**The CC0 kits are now legacy.** They remain in `Assets/ThirdParty` and are still correctly
+licensed (`Docs/ASSET_LEDGER.md`), but they are off the critical path. Do not add more.
 
 ### Where the look is enforced
 
@@ -1011,38 +1043,49 @@ be iterated in seconds.
   dissolve; the bright blue gradient behind a muted world was the single largest reason the
   prototype read as an engine project rather than a game.
 
-### Spike result — 2026-07-29
+### How the lock is enforced
 
-Both looks were captured from four matched viewpoints
-(`Assets/Screenshots/ArtDirection/`, regenerate with
-`ArtDirectionTool.CaptureComparison`). **Morrowind Clean is adopted and baked in** —
-confirmed 2026-07-29 after reviewing the comparison.
+Four ways, so it cannot drift back:
 
-It is enforced three ways, so it cannot drift back:
-
-- `ArtDirection.Current` defaults to it, asserted by `ArtDirectionTests`.
-- `ArtDirectionTests` rejects any palette colour outside the muted range, in either preset.
-- `ArtDirectionTool.ApplyAndRebuild` is the only sanctioned way to change look, because a
-  preset that is applied without regenerating leaves the old palette baked into the terrain.
+- `ArtDirection.Current` defaults to `ArenaMiniature`, asserted by `ArtDirectionTests`.
+- **Per-look palette bands.** The muted presets are held muted; the miniature palette is held
+  to *pigment* — a ceiling that rejects screen primaries and a **mean-saturation floor** that
+  catches it sliding back toward muted one "slightly calmer" edit at a time. A further test
+  holds that the two directions stay far enough apart to still be two directions.
+- **`ProceduralSurfaceTests` and `CharacterSpriteTests` lock what is drawn, not just what is
+  authored.** Flatness (distinct colours per surface), contour presence on architecture,
+  contour *absence* on landscape, tiling lattices that divide 64, and determinism. The palette
+  tests alone could not catch a generator that mixed in colours of its own.
+- `ArtDirectionTool.ApplyAndRebuild` is the only sanctioned way to change look: it invalidates
+  and re-bakes every surface. Applying without rebuilding leaves the old palette in the texels.
 
 A comparison run necessarily ends in whichever preset it captured last. Restore the lock
-afterwards with `ArtDirectionTool.LockMorrowindClean`.
+afterwards with `ArtDirectionTool.LockArenaMiniature`.
 
-PS1 Crunch was rejected for a concrete reason rather than taste: point filtering and a 0.55
-render scale only pay off against genuinely low-resolution textures. The project's art is
-1–2K PBR from Poly Haven and Quaternius, so the crunch bought aliasing without buying the
-chunky-texel read, and softened the building silhouettes. Committing to PS1 would mean
-re-authoring every texture at 64–128 px — more work, not less. The preset is kept in
-`ArtDirection.cs` so the comparison can be re-run if the texture library ever changes.
+`MorrowindClean` and `Ps1Crunch` are kept in `ArtDirection.cs` so the comparison can be re-run.
 
-Known off-palette surfaces still to fix, found by the spike:
+### What the adoption pass found
 
-- The Caldemar spawn pad reads bright yellow: `M_Sand` has a light sand `_BaseMap` that
-  overpowers the palette tint. Needs a darker texture or no texture.
-- Kenney NPCs remain saturated toybox characters against a muted world — the clearest
-  argument for the one-humanoid-base rule above.
-- Ground texture tiling is far too large (roughly 2 m cobbles). A UV-scale bug, not an art
-  direction issue, but very visible.
+Three defects, each caught by a test rather than by review — worth recording because all
+three are the kind that look fine in a diff:
+
+- **The contour was blended with whatever shade sat under it**, so a single outline came out
+  as four slightly different colours. That is the exact not-flat failure this direction
+  cannot afford. It is one ink now, computed once per surface.
+- **Four cell lattices did not divide 64**, leaving a partial cell at the wrap and a hard
+  seam on every tiled surface. Sixty metres of city wall is the worst place to find that.
+- **`BillboardActor` only built its material inside `Spawn()`.** Unity does not serialise
+  runtime-created textures into a saved scene, so every billboard in a generated scene came
+  back with a null material once the editor reopened it. It rebuilds on `Awake` now.
+
+### Still open
+
+- **No sprite rotations.** Figures are frontal only. Arena drew 5–8 angles; this is the
+  largest known gap.
+- **The legacy CC0 kits still ship in the build.** They are off the critical path but not
+  removed, so they cost download size for nothing.
+- **`M_Sand` and the other hand-authored materials** in `Assets/Art/Materials` still carry
+  PBR maps that fight the flat palette. They should migrate to `ProceduralSurface` kinds.
 
 ### Slice implications
 

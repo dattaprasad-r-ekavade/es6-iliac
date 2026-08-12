@@ -13,8 +13,13 @@ A first-person fantasy RPG. Unity 6000.5.3f1, URP 17.5, Windows. Solo developer,
 Current deliverable: **Chapter 01 as an internal proof of concept**, not a product. The
 eventual product is 8 chapters, paid.
 
-Design north star is Morrowind, for flow as well as look: reading-driven quests, directions
-over markers, topic dialogue, in-fiction travel.
+Design north star is Morrowind for **flow**: reading-driven quests, directions over markers,
+topic dialogue, in-fiction travel. The **look** is Elder Scrolls: Arena read through Rajput
+and Pahari miniature painting — flat high-chroma fields, hard drawn contours, sprite
+characters, all generated in code. Locked 2026-08-12.
+
+The setting is Indic: Ratna Bay, the capital Ratnapur, jiva stones, prana. `Docs/STORY_ARC_INDIC.md`
+is the authority. The repo folder and the `Kessil*` classes keep the old codename.
 
 ## Verify before claiming anything works
 
@@ -26,11 +31,11 @@ python Tools/compile-check.py    # fast, run constantly
 
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" -runTests -testPlatform EditMode \
-  -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"     # 61/61
+  -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"     # 95/95
 
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" -runTests -testPlatform PlayMode \
-  -testResults "<scratch>/pm.xml" -logFile "<scratch>/pm.log"     # 122/122
+  -testResults "<scratch>/pm.xml" -logFile "<scratch>/pm.log"     # 124/124
 ```
 
 **Done means:** compile-check clean, EditMode green, PlayMode green. Never report success
@@ -48,8 +53,15 @@ refreshes — a clean result does not prove new test files compile.
   hand-author anything into it you cannot regenerate.
 - **Save-persisted ids must never embed display names** (`city_west`, not `Caldemar`). Enforced
   by `WorldLayoutTests`.
-- **Chapter 01 must never hint that the Everspire is an alarm** — that is the Chapter 06
+- **Chapter 01 must never hint that the Stambha is an alarm** — that is the Chapter 06
   reveal.
+- **Never soften the "jiva stones" dialogue topic.** It is the only place Chapter 01 states
+  that lawful sourcing is normal (dāna, freely given). Without it the audience concludes all
+  jiva use is monstrous and the eight-chapter argument collapses into an abolition story.
+- **The art direction is code, not assets.** `ArtDirection` owns the palette, `ProceduralSurface`
+  draws every world texture at 64 px from it, `CharacterSprite` draws every figure. Changing a
+  look requires `ArtDirectionTool.ApplyAndRebuild` — applying without rebuilding leaves the old
+  palette baked into the texels.
 
 ## Working style
 

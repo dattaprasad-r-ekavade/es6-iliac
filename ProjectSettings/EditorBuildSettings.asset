@@ -12,7 +12,7 @@ EditorBuildSettings:
     path: Assets/Scenes/Main.unity
     guid: 86b5a6b040c1cf0419a26283c4102962
   - enabled: 1
-    path: Assets/Scenes/Estmere_Exterior.unity
+    path: Assets/Scenes/Capital_Exterior.unity
     guid: db4e409f081fc4d47b1d93564c303758
   - enabled: 1
     path: Assets/Scenes/Tests/TransitionTest_A.unity
@@ -30,36 +30,36 @@ EditorBuildSettings:
     path: Assets/Scenes/Chapter01/Prologue_Ship.unity
     guid: 0444d0a4102da0847aadfc0e1f9efa2d
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Estmere_Docks.unity
+    path: Assets/Scenes/Chapter01/Docks.unity
     guid: 1f788a4ab6b463c409324d8bfad24916
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Estmere_Palace.unity
+    path: Assets/Scenes/Chapter01/Palace.unity
     guid: e66e653ce02b3be46b704cb9ac86d95c
   - enabled: 1
     path: Assets/Scenes/Chapter01/Tutorial_Warrior.unity
     guid: 8800e7c48d2efcc439aaf3a16d1407c8
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Estmere_Arcanum.unity
+    path: Assets/Scenes/Chapter01/Order_Hall.unity
     guid: 9b66bd39ac0d6f242a09537e144c9f28
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Estmere_Harbor.unity
+    path: Assets/Scenes/Chapter01/Harbor.unity
     guid: f4ea8584f3c0cc44187cf1f9ef8fb0a7
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Estmere_SecuredTower.unity
+    path: Assets/Scenes/Chapter01/Secured_Tower.unity
     guid: d5104176bb31a9e4dbcc3add56f4843e
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Estmere_Prison.unity
+    path: Assets/Scenes/Chapter01/Prison.unity
     guid: 3ee1f0660be2f17478cea3cdf79f9257
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Estmere_SeaCave.unity
+    path: Assets/Scenes/Chapter01/Sea_Cave.unity
     guid: 32d6862253a40a24db244a1d40fc6fb8
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Estmere_Palace_Aftermath.unity
+    path: Assets/Scenes/Chapter01/Palace_Aftermath.unity
     guid: db512c059c05266498f2407bac44eef9
   - enabled: 1
-    path: Assets/Scenes/Chapter01/Caldemar_Arrival.unity
+    path: Assets/Scenes/Chapter01/Council_Arrival.unity
     guid: f95d1dccf905c0a4aa2f01404d152a32
   - enabled: 1
-    path: Assets/Scenes/Estmere_Region.unity
+    path: Assets/Scenes/Capital_Region.unity
     guid: f0884479187bd754b9eeafda005f6557
   m_configObjects: {}

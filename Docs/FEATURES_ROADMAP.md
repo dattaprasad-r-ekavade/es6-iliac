@@ -126,7 +126,7 @@ The genre targets this project is built against:
 ### Known gaps / pain points
 - [x] Chapter 01 quest/dialogue/save/cinematic architecture passes the VS1 gate
 - [x] VS2 grey thread: all 42/42 beat waypoints across 11 regenerable Chapter 01 rooms plus
-      `Estmere_Exterior`, audience assignment UI, B640 title crawl, additive transitions,
+      `Capital_Exterior`, audience assignment UI, B640 title crawl, additive transitions,
       evidence/companion/typed outcome state, route autosaves and B830 handoff
 - [x] Persistent Bootstrap/additive foundation exists; generated `Main` uses linked runtime
       prefabs and remains a temporary legacy gameplay container until the story scene split

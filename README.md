@@ -1,7 +1,13 @@
-# Kessil Bay
+# Ratna Bay
 
-An open-world first-person RPG prototype set on Kessil Bay, between temperate Halbrand
-in the north and arid Sarrakh in the south.
+An open-world first-person RPG prototype set on Ratna Bay, between temperate Uttara in the
+north and arid Maru in the south. Magic runs on jiva stones, and every point of prana the
+player spends was somebody's soul.
+
+**The look is Elder Scrolls: Arena read through Rajput and Pahari miniature painting** —
+flat high-chroma pigment, hard drawn contours, billboard sprite characters, and every
+texture generated in code at 64 px rather than authored as a file. Locked 2026-08-12; see
+the art direction section of [plan.md](plan.md).
 
 > The repository directory and `.sln` are still named `Elder Scrolls 6` from the original
 > scaffolding. Everything inside the project has been renamed; the folder itself is the
@@ -18,7 +24,7 @@ the short version loaded automatically by Claude Code.
 2. Press **Play**
 3. Click **START** on the menu
 4. Skip the intro any time with **Space** / **SKIP**
-5. The prologue plays, then you are standing in Estmere. The compass line gives written
+5. The prologue plays, then you are standing in Ratnapur. The compass line gives written
    directions to your objective — walk there and press **E** at the door.
 
 ## Controls
@@ -29,9 +35,12 @@ WASD · mouse look · **Shift** sprint · Space jump · Esc unlock cursor
 Talk to the named cast with **E**, then pick a subject with **1–9**. Keywords you learn from
 one person can be asked of another.
 
-After gameplay starts, the VS2 grey thread opens the King's audience assignment panel. Enter a
+After gameplay starts, the VS2 grey thread opens the Raja's audience assignment panel. Enter a
 name, then choose **City Guard**, **The Arcanum**, **Docks / Commerce**, or **Refuse
-Assignment**. Each route records its profile and ends at the Caldemar Council handoff.
+Assignment**. Each route records its profile and ends at the Sabhapur council handoff.
+
+The named cast are Raja Vikram, Senapati Karan, Acharya Meera, Harbourmaster Vasu, the
+Registrar, Hari and Lekha in the prison, and Mantri Devan at the council gate.
 
 ## Future plan
 The free-roam P0+P1 prototype foundation exists, but the active deliverable is now the

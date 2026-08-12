@@ -1,6 +1,6 @@
 # Agent handoff — how to pick up this project cold
 
-**Updated:** 2026-08-11
+**Updated:** 2026-08-12
 
 This project is developed by rotating AI agents with no shared memory between sessions.
 **This document is the memory.** Read it before doing anything else.
@@ -15,16 +15,20 @@ commit. A stale handoff doc is worse than none.
 A first-person fantasy RPG in Unity 6000.5.3f1 / URP 17.5, Windows target, solo developer
 working ~8–10 hours a week on a 1+ year horizon.
 
-- **Setting:** original. Kessil Bay, the realms of Halbrand and Sarrakh. No third-party
-  game's names or assets are in the deliverable.
-- **Design north star:** Morrowind — for look *and* flow. Reading-driven quests, directions
-  over markers, topic dialogue, in-fiction travel.
+- **Setting:** original, and Indic since 2026-08-12. Ratna Bay; the capital is Ratnapur,
+  the council seat Sabhapur. No third-party game's names or assets are in the deliverable.
+  The repo, the `Kessil*` classes and the `Kessil/` menu root still carry the old codename —
+  internal only, and a separate decision.
+- **Design north star:** Morrowind for *flow* — reading-driven quests, directions over
+  markers, topic dialogue, in-fiction travel. **Look is Arena, read through Rajput and
+  Pahari miniature painting** (locked 2026-08-12; see plan.md).
 - **Current deliverable:** Chapter 01 as an **internal proof of concept**, not a product. It
   proves the pipeline and teaches the process. The eventual product is 8 chapters, paid,
   $5–10.
-- **Story:** a world whose magic runs on soul crystals, a king who ran out of legitimate
-  supply and started harvesting prisoners, and a tower everyone believes is the source but is
-  actually the alarm.
+- **Story:** a world whose magic runs on jiva stones, a raja who ran out of lawful supply
+  and started taking them from prisoners, and a pillar everyone believes is the source but is
+  actually the alarm. The line the whole arc rests on is **dāna against steya** — freely
+  given against taken. The trade is not the crime.
 
 ---
 
@@ -36,8 +40,8 @@ Do not resolve a question from the wrong file.
 |---|---|
 | Chapter 01 plot, beat for beat | `storyline.md` |
 | Chapter 01 implementation contract, beats, cast, flags, evidence | `Docs/CHAPTER01_BEATS.md` |
-| World premise, the Everspire truth, factions, Chapters 02+ | `Docs/STORY_ARC.md` |
-| An unadopted Indic-themed renaming of the same arc | `Docs/STORY_ARC_INDIC.md` — **variant, not authority** |
+| World premise, the Stambha truth, factions, Chapters 02+ | `Docs/STORY_ARC_INDIC.md` — **authority since 2026-08-12** |
+| The same arc in its original Western-fantasy naming | `Docs/STORY_ARC.md` — **superseded**; kept because it still owns structure, the spoke contract and the endings, which the variant does not restate |
 | Navigation, dialogue, travel, combat, skills, economy | `Docs/GAMEPLAY_DESIGN.md` |
 | Milestones, gates, risks, world architecture, art direction | `plan.md` |
 | Third-party asset licensing | `Docs/ASSET_LEDGER.md` |
@@ -54,13 +58,13 @@ ones (they take the project lock).
 # Compile-check every assembly without opening Unity. Fast, run this constantly.
 python Tools/compile-check.py
 
-# EditMode tests — currently 61/61
+# EditMode tests — currently 95/95
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform EditMode \
   -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"
 
-# PlayMode tests — currently 122/122
+# PlayMode tests — currently 124/124
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform PlayMode \
@@ -140,7 +144,7 @@ wholesale. Never hand-author anything into it that you cannot regenerate.
 **Scene architecture must be regenerated with Main.** `SetupGamePresentation` and
 `BuildKessilWorld` call `SceneArchitectureBuilder`, which restores Main's context, the
 exterior snapshot and build settings. If another destructive generator is introduced, wire
-the same calls into it. Do not hand-edit `Estmere_Exterior`; it is also generated.
+the same calls into it. Do not hand-edit `Capital_Exterior`; it is also generated.
 
 **Kenney mini-characters cannot be Humanoid rigs.** They have no knee joint, so Unity's
 avatar generation fails on `Required human bone 'LeftLowerLeg' not found`. Do not spend time
@@ -148,7 +152,7 @@ trying to retarget animation onto them — see W-13. Setting them to Human anywa
 broken state that logs a rig error on every import; `CharacterRigTests` guards against it.
 
 **`SceneArchitectureBuilder.EnsureBuildSettings` replaces the build list wholesale.** Any
-scene not named in it silently stops being loadable at runtime. `Estmere_Region` was dropped
+scene not named in it silently stops being loadable at runtime. `Capital_Region` was dropped
 this way and the game became unable to reach its own exterior. Add new scenes there, not only
 where they are generated.
 
@@ -163,6 +167,28 @@ must build a `SceneContext` and at least one `SceneSpawnPoint`.
 
 **`Game.Tests.asmdef` is Editor-only** (`includePlatforms: ["Editor"]`). PlayMode tests live
 in the separate `Game.PlayModeTests` assembly.
+
+**Unity does not serialise runtime-created textures or materials into a saved scene.** An
+editor builder that does `new Texture2D(...)` and assigns it to a renderer produces something
+that looks right until the editor reopens the scene, at which point the reference is null.
+`BillboardActor` had this bug silently for a week. The rule now: **sprites regenerate on
+`Awake`, world surfaces bake to assets** via `ProceduralSurfaceBaker`. Both come from the same
+generator, so they cannot disagree.
+
+**`SaveData.SceneId` is misnamed — it holds the Unity scene *name*, not a `scene.*` id.**
+`SaveLoadService` assigns it `ActiveContentSceneName` because that is what
+`CanStreamedLevelBeLoaded` and `TransitionTo` take. `SceneContext.SceneId` is the id and is
+never persisted. So renaming a `scene.*` id is free; renaming a scene *asset* breaks saves and
+needs an entry in `SaveLoadService.MigrateSceneName`.
+
+**`ArtDirection.Current` is a static, and several fixtures change it.** Any test that switches
+look must restore `ArenaMiniature` in `[TearDown]`, or whether
+`ArtDirectionTests.DefaultLook_IsTheLockedOne` passes depends on the order NUnit happened to
+run the fixtures in.
+
+**Learned dialogue topics are not saved.** `TopicDialogueService.KnownTopics` is absent from
+`StorySnapshot`, so a load loses every keyword the player has picked up. That made the Indic
+keyword rename free, and it is a real gap for anyone implementing save/continue properly.
 
 **Git diff stats on this repo are wildly misleading.** `.unity` files are enormous generated
 YAML. The VS1+VS2 commit reads as 336,372 insertions; 324,507 of those are scene files, and
@@ -185,10 +211,10 @@ is W-11, the external Map Editor MVP.
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
 | VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
 | VS2 — grey thread | **Complete — 42/42 grey beats; all four routes reach B830** |
-| Tests | EditMode 61/61, PlayMode 122/122 |
+| Tests | EditMode 95/95, PlayMode 124/124 |
 | Build | `Builds/Windows/Kessil.exe`, 142.5 MB, 0 errors; Bootstrap is scene zero |
-| Code | 51 runtime scripts, 14 editor scripts, plus Python tooling |
-| Scenes | `Bootstrap`, generated `Main`, additive `Estmere_Exterior`, 11 Chapter 01 grey scenes; four test fixtures |
+| Code | 53 runtime scripts, 15 editor scripts, plus Python tooling |
+| Scenes | `Bootstrap`, generated `Main`, `Capital_Region`, additive `Capital_Exterior`, 11 Chapter 01 grey scenes; four test fixtures. **All named for the building, never the city** |
 | Prefabs / ScriptableObjects / `.inputactions` | 4 runtime prefabs; NPC, dialogue, quest and cinematic data assets; one input-actions asset |
 
 Every narrative and production lock for Chapter 01 is closed. The grey implementation covers
@@ -231,7 +257,7 @@ The reasoning:
 | VS2 | **grey boxes** — plan.md says "it will look like nothing, that is expected and correct" |
 | VS3 | authored environments. **This is where the Map Editor pays off** |
 
-Scene architecture is **geometry-agnostic**: building `Estmere_Exterior` as an additive scene
+Scene architecture is **geometry-agnostic**: building `Capital_Exterior` as an additive scene
 with a spawn contract and a fade is the same work whichever geometry sits inside it. Twelve of
 VS2's thirteen scenes are interiors and are region-independent regardless.
 
@@ -261,7 +287,7 @@ rather than hanging.
 
 **Delivered:** `SceneTransitionService`, `SceneContext`, stable `SceneSpawnPoint` ids,
 black fade overlay, transactional rollback, `BootstrapEntryPoint`, the regenerable
-`Estmere_Exterior` snapshot, and A/B/C plus invalid-scene fixtures. `SceneArchitectureBuilder`
+`Capital_Exterior` snapshot, and A/B/C plus invalid-scene fixtures. `SceneArchitectureBuilder`
 recreates the architecture after any destructive Main rebuild. `BuildPlayerCommand` packages
 Bootstrap/Main/exterior only; fixtures remain in EditorBuildSettings for PlayMode tests.
 
@@ -406,7 +432,7 @@ state. Dialogue is placeholder text driven by the real topic graph.
 
 - Read: `plan.md` § *VS2*, and `CHAPTER01_BEATS.md` in full.
 - Twelve of the thirteen scenes are interiors and are region-independent. Only
-  `Estmere_Exterior` cares about world shape, and at this stage it is a grey box.
+  `Capital_Exterior` cares about world shape, and at this stage it is a grey box.
 
 **Delivered:** `GreyThreadSceneBuilder` regenerates 11 Chapter 01 rooms with stable contexts,
 spawns, stepped elevations and collision-backed walls. `GreyThreadDirector` now visits all
@@ -461,7 +487,7 @@ before any art exists — the same reason Arena and Daggerfall were procedural.
 
 | Piece | Files |
 |---|---|
-| 2.4 km region, walled 1.6 km city, sea bound | `EstmereRegion`, `EstmereRegionBuilder` |
+| 2.4 km region, walled 1.6 km city, sea bound | `CapitalRegion`, `CapitalRegionBuilder` |
 | Doors into interiors, return-to-door | `RegionPortal`, `RegionReturn` |
 | Arena billboard characters | `BillboardActor` |
 | Written directions, live bearing | `ObjectiveService` |
@@ -534,6 +560,52 @@ yard, Quill in the Arcanum, Ashgrove at the harbour, Reed and Falk in the prison
 palace, Ambrose at Caldemar. B510 requires the prison reveal split across two speakers; a test
 holds that both are present.
 
+### W-18 · Arena Miniature, and the setting goes Indic — **complete 2026-08-12**
+
+Three linked decisions, taken together because each is cheapest before eight chapters exist.
+
+**1. The look is locked to Arena Miniature.** Arena's flat-topped geometry read through the
+visual grammar of Rajput and Pahari miniature painting: flat high-chroma pigment, hard drawn
+contours, no atmospheric perspective, sprite characters. Full detail in plan.md.
+
+The key point for anyone tempted to reopen it: this is **not** a reversal of the PS1 Crunch
+rejection. That preset was rejected because point filtering over 1–2K PBR source bought
+aliasing without the chunky-texel read. Authoring at 64 px inverts the argument, which is the
+case the original spike said would change the answer.
+
+- `ProceduralSurface` — all eight world textures, drawn in code from the palette.
+- `CharacterSprite` — every figure, contoured, deterministic from the actor's name.
+- `ProceduralSurfaceBaker` — persists surfaces as assets, because scenes cannot hold runtime
+  textures (see traps).
+
+**This removes the W-13 blocker rather than solving it.** Characters are not meshes, so
+rigging, retargeting and animation are gone as a category. **W-13 is closed. Do not spend
+time sourcing a humanoid base.**
+
+**2. Scene identity is setting-neutral.** `scene.estmere_palace` → `scene.palace`,
+`Caldemar_Arrival` → `Council_Arrival`, and so on — the building, not the city. This was the
+one category the naming policy was not enforcing, and the one where a save actually breaks.
+`GreyThreadSceneTests.SceneIdsAndNames_DoNotEmbedSettingPlaceNames` now holds it; add any new
+proper noun to that list.
+
+**3. The setting is Indic.** `Docs/STORY_ARC_INDIC.md` is the authority. Ratnapur, jiva
+stones, prana, the Stambha, Raja Vikram. Role/route/flag/evidence/skill/anchor ids were
+already neutral, so this was a display swap — the naming policy paying for itself.
+
+**Do not soften the "jiva stones" topic.** It is the only place Chapter 01 establishes that
+lawful sourcing is normal — **dāna**, freely given, against **steya**, taken. Without it the
+audience concludes all jiva use is monstrous and the eight-chapter argument collapses into an
+abolition story.
+
+**Deliberately not done**, so this is not mistaken for finished:
+
+- **Sprite rotations.** Figures are frontal only; Arena drew 5–8 angles. Largest known gap.
+- **The `Kessil*` classes and the `Kessil/` menu root.** The project's own codename, referenced
+  throughout the docs. Whether the project becomes Ratna Bay is a separate call.
+- **`WorldLayout.Biome` and the landmass `Name` strings.** Internal, unpersisted, not
+  player-visible.
+- **The legacy CC0 kits.** Off the critical path but still in the build, costing download size.
+
 ### W-11 · Map Editor MVP · **next**
 
 Now — not before — because you will have authored thirteen scenes and know what the pain
@@ -571,7 +643,7 @@ arrival sliver. Caldemar, Qadris and Aldreth as full regions are Chapter 02+ wor
 
 ---
 
-### W-13 · Humanoid base spike — **result 2026-08-01: the current characters cannot be rigged**
+### W-13 · Humanoid base spike — **CLOSED 2026-08-12 by W-18; the question no longer applies**
 
 **Spike answered. The blocker was never the animation source — it is the mesh.**
 

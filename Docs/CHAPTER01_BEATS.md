@@ -36,7 +36,7 @@ elsewhere.
 | Flag | `flag.<slug>` | `flag.prince_following` |
 | Evidence | `ev.<slug>` | `ev.transport_order` |
 | Cast role | `role.<slug>` | `role.king` |
-| Scene | `PascalCase`, matches plan.md's scene table | `Estmere_Prison` |
+| Scene | `PascalCase`, matches plan.md's scene table | `Prison` |
 
 Never branch on a display name. `ArtDirection` and `WorldLayout` already follow this; story
 code must too.
@@ -212,7 +212,7 @@ story.
 Systems column names the dependency that must exist first. Anything listed here that is not
 in `plan.md`'s systems table is a gap in that table.
 
-### Act 1 — sea and arrival · `Prologue_Ship`, `Estmere_Docks`
+### Act 1 — sea and arrival · `Prologue_Ship`, `Docks`
 
 | Id | Beat | Scene | Systems | Exit state | Acceptance test |
 |---|---|---|---|---|---|
@@ -221,19 +221,19 @@ in `plan.md`'s systems table is a gap in that table.
 | B030 | Arcane pulse erupts from the Everspire | `Prologue_Ship` | cinematic, VFX, audio | pulse witnessed | watching and skipping set identical flags |
 | B040 | Shockwave; ship breaks; water entry; blackout | `Prologue_Ship` | cinematic, damaged variant | player in water, screen black | no physics state can strand the player mid-sequence |
 | B050 | The King's ship pulls the player aboard, under blackout | `Prologue_Ship` | scene transition | `flag.rescued` | the King is never on-screen here; prologue unloads without leaking actors |
-| B060 | Arrival at the Estmere docks | `Estmere_Docks` | transition, spawn | player at dock spawn | spawn places feet on ground, not 1 m above |
-| B070 | Survivors processed by guards; others show the same memory gaps | `Estmere_Docks` | dialogue, quest stage | triage complete | processing cannot be bypassed by walking away; at least one other survivor demonstrates the pulse effect |
-| B080 | **Character creation**, staged as survivor registration | `Estmere_Docks` | `CharacterProfile`, creator UI | `flag.profile_valid` | profile persists through save, reload and every later scene; the recorded name is what the summons later uses |
+| B060 | Arrival at the Estmere docks | `Docks` | transition, spawn | player at dock spawn | spawn places feet on ground, not 1 m above |
+| B070 | Survivors processed by guards; others show the same memory gaps | `Docks` | dialogue, quest stage | triage complete | processing cannot be bypassed by walking away; at least one other survivor demonstrates the pulse effect |
+| B080 | **Character creation**, staged as survivor registration | `Docks` | `CharacterProfile`, creator UI | `flag.profile_valid` | profile persists through save, reload and every later scene; the recorded name is what the summons later uses |
 
-### Act 2 — the King's audience · `Estmere_Palace`
+### Act 2 — the King's audience · `Palace`
 
 | Id | Beat | Scene | Systems | Exit state | Acceptance test |
 |---|---|---|---|---|---|
-| B090 | Summoned before the King — it was his ship that recovered the player | `Estmere_Palace` | transition, dialogue | player in throne room | the summons names the player from the B080 registration; arrival works from all triage outcomes |
-| B100 | The edict: "every soul must contribute" | `Estmere_Palace` | dialogue | edict heard | line foreshadows the operation without revealing it, and supplies the legal frame for B130 |
-| B110 | Questioned about the missing prince | `Estmere_Palace` | dialogue choices | response recorded | remembered / vague / no-memory are all honest under the pulse rule and all reach B120 |
-| B120 | Player declares skill or inclination | `Estmere_Palace` | dialogue choices, profile | inclination recorded | every background maps to exactly one route |
-| B130 | **Route assignment** | `Estmere_Palace` | `StoryDirector` | `flag.route` set | refusal and invalid/default selection both resolve to `route.refuse` |
+| B090 | Summoned before the King — it was his ship that recovered the player | `Palace` | transition, dialogue | player in throne room | the summons names the player from the B080 registration; arrival works from all triage outcomes |
+| B100 | The edict: "every soul must contribute" | `Palace` | dialogue | edict heard | line foreshadows the operation without revealing it, and supplies the legal frame for B130 |
+| B110 | Questioned about the missing prince | `Palace` | dialogue choices | response recorded | remembered / vague / no-memory are all honest under the pulse rule and all reach B120 |
+| B120 | Player declares skill or inclination | `Palace` | dialogue choices, profile | inclination recorded | every background maps to exactly one route |
+| B130 | **Route assignment** | `Palace` | `StoryDirector` | `flag.route` set | refusal and invalid/default selection both resolve to `route.refuse` |
 
 ### Act 3 — the four routes (parallel; each must stand alone)
 
@@ -244,47 +244,47 @@ No route may depend on another having happened.
 | B200 | Guard-yard instruction: movement, melee, block, hit feedback | `Tutorial_Warrior` | combat tutorial hooks | basics demonstrated | safe spar cannot kill the player |
 | B210 | Hunt/patrol with a real encounter | `Tutorial_Warrior` | navigation, encounter pacing | patrol resolved | death or failure returns to a checkpoint, never a softlock |
 | B220 | A wounded prisoner is found in secret transport | `Tutorial_Warrior` | interaction, evidence | `ev.transport_order`, prince located | converges with valid payload |
-| B300 | Spell instruction: cast, resource, target | `Estmere_Arcanum` | magic tutorial hooks | basics demonstrated | practice space is nonlethal; Quill plants climbing demand as an Arcanum *achievement* — new spells, more consumption — never as a warning |
-| B310 | Soul-crystal delivery to the restricted wing | `Estmere_Arcanum` | interaction, access rules | `ev.crystal_manifest` | restricted access cannot be entered early |
-| B320 | An accident opens a sealed cell | `Estmere_Prison` | staged event | prince located | the accident fires exactly once |
-| B400 | Sailing lesson, bounded and controllable | `Estmere_Harbor` | `SailingController` | boat handled | boarding, disembarking and reset all recover cleanly |
-| B410 | Sneaking, lockpicking, pickpocketing | `Estmere_Harbor` | detection, locks, pickpocket | basics demonstrated | being caught is recoverable, never terminal |
-| B420 | Secured-tower infiltration; retrieve the object | `Estmere_SecuredTower` | detection, locks | `ev.tower_ledger`, prince located | tower connects spatially to the prison |
-| B500 | Arrest and transfer to general population | `Estmere_Prison` | transition | player imprisoned | gear is stored and returned, never destroyed |
-| B510 | Prisoners reveal the soul operation | `Estmere_Prison` | conditional dialogue | `ev.prisoner_testimony` | exposition is split across Reed and Falk, skippable, repeatable, and delivered while the player moves rather than as a stationary scene; must establish that **organic sourcing is normal and legal** and that Estmere is the leading shipper (see `Docs/STORY_ARC.md`) |
-| B520 | Route to solitary | `Estmere_Prison` | interaction | prince located | measurably the fastest of the four routes; **target completion 15 minutes** from B500 |
+| B300 | Spell instruction: cast, resource, target | `Order_Hall` | magic tutorial hooks | basics demonstrated | practice space is nonlethal; Quill plants climbing demand as an Arcanum *achievement* — new spells, more consumption — never as a warning |
+| B310 | Soul-crystal delivery to the restricted wing | `Order_Hall` | interaction, access rules | `ev.crystal_manifest` | restricted access cannot be entered early |
+| B320 | An accident opens a sealed cell | `Prison` | staged event | prince located | the accident fires exactly once |
+| B400 | Sailing lesson, bounded and controllable | `Harbor` | `SailingController` | boat handled | boarding, disembarking and reset all recover cleanly |
+| B410 | Sneaking, lockpicking, pickpocketing | `Harbor` | detection, locks, pickpocket | basics demonstrated | being caught is recoverable, never terminal |
+| B420 | Secured-tower infiltration; retrieve the object | `Secured_Tower` | detection, locks | `ev.tower_ledger`, prince located | tower connects spatially to the prison |
+| B500 | Arrest and transfer to general population | `Prison` | transition | player imprisoned | gear is stored and returned, never destroyed |
+| B510 | Prisoners reveal the soul operation | `Prison` | conditional dialogue | `ev.prisoner_testimony` | exposition is split across Reed and Falk, skippable, repeatable, and delivered while the player moves rather than as a stationary scene; must establish that **organic sourcing is normal and legal** and that Estmere is the leading shipper (see `Docs/STORY_ARC.md`) |
+| B520 | Route to solitary | `Prison` | interaction | prince located | measurably the fastest of the four routes; **target completion 15 minutes** from B500 |
 
 ### Act 4 — convergence, escape, and the title moment
 
 | Id | Beat | Scene | Systems | Exit state | Acceptance test |
 |---|---|---|---|---|---|
-| B600 | **Convergence** — the prince is found | `Estmere_Prison` | `StoryDirector` | `flag.prince_located` | all four routes satisfy the convergence contract below |
-| B610 | The prince explains: his alternative, the interception, his father's motive | `Estmere_Prison` | dialogue | `ev.prince_testimony` | one canonical reveal; route flavour is additive only |
-| B615 | The Everspire and the Ivory Concord seeded in passing | `Estmere_Prison` | dialogue | seed planted | mentioned, never explained |
-| B620 | Evidence secured from the operation | `Estmere_Prison` | evidence, interaction | `ev.black_crystal` | evidence set is complete before escape is possible |
-| B630 | Escape with the prince | `Estmere_Prison` | companion, detection, doors | `flag.prince_following` | companion recovers from blocked paths and survives save/load |
-| B640 | **Sea-cave exit — title card** | `Estmere_SeaCave` | cinematic, audio | `flag.title_crawl_shown` | fires exactly once, only here, on every route, watched or skipped |
+| B600 | **Convergence** — the prince is found | `Prison` | `StoryDirector` | `flag.prince_located` | all four routes satisfy the convergence contract below |
+| B610 | The prince explains: his alternative, the interception, his father's motive | `Prison` | dialogue | `ev.prince_testimony` | one canonical reveal; route flavour is additive only |
+| B615 | The Everspire and the Ivory Concord seeded in passing | `Prison` | dialogue | seed planted | mentioned, never explained |
+| B620 | Evidence secured from the operation | `Prison` | evidence, interaction | `ev.black_crystal` | evidence set is complete before escape is possible |
+| B630 | Escape with the prince | `Prison` | companion, detection, doors | `flag.prince_following` | companion recovers from blocked paths and survives save/load |
+| B640 | **Sea-cave exit — title card** | `Sea_Cave` | cinematic, audio | `flag.title_crawl_shown` | fires exactly once, only here, on every route, watched or skipped |
 
-### Act 5 — confrontation and consequence · `Estmere_Palace_Aftermath`
-
-| Id | Beat | Scene | Systems | Exit state | Acceptance test |
-|---|---|---|---|---|---|
-| B700 | Return to the palace without being rearrested | `Estmere_Palace_Aftermath` | world state | player in throne room | the reason is dramatised, not asserted |
-| B710 | Evidence presented; the prince testifies | `Estmere_Palace_Aftermath` | evidence, dialogue | case made | all four evidence sets are sufficient |
-| B720 | The King's defence | `Estmere_Palace_Aftermath` | dialogue | defence heard | he is given a real argument, not a confession: legitimate supply ran dry, Estmere's defence and prosperity ran on it, and Terrin's alternative needed years the city did not have |
-| B730 | **Outcome — player chooses: kill or imprison** | `Estmere_Palace_Aftermath` | dialogue choice, `WorldMutation` | `flag.king_outcome` | both branches reach one valid post-coup world |
-| B740 | The prince is crowned | `Estmere_Palace_Aftermath` | `WorldMutation` | `flag.ruler = prince` | reload and re-entry cannot produce two rulers or none |
-| B750 | **Prisoner** soul-binding outlawed; prisoners released | `Estmere_Palace_Aftermath` | `WorldMutation` | `flag.ban_enacted` | the ban is on prisoner sourcing only, per `storyline.md:55` — organic sourcing remains legal; prison population, doors, banners and dialogue all update |
-| B760 | Player named **Crown Envoy** | `Estmere_Palace_Aftermath` | `StoryState` | `flag.title_granted` | title appears in dialogue, journal and save metadata |
-
-### Act 6 — handoff · `Caldemar_Arrival`
+### Act 5 — confrontation and consequence · `Palace_Aftermath`
 
 | Id | Beat | Scene | Systems | Exit state | Acceptance test |
 |---|---|---|---|---|---|
-| B800 | The new king explains he needs the Crown Council's recognition | `Estmere_Palace_Aftermath` | dialogue, quest | quest opened | motivation is legible to a blind player |
-| B810 | Departure, gated on a valid aftermath state | `Estmere_Exterior` | transition gate | travel permitted | departure is impossible with incomplete aftermath flags |
-| B820 | Arrival at Caldemar; the Council is set up | `Caldemar_Arrival` | transition, dialogue | council contact met | arrival is an authored space, not a map marker |
-| B830 | Final Everspire reminder; next objective given | `Caldemar_Arrival` | dialogue/cinematic | `flag.chapter_complete` | a blind player can state what changed and where they are going |
+| B700 | Return to the palace without being rearrested | `Palace_Aftermath` | world state | player in throne room | the reason is dramatised, not asserted |
+| B710 | Evidence presented; the prince testifies | `Palace_Aftermath` | evidence, dialogue | case made | all four evidence sets are sufficient |
+| B720 | The King's defence | `Palace_Aftermath` | dialogue | defence heard | he is given a real argument, not a confession: legitimate supply ran dry, Estmere's defence and prosperity ran on it, and Terrin's alternative needed years the city did not have |
+| B730 | **Outcome — player chooses: kill or imprison** | `Palace_Aftermath` | dialogue choice, `WorldMutation` | `flag.king_outcome` | both branches reach one valid post-coup world |
+| B740 | The prince is crowned | `Palace_Aftermath` | `WorldMutation` | `flag.ruler = prince` | reload and re-entry cannot produce two rulers or none |
+| B750 | **Prisoner** soul-binding outlawed; prisoners released | `Palace_Aftermath` | `WorldMutation` | `flag.ban_enacted` | the ban is on prisoner sourcing only, per `storyline.md:55` — organic sourcing remains legal; prison population, doors, banners and dialogue all update |
+| B760 | Player named **Crown Envoy** | `Palace_Aftermath` | `StoryState` | `flag.title_granted` | title appears in dialogue, journal and save metadata |
+
+### Act 6 — handoff · `Council_Arrival`
+
+| Id | Beat | Scene | Systems | Exit state | Acceptance test |
+|---|---|---|---|---|---|
+| B800 | The new king explains he needs the Crown Council's recognition | `Palace_Aftermath` | dialogue, quest | quest opened | motivation is legible to a blind player |
+| B810 | Departure, gated on a valid aftermath state | `Capital_Exterior` | transition gate | travel permitted | departure is impossible with incomplete aftermath flags |
+| B820 | Arrival at Caldemar; the Council is set up | `Council_Arrival` | transition, dialogue | council contact met | arrival is an authored space, not a map marker |
+| B830 | Final Everspire reminder; next objective given | `Council_Arrival` | dialogue/cinematic | `flag.chapter_complete` | a blind player can state what changed and where they are going |
 
 ## Failure and gear rules — locked 2026-08-01
 
@@ -331,7 +331,7 @@ The load-bearing contract of the whole chapter. Four routes enter B600; one path
 1. `flag.route` is set and `flag.profile_valid` is true.
 2. Exactly one route-unique evidence item is held.
 3. The prince is alive, in the prison, and has not yet spoken to the player.
-4. The player is inside `Estmere_Prison` with a known spawn id.
+4. The player is inside `Prison` with a known spawn id.
 5. No route-specific tutorial state is still active.
 6. **The player is unarmed, and route gear is in storage rather than destroyed.** Added
    2026-08-01 — the contract previously said nothing about equipment, which would have left
