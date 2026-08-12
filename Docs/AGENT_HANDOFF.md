@@ -37,6 +37,7 @@ Do not resolve a question from the wrong file.
 | Chapter 01 plot, beat for beat | `storyline.md` |
 | Chapter 01 implementation contract, beats, cast, flags, evidence | `Docs/CHAPTER01_BEATS.md` |
 | World premise, the Everspire truth, factions, Chapters 02+ | `Docs/STORY_ARC.md` |
+| An unadopted Indic-themed renaming of the same arc | `Docs/STORY_ARC_INDIC.md` — **variant, not authority** |
 | Navigation, dialogue, travel, combat, skills, economy | `Docs/GAMEPLAY_DESIGN.md` |
 | Milestones, gates, risks, world architecture, art direction | `plan.md` |
 | Third-party asset licensing | `Docs/ASSET_LEDGER.md` |
