@@ -10,14 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b5b4e7e52ef8a7e438c2f2c83ccd7a22, type: 3}
-  m_Name: topic_prince_trade
+  m_Name: topic_mage_progress
   m_EditorClassIdentifier: Game.Runtime::DialogueTopic
-  id: topic_prince_trade
-  keyword: the yuvraj
-  actorId: 
+  id: topic_mage_progress
+  keyword: the order
+  actorId: role.instructor_mage
   factionId: 
-  response: Merchant manifests put the yuvraj's last transport beneath the east tower.
-  conditions:
-  - Key: route
-    Operator: equals
-    Value: route.trade
+  response: Four new workings this year alone. We do more with one stone than my
+    teachers dreamed - and we get through rather more of them doing it.
+  conditions: []

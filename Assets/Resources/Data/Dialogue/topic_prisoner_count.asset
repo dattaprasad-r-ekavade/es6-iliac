@@ -10,14 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b5b4e7e52ef8a7e438c2f2c83ccd7a22, type: 3}
-  m_Name: topic_prince_trade
+  m_Name: topic_prisoner_count
   m_EditorClassIdentifier: Game.Runtime::DialogueTopic
-  id: topic_prince_trade
-  keyword: the yuvraj
-  actorId: 
+  id: topic_prisoner_count
+  keyword: the count
+  actorId: role.prisoner_b
   factionId: 
-  response: Merchant manifests put the yuvraj's last transport beneath the east tower.
-  conditions:
-  - Key: route
-    Operator: equals
-    Value: route.trade
+  response: Nineteen since midwinter. I keep it scratched behind the bench. Somebody
+    should know the number when this ends.
+  conditions: []

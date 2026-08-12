@@ -187,10 +187,10 @@ public class KessilWorldGenerator : MonoBehaviour
         var palette = ArtDirection.Active.Palette;
         var color = patch.Biome switch
         {
-            Biome.Sarrakh => palette.Sarrakh,
+            Biome.Sarrakh => palette.Arid,
             Biome.IslandRock => palette.Mountain,
-            Biome.IslandGreen => palette.Halbrand,
-            _ => palette.Halbrand
+            Biome.IslandGreen => palette.Temperate,
+            _ => palette.Temperate
         };
 
         // Rounded landmasses — cylinders are distant silhouette only; walkable hills use TerrainSurface mesh.
@@ -679,8 +679,8 @@ public class KessilWorldGenerator : MonoBehaviour
                 : new Vector3(fs * 0.35f, fs, fs * 0.35f);
             ApplyMat(go, desert ? sarrakhMaterial : halbrandMaterial,
                 desert
-                    ? ArtDirection.Active.Palette.Sarrakh
-                    : Color.Lerp(ArtDirection.Active.Palette.Halbrand, Color.black, 0.25f));
+                    ? ArtDirection.Active.Palette.Arid
+                    : Color.Lerp(ArtDirection.Active.Palette.Temperate, Color.black, 0.25f));
         }
 
         go.name = desert ? "Prop_Desert" : rockyIsland ? "Prop_IslandRock" : "Prop_Tree";

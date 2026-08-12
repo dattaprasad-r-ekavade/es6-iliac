@@ -10,14 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b5b4e7e52ef8a7e438c2f2c83ccd7a22, type: 3}
-  m_Name: topic_prince_trade
+  m_Name: topic_black_jiva
   m_EditorClassIdentifier: Game.Runtime::DialogueTopic
-  id: topic_prince_trade
-  keyword: the yuvraj
+  id: topic_black_jiva
+  keyword: black jiva
   actorId: 
   factionId: 
-  response: Merchant manifests put the yuvraj's last transport beneath the east tower.
+  response: Black jiva are not cut from any seam. Their manifests point to living
+    prisoners.
   conditions:
-  - Key: route
-    Operator: equals
-    Value: route.trade
+  - Key: evidence_count
+    Operator: min
+    Value: 3

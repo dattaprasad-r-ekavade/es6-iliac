@@ -21,7 +21,7 @@ public sealed class SpeakingActor : MonoBehaviour
     [SerializeField] private string locationId;
 
     /// <summary>Keywords this actor volunteers on a first meeting, teaching them to the player.</summary>
-    [SerializeField] private string[] opensWith = { "estmere" };
+    [SerializeField] private string[] opensWith = { "ratnapur" };
 
     public string ActorId => actorId;
     public string DisplayName => displayName;

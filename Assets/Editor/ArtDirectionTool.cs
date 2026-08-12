@@ -153,9 +153,9 @@ public static class ArtDirectionTool
         var byName = new (string File, Color Color)[]
         {
             ("M_Ocean", p.Ocean),
-            ("M_Halbrand", p.Halbrand),
-            ("M_Grass", p.Halbrand),
-            ("M_Sarrakh", p.Sarrakh),
+            ("M_Halbrand", p.Temperate),
+            ("M_Grass", p.Temperate),
+            ("M_Sarrakh", p.Arid),
             ("M_Sand", p.Sand),
             ("M_CityStone", p.CityStone),
             ("M_Mountain", p.Mountain),

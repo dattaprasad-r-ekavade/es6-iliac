@@ -135,7 +135,7 @@ public class PlayerStats : MonoBehaviour
         StoryDirector.Instance?.AddChanneled(1f);
 
         GameSfx.Instance?.PlayMagic();
-        GameHud.Instance?.ShowToast("You draw on a soul crystal.");
+        GameHud.Instance?.ShowToast("You draw on a jiva stone.");
         OnChanged?.Invoke();
         return true;
     }

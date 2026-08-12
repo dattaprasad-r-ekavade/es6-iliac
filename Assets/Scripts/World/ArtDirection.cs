@@ -73,8 +73,8 @@ public static class ArtDirection
     public struct Palette
     {
         public Color Ocean;
-        public Color Halbrand;
-        public Color Sarrakh;
+        public Color Temperate;
+        public Color Arid;
         public Color Sand;
         public Color CityStone;
         public Color Mountain;
@@ -120,8 +120,8 @@ public static class ArtDirection
         Palette = new Palette
         {
             Ocean     = new Color(0.20f, 0.29f, 0.32f),
-            Halbrand  = new Color(0.31f, 0.35f, 0.26f),
-            Sarrakh   = new Color(0.54f, 0.45f, 0.31f),
+            Temperate = new Color(0.31f, 0.35f, 0.26f),
+            Arid      = new Color(0.54f, 0.45f, 0.31f),
             Sand      = new Color(0.58f, 0.52f, 0.40f),
             CityStone = new Color(0.45f, 0.44f, 0.41f),
             Mountain  = new Color(0.35f, 0.34f, 0.33f),
@@ -152,8 +152,8 @@ public static class ArtDirection
         Palette = new Palette
         {
             Ocean     = new Color(0.16f, 0.24f, 0.29f),
-            Halbrand  = new Color(0.26f, 0.30f, 0.25f),
-            Sarrakh   = new Color(0.47f, 0.40f, 0.30f),
+            Temperate = new Color(0.26f, 0.30f, 0.25f),
+            Arid      = new Color(0.47f, 0.40f, 0.30f),
             Sand      = new Color(0.50f, 0.46f, 0.38f),
             CityStone = new Color(0.40f, 0.40f, 0.39f),
             Mountain  = new Color(0.30f, 0.30f, 0.30f),
@@ -210,8 +210,8 @@ public static class ArtDirection
         Palette = new Palette
         {
             Ocean     = new Color(0.16f, 0.30f, 0.55f),  // indigo
-            Halbrand  = new Color(0.34f, 0.50f, 0.27f),  // terre verte
-            Sarrakh   = new Color(0.79f, 0.58f, 0.20f),  // Indian yellow
+            Temperate = new Color(0.34f, 0.50f, 0.27f),  // terre verte
+            Arid      = new Color(0.79f, 0.58f, 0.20f),  // Indian yellow
             Sand      = new Color(0.83f, 0.71f, 0.44f),  // pale ochre
             CityStone = new Color(0.82f, 0.76f, 0.64f),  // lime white
             Mountain  = new Color(0.43f, 0.40f, 0.52f),  // indigo-grey

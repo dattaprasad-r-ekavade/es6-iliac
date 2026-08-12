@@ -82,8 +82,8 @@ public class DialogueSmokeTests : SmokeTestFixture
         yield return Load("Prison");
 
         var actors = Object.FindObjectsByType<SpeakingActor>(FindObjectsSortMode.None);
-        Assert.IsTrue(actors.Any(a => a.ActorId == "role.prisoner_a"), "Reed is missing.");
-        Assert.IsTrue(actors.Any(a => a.ActorId == "role.prisoner_b"), "Falk is missing.");
+        Assert.IsTrue(actors.Any(a => a.ActorId == "role.prisoner_a"), "Hari is missing.");
+        Assert.IsTrue(actors.Any(a => a.ActorId == "role.prisoner_b"), "Lekha is missing.");
 
         // B510 requires the soul-operation reveal to be split across two speakers rather than
         // delivered as one unskippable exposition dump.
@@ -99,7 +99,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         SpawnDialogue();
         var go = Track(new GameObject("Actor_Test"));
         var actor = go.AddComponent<SpeakingActor>();
-        actor.Configure("role.instructor_warrior", "Alaric Thorne", "faction.estmere",
+        actor.Configure("role.instructor_warrior", "Senapati Karan", "faction.crown",
             "scene.tutorial_warrior", "the blade");
 
         TopicDialogueService.Instance.LearnTopic("the blade");
@@ -118,17 +118,17 @@ public class DialogueSmokeTests : SmokeTestFixture
     {
         SpawnDialogue();
 
-        var thorneGo = Track(new GameObject("Thorne"));
-        var thorne = thorneGo.AddComponent<SpeakingActor>();
-        thorne.Configure("role.instructor_warrior", "Thorne", "faction.estmere", "scene.tutorial_warrior");
+        var karanGo = Track(new GameObject("Karan"));
+        var karan = karanGo.AddComponent<SpeakingActor>();
+        karan.Configure("role.instructor_warrior", "Karan", "faction.crown", "scene.tutorial_warrior");
 
-        var quillGo = Track(new GameObject("Quill"));
-        var quill = quillGo.AddComponent<SpeakingActor>();
-        quill.Configure("role.instructor_mage", "Quill", "faction.arcanum", "scene.order_hall");
+        var meeraGo = Track(new GameObject("Meera"));
+        var meera = meeraGo.AddComponent<SpeakingActor>();
+        meera.Configure("role.instructor_mage", "Meera", "faction.order", "scene.order_hall");
 
-        // "the transport" is Thorne's alone; Quill has nothing to say about it.
-        Assert.IsNotNull(thorne.Ask("the transport"), "Thorne would not answer his own topic.");
-        Assert.IsNull(quill.Ask("the transport"), "Quill answered a topic authored for Thorne.");
+        // "the transport" is Karan's alone; Meera has nothing to say about it.
+        Assert.IsNotNull(karan.Ask("the transport"), "Karan would not answer his own topic.");
+        Assert.IsNull(meera.Ask("the transport"), "Meera answered a topic authored for Karan.");
     }
 
     [Test]
@@ -137,9 +137,9 @@ public class DialogueSmokeTests : SmokeTestFixture
         SpawnDialogue();
         var go = Track(new GameObject("Anyone"));
         var actor = go.AddComponent<SpeakingActor>();
-        actor.Configure("role.prisoner_a", "Reed", null, "scene.prison");
+        actor.Configure("role.prisoner_a", "Hari", null, "scene.prison");
 
-        Assert.IsNotNull(actor.Ask("estmere"),
+        Assert.IsNotNull(actor.Ask("ratnapur"),
             "A shared topic went unanswered, so common knowledge is not actually common.");
     }
 
@@ -153,7 +153,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         var service = SpawnDialogue();
         var go = Track(new GameObject("Guard"));
         var guard = go.AddComponent<SpeakingActor>();
-        guard.Configure("role.processing_guard", "Guard", "faction.estmere", "scene.docks");
+        guard.Configure("role.processing_guard", "Guard", "faction.crown", "scene.docks");
 
         service.LearnTopic("the law");
         guard.Ask("the law");
@@ -168,7 +168,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         SpawnDialogue();
         var go = Track(new GameObject("Anyone"));
         var actor = go.AddComponent<SpeakingActor>();
-        actor.Configure("role.prisoner_a", "Reed", null, "scene.prison");
+        actor.Configure("role.prisoner_a", "Hari", null, "scene.prison");
 
         Assert.IsNull(actor.Ask("the price of fish"),
             "An unauthored keyword returned something instead of nothing.");
@@ -182,18 +182,18 @@ public class DialogueSmokeTests : SmokeTestFixture
     public void TheTopicMenuNeverOffersAKeywordThatWouldGoUnanswered()
     {
         var service = SpawnDialogue();
-        var go = Track(new GameObject("Quill"));
-        var quill = go.AddComponent<SpeakingActor>();
-        quill.Configure("role.instructor_mage", "Quill", "faction.arcanum", "scene.order_hall");
+        var go = Track(new GameObject("Meera"));
+        var meera = go.AddComponent<SpeakingActor>();
+        meera.Configure("role.instructor_mage", "Meera", "faction.order", "scene.order_hall");
 
-        // Teach a keyword only Thorne answers; Quill must not offer it.
+        // Teach a keyword only Karan answers; Meera must not offer it.
         service.LearnTopic("the transport");
 
-        foreach (var keyword in quill.AvailableTopics())
-            Assert.IsNotNull(quill.Ask(keyword),
+        foreach (var keyword in meera.AvailableTopics())
+            Assert.IsNotNull(meera.Ask(keyword),
                 $"The menu offered '{keyword}' but the actor had no answer for it.");
 
-        CollectionAssert.DoesNotContain(quill.AvailableTopics(), "the transport",
-            "Quill offered a topic authored for someone else.");
+        CollectionAssert.DoesNotContain(meera.AvailableTopics(), "the transport",
+            "Meera offered a topic authored for someone else.");
     }
 }

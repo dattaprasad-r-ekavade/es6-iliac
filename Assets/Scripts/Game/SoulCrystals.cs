@@ -11,7 +11,7 @@
 public static class SoulCrystals
 {
     public const string LesserId = "soul_crystal_lesser";
-    public const string LesserName = "Lesser Soul Crystal";
+    public const string LesserName = "Lesser Jiva Stone";
     public const string ItemKind = "crystal";
 
     /// <summary>Mana restored by one lesser crystal.</summary>

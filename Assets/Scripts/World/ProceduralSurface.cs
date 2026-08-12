@@ -191,10 +191,10 @@ public static class ProceduralSurface
         Kind.Stone => Color.Lerp(palette.CityStone, palette.Mountain, 0.35f),
         Kind.Roof => palette.Road,
         Kind.Timber => Color.Lerp(palette.Road, palette.Mountain, 0.30f),
-        Kind.Ground => palette.Halbrand,
+        Kind.Ground => palette.Temperate,
         Kind.Sand => palette.Sand,
         Kind.Water => palette.Ocean,
-        Kind.Foliage => Color.Lerp(palette.Halbrand, palette.Mountain, 0.20f),
+        Kind.Foliage => Color.Lerp(palette.Temperate, palette.Mountain, 0.20f),
         _ => palette.CityStone
     };
 

@@ -10,14 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b5b4e7e52ef8a7e438c2f2c83ccd7a22, type: 3}
-  m_Name: topic_prince_trade
+  m_Name: topic_prisoner_operation
   m_EditorClassIdentifier: Game.Runtime::DialogueTopic
-  id: topic_prince_trade
-  keyword: the yuvraj
-  actorId: 
+  id: topic_prisoner_operation
+  keyword: the operation
+  actorId: role.prisoner_a
   factionId: 
-  response: Merchant manifests put the yuvraj's last transport beneath the east tower.
-  conditions:
-  - Key: route
-    Operator: equals
-    Value: route.trade
+  response: They take us down at night, one at a time, and the ones who go down do
+    not come back up. Ask Lekha. She counts.
+  conditions: []

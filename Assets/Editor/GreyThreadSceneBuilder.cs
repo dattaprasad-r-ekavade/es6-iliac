@@ -251,40 +251,40 @@ public static class GreyThreadSceneBuilder
         switch (spec.Name)
         {
             case "Docks":
-                Cast(root, "role.processing_guard", "Processing Guard", "faction.estmere",
-                    spec, new Vector3(-4f, 0f, 3f), "the law", "the wreck", "estmere");
+                Cast(root, "role.processing_guard", "The Registrar", "faction.crown",
+                    spec, new Vector3(-4f, 0f, 3f), "the law", "the wreck", "ratnapur");
                 break;
 
             case "Tutorial_Warrior":
-                Cast(root, "role.instructor_warrior", "Armsmaster Alaric Thorne", "faction.estmere",
-                    spec, new Vector3(4f, 0f, 3f), "the blade", "the transport", "the king");
+                Cast(root, "role.instructor_warrior", "Senapati Karan", "faction.crown",
+                    spec, new Vector3(4f, 0f, 3f), "the blade", "the transport", "the raja");
                 break;
 
             case "Order_Hall":
-                Cast(root, "role.instructor_mage", "Magister Seraphine Quill", "faction.arcanum",
-                    spec, new Vector3(-4f, 0f, 3f), "casting", "the arcanum", "soul crystals");
+                Cast(root, "role.instructor_mage", "Acharya Meera", "faction.order",
+                    spec, new Vector3(-4f, 0f, 3f), "casting", "the order", "jiva stones");
                 break;
 
             case "Harbor":
-                Cast(root, "role.instructor_trade", "Harbourmaster Corvin Ashgrove", "faction.estmere",
-                    spec, new Vector3(4f, 0f, 3f), "sailing", "the tower", "estmere");
+                Cast(root, "role.instructor_trade", "Harbourmaster Vasu", "faction.crown",
+                    spec, new Vector3(4f, 0f, 3f), "sailing", "the tower", "ratnapur");
                 break;
 
             case "Prison":
-                Cast(root, "role.prisoner_a", "Bartholomew Reed", null,
-                    spec, new Vector3(-5f, 0f, 2f), "the operation", "soul crystals");
-                Cast(root, "role.prisoner_b", "Iris Falk", null,
+                Cast(root, "role.prisoner_a", "Hari", null,
+                    spec, new Vector3(-5f, 0f, 2f), "the operation", "jiva stones");
+                Cast(root, "role.prisoner_b", "Lekha", null,
                     spec, new Vector3(5f, 0f, 2f), "the count", "the operation");
                 break;
 
             case "Palace":
-                Cast(root, "role.king", "King Osric Selwyn", "faction.estmere",
-                    spec, new Vector3(0f, 0f, 6f), "the king", "the everspire");
+                Cast(root, "role.king", "Raja Vikram", "faction.crown",
+                    spec, new Vector3(0f, 0f, 6f), "the raja", "the stambha");
                 break;
 
             case "Council_Arrival":
-                Cast(root, "role.council_contact", "Councillor Lucien Ambrose", "faction.council",
-                    spec, new Vector3(0f, 0f, 4f), "the everspire", "estmere");
+                Cast(root, "role.council_contact", "Mantri Devan", "faction.council",
+                    spec, new Vector3(0f, 0f, 4f), "the stambha", "ratnapur");
                 break;
         }
     }

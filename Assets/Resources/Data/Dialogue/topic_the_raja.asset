@@ -10,14 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b5b4e7e52ef8a7e438c2f2c83ccd7a22, type: 3}
-  m_Name: topic_prince_trade
+  m_Name: topic_the_raja
   m_EditorClassIdentifier: Game.Runtime::DialogueTopic
-  id: topic_prince_trade
-  keyword: the yuvraj
+  id: topic_the_raja
+  keyword: the raja
   actorId: 
   factionId: 
-  response: Merchant manifests put the yuvraj's last transport beneath the east tower.
-  conditions:
-  - Key: route
-    Operator: equals
-    Value: route.trade
+  response: Raja Vikram, of House Surya. His line has held Ratnapur longer than the
+    walls have. He has not been himself since the heir went missing.
+  conditions: []

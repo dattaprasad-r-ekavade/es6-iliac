@@ -54,8 +54,8 @@ public class ArtDirectionTests
         return new[]
         {
             (nameof(p.Ocean), p.Ocean),
-            (nameof(p.Halbrand), p.Halbrand),
-            (nameof(p.Sarrakh), p.Sarrakh),
+            (nameof(p.Temperate), p.Temperate),
+            (nameof(p.Arid), p.Arid),
             (nameof(p.Sand), p.Sand),
             (nameof(p.CityStone), p.CityStone),
             (nameof(p.Mountain), p.Mountain),

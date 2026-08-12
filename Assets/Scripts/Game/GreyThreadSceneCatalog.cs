@@ -62,19 +62,19 @@ public static class GreyThreadSceneCatalog
         new("Prologue_Ship", "scene.prologue_ship", "The Wrecked Ship", new Color(0.30f, 0.42f, 0.52f),
             rooms: 2, hasExitDoor: false),
 
-        new("Docks", "scene.docks", "Estmere Docks", new Color(0.36f, 0.50f, 0.42f),
+        new("Docks", "scene.docks", "Ratnapur Docks", new Color(0.36f, 0.50f, 0.42f),
             rooms: 2),
-        new("Palace", "scene.palace", "Estmere Palace", new Color(0.53f, 0.40f, 0.24f),
+        new("Palace", "scene.palace", "Ratnapur Palace", new Color(0.53f, 0.40f, 0.24f),
             rooms: 3),
         new("Tutorial_Warrior", "scene.tutorial_warrior", "Guard Drill Yard", new Color(0.60f, 0.27f, 0.18f),
             rooms: 2, mechanic: Feature.CombatDummy),
-        new("Order_Hall", "scene.order_hall", "The Arcanum", new Color(0.28f, 0.34f, 0.62f),
+        new("Order_Hall", "scene.order_hall", "Hall of the Siddha Order", new Color(0.28f, 0.34f, 0.62f),
             rooms: 3, mechanic: Feature.SpellTarget),
         new("Harbor", "scene.harbor", "Merchant Harbor", new Color(0.24f, 0.52f, 0.55f),
             rooms: 2, mechanic: Feature.Boat),
         new("Secured_Tower", "scene.secured_tower", "Secured East Tower", new Color(0.48f, 0.32f, 0.24f),
             rooms: 3, mechanic: Feature.Lock),
-        new("Prison", "scene.prison", "Estmere Prison", new Color(0.30f, 0.30f, 0.34f),
+        new("Prison", "scene.prison", "Ratnapur Prison", new Color(0.30f, 0.30f, 0.34f),
             rooms: 4, mechanic: Feature.Pickpocket),
 
         // The cave and everything after it are one-way story spaces.
@@ -82,7 +82,7 @@ public static class GreyThreadSceneCatalog
             rooms: 3, hasExitDoor: false),
         new("Palace_Aftermath", "scene.palace_aftermath", "Palace Aftermath", new Color(0.46f, 0.25f, 0.20f),
             rooms: 2, hasExitDoor: false),
-        new("Council_Arrival", "scene.council_arrival", "Caldemar Council Gate", new Color(0.55f, 0.43f, 0.25f),
+        new("Council_Arrival", "scene.council_arrival", "Sabhapur Council Gate", new Color(0.55f, 0.43f, 0.25f),
             rooms: 2, hasExitDoor: false)
     };
 

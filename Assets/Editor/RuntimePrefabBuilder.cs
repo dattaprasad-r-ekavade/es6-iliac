@@ -197,63 +197,69 @@ public static class RuntimePrefabBuilder
 
     private static void CreateDialogueAssets()
     {
-        CreateDialogue("topic_black_crystals", "black crystals",
-            "The black crystals are not mined. Their manifests point to living prisoners.",
+        CreateDialogue("topic_black_jiva", "black jiva",
+            "Black jiva are not cut from any seam. Their manifests point to living prisoners.",
             null, null, new DialogueCondition { Key = "evidence_count", Operator = "min", Value = "3" });
-        CreateDialogue("topic_black_crystals_rumor", "black crystals",
-            "Black crystals? Dockside superstition. Ask the Arcanum if you enjoy locked doors.",
+        CreateDialogue("topic_black_jiva_rumor", "black jiva",
+            "Black jiva? Dockside superstition. Ask the Order, if you enjoy locked doors.",
             null, null);
-        CreateDialogue("topic_prince_trade", "the prince",
-            "Merchant manifests put the prince's last transport beneath the east tower.",
+        CreateDialogue("topic_prince_trade", "the yuvraj",
+            "Merchant manifests put the yuvraj's last transport beneath the east tower.",
             null, null, new DialogueCondition { Key = "route", Value = "route.trade" });
 
-        // --- shared knowledge: what anyone in Estmere will tell a stranger ---------
-        CreateDialogue("topic_estmere", "estmere",
-            "Estmere lives on the crystal trade. Every soul must contribute - the King says so, and the law agrees.",
+        // --- shared knowledge: what anyone in the city will tell a stranger --------
+        CreateDialogue("topic_capital", "ratnapur",
+            "Ratnapur lives on the stone trade. Every soul must contribute - the Raja says so, and the law agrees.",
             null, null);
-        CreateDialogue("topic_soul_crystals", "soul crystals",
-            "Crystals hold a soul, and a soul holds the light. Most are given at a natural death, or bought from the beast-drovers. That is the lawful way, and it has fed this city for two hundred years.",
+
+        // **Story-critical. Do not cut or soften this topic.** STORY_ARC names establishing
+        // lawful sourcing as normal the single most important thing Chapter 01 must plant;
+        // without it the audience concludes all jiva use is monstrous and the eight-chapter
+        // argument collapses into an abolition story. The Indic frame gives the distinction its
+        // real name: dana, freely given, against steya, taken. The trade is not the crime.
+        CreateDialogue("topic_jiva_stones", "jiva stones",
+            "A stone holds a jiva, and a jiva holds the light. Most are given at a natural death, or bought from the beast-drovers. That is dana - freely given - and it has fed this city for two hundred years.",
             null, null);
-        CreateDialogue("topic_the_king", "the king",
-            "Osric Selwyn. His line has held Estmere longer than the walls have. He has not been himself since the heir went missing.",
+        CreateDialogue("topic_the_raja", "the raja",
+            "Raja Vikram, of House Surya. His line has held Ratnapur longer than the walls have. He has not been himself since the heir went missing.",
             null, null);
-        CreateDialogue("topic_everspire", "the everspire",
-            "The tower on Corrath. It flashed, and half the bay felt it. Nobody will say what it was, and the Ivory Concord have not moved their ships since.",
+        CreateDialogue("topic_stambha", "the stambha",
+            "The pillar on Meru. It flashed, and half the bay felt it. Nobody will say what it was, and the Dhruva Order have not moved their ships since.",
             null, null);
 
         // --- role-specific: only this actor answers ------------------------------
-        CreateDialogue("topic_guard_law", "the law",
-            "No idling in Estmere. You will be found work, or work will be found for you. That is the whole of it.",
+        CreateDialogue("topic_registrar_law", "the law",
+            "No idling in Ratnapur. You will be found work, or work will be found for you. That is the whole of it.",
             "role.processing_guard", null);
-        CreateDialogue("topic_guard_memory", "the wreck",
+        CreateDialogue("topic_registrar_wreck", "the wreck",
             "Everyone we pulled out has the same hole in their memory. You are not special, and you are not lying. Sit down.",
             "role.processing_guard", null);
 
-        CreateDialogue("topic_thorne_blade", "the blade",
+        CreateDialogue("topic_warrior_blade", "the blade",
             "Keep the point up and your weight behind it. A guard who swings like a woodcutter is a guard who gets carried home.",
             "role.instructor_warrior", null);
-        CreateDialogue("topic_thorne_transport", "the transport",
+        CreateDialogue("topic_warrior_transport", "the transport",
             "A cart goes under the wall twice a month with the shutters nailed. I am told not to look at it. I look at it.",
             "role.instructor_warrior", null);
 
-        CreateDialogue("topic_quill_casting", "casting",
-            "Charge is drawn, not conjured. Spend a crystal and you have spent something that was alive. The Arcanum has learned to say this quickly.",
+        CreateDialogue("topic_mage_casting", "casting",
+            "Prana is drawn, not conjured. Spend a stone and you have spent something that was alive. The Order has learned to say that quickly.",
             "role.instructor_mage", null);
-        CreateDialogue("topic_quill_progress", "the arcanum",
-            "Four new workings this year alone. We do more with a crystal than my teachers dreamed - and we get through rather more of them doing it.",
+        CreateDialogue("topic_mage_progress", "the order",
+            "Four new workings this year alone. We do more with one stone than my teachers dreamed - and we get through rather more of them doing it.",
             "role.instructor_mage", null);
 
-        CreateDialogue("topic_ashgrove_sailing", "sailing",
+        CreateDialogue("topic_trade_sailing", "sailing",
             "Wind first, tiller second. A boat with no way on will not answer the helm, and neither will you if you stand about.",
             "role.instructor_trade", null);
-        CreateDialogue("topic_ashgrove_tower", "the tower",
+        CreateDialogue("topic_trade_tower", "the tower",
             "The east tower takes deliveries it never signs for. The ledger is up there. I did not tell you that.",
             "role.instructor_trade", null);
 
-        CreateDialogue("topic_reed_operation", "the operation",
-            "They take us down at night, one at a time, and the ones who go down do not come back up. Ask Falk. She counts.",
+        CreateDialogue("topic_prisoner_operation", "the operation",
+            "They take us down at night, one at a time, and the ones who go down do not come back up. Ask Lekha. She counts.",
             "role.prisoner_a", null);
-        CreateDialogue("topic_falk_count", "the count",
+        CreateDialogue("topic_prisoner_count", "the count",
             "Nineteen since midwinter. I keep it scratched behind the bench. Somebody should know the number when this ends.",
             "role.prisoner_b", null);
     }

@@ -70,7 +70,7 @@ public static class CharacterSprite
         garment.a = 1f;
 
         // Accent is the garment pushed toward a different pigment, so the two always relate.
-        var accent = Color.Lerp(garment, ((h >> 11) & 1) == 0 ? palette.Sarrakh : palette.Ocean, 0.60f);
+        var accent = Color.Lerp(garment, ((h >> 11) & 1) == 0 ? palette.Arid : palette.Ocean, 0.60f);
         accent.a = 1f;
 
         return new Figure
