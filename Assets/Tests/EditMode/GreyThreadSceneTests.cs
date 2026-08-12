@@ -12,7 +12,7 @@ public sealed class GreyThreadSceneTests
     {
         Assert.AreEqual(11, GreyThreadSceneCatalog.Scenes.Count);
         Assert.IsNotNull(GreyThreadSceneCatalog.Find("Prologue_Ship"));
-        Assert.IsNotNull(GreyThreadSceneCatalog.Find("Caldemar_Arrival"));
+        Assert.IsNotNull(GreyThreadSceneCatalog.Find("Council_Arrival"));
     }
 
     [Test]
@@ -36,6 +36,43 @@ public sealed class GreyThreadSceneTests
             foreach (var root in scene.GetRootGameObjects())
                 colliders += root.GetComponentsInChildren<Collider>(true).Length;
             Assert.Greater(colliders, 8, $"{spec.Name} is visually grey but has no collision-backed walls.");
+        }
+    }
+
+    /// <summary>
+    /// The naming policy, applied to the one place it was being broken.
+    ///
+    /// Scene ids and Unity scene names both used to embed the setting's place names
+    /// (<c>scene.estmere_palace</c>, <c>Caldemar_Arrival</c>). A save persists the scene *name*,
+    /// so a setting rename orphaned every mid-chapter save — the exact failure the policy exists
+    /// to prevent, in the one category nothing was checking.
+    ///
+    /// Names a scene after the building, not the city. The list is explicit rather than clever
+    /// because there is no way to infer "this word is a place name" from the string alone; when
+    /// the setting gains a proper noun, add it here.
+    /// </summary>
+    [Test]
+    public void SceneIdsAndNames_DoNotEmbedSettingPlaceNames()
+    {
+        string[] placeNames =
+        {
+            // Original setting
+            "estmere", "caldemar", "kessil", "halbrand", "sarrakh", "corrath",
+            // Indic variant
+            "ratnapur", "sabhapur", "marukot", "shantipur", "ratna", "uttara", "maru"
+        };
+
+        foreach (var spec in GreyThreadSceneCatalog.Scenes)
+        {
+            foreach (var place in placeNames)
+            {
+                StringAssert.DoesNotContain(place, spec.SceneId.ToLowerInvariant(),
+                    $"Scene id '{spec.SceneId}' embeds the place name '{place}'. Ids are "
+                    + "persisted and must survive a rename of the setting.");
+                StringAssert.DoesNotContain(place, spec.Name.ToLowerInvariant(),
+                    $"Scene name '{spec.Name}' embeds the place name '{place}'. A save stores "
+                    + "the scene name, so renaming the setting would orphan every save.");
+            }
         }
     }
 

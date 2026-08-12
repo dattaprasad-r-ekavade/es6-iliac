@@ -10,8 +10,8 @@ public static class GreyThreadScreenshotCommand
     {
         string output = Path.GetFullPath("Docs/Screenshots");
         Directory.CreateDirectory(output);
-        Capture("Estmere_Palace", "vs2-estmere-palace.png", new Vector3(19f, 9f, -17f), new Vector3(0f, 3.2f, 4f));
-        Capture("Caldemar_Arrival", "vs2-caldemar-arrival.png", new Vector3(18f, 8f, -16f), new Vector3(0f, 3.1f, 4f));
+        Capture("Palace", "vs2-estmere-palace.png", new Vector3(19f, 9f, -17f), new Vector3(0f, 3.2f, 4f));
+        Capture("Council_Arrival", "vs2-caldemar-arrival.png", new Vector3(18f, 8f, -16f), new Vector3(0f, 3.1f, 4f));
         Debug.Log("[GreyThread] VS2 screenshots captured.");
     }
 

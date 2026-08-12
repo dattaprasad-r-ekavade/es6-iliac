@@ -99,7 +99,7 @@ public class PlayableChapterSmokeTests : SmokeTestFixture
 
         Assert.IsNotNull(PlayerRef.Transform, "There is no player to walk anywhere.");
         Assert.IsTrue(
-            EstmereRegion.IsOverLand(PlayerRef.Transform.position),
+            CapitalRegion.IsOverLand(PlayerRef.Transform.position),
             $"The player is standing in open water at {PlayerRef.Transform.position}.");
     }
 

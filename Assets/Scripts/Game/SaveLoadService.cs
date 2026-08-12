@@ -284,7 +284,39 @@ public class SaveLoadService : MonoBehaviour
             return false;
         }
         data.Story ??= new StorySnapshot();
+        data.SceneId = MigrateSceneName(data.SceneId);
         return true;
+    }
+
+    /// <summary>
+    /// Chapter 01's scenes were renamed to setting-neutral identities on 2026-08-12 — the
+    /// building rather than the city, so a setting rename never orphans a save again.
+    ///
+    /// <see cref="SaveData.SceneId"/> is misnamed: it holds the Unity *scene name*, not a
+    /// <c>scene.*</c> id, because that is what <c>CanStreamedLevelBeLoaded</c> and
+    /// <c>TransitionTo</c> take. So the rename really did invalidate saves, and this map is
+    /// what stops a mid-chapter save from silently failing to restore its scene.
+    ///
+    /// This is the migration the v2 and v3 bumps deliberately did not do. It is worth doing
+    /// here because the mapping is exactly known, rather than guessed at.
+    /// </summary>
+    private static string MigrateSceneName(string sceneName)
+    {
+        return sceneName switch
+        {
+            "Estmere_Docks" => "Docks",
+            "Estmere_Palace" => "Palace",
+            "Estmere_Palace_Aftermath" => "Palace_Aftermath",
+            "Estmere_Arcanum" => "Order_Hall",
+            "Estmere_Harbor" => "Harbor",
+            "Estmere_Prison" => "Prison",
+            "Estmere_SeaCave" => "Sea_Cave",
+            "Estmere_SecuredTower" => "Secured_Tower",
+            "Estmere_Region" => "Capital_Region",
+            "Estmere_Exterior" => "Capital_Exterior",
+            "Caldemar_Arrival" => "Council_Arrival",
+            _ => sceneName
+        };
     }
 
     private static void WriteAtomic(string json)

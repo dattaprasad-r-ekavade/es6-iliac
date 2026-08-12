@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Generates the Estmere region scene from <see cref="EstmereRegion"/>.
+/// Generates the Estmere region scene from <see cref="CapitalRegion"/>.
 ///
 /// The look is Arena's: flat-topped blocks, gridded streets, a rectangular curtain wall with
 /// cardinal gates. It is procedural because hand-authoring a 2.4 km region is not available to
@@ -17,9 +17,9 @@ using UnityEngine.SceneManagement;
 ///
 /// Like `Main`, this scene is a build artifact. Do not hand-author into it.
 /// </summary>
-public static class EstmereRegionBuilder
+public static class CapitalRegionBuilder
 {
-    public const string ScenePath = "Assets/Scenes/Estmere_Region.unity";
+    public const string ScenePath = "Assets/Scenes/Capital_Region.unity";
     private const int Seed = 20260804;
 
     private const float BlockSize = 60f;
@@ -30,7 +30,7 @@ public static class EstmereRegionBuilder
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-        var root = new GameObject("EstmereRegion").transform;
+        var root = new GameObject("CapitalRegion").transform;
         var random = new System.Random(Seed);
 
         BuildGround(root);
@@ -45,7 +45,7 @@ public static class EstmereRegionBuilder
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, ScenePath);
         RegisterInBuildSettings();
-        Debug.Log($"[EstmereRegion] Built {EstmereRegion.RegionSize} m region at {ScenePath}.");
+        Debug.Log($"[CapitalRegion] Built {CapitalRegion.RegionSize} m region at {ScenePath}.");
     }
 
     // --- terrain -------------------------------------------------------------
@@ -53,8 +53,8 @@ public static class EstmereRegionBuilder
     private static void BuildGround(Transform root)
     {
         var ground = Block(root, "Ground",
-            new Vector3(0f, EstmereRegion.GroundHeight - 1f, 0f),
-            new Vector3(EstmereRegion.LandHalfExtent * 2f, 2f, EstmereRegion.LandHalfExtent * 2f),
+            new Vector3(0f, CapitalRegion.GroundHeight - 1f, 0f),
+            new Vector3(CapitalRegion.LandHalfExtent * 2f, 2f, CapitalRegion.LandHalfExtent * 2f),
             Palette(0));
         WorldTagger.SetLayerRecursive(ground, GameLayers.Ground);
     }
@@ -66,8 +66,8 @@ public static class EstmereRegionBuilder
     private static void BuildSea(Transform root)
     {
         var sea = Block(root, "Sea",
-            new Vector3(0f, EstmereRegion.WaterLevel - 0.5f, 0f),
-            new Vector3(EstmereRegion.RegionSize * 3f, 1f, EstmereRegion.RegionSize * 3f),
+            new Vector3(0f, CapitalRegion.WaterLevel - 0.5f, 0f),
+            new Vector3(CapitalRegion.RegionSize * 3f, 1f, CapitalRegion.RegionSize * 3f),
             Palette(4));
         WorldTagger.SetLayerRecursive(sea, GameLayers.Ground);
     }
@@ -79,14 +79,14 @@ public static class EstmereRegionBuilder
         var walls = new GameObject("CityWall").transform;
         walls.SetParent(root, false);
 
-        float half = EstmereRegion.CityHalf;
-        float h = EstmereRegion.WallHeight;
-        float t = EstmereRegion.WallThickness;
-        var c = EstmereRegion.CityCenter;
+        float half = CapitalRegion.CityHalf;
+        float h = CapitalRegion.WallHeight;
+        float t = CapitalRegion.WallThickness;
+        var c = CapitalRegion.CityCenter;
 
         // Each side is split either side of its cardinal gate, so the opening is real geometry
         // rather than a gap the player discovers is solid.
-        float segment = half - EstmereRegion.GateWidth * 0.5f;
+        float segment = half - CapitalRegion.GateWidth * 0.5f;
         float offset = half - segment * 0.5f;
 
         foreach (int sign in new[] { -1, 1 })
@@ -117,7 +117,7 @@ public static class EstmereRegionBuilder
         var district = new GameObject("Districts").transform;
         district.SetParent(root, false);
 
-        float half = EstmereRegion.CityHalf;
+        float half = CapitalRegion.CityHalf;
         float stride = BlockSize + StreetWidth;
         int count = Mathf.FloorToInt(half * 2f / stride);
         var reserved = ReservedFootprints();
@@ -127,9 +127,9 @@ public static class EstmereRegionBuilder
             for (int iz = 0; iz < count; iz++)
             {
                 var centre = new Vector3(
-                    EstmereRegion.CityCenter.x - half + stride * (ix + 0.5f),
-                    EstmereRegion.GroundHeight,
-                    EstmereRegion.CityCenter.z - half + stride * (iz + 0.5f));
+                    CapitalRegion.CityCenter.x - half + stride * (ix + 0.5f),
+                    CapitalRegion.GroundHeight,
+                    CapitalRegion.CityCenter.z - half + stride * (iz + 0.5f));
 
                 if (IsReserved(centre, reserved)) continue;
                 if (IsOnGateApproach(centre)) continue;
@@ -148,9 +148,9 @@ public static class EstmereRegionBuilder
     private static List<(Vector3 pos, float radius)> ReservedFootprints()
     {
         var reserved = new List<(Vector3, float)>();
-        foreach (var anchor in EstmereRegion.Anchors)
+        foreach (var anchor in CapitalRegion.Anchors)
             reserved.Add((anchor.Position, anchor.Footprint * 1.4f));
-        reserved.Add((EstmereRegion.PlayerSpawn, 40f));
+        reserved.Add((CapitalRegion.PlayerSpawn, 40f));
         return reserved;
     }
 
@@ -167,12 +167,12 @@ public static class EstmereRegionBuilder
     /// <summary>A gate the player cannot walk through is worse than no gate at all.</summary>
     private static bool IsOnGateApproach(Vector3 centre)
     {
-        foreach (var gate in EstmereRegion.Gates)
+        foreach (var gate in CapitalRegion.Gates)
         {
-            var world = EstmereRegion.CityCenter + new Vector3(gate.x, 0f, gate.z);
+            var world = CapitalRegion.CityCenter + new Vector3(gate.x, 0f, gate.z);
             bool alongX = Mathf.Abs(world.x) > Mathf.Abs(world.z);
             float lateral = alongX ? Mathf.Abs(centre.z - world.z) : Mathf.Abs(centre.x - world.x);
-            if (lateral < EstmereRegion.GateWidth) return true;
+            if (lateral < CapitalRegion.GateWidth) return true;
         }
         return false;
     }
@@ -184,7 +184,7 @@ public static class EstmereRegionBuilder
         var anchors = new GameObject("Anchors").transform;
         anchors.SetParent(root, false);
 
-        foreach (var anchor in EstmereRegion.Anchors)
+        foreach (var anchor in CapitalRegion.Anchors)
         {
             var holder = new GameObject(anchor.Id).transform;
             holder.SetParent(anchors, false);
@@ -224,15 +224,15 @@ public static class EstmereRegionBuilder
         var palette = ArtDirection.Active.Palette;
         var tints = new[] { palette.CityStone, palette.Road, palette.Sand, palette.Mountain };
         var reserved = ReservedFootprints();
-        float half = EstmereRegion.CityHalf;
+        float half = CapitalRegion.CityHalf;
 
         int placed = 0;
         for (int attempt = 0; attempt < 400 && placed < 90; attempt++)
         {
             var spot = new Vector3(
-                EstmereRegion.CityCenter.x + ((float)random.NextDouble() * 2f - 1f) * half,
-                EstmereRegion.GroundHeight,
-                EstmereRegion.CityCenter.z + ((float)random.NextDouble() * 2f - 1f) * half);
+                CapitalRegion.CityCenter.x + ((float)random.NextDouble() * 2f - 1f) * half,
+                CapitalRegion.GroundHeight,
+                CapitalRegion.CityCenter.z + ((float)random.NextDouble() * 2f - 1f) * half);
 
             if (IsReserved(spot, reserved)) continue;
 
@@ -250,11 +250,11 @@ public static class EstmereRegionBuilder
         // the transition system can hand the player to rather than just a loaded scene.
         var context = new GameObject("SceneContext");
         context.transform.SetParent(root, false);
-        context.AddComponent<SceneContext>().Configure("Estmere_Region", "spawn.region");
+        context.AddComponent<SceneContext>().Configure("Capital_Region", "spawn.region");
 
         var spawn = new GameObject("spawn.region");
         spawn.transform.SetParent(context.transform, false);
-        spawn.transform.position = EstmereRegion.PlayerSpawn;
+        spawn.transform.position = CapitalRegion.PlayerSpawn;
         spawn.AddComponent<SceneSpawnPoint>().Configure("spawn.region");
     }
 

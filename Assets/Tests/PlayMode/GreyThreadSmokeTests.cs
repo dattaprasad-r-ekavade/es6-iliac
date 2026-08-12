@@ -29,7 +29,7 @@ public sealed class GreyThreadSmokeTests : SmokeTestFixture
             _harnessSceneName = null;
         }
 
-        var exterior = SceneManager.GetSceneByName("Estmere_Exterior");
+        var exterior = SceneManager.GetSceneByName("Capital_Exterior");
         if (exterior.IsValid() && exterior.isLoaded)
             yield return SceneManager.UnloadSceneAsync(exterior);
 
@@ -79,7 +79,7 @@ public sealed class GreyThreadSmokeTests : SmokeTestFixture
             Assert.AreEqual(route, story.State.Profile.DeclaredInclination);
             Assert.AreEqual("B830", story.State.BeatId);
             Assert.IsTrue(story.HasFlag("flag.chapter_complete"));
-            Assert.AreEqual("Caldemar_Arrival", transition.ActiveContentSceneName);
+            Assert.AreEqual("Council_Arrival", transition.ActiveContentSceneName);
             Assert.AreEqual("spawn.council", transition.ActiveSpawnId);
             Assert.Less(Vector3.Distance(player.transform.position, new Vector3(0f, 1.1f, -6f)), 0.01f);
             Assert.IsTrue(story.State.Evidence.Exists(e => e.Id == "ev.black_crystal"));

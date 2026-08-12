@@ -26,7 +26,7 @@ public class ObjectiveSmokeTests : SmokeTestFixture
         Assert.IsTrue(objectives.HasObjective);
         Assert.IsNotNull(objectives.TargetPosition, "The objective names an anchor but resolves nowhere.");
         Assert.AreEqual(
-            EstmereRegion.FindAnchor("anchor.palace").Value.Position,
+            CapitalRegion.FindAnchor("anchor.palace").Value.Position,
             objectives.TargetPosition.Value);
     }
 
@@ -46,7 +46,7 @@ public class ObjectiveSmokeTests : SmokeTestFixture
     {
         var player = SpawnPlayer();
         var objectives = SpawnObjectives();
-        var palace = EstmereRegion.FindAnchor("anchor.palace").Value;
+        var palace = CapitalRegion.FindAnchor("anchor.palace").Value;
         objectives.Set("Go to the Palace", "Inside the walls.", "anchor.palace");
 
         // Stand due south of the palace; it must read as north.
@@ -63,7 +63,7 @@ public class ObjectiveSmokeTests : SmokeTestFixture
     {
         var player = SpawnPlayer();
         var objectives = SpawnObjectives();
-        var palace = EstmereRegion.FindAnchor("anchor.palace").Value;
+        var palace = CapitalRegion.FindAnchor("anchor.palace").Value;
         objectives.Set("Go to the Palace", "Inside the walls.", "anchor.palace");
         player.transform.position = palace.Position + new Vector3(0f, 0f, -300f);
 
@@ -76,7 +76,7 @@ public class ObjectiveSmokeTests : SmokeTestFixture
     {
         var player = SpawnPlayer();
         var objectives = SpawnObjectives();
-        var palace = EstmereRegion.FindAnchor("anchor.palace").Value;
+        var palace = CapitalRegion.FindAnchor("anchor.palace").Value;
         objectives.Set("Go to the Palace", "Inside the walls.", "anchor.palace");
 
         player.transform.position = palace.Position + new Vector3(0f, 0f, -500f);
@@ -108,7 +108,7 @@ public class ObjectiveSmokeTests : SmokeTestFixture
     {
         var player = SpawnPlayer();
         var objectives = SpawnObjectives();
-        var palace = EstmereRegion.FindAnchor("anchor.palace").Value;
+        var palace = CapitalRegion.FindAnchor("anchor.palace").Value;
         objectives.Set("Go to the Palace", "Inside the walls.", "anchor.palace");
 
         player.transform.position = palace.Position + Vector3.up * 200f;

@@ -51,7 +51,7 @@ public sealed class ObjectiveService : MonoBehaviour
     {
         get
         {
-            var anchor = EstmereRegion.FindAnchor(TargetAnchorId);
+            var anchor = CapitalRegion.FindAnchor(TargetAnchorId);
             return anchor?.Position;
         }
     }

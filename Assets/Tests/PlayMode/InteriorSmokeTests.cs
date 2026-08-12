@@ -100,7 +100,7 @@ public class InteriorSmokeTests : SmokeTestFixture
     [UnityTest]
     public IEnumerator TheCorridorIntoTheDeeperRoomsIsOpen()
     {
-        yield return Load("Estmere_Prison");
+        yield return Load("Prison");
         yield return new WaitForFixedUpdate();
 
         // Cast the doorway itself rather than the length of the hall: starting further back
@@ -117,7 +117,7 @@ public class InteriorSmokeTests : SmokeTestFixture
     [UnityTest]
     public IEnumerator TheTowerHasALockWorthPicking()
     {
-        yield return Load("Estmere_SecuredTower");
+        yield return Load("Secured_Tower");
 
         var door = Object.FindFirstObjectByType<DoorAndLock>();
         Assert.IsNotNull(door, "B420 infiltrates a secured tower that has nothing to unlock.");
@@ -132,7 +132,7 @@ public class InteriorSmokeTests : SmokeTestFixture
     [UnityTest]
     public IEnumerator ThePrisonHasAPocketWorthLifting()
     {
-        yield return Load("Estmere_Prison");
+        yield return Load("Prison");
 
         var mark = Object.FindFirstObjectByType<PickpocketTarget>();
         Assert.IsNotNull(mark, "The prison has nobody to steal from.");
@@ -146,7 +146,7 @@ public class InteriorSmokeTests : SmokeTestFixture
     [UnityTest]
     public IEnumerator TheHarbourHasABoat()
     {
-        yield return Load("Estmere_Harbor");
+        yield return Load("Harbor");
 
         Assert.IsNotNull(
             Object.FindFirstObjectByType<SailingController>(),
@@ -161,7 +161,7 @@ public class InteriorSmokeTests : SmokeTestFixture
             "The guard yard has nothing to spar against.");
         yield return UnloadInterior();
 
-        yield return Load("Estmere_Arcanum");
+        yield return Load("Order_Hall");
         Assert.IsNotNull(Object.FindFirstObjectByType<EnemyBrain>(),
             "The Arcanum has nothing to cast at.");
     }

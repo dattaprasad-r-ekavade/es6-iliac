@@ -55,12 +55,12 @@ public class DialogueSmokeTests : SmokeTestFixture
     {
         var expected = new (string scene, string actorId)[]
         {
-            ("Estmere_Docks", "role.processing_guard"),
+            ("Docks", "role.processing_guard"),
             ("Tutorial_Warrior", "role.instructor_warrior"),
-            ("Estmere_Arcanum", "role.instructor_mage"),
-            ("Estmere_Harbor", "role.instructor_trade"),
-            ("Estmere_Palace", "role.king"),
-            ("Caldemar_Arrival", "role.council_contact")
+            ("Order_Hall", "role.instructor_mage"),
+            ("Harbor", "role.instructor_trade"),
+            ("Palace", "role.king"),
+            ("Council_Arrival", "role.council_contact")
         };
 
         foreach (var (scene, actorId) in expected)
@@ -79,7 +79,7 @@ public class DialogueSmokeTests : SmokeTestFixture
     [UnityTest]
     public IEnumerator ThePrisonHasBothVoices_SoTheRevealIsNotOneLecture()
     {
-        yield return Load("Estmere_Prison");
+        yield return Load("Prison");
 
         var actors = Object.FindObjectsByType<SpeakingActor>(FindObjectsSortMode.None);
         Assert.IsTrue(actors.Any(a => a.ActorId == "role.prisoner_a"), "Reed is missing.");
@@ -124,7 +124,7 @@ public class DialogueSmokeTests : SmokeTestFixture
 
         var quillGo = Track(new GameObject("Quill"));
         var quill = quillGo.AddComponent<SpeakingActor>();
-        quill.Configure("role.instructor_mage", "Quill", "faction.arcanum", "scene.estmere_arcanum");
+        quill.Configure("role.instructor_mage", "Quill", "faction.arcanum", "scene.order_hall");
 
         // "the transport" is Thorne's alone; Quill has nothing to say about it.
         Assert.IsNotNull(thorne.Ask("the transport"), "Thorne would not answer his own topic.");
@@ -137,7 +137,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         SpawnDialogue();
         var go = Track(new GameObject("Anyone"));
         var actor = go.AddComponent<SpeakingActor>();
-        actor.Configure("role.prisoner_a", "Reed", null, "scene.estmere_prison");
+        actor.Configure("role.prisoner_a", "Reed", null, "scene.prison");
 
         Assert.IsNotNull(actor.Ask("estmere"),
             "A shared topic went unanswered, so common knowledge is not actually common.");
@@ -153,7 +153,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         var service = SpawnDialogue();
         var go = Track(new GameObject("Guard"));
         var guard = go.AddComponent<SpeakingActor>();
-        guard.Configure("role.processing_guard", "Guard", "faction.estmere", "scene.estmere_docks");
+        guard.Configure("role.processing_guard", "Guard", "faction.estmere", "scene.docks");
 
         service.LearnTopic("the law");
         guard.Ask("the law");
@@ -168,7 +168,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         SpawnDialogue();
         var go = Track(new GameObject("Anyone"));
         var actor = go.AddComponent<SpeakingActor>();
-        actor.Configure("role.prisoner_a", "Reed", null, "scene.estmere_prison");
+        actor.Configure("role.prisoner_a", "Reed", null, "scene.prison");
 
         Assert.IsNull(actor.Ask("the price of fish"),
             "An unauthored keyword returned something instead of nothing.");
@@ -184,7 +184,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         var service = SpawnDialogue();
         var go = Track(new GameObject("Quill"));
         var quill = go.AddComponent<SpeakingActor>();
-        quill.Configure("role.instructor_mage", "Quill", "faction.arcanum", "scene.estmere_arcanum");
+        quill.Configure("role.instructor_mage", "Quill", "faction.arcanum", "scene.order_hall");
 
         // Teach a keyword only Thorne answers; Quill must not offer it.
         service.LearnTopic("the transport");

@@ -44,14 +44,14 @@ public static class GreyThreadSceneBuilder
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var root = new GameObject($"GreyThread_{spec.Name}");
         var context = root.AddComponent<SceneContext>();
-        context.Configure(spec.SceneId, spec.Name == "Caldemar_Arrival" ? "spawn.council" : "spawn.entry");
+        context.Configure(spec.SceneId, spec.Name == "Council_Arrival" ? "spawn.council" : "spawn.entry");
 
         CreateSpawn(root.transform, "spawn.entry", new Vector3(0f, 1.1f, -7f), Quaternion.identity);
-        if (spec.Name == "Estmere_Prison")
+        if (spec.Name == "Prison")
             CreateSpawn(root.transform, "spawn.route", new Vector3(-7f, 1.1f, -5f), Quaternion.Euler(0f, 90f, 0f));
-        if (spec.Name == "Estmere_SeaCave")
+        if (spec.Name == "Sea_Cave")
             CreateSpawn(root.transform, "spawn.escape", new Vector3(0f, 1.1f, -6f), Quaternion.Euler(0f, 180f, 0f));
-        if (spec.Name == "Caldemar_Arrival")
+        if (spec.Name == "Council_Arrival")
             CreateSpawn(root.transform, "spawn.council", new Vector3(0f, 1.1f, -6f), Quaternion.identity);
 
         var geometry = new GameObject("GreyGeometry").transform;
@@ -250,7 +250,7 @@ public static class GreyThreadSceneBuilder
     {
         switch (spec.Name)
         {
-            case "Estmere_Docks":
+            case "Docks":
                 Cast(root, "role.processing_guard", "Processing Guard", "faction.estmere",
                     spec, new Vector3(-4f, 0f, 3f), "the law", "the wreck", "estmere");
                 break;
@@ -260,29 +260,29 @@ public static class GreyThreadSceneBuilder
                     spec, new Vector3(4f, 0f, 3f), "the blade", "the transport", "the king");
                 break;
 
-            case "Estmere_Arcanum":
+            case "Order_Hall":
                 Cast(root, "role.instructor_mage", "Magister Seraphine Quill", "faction.arcanum",
                     spec, new Vector3(-4f, 0f, 3f), "casting", "the arcanum", "soul crystals");
                 break;
 
-            case "Estmere_Harbor":
+            case "Harbor":
                 Cast(root, "role.instructor_trade", "Harbourmaster Corvin Ashgrove", "faction.estmere",
                     spec, new Vector3(4f, 0f, 3f), "sailing", "the tower", "estmere");
                 break;
 
-            case "Estmere_Prison":
+            case "Prison":
                 Cast(root, "role.prisoner_a", "Bartholomew Reed", null,
                     spec, new Vector3(-5f, 0f, 2f), "the operation", "soul crystals");
                 Cast(root, "role.prisoner_b", "Iris Falk", null,
                     spec, new Vector3(5f, 0f, 2f), "the count", "the operation");
                 break;
 
-            case "Estmere_Palace":
+            case "Palace":
                 Cast(root, "role.king", "King Osric Selwyn", "faction.estmere",
                     spec, new Vector3(0f, 0f, 6f), "the king", "the everspire");
                 break;
 
-            case "Caldemar_Arrival":
+            case "Council_Arrival":
                 Cast(root, "role.council_contact", "Councillor Lucien Ambrose", "faction.council",
                     spec, new Vector3(0f, 0f, 4f), "the everspire", "estmere");
                 break;

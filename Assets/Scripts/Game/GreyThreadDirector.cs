@@ -33,7 +33,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
     private bool _playerDriven;
 
     /// <summary>The generated exterior the player returns to between story locations.</summary>
-    public const string RegionScene = "Estmere_Region";
+    public const string RegionScene = "Capital_Region";
 
     private void Awake() => Instance = this;
 
@@ -92,7 +92,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
         Story.SetFlag("flag.rescued");
         SaveCheckpoint();
 
-        yield return Visit("Estmere_Docks", "spawn.entry", "B060", "stage.estmere");
+        yield return Visit("Docks", "spawn.entry", "B060", "stage.estmere");
         if (Failed()) yield break;
         AdvanceBeat("B070", "stage.estmere", "Guards process the survivors; every memory has the same gap.");
         Story.SetFlag("flag.profile_valid");
@@ -102,7 +102,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
         // the guards recording who came out of the water.
         AdvanceBeat("B080", "stage.estmere", "The guards record your name, ancestry and origin.");
 
-        yield return Visit("Estmere_Palace", "spawn.entry", "B090", "stage.assignment");
+        yield return Visit("Palace", "spawn.entry", "B090", "stage.assignment");
         if (Failed()) yield break;
         AdvanceBeat("B100", "stage.assignment", "Every soul must contribute.");
         AdvanceBeat("B110", "stage.assignment", "The King questions the missing prince and the pulse.");
@@ -142,7 +142,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
                 AdvanceBeat("B220", "stage.warrior", "The patrol uncovers a secret prisoner transport.");
                 break;
             case "route.mage":
-                yield return Visit("Estmere_Arcanum", "spawn.entry", "B300", "stage.mage");
+                yield return Visit("Order_Hall", "spawn.entry", "B300", "stage.mage");
                 if (Failed()) yield break;
                 // The Arcanum issues the charge its lesson consumes. B310's manifest is what
                 // makes the player look at where that charge came from.
@@ -151,16 +151,16 @@ public sealed class GreyThreadDirector : MonoBehaviour
                 AdvanceBeat("B310", "stage.mage", "The soul-crystal delivery exposes an impossible source column.");
                 break;
             case "route.trade":
-                yield return Visit("Estmere_Harbor", "spawn.entry", "B400", "stage.trade");
+                yield return Visit("Harbor", "spawn.entry", "B400", "stage.trade");
                 if (Failed()) yield break;
                 IssueGear("hunting_bow", "Hunting Bow", "weapon");
                 AdvanceBeat("B410", "stage.trade", "Sailing, stealth, locks and pickpocketing are introduced.");
-                yield return Visit("Estmere_SecuredTower", "spawn.entry", "B420", "stage.trade");
+                yield return Visit("Secured_Tower", "spawn.entry", "B420", "stage.trade");
                 if (Failed()) yield break;
                 AddEvidence("ev.tower_ledger", "Tower Ledger", "A crown ledger ties the prisoner operation to the east tower.");
                 break;
             default:
-                yield return Visit("Estmere_Prison", "spawn.entry", "B500", "stage.refuse");
+                yield return Visit("Prison", "spawn.entry", "B500", "stage.refuse");
                 if (Failed()) yield break;
                 AddEvidence("ev.prisoner_testimony", "Prisoner Testimony", "A named prisoner confirms the living cargo below the palace.");
                 AdvanceBeat("B510", "stage.refuse", "A prisoner reveals the soul-harvesting operation in motion.");
@@ -173,7 +173,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
         // rather than destroyed. This is what lets B630's escape be authored once.
         PlayerEquipment.Instance?.StashGear();
 
-        yield return Visit("Estmere_Prison", "spawn.route", "B320", "stage.convergence");
+        yield return Visit("Prison", "spawn.route", "B320", "stage.convergence");
         if (Failed()) yield break;
         AdvanceBeat("B600", "stage.convergence", "The prince is located.");
         Story.SetFlag("flag.prince_located");
@@ -182,19 +182,19 @@ public sealed class GreyThreadDirector : MonoBehaviour
         AdvanceBeat("B615", "stage.convergence", "The Everspire and Ivory Concord are seeded for later chapters.");
         SaveCheckpoint();
 
-        yield return Visit("Estmere_SeaCave", "spawn.escape", "B620", "stage.escape");
+        yield return Visit("Sea_Cave", "spawn.escape", "B620", "stage.escape");
         if (Failed()) yield break;
         AddEvidence("ev.black_crystal", "Black Crystal", "A resonant shard remembers the voices of the prisoners.");
         // The evidence room holds what was taken on the way in.
         PlayerEquipment.Instance?.RestoreStashedGear();
-        Story.SetCompanion("role.prince", true, "Estmere_SeaCave", "spawn.escape", 100f);
+        Story.SetCompanion("role.prince", true, "Sea_Cave", "spawn.escape", 100f);
         AdvanceBeat("B630", "stage.escape", "The prince follows you into the sea cave.");
         Story.SetFlag("flag.prince_following");
         yield return PlayTitleCrawl();
         if (Failed()) yield break;
         SaveCheckpoint();
 
-        yield return Visit("Estmere_Palace_Aftermath", "spawn.entry", "B700", "stage.aftermath");
+        yield return Visit("Palace_Aftermath", "spawn.entry", "B700", "stage.aftermath");
         if (Failed()) yield break;
         AdvanceBeat("B710", "stage.aftermath", "Evidence is presented; the prince testifies.");
         AdvanceBeat("B720", "stage.aftermath", "The King gives the legitimate-supply defence.");
@@ -213,9 +213,9 @@ public sealed class GreyThreadDirector : MonoBehaviour
         Story.RecordChoice("choice.council_mission", "seek_recognition");
         SaveCheckpoint();
 
-        yield return Visit("Estmere_Exterior", "spawn.caldemar", "B810", "stage.handoff");
+        yield return Visit("Capital_Exterior", "spawn.caldemar", "B810", "stage.handoff");
         if (Failed()) yield break;
-        yield return Visit("Caldemar_Arrival", "spawn.council", "B820", "stage.handoff");
+        yield return Visit("Council_Arrival", "spawn.council", "B820", "stage.handoff");
         if (Failed()) yield break;
         AdvanceBeat("B830", "stage.handoff", "The opening chapter is complete; the Council awaits.");
         Story.SetFlag("flag.chapter_complete");
@@ -259,9 +259,9 @@ public sealed class GreyThreadDirector : MonoBehaviour
         yield return null;
     }
 
-    private static bool TryFindAnchorFor(string sceneName, out EstmereRegion.Anchor anchor)
+    private static bool TryFindAnchorFor(string sceneName, out CapitalRegion.Anchor anchor)
     {
-        foreach (var candidate in EstmereRegion.Anchors)
+        foreach (var candidate in CapitalRegion.Anchors)
         {
             if (candidate.SceneName != sceneName) continue;
             anchor = candidate;
@@ -278,7 +278,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
     /// Directions rather than a marker, per GAMEPLAY_DESIGN.md. The bearing line is generated
     /// from the player's live position, so it cannot go stale.
     /// </summary>
-    private IEnumerator WalkTo(EstmereRegion.Anchor anchor, SceneTransitionService transition)
+    private IEnumerator WalkTo(CapitalRegion.Anchor anchor, SceneTransitionService transition)
     {
         if (transition.ActiveContentSceneName != RegionScene)
         {
@@ -313,9 +313,9 @@ public sealed class GreyThreadDirector : MonoBehaviour
     }
 
     /// <summary>Written directions, in the register a person would actually use.</summary>
-    private static string DirectionsTo(EstmereRegion.Anchor anchor)
+    private static string DirectionsTo(CapitalRegion.Anchor anchor)
     {
-        bool inside = EstmereRegion.IsInsideCity(anchor.Position);
+        bool inside = CapitalRegion.IsInsideCity(anchor.Position);
         string where = inside ? "inside the walls" : "beyond the walls, along the coast";
         return $"{anchor.DisplayName} lies {where}. Follow the streets and look for the door.";
     }

@@ -102,8 +102,8 @@ public static class RegionReturn
     /// </summary>
     public static Vector3 ReturnPosition()
     {
-        var anchor = EstmereRegion.FindAnchor(LastAnchorId);
-        if (anchor == null) return EstmereRegion.PlayerSpawn;
+        var anchor = CapitalRegion.FindAnchor(LastAnchorId);
+        if (anchor == null) return CapitalRegion.PlayerSpawn;
 
         // Just outside the doorway, facing away from the building.
         var facing = Quaternion.Euler(0f, anchor.Value.FacingDegrees, 0f) * Vector3.forward;

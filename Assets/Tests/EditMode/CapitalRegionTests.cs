@@ -10,23 +10,23 @@ using UnityEngine;
 /// ones that would be expensive to discover late: story anchors that overlap, doors that lead
 /// nowhere, ids that embed display names, and a city that does not fit inside its own region.
 /// </summary>
-public sealed class EstmereRegionTests
+public sealed class CapitalRegionTests
 {
     [Test]
     public void RegionMatchesTheLockedDimensions()
     {
         // plan.md § World architecture: 2.4 km square, 1.6 km city, from a 7–8 min walk at
         // 3.5 m/s. If these change, the walk metric changed and that was a design decision.
-        Assert.AreEqual(2400f, EstmereRegion.RegionSize, 0.01f);
-        Assert.AreEqual(1600f, EstmereRegion.CitySize, 0.01f);
+        Assert.AreEqual(2400f, CapitalRegion.RegionSize, 0.01f);
+        Assert.AreEqual(1600f, CapitalRegion.CitySize, 0.01f);
     }
 
     [Test]
     public void CityFitsInsideTheLandmass_WhichFitsInsideTheRegion()
     {
-        Assert.Less(EstmereRegion.CityHalf, EstmereRegion.LandHalfExtent,
+        Assert.Less(CapitalRegion.CityHalf, CapitalRegion.LandHalfExtent,
             "The city spills past the shoreline.");
-        Assert.Less(EstmereRegion.LandHalfExtent, EstmereRegion.RegionHalf,
+        Assert.Less(CapitalRegion.LandHalfExtent, CapitalRegion.RegionHalf,
             "There is no sea margin — the plane has no bound to turn back from.");
     }
 
@@ -34,7 +34,7 @@ public sealed class EstmereRegionTests
     public void CrossingTheCityTakesRoughlyTheLockedWalk()
     {
         const float walkSpeed = 3.5f;
-        float minutes = EstmereRegion.CitySize / walkSpeed / 60f;
+        float minutes = CapitalRegion.CitySize / walkSpeed / 60f;
 
         // Deliberately tight. A looser range let a 5.7-minute city pass as "7-8".
         Assert.That(minutes, Is.InRange(7f, 8f),
@@ -44,7 +44,7 @@ public sealed class EstmereRegionTests
     [Test]
     public void EveryAnchorHasAStableSettingNeutralId()
     {
-        foreach (var anchor in EstmereRegion.Anchors)
+        foreach (var anchor in CapitalRegion.Anchors)
         {
             Assert.IsNotEmpty(anchor.Id, "An anchor has no id.");
             StringAssert.StartsWith("anchor.", anchor.Id, $"'{anchor.Id}' does not follow the id convention.");
@@ -58,16 +58,16 @@ public sealed class EstmereRegionTests
     [Test]
     public void AnchorIdsAreUnique()
     {
-        var ids = EstmereRegion.Anchors.Select(a => a.Id).ToArray();
+        var ids = CapitalRegion.Anchors.Select(a => a.Id).ToArray();
         CollectionAssert.AllItemsAreUnique(ids, "Two anchors share an id; one would shadow the other.");
     }
 
     [Test]
     public void EveryAnchorIsOnDryLand()
     {
-        foreach (var anchor in EstmereRegion.Anchors)
+        foreach (var anchor in CapitalRegion.Anchors)
             Assert.IsTrue(
-                EstmereRegion.IsOverLand(anchor.Position),
+                CapitalRegion.IsOverLand(anchor.Position),
                 $"{anchor.Id} sits in open water at {anchor.Position}.");
     }
 
@@ -78,7 +78,7 @@ public sealed class EstmereRegionTests
     [Test]
     public void AnchorsDoNotOverlap()
     {
-        var anchors = EstmereRegion.Anchors;
+        var anchors = CapitalRegion.Anchors;
         for (int i = 0; i < anchors.Length; i++)
         {
             for (int j = i + 1; j < anchors.Length; j++)
@@ -100,7 +100,7 @@ public sealed class EstmereRegionTests
     {
         var known = new HashSet<string>(GreyThreadSceneCatalog.Scenes.Select(s => s.Name));
 
-        foreach (var anchor in EstmereRegion.Anchors)
+        foreach (var anchor in CapitalRegion.Anchors)
         {
             if (string.IsNullOrEmpty(anchor.SceneName)) continue;
             Assert.IsTrue(
@@ -112,7 +112,7 @@ public sealed class EstmereRegionTests
     [Test]
     public void EveryAnchorWithASceneNamesASpawn()
     {
-        foreach (var anchor in EstmereRegion.Anchors)
+        foreach (var anchor in CapitalRegion.Anchors)
         {
             if (string.IsNullOrEmpty(anchor.SceneName)) continue;
             Assert.IsNotEmpty(anchor.SpawnId,
@@ -123,23 +123,23 @@ public sealed class EstmereRegionTests
     [Test]
     public void ThePlayerSpawnsOnLand_OutsideAnyBuilding()
     {
-        Assert.IsTrue(EstmereRegion.IsOverLand(EstmereRegion.PlayerSpawn), "The player spawns in the sea.");
+        Assert.IsTrue(CapitalRegion.IsOverLand(CapitalRegion.PlayerSpawn), "The player spawns in the sea.");
 
-        foreach (var anchor in EstmereRegion.Anchors)
+        foreach (var anchor in CapitalRegion.Anchors)
             Assert.Greater(
-                Vector3.Distance(EstmereRegion.PlayerSpawn, anchor.Position), anchor.Footprint * 0.5f,
+                Vector3.Distance(CapitalRegion.PlayerSpawn, anchor.Position), anchor.Footprint * 0.5f,
                 $"The player spawns inside {anchor.Id}.");
     }
 
     [Test]
     public void GatesSitOnTheCityWall()
     {
-        foreach (var gate in EstmereRegion.Gates)
+        foreach (var gate in CapitalRegion.Gates)
         {
             float x = Mathf.Abs(gate.x);
             float z = Mathf.Abs(gate.z);
             Assert.IsTrue(
-                Mathf.Approximately(x, EstmereRegion.CityHalf) || Mathf.Approximately(z, EstmereRegion.CityHalf),
+                Mathf.Approximately(x, CapitalRegion.CityHalf) || Mathf.Approximately(z, CapitalRegion.CityHalf),
                 $"Gate at {gate} is not on the wall line.");
         }
     }
@@ -148,11 +148,11 @@ public sealed class EstmereRegionTests
     public void HeightFallsToTheSeaAtTheMargin()
     {
         Assert.AreEqual(
-            EstmereRegion.GroundHeight, EstmereRegion.SampleHeight(Vector3.zero), 0.01f,
+            CapitalRegion.GroundHeight, CapitalRegion.SampleHeight(Vector3.zero), 0.01f,
             "Inland ground is not at the authored height.");
 
-        float atBound = EstmereRegion.SampleHeight(new Vector3(EstmereRegion.RegionHalf, 0f, 0f));
-        Assert.Less(atBound, EstmereRegion.WaterLevel,
+        float atBound = CapitalRegion.SampleHeight(new Vector3(CapitalRegion.RegionHalf, 0f, 0f));
+        Assert.Less(atBound, CapitalRegion.WaterLevel,
             "The region edge is above water, so the sea bound would read as a cliff.");
     }
 
@@ -162,10 +162,10 @@ public sealed class EstmereRegionTests
         // Both are waterfront by design — B060 arrives by ship and B400 teaches sailing.
         foreach (var id in new[] { "anchor.docks", "anchor.harbor" })
         {
-            var anchor = EstmereRegion.FindAnchor(id);
+            var anchor = CapitalRegion.FindAnchor(id);
             Assert.IsNotNull(anchor, $"{id} is missing.");
             Assert.Less(
-                EstmereRegion.LandHalfExtent - Mathf.Abs(anchor.Value.Position.z), 350f,
+                CapitalRegion.LandHalfExtent - Mathf.Abs(anchor.Value.Position.z), 350f,
                 $"{id} is inland; boats cannot reach it.");
         }
     }
@@ -173,10 +173,10 @@ public sealed class EstmereRegionTests
     [Test]
     public void TheSeaCaveIsOutsideTheCityWalls()
     {
-        var cave = EstmereRegion.FindAnchor("anchor.seacave");
+        var cave = CapitalRegion.FindAnchor("anchor.seacave");
         Assert.IsNotNull(cave);
         Assert.IsFalse(
-            EstmereRegion.IsInsideCity(cave.Value.Position),
+            CapitalRegion.IsInsideCity(cave.Value.Position),
             "The escape surfaces inside the city the player just escaped.");
     }
 }

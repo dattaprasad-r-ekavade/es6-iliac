@@ -13,7 +13,7 @@ public static class SceneArchitectureBuilder
 {
     public const string BootstrapPath = "Assets/Scenes/Bootstrap.unity";
     public const string MainPath = "Assets/Scenes/Main.unity";
-    public const string ExteriorPath = "Assets/Scenes/Estmere_Exterior.unity";
+    public const string ExteriorPath = "Assets/Scenes/Capital_Exterior.unity";
     public const string TestSceneAPath = "Assets/Scenes/Tests/TransitionTest_A.unity";
     public const string TestSceneBPath = "Assets/Scenes/Tests/TransitionTest_B.unity";
     public const string TestSceneCPath = "Assets/Scenes/Tests/TransitionTest_C.unity";
@@ -85,7 +85,7 @@ public static class SceneArchitectureBuilder
         // The region is the walkable exterior the whole chapter returns to. This method
         // replaces the build list wholesale, so anything omitted here silently stops being
         // loadable at runtime - which is exactly how the region went missing once.
-        paths.Add(EstmereRegionBuilder.ScenePath);
+        paths.Add(CapitalRegionBuilder.ScenePath);
 
         var scenes = new List<EditorBuildSettingsScene>();
         foreach (var path in paths)

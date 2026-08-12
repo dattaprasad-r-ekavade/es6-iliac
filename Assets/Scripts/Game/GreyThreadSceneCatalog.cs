@@ -62,27 +62,27 @@ public static class GreyThreadSceneCatalog
         new("Prologue_Ship", "scene.prologue_ship", "The Wrecked Ship", new Color(0.30f, 0.42f, 0.52f),
             rooms: 2, hasExitDoor: false),
 
-        new("Estmere_Docks", "scene.estmere_docks", "Estmere Docks", new Color(0.36f, 0.50f, 0.42f),
+        new("Docks", "scene.docks", "Estmere Docks", new Color(0.36f, 0.50f, 0.42f),
             rooms: 2),
-        new("Estmere_Palace", "scene.estmere_palace", "Estmere Palace", new Color(0.53f, 0.40f, 0.24f),
+        new("Palace", "scene.palace", "Estmere Palace", new Color(0.53f, 0.40f, 0.24f),
             rooms: 3),
         new("Tutorial_Warrior", "scene.tutorial_warrior", "Guard Drill Yard", new Color(0.60f, 0.27f, 0.18f),
             rooms: 2, mechanic: Feature.CombatDummy),
-        new("Estmere_Arcanum", "scene.estmere_arcanum", "The Arcanum", new Color(0.28f, 0.34f, 0.62f),
+        new("Order_Hall", "scene.order_hall", "The Arcanum", new Color(0.28f, 0.34f, 0.62f),
             rooms: 3, mechanic: Feature.SpellTarget),
-        new("Estmere_Harbor", "scene.estmere_harbor", "Merchant Harbor", new Color(0.24f, 0.52f, 0.55f),
+        new("Harbor", "scene.harbor", "Merchant Harbor", new Color(0.24f, 0.52f, 0.55f),
             rooms: 2, mechanic: Feature.Boat),
-        new("Estmere_SecuredTower", "scene.estmere_secured_tower", "Secured East Tower", new Color(0.48f, 0.32f, 0.24f),
+        new("Secured_Tower", "scene.secured_tower", "Secured East Tower", new Color(0.48f, 0.32f, 0.24f),
             rooms: 3, mechanic: Feature.Lock),
-        new("Estmere_Prison", "scene.estmere_prison", "Estmere Prison", new Color(0.30f, 0.30f, 0.34f),
+        new("Prison", "scene.prison", "Estmere Prison", new Color(0.30f, 0.30f, 0.34f),
             rooms: 4, mechanic: Feature.Pickpocket),
 
         // The cave and everything after it are one-way story spaces.
-        new("Estmere_SeaCave", "scene.estmere_sea_cave", "The Sea Cave", new Color(0.20f, 0.37f, 0.45f),
+        new("Sea_Cave", "scene.sea_cave", "The Sea Cave", new Color(0.20f, 0.37f, 0.45f),
             rooms: 3, hasExitDoor: false),
-        new("Estmere_Palace_Aftermath", "scene.estmere_palace_aftermath", "Palace Aftermath", new Color(0.46f, 0.25f, 0.20f),
+        new("Palace_Aftermath", "scene.palace_aftermath", "Palace Aftermath", new Color(0.46f, 0.25f, 0.20f),
             rooms: 2, hasExitDoor: false),
-        new("Caldemar_Arrival", "scene.caldemar_arrival", "Caldemar Council Gate", new Color(0.55f, 0.43f, 0.25f),
+        new("Council_Arrival", "scene.council_arrival", "Caldemar Council Gate", new Color(0.55f, 0.43f, 0.25f),
             rooms: 2, hasExitDoor: false)
     };
 

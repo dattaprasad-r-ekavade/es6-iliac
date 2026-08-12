@@ -16,7 +16,7 @@ using UnityEngine;
 /// authored. What makes it read as a style rather than as greybox is the render layer, so
 /// everything here is palette-locked through <see cref="ArtDirection"/>.
 /// </summary>
-public static class EstmereRegion
+public static class CapitalRegion
 {
     // --- extents -------------------------------------------------------------
 
@@ -67,19 +67,19 @@ public static class EstmereRegion
     /// </summary>
     public static readonly Anchor[] Anchors =
     {
-        new() { Id = "anchor.palace", DisplayName = "The Palace", SceneName = "Estmere_Palace",
+        new() { Id = "anchor.palace", DisplayName = "The Palace", SceneName = "Palace",
                 SpawnId = "spawn.entry", Position = new Vector3(0f, GroundHeight, 300f),
                 FacingDegrees = 180f, Footprint = 90f },
 
-        new() { Id = "anchor.prison", DisplayName = "The Prison", SceneName = "Estmere_Prison",
+        new() { Id = "anchor.prison", DisplayName = "The Prison", SceneName = "Prison",
                 SpawnId = "spawn.entry", Position = new Vector3(-260f, GroundHeight, 220f),
                 FacingDegrees = 135f, Footprint = 70f },
 
-        new() { Id = "anchor.tower", DisplayName = "The Secured Tower", SceneName = "Estmere_SecuredTower",
+        new() { Id = "anchor.tower", DisplayName = "The Secured Tower", SceneName = "Secured_Tower",
                 SpawnId = "spawn.entry", Position = new Vector3(-380f, GroundHeight, 180f),
                 FacingDegrees = 90f, Footprint = 40f },
 
-        new() { Id = "anchor.arcanum", DisplayName = "The Arcanum", SceneName = "Estmere_Arcanum",
+        new() { Id = "anchor.arcanum", DisplayName = "The Arcanum", SceneName = "Order_Hall",
                 SpawnId = "spawn.entry", Position = new Vector3(300f, GroundHeight, 160f),
                 FacingDegrees = 225f, Footprint = 60f },
 
@@ -87,16 +87,16 @@ public static class EstmereRegion
                 SpawnId = "spawn.entry", Position = new Vector3(-180f, GroundHeight, -180f),
                 FacingDegrees = 45f, Footprint = 55f },
 
-        new() { Id = "anchor.docks", DisplayName = "The Survivor Docks", SceneName = "Estmere_Docks",
+        new() { Id = "anchor.docks", DisplayName = "The Survivor Docks", SceneName = "Docks",
                 SpawnId = "spawn.entry", Position = new Vector3(140f, GroundHeight, -780f),
                 FacingDegrees = 0f, Footprint = 60f },
 
-        new() { Id = "anchor.harbor", DisplayName = "The Harbour", SceneName = "Estmere_Harbor",
+        new() { Id = "anchor.harbor", DisplayName = "The Harbour", SceneName = "Harbor",
                 SpawnId = "spawn.entry", Position = new Vector3(-140f, GroundHeight, -800f),
                 FacingDegrees = 0f, Footprint = 60f },
 
         // Outside the walls, along the coast — the escape surfaces away from the city.
-        new() { Id = "anchor.seacave", DisplayName = "The Sea Cave", SceneName = "Estmere_SeaCave",
+        new() { Id = "anchor.seacave", DisplayName = "The Sea Cave", SceneName = "Sea_Cave",
                 SpawnId = "spawn.escape", Position = new Vector3(-900f, GroundHeight, -700f),
                 FacingDegrees = 315f, Footprint = 45f }
     };

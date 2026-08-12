@@ -8,13 +8,13 @@ using UnityEngine.TestTools;
 /// <summary>
 /// The generated Estmere region, loaded as a real scene.
 ///
-/// The data contract is covered by <c>EstmereRegionTests</c> in EditMode; this is about
+/// The data contract is covered by <c>CapitalRegionTests</c> in EditMode; this is about
 /// whether the geometry that comes out of the generator is actually standable and whether
 /// every door leads somewhere. Both are things a data test cannot see.
 /// </summary>
 public class RegionSmokeTests : SmokeTestFixture
 {
-    private const string RegionScene = "Estmere_Region";
+    private const string RegionScene = "Capital_Region";
 
     [UnityTearDown]
     public IEnumerator UnloadRegion()
@@ -43,12 +43,12 @@ public class RegionSmokeTests : SmokeTestFixture
         // Physics needs a frame to register the freshly loaded colliders.
         yield return new WaitForFixedUpdate();
 
-        var above = EstmereRegion.PlayerSpawn + Vector3.up * 50f;
+        var above = CapitalRegion.PlayerSpawn + Vector3.up * 50f;
         bool grounded = Physics.Raycast(above, Vector3.down, out var hit, 200f,
             1 << GameLayers.Ground, QueryTriggerInteraction.Ignore);
 
         Assert.IsTrue(grounded, "Nothing solid under the player spawn — the player would fall forever.");
-        Assert.Greater(hit.point.y, EstmereRegion.WaterLevel,
+        Assert.Greater(hit.point.y, CapitalRegion.WaterLevel,
             "The spawn is below the waterline.");
     }
 
@@ -59,10 +59,10 @@ public class RegionSmokeTests : SmokeTestFixture
 
         var portals = Object.FindObjectsByType<RegionPortal>(FindObjectsSortMode.None);
         Assert.AreEqual(
-            EstmereRegion.Anchors.Length, portals.Length,
+            CapitalRegion.Anchors.Length, portals.Length,
             "The generated region does not have one portal per anchor.");
 
-        foreach (var anchor in EstmereRegion.Anchors)
+        foreach (var anchor in CapitalRegion.Anchors)
         {
             var portal = portals.FirstOrDefault(p => p.AnchorId == anchor.Id);
             Assert.IsNotNull(portal, $"No portal was generated for {anchor.Id}.");
@@ -93,9 +93,9 @@ public class RegionSmokeTests : SmokeTestFixture
         yield return LoadRegion();
         yield return new WaitForFixedUpdate();
 
-        foreach (var gate in EstmereRegion.Gates)
+        foreach (var gate in CapitalRegion.Gates)
         {
-            var world = EstmereRegion.CityCenter + new Vector3(gate.x, 0f, gate.z);
+            var world = CapitalRegion.CityCenter + new Vector3(gate.x, 0f, gate.z);
             bool alongX = Mathf.Abs(gate.x) > Mathf.Abs(gate.z);
             var through = alongX ? Vector3.right : Vector3.forward;
 
@@ -115,7 +115,7 @@ public class RegionSmokeTests : SmokeTestFixture
     public void LeavingAnInteriorReturnsToTheDoorUsed()
     {
         RegionReturn.Remember("anchor.palace");
-        var palace = EstmereRegion.FindAnchor("anchor.palace").Value;
+        var palace = CapitalRegion.FindAnchor("anchor.palace").Value;
 
         var back = RegionReturn.ReturnPosition();
 
@@ -133,7 +133,7 @@ public class RegionSmokeTests : SmokeTestFixture
         RegionReturn.Clear();
 
         Assert.AreEqual(
-            EstmereRegion.PlayerSpawn, RegionReturn.ReturnPosition(),
+            CapitalRegion.PlayerSpawn, RegionReturn.ReturnPosition(),
             "A save loaded straight into an interior would have nowhere to exit to.");
     }
 }

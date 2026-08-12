@@ -109,6 +109,39 @@ public class SaveLoadSmokeTests : SmokeTestFixture
     }
 
     /// <summary>
+    /// Chapter 01's scenes were renamed to setting-neutral identities on 2026-08-12. A save
+    /// stores the Unity scene *name*, so without a migration every mid-chapter save would come
+    /// back pointing at a scene that no longer exists and silently fail to restore its location.
+    ///
+    /// The mapping is exactly known, which is why this one is migrated rather than orphaned the
+    /// way the v2 and v3 bumps deliberately were.
+    /// </summary>
+    [Test]
+    public void Load_MigratesSceneNamesRenamedByTheSettingCleanup()
+    {
+        File.WriteAllText(
+            SaveLoadService.SaveFilePath,
+            "{\"Version\":4,\"SceneId\":\"Estmere_Palace\",\"SpawnId\":\"spawn.entry\"}");
+
+        Assert.IsTrue(SaveLoadService.TryReadSave(out var data, out var error),
+            $"A v4 save with a pre-rename scene name failed to read: {error}");
+        Assert.AreEqual("Palace", data.SceneId,
+            "An old scene name survived the read, so the save points at a scene that is gone.");
+    }
+
+    [Test]
+    public void Load_LeavesUnrecognisedSceneNamesAlone()
+    {
+        File.WriteAllText(
+            SaveLoadService.SaveFilePath,
+            "{\"Version\":4,\"SceneId\":\"Main\",\"SpawnId\":\"spawn.entry\"}");
+
+        Assert.IsTrue(SaveLoadService.TryReadSave(out var data, out _));
+        Assert.AreEqual("Main", data.SceneId,
+            "The migration rewrote a scene name it should not have touched.");
+    }
+
+    /// <summary>
     /// Continue is offered on file existence alone, so loading unreadable content has
     /// to fail safely rather than throw into gameplay.
     /// </summary>
@@ -145,7 +178,7 @@ public class SaveLoadSmokeTests : SmokeTestFixture
             Id = "ev.tower_ledger", Title = "Tower Ledger",
             DocumentBody = "Shipment 14: source column amended from mine to prisoner.", Inspected = true
         });
-        story.SetCompanion("role.prince", true, "Estmere_Prison", "spawn.escape", 72f);
+        story.SetCompanion("role.prince", true, "Prison", "spawn.escape", 72f);
         story.MarkOpened("lock.prison_gate");
         story.MarkLooted("loot.warden_key");
         story.RecordChoice("choice.king", "imprison");
