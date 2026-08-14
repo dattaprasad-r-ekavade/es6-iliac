@@ -43,18 +43,11 @@ public static class KessilMapArt
         foreach (var r in regions)
             FillLandmass(pixels, w, h, r);
 
-        // Coast foam ring
+        // Coast foam. Sampled through the same coast function the land is filled with, rather
+        // than stroked as an ellipse — otherwise the foam stays a perfect oval while the
+        // coastline underneath it is irregular, and the ring floats off the shore.
         foreach (var r in regions)
-            StrokeEllipse(
-                pixels,
-                w,
-                h,
-                r.Landmass.Center.x,
-                r.Landmass.Center.z,
-                r.CoastRadii.x + 18f,
-                r.CoastRadii.y + 14f,
-                new Color(0.72f, 0.68f, 0.5f, 0.55f),
-                3);
+            StrokeCoast(pixels, w, h, r);
 
         // Compass rose hint
         DrawCompass(pixels, w, h);
@@ -115,6 +108,38 @@ public static class KessilMapArt
             float edge = 1f - Mathf.Clamp01(coastDistance * coastDistance);
             int idx = py * w + px;
             pixels[idx] = Color.Lerp(pixels[idx], region.Color, 0.55f + edge * 0.45f);
+        }
+    }
+
+    /// <summary>
+    /// A band of foam just outside the coast, found by sampling the shared coast function so it
+    /// follows whatever shape the landmass actually is.
+    /// </summary>
+    private static void StrokeCoast(Color[] pixels, int w, int h, Region region)
+    {
+        var foam = new Color(0.72f, 0.68f, 0.5f, 0.55f);
+        float cx = region.Landmass.Center.x;
+        float cz = region.Landmass.Center.z;
+
+        // Widen the scan box by the maximum the coast can bulge outward, or the foam gets
+        // clipped flat wherever the wobble pushes the shore past the plain ellipse.
+        float padX = region.CoastRadii.x * 0.18f + 40f;
+        float padZ = region.CoastRadii.y * 0.18f + 40f;
+        int minX = Mathf.Max(0, WorldXToPx(cx - region.CoastRadii.x - padX, w));
+        int maxX = Mathf.Min(w - 1, WorldXToPx(cx + region.CoastRadii.x + padX, w));
+        int minY = Mathf.Max(0, WorldZToPy(cz - region.CoastRadii.y - padZ, h));
+        int maxY = Mathf.Min(h - 1, WorldZToPy(cz + region.CoastRadii.y + padZ, h));
+
+        for (int py = minY; py <= maxY; py++)
+        for (int px = minX; px <= maxX; px++)
+        {
+            float coastDistance = WorldLayout.GetNormalizedCoastDistance(
+                new Vector3(PxToWorldX(px, w), 0f, PyToWorldZ(py, h)),
+                region.Landmass);
+            if (coastDistance < 1f || coastDistance > 1.05f) continue;
+
+            int idx = py * w + px;
+            pixels[idx] = Color.Lerp(pixels[idx], foam, foam.a);
         }
     }
 

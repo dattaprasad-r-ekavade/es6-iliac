@@ -100,6 +100,7 @@ public class SimplePlayerController : MonoBehaviour
 
         // Inverted 2026-08-14: run by default, hold the modifier to drop to the authored walk.
         float speed = GameInput.Sprint.IsPressed() ? moveSpeed : moveSpeed * runMultiplier;
+        speed *= DebugSpeed.Multiplier;
 
         Vector3 worldMove = transform.TransformDirection(input) * speed;
         bool grounded = _controller.isGrounded;

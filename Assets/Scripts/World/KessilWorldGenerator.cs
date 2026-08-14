@@ -293,8 +293,14 @@ public class KessilWorldGenerator : MonoBehaviour
             for (int segment = 0; segment < angularSegments; segment++)
             {
                 float angle = segment / (float)angularSegments * Mathf.PI * 2f;
-                float lx = Mathf.Cos(angle) * radii.x * normalizedRadius;
-                float lz = Mathf.Sin(angle) * radii.y * normalizedRadius;
+
+                // The mesh has to follow the same irregular coast the height function and the
+                // collision test use. Without this the terrain stays a plain ellipse while the
+                // land it represents is not, so the mesh runs out before the shore does
+                // wherever the coast bulges outward.
+                float wobble = WorldLayout.CoastWobble(angle, patch.TerrainSeed);
+                float lx = Mathf.Cos(angle) * radii.x * normalizedRadius * wobble;
+                float lz = Mathf.Sin(angle) * radii.y * normalizedRadius * wobble;
                 float wx = patch.Center.x + lx;
                 float wz = patch.Center.z + lz;
                 int vertex = ringStart + segment;
@@ -382,8 +388,11 @@ public class KessilWorldGenerator : MonoBehaviour
             {
                 float t = segment / (float)segments;
                 float angle = t * Mathf.PI * 2f;
-                float x = Mathf.Cos(angle) * radii.x * normalizedRadius;
-                float z = Mathf.Sin(angle) * radii.y * normalizedRadius;
+
+                // Follows the same irregular coast as the terrain mesh it edges.
+                float wobble = WorldLayout.CoastWobble(angle, patch.TerrainSeed);
+                float x = Mathf.Cos(angle) * radii.x * normalizedRadius * wobble;
+                float z = Mathf.Sin(angle) * radii.y * normalizedRadius * wobble;
                 float sampledY = TerrainHeightSampler.Sample(
                     patch.Center.x + x,
                     patch.Center.z + z,

@@ -364,7 +364,49 @@ public static class WorldLayout
 
         float dx = (pos.x - landmass.Center.x) / radii.x;
         float dz = (pos.z - landmass.Center.z) / radii.y;
-        return Mathf.Sqrt(dx * dx + dz * dz);
+        float distance = Mathf.Sqrt(dx * dx + dz * dz);
+        if (distance <= 0.0001f) return 0f;
+
+        return distance / CoastWobble(Mathf.Atan2(dz, dx), landmass.TerrainSeed);
+    }
+
+    /// <summary>
+    /// How far the coast bulges or bites in at a given bearing, as a multiplier on the ellipse
+    /// radius. Deterministic per landmass, so the same coastline comes back every rebuild.
+    ///
+    /// Without this every landmass is a perfect ellipse, and a playtester's first reaction to
+    /// the world map was "why does it still look like ugly ovals". They were right: the map was
+    /// drawing the world faithfully, and the world was ovals.
+    ///
+    /// Three summed harmonics — a broad lobe, a bay, a notch — give an irregular outline that
+    /// still closes cleanly. Because every consumer measures the coast through this one
+    /// function, the map, the collision test and the terrain shore band all agree; there is no
+    /// second coastline to keep in sync.
+    ///
+    /// **Amplitude is deliberately modest (±9%).** Anything larger starts pushing authored road
+    /// endpoints and shoreline POIs into the water, and `WorldLayoutTests` will say so.
+    /// </summary>
+    public static float CoastWobble(float angle, int seed)
+    {
+        float a = Hash01(seed, 17) * Mathf.PI * 2f;
+        float b = Hash01(seed, 31) * Mathf.PI * 2f;
+        float c = Hash01(seed, 53) * Mathf.PI * 2f;
+
+        return 1f
+               + Mathf.Sin(angle * 2f + a) * 0.045f
+               + Mathf.Sin(angle * 3f + b) * 0.028f
+               + Mathf.Sin(angle * 5f + c) * 0.016f;
+    }
+
+    private static float Hash01(int seed, int salt)
+    {
+        unchecked
+        {
+            int h = seed * 374761393 + salt * 668265263;
+            h = (h ^ (h >> 13)) * 1274126177;
+            h ^= h >> 16;
+            return (h & 0x7fffffff) / (float)0x7fffffff;
+        }
     }
 
     /// <summary>

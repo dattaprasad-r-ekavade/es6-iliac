@@ -102,11 +102,11 @@ public static class CapitalRegion
                 FacingDegrees = 45f, Footprint = 55f, Height = 7f },
 
         new() { Id = "anchor.docks", DisplayName = "The Survivor Docks", SceneName = "Docks",
-                SpawnId = "spawn.entry", Position = new Vector3(140f, GroundHeight, -780f),
+                SpawnId = "spawn.entry", Position = new Vector3(140f, GroundHeight, -960f),
                 FacingDegrees = 0f, Footprint = 60f, Height = 4f, IsQuay = true },
 
         new() { Id = "anchor.harbor", DisplayName = "The Harbour", SceneName = "Harbor",
-                SpawnId = "spawn.entry", Position = new Vector3(-140f, GroundHeight, -800f),
+                SpawnId = "spawn.entry", Position = new Vector3(-140f, GroundHeight, -960f),
                 FacingDegrees = 0f, Footprint = 60f, Height = 4f, IsQuay = true },
 
         // Outside the walls, along the coast — the escape surfaces away from the city.
@@ -115,8 +115,12 @@ public static class CapitalRegion
                 FacingDegrees = 315f, Footprint = 45f, Height = 9f }
     };
 
-    /// <summary>Where a new arrival starts: the docks, because Chapter 01 begins with a rescue.</summary>
-    public static readonly Vector3 PlayerSpawn = new(140f, GroundHeight, -720f);
+    /// <summary>
+    /// Where a new arrival starts: on the quay, because Chapter 01 begins with a sea rescue.
+    /// Just inland of the docks, facing the south gate — so the first walk is up off the
+    /// waterfront and into the city, which is the shape of the opening.
+    /// </summary>
+    public static readonly Vector3 PlayerSpawn = new(140f, GroundHeight, -915f);
 
     // --- city walls ----------------------------------------------------------
 

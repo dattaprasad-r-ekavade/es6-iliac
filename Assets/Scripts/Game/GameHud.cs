@@ -122,6 +122,15 @@ public class GameHud : MonoBehaviour
             ? GameStateService.Instance.CurrentState
             : GameState.Gameplay;
 
+        // Playtest speed cheat. Above every gate so it works while a menu is open too.
+        if (DebugSpeed.ToggleRequested())
+        {
+            float multiplier = DebugSpeed.Cycle();
+            ShowToast(DebugSpeed.IsCheating
+                ? $"DEBUG: movement x{multiplier:0.#}"
+                : "DEBUG: movement back to normal");
+        }
+
         // Pause is read before any state gate, and deliberately so. It used to sit below this
         // return, which meant a game left in Cinematic, Loading or Death had no pause menu —
         // and since quitting lives *in* the pause menu, no way out of the program at all
@@ -135,6 +144,23 @@ public class GameHud : MonoBehaviour
             if (_pauseRoot != null && _pauseRoot.activeSelf) ClosePause();
             else OpenPause();
             return;
+        }
+
+        // Keyboard quit. The pause buttons depend on a visible cursor and a working
+        // GraphicRaycaster; a playtester reported the menu opening and the buttons doing
+        // nothing, twice. Every other panel in this HUD is keyboard-driven — the map is
+        // "arrows to select, Enter to travel, M to close" — so the pause menu being mouse-only
+        // was the odd one out as well as the fragile one.
+        //
+        // These keys work whatever the cursor is doing, which is the point.
+        if (_pauseRoot != null && _pauseRoot.activeSelf)
+        {
+            var keyboard = UnityEngine.InputSystem.Keyboard.current;
+            if (keyboard != null)
+            {
+                if (keyboard.qKey.wasPressedThisFrame) { QuitToDesktop(); return; }
+                if (keyboard.backspaceKey.wasPressedThisFrame) { QuitToMainMenu(); return; }
+            }
         }
 
         if (mode == GameState.Loading || mode == GameState.Cinematic || mode == GameState.Death)
@@ -927,7 +953,7 @@ public class GameHud : MonoBehaviour
             new Vector2(0.35f, 0.25f), new Vector2(0.65f, 0.75f), UiTheme.Panel);
         MakeText(card.transform, "PauseTitle", "PAUSED", 42, TextAnchor.UpperCenter,
             new Vector2(0.1f, 0.72f), new Vector2(0.9f, 0.95f), new Color(0.96f, 0.9f, 0.7f), false, true, true);
-        MakeText(card.transform, "PauseHint", "Game paused", 18, TextAnchor.UpperCenter,
+        MakeText(card.transform, "PauseHint", "Esc resume  ·  Q quit to desktop  ·  Backspace main menu", 18, TextAnchor.UpperCenter,
             new Vector2(0.1f, 0.58f), new Vector2(0.9f, 0.72f), new Color(0.9f, 0.85f, 0.75f), false, false, true);
         MakeWaitButton(card.transform, "Resume", new Vector2(0.12f, 0.42f), new Vector2(0.88f, 0.54f), ClosePause);
         MakeWaitButton(card.transform, "Main Menu", new Vector2(0.12f, 0.28f), new Vector2(0.88f, 0.4f), QuitToMainMenu);

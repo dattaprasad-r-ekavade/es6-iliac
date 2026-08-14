@@ -260,6 +260,16 @@ public static class CapitalRegionBuilder
                     new Vector3(t * size * 0.8f + pierWidth * 0.5f, DeckTop + 1.1f, pz),
                     new Vector3(0.9f, 2.2f, 0.9f), Palette(3));
                 WorldTagger.SetLayerRecursive(post, GameLayers.Structure);
+
+                // Legs down to the water. The pier reaches out past the land edge, so without
+                // these it is a slab hanging in the air over the sea.
+                float legTop = DeckTop - height * 0.5f;
+                float legDrop = holder.position.y + legTop - CapitalRegion.WaterLevel;
+                if (legDrop <= 0f) continue;
+                var leg = Block(holder, $"Leg_{i}_{p}",
+                    new Vector3(t * size * 0.8f, legTop - legDrop * 0.5f, pz),
+                    new Vector3(1.2f, legDrop, 1.2f), Palette(3));
+                WorldTagger.SetLayerRecursive(leg, GameLayers.Structure);
             }
         }
 

@@ -233,24 +233,71 @@ public class WorldLayoutTests
         }
     }
 
+    /// <summary>
+    /// The coast is a closed irregular curve around an ellipse, not the ellipse itself.
+    ///
+    /// This used to assert that a point at exactly <c>Center + radii.x</c> sat on the coast,
+    /// which was true while landmasses were perfect ellipses — and a playtester's reaction to
+    /// the world map was "why does it still look like ugly ovals". They were: the map was
+    /// drawing the world honestly.
+    ///
+    /// What actually has to hold is unchanged in spirit: the shore is a closed curve, a point
+    /// beyond it is water, and a rectangular corner is not land.
+    /// </summary>
     [Test]
-    public void SharedCoast_IsElliptical()
+    public void SharedCoast_IsAClosedIrregularCurve()
     {
         foreach (var land in WorldLayout.Landmasses)
         {
-            var radii = WorldLayout.GetCoastRadii(land);
-            var eastCoast = land.Center + new Vector3(radii.x, 0f, 0f);
-            var northCoast = land.Center + new Vector3(0f, 0f, radii.y);
-            var outside = land.Center + new Vector3(radii.x * 1.01f, 0f, 0f);
-            var rectangleCorner = land.Center + new Vector3(radii.x, 0f, radii.y);
+            for (int step = 0; step < 8; step++)
+            {
+                float bearing = step / 8f * Mathf.PI * 2f;
 
-            Assert.AreEqual(1f, WorldLayout.GetNormalizedCoastDistance(eastCoast, land), 0.0001f);
-            Assert.AreEqual(1f, WorldLayout.GetNormalizedCoastDistance(northCoast, land), 0.0001f);
-            Assert.IsTrue(WorldLayout.IsInsideCoast(eastCoast, land));
-            Assert.IsFalse(WorldLayout.IsInsideCoast(outside, land));
-            Assert.IsFalse(WorldLayout.IsInsideCoast(rectangleCorner, land),
+                Assert.AreEqual(1f,
+                    WorldLayout.GetNormalizedCoastDistance(CoastPoint(land, bearing), land), 0.001f,
+                    $"'{land.Name}' coast is not where the shape function says it is.");
+                Assert.IsTrue(
+                    WorldLayout.IsInsideCoast(CoastPoint(land, bearing, 0.99f), land),
+                    $"'{land.Name}' treats a point just inside its own shore as water.");
+                Assert.IsFalse(
+                    WorldLayout.IsInsideCoast(CoastPoint(land, bearing, 1.02f), land),
+                    $"'{land.Name}' treats a point beyond its shore as land.");
+            }
+
+            var radii = WorldLayout.GetCoastRadii(land);
+            Assert.IsFalse(
+                WorldLayout.IsInsideCoast(land.Center + new Vector3(radii.x, 0f, radii.y) * 1.2f, land),
                 $"'{land.Name}' still treats a rectangular corner as land.");
         }
+    }
+
+    /// <summary>
+    /// The irregularity stays modest. Beyond about ten percent it starts pushing authored road
+    /// endpoints and shoreline sites into the water, which is a much worse failure than a
+    /// slightly regular coastline.
+    /// </summary>
+    [Test]
+    public void CoastIrregularity_StaysWithinItsAuthoredBand()
+    {
+        foreach (var land in WorldLayout.Landmasses)
+        {
+            for (int step = 0; step < 64; step++)
+            {
+                float wobble = WorldLayout.CoastWobble(step / 64f * Mathf.PI * 2f, land.TerrainSeed);
+                Assert.That(wobble, Is.InRange(0.9f, 1.1f),
+                    $"'{land.Name}' coast deviates {wobble:0.000}x from its ellipse.");
+            }
+        }
+    }
+
+    /// <summary>A point on the coast at a given bearing, scaled in or out from it.</summary>
+    private static Vector3 CoastPoint(WorldLayout.Landmass land, float bearing, float scale = 1f)
+    {
+        var radii = WorldLayout.GetCoastRadii(land);
+        float reach = WorldLayout.CoastWobble(bearing, land.TerrainSeed) * scale;
+        return land.Center + new Vector3(
+            Mathf.Cos(bearing) * radii.x * reach, 0f,
+            Mathf.Sin(bearing) * radii.y * reach);
     }
 
     [Test]
@@ -324,9 +371,9 @@ public class WorldLayoutTests
     {
         foreach (var land in WorldLayout.Landmasses)
         {
-            var radii = WorldLayout.GetCoastRadii(land);
-            var justInside = land.Center + new Vector3(radii.x * 0.999f, 0f, 0f);
-            var outerCoast = land.Center + new Vector3(radii.x, 0f, 0f);
+            // Measured against the real coast curve, not the underlying ellipse.
+            var justInside = CoastPoint(land, 0f, 0.999f);
+            var outerCoast = CoastPoint(land, 0f);
 
             Assert.Greater(
                 TerrainHeightSampler.Sample(justInside.x, justInside.z, land),
