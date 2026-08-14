@@ -116,11 +116,19 @@ public static class CapitalRegion
     };
 
     /// <summary>
-    /// Where a new arrival starts: on the quay, because Chapter 01 begins with a sea rescue.
-    /// Just inland of the docks, facing the south gate — so the first walk is up off the
-    /// waterfront and into the city, which is the shape of the opening.
+    /// Where a new arrival starts: the south end of the authored market street, looking north
+    /// up it.
+    ///
+    /// This used to be the quay, 250 m south of here. That is the truer opening for the
+    /// chapter's sea rescue, and it was a bad place to *begin* — the walk from the docks to
+    /// anything worth looking at crossed a quarter kilometre of blank generated blocks, so the
+    /// first impression of the game was an empty box city. The street has facades with doors
+    /// and windows, market stalls, banners and six people standing in it, and now it is the
+    /// first thing you see.
+    ///
+    /// The docks are still there, still reachable, and still where the story says you landed.
     /// </summary>
-    public static readonly Vector3 PlayerSpawn = new(140f, GroundHeight, -915f);
+    public static readonly Vector3 PlayerSpawn = new(140f, GroundHeight, -700f);
 
     // --- city walls ----------------------------------------------------------
 

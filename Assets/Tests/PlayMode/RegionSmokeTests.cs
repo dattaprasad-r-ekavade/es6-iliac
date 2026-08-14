@@ -71,9 +71,13 @@ public class RegionSmokeTests : SmokeTestFixture
         yield return LoadRegion();
 
         var portals = Object.FindObjectsByType<RegionPortal>(FindObjectsSortMode.None);
-        Assert.AreEqual(
-            CapitalRegion.Anchors.Length, portals.Length,
-            "The generated region does not have one portal per anchor.");
+
+        // Every anchor needs a door; the region is allowed *more* doors than anchors. The
+        // authored market street puts entrances on two of its facades, which is content, not a
+        // fault — this asserted an exact count and so treated adding a door as a regression.
+        Assert.GreaterOrEqual(
+            portals.Length, CapitalRegion.Anchors.Length,
+            "The generated region has fewer doors than it has anchors.");
 
         foreach (var anchor in CapitalRegion.Anchors)
         {

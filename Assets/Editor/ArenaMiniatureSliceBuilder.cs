@@ -59,19 +59,95 @@ public static class ArenaMiniatureSliceBuilder
             BuildStreetProp(root, prop, stone, road, timber, foliage, water);
 
         BuildStreetFigures(root);
+        BuildStreetPickups(root, stone, road, water);
     }
 
+    /// <summary>
+    /// The street's inhabitants — and they talk.
+    ///
+    /// These stood here as silent billboards, which meant the one authored, dense, good-looking
+    /// part of the world was still a place where nothing answered you. They now carry
+    /// <see cref="SpeakingActor"/>, so every one of them can be asked about Ratnapur, the raja,
+    /// the Stambha and jiva stones. That last topic is the one that states the chapter's whole
+    /// moral premise, so a visitor who stops and talks to a spice vendor for thirty seconds
+    /// hears what the game is actually about.
+    ///
+    /// No new writing was needed: those four topics are authored with no actor id, which the
+    /// resolver treats as common knowledge anyone will answer.
+    /// </summary>
     private static void BuildStreetFigures(Transform root)
     {
         var palette = ArtDirection.Active.Palette;
         var tints = new[] { palette.CityStone, palette.Road, palette.Sand, palette.Mountain };
+
         foreach (var spec in ArenaMiniatureSliceLayout.StreetFigures)
         {
             var actor = BillboardActor.Spawn(spec.Id, root.TransformPoint(spec.LocalPosition),
                 tints[Mathf.Abs(spec.PaletteIndex) % tints.Length], spec.Height);
-            actor.transform.root.SetParent(root, true);
+            var holder = actor.transform.root;
+            holder.SetParent(root, true);
+
+            holder.gameObject.AddComponent<SpeakingActor>().Configure(
+                spec.Id,
+                StreetFigureName(spec.Id),
+                "faction.crown",
+                "scene.capital_region",
+                "ratnapur", "jiva stones", "the raja", "the stambha");
         }
     }
+
+    /// <summary>
+    /// Things on the street you can actually take.
+    ///
+    /// A jiva stone on the spice stall is doing real work in a demo: it is the object the whole
+    /// setting runs on, it goes into a working inventory, and it is the reason the shared
+    /// dialogue topic beside it is worth asking about. Until now the world contained no item a
+    /// player could pick up by hand.
+    /// </summary>
+    private static void BuildStreetPickups(Transform root, Material stone, Material road, Material water)
+    {
+        Pickup(root, "pickup.jiva_stone", new Vector3(-13.2f, 1.06f, -47f),
+            new Vector3(0.34f, 0.5f, 0.34f), water,
+            SoulCrystals.LesserId, SoulCrystals.LesserName, "crystal");
+
+        Pickup(root, "pickup.ledger", new Vector3(13.2f, 1.02f, 8f),
+            new Vector3(0.5f, 0.14f, 0.66f), road,
+            "tower_ledger", "Harbour Ledger", "quest");
+
+        Pickup(root, "pickup.lamp", new Vector3(-13.6f, 0.9f, 5f),
+            new Vector3(0.3f, 0.42f, 0.3f), stone,
+            "brass_lamp", "Brass Lamp", "loot");
+    }
+
+    private static void Pickup(Transform root, string name, Vector3 localPosition, Vector3 size,
+        Material material, string itemId, string label, string category)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.SetParent(root, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localScale = size;
+        go.GetComponent<Renderer>().sharedMaterial = material;
+
+        // Interact raycasts against colliders, so the box stays — WorldPickup destroys the
+        // whole object once taken.
+        go.GetComponent<BoxCollider>().isTrigger = false;
+        go.AddComponent<WorldPickup>().Configure(itemId, label, 1, category);
+        WorldTagger.SetLayerRecursive(go, GameLayers.Structure);
+    }
+
+    /// <summary>A readable name for the nameplate. Trades, not characters — the named cast
+    /// belong to the story and are placed by it.</summary>
+    private static string StreetFigureName(string id) => id switch
+    {
+        "figure.spice_vendor" => "Spice Seller",
+        "figure.dock_runner" => "Dock Runner",
+        "figure.cloth_vendor" => "Cloth Seller",
+        "figure.water_bearer" => "Water Bearer",
+        "figure.palace_clerk" => "Palace Clerk",
+        "figure.watchman" => "City Watchman",
+        _ => "Citizen"
+    };
 
     public static void BuildPrisonDungeon(Transform parent)
     {
@@ -149,6 +225,7 @@ public static class ArenaMiniatureSliceBuilder
             new Vector3(width + 0.8f, 0.7f, depth + 0.8f), roof, false, GameLayers.Prop);
 
         BuildDoorAndWindows(holder, width, height, front, timber, stone);
+        BuildFacadeDoorway(holder, spec.Id, front);
 
         if ((spec.Features & ArenaMiniatureSliceLayout.FacadeFeature.Arcade) != 0)
             BuildArcade(holder, width, front, stone);
@@ -158,6 +235,36 @@ public static class ArenaMiniatureSliceBuilder
             BuildBalcony(holder, width, height, front, stone, timber);
         if ((spec.Features & ArenaMiniatureSliceLayout.FacadeFeature.Pavilion) != 0)
             BuildRoofPavilion(holder, width, height, roof, stone);
+    }
+
+    /// <summary>
+    /// Makes two of the street's drawn doors actually open.
+    ///
+    /// The street had eight facades with painted-on doors and no way through any of them, and
+    /// the nearest real entrance was 470 m away across generated blocks. So the one dense,
+    /// authored space in the game was somewhere you could look at but not enter — which is most
+    /// of what "there is nothing to demo" meant.
+    /// </summary>
+    private static void BuildFacadeDoorway(Transform holder, string facadeId, float front)
+    {
+        string scene = facadeId switch
+        {
+            "facade.east.north" => "Order_Hall",
+            "facade.west.market" => "Harbor",
+            _ => null
+        };
+        if (scene == null) return;
+
+        string label = scene == "Order_Hall" ? "Hall of the Siddha Order" : "Merchant Harbour";
+
+        var portal = new GameObject("Portal");
+        portal.transform.SetParent(holder, false);
+        portal.transform.localPosition = new Vector3(0f, 1.6f, front + 1.4f);
+        var trigger = portal.AddComponent<BoxCollider>();
+        trigger.isTrigger = true;
+        trigger.size = new Vector3(4.5f, 3.2f, 2.8f);
+        portal.AddComponent<RegionPortal>()
+            .Configure($"anchor.street.{scene.ToLowerInvariant()}", label, scene, "spawn.entry");
     }
 
     private static void BuildDoorAndWindows(Transform holder, float width, float height,

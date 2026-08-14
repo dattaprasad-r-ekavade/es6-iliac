@@ -114,7 +114,13 @@ public sealed class ArenaMiniatureSliceTests
             {
                 var holder = slice.Find(facade.Id);
                 Assert.IsNotNull(holder, facade.Id);
-                Assert.AreEqual(1, holder.GetComponentsInChildren<Collider>(true).Length,
+                // Solid colliders only. A facade may also carry trigger volumes — the two
+                // street doorways are triggers — and a trigger cannot snag the player, which
+                // is the thing this is actually guarding against.
+                int solid = 0;
+                foreach (var collider in holder.GetComponentsInChildren<Collider>(true))
+                    if (!collider.isTrigger) solid++;
+                Assert.AreEqual(1, solid,
                     $"{facade.Id} should have one body collider, not compound decorative collision.");
             }
 

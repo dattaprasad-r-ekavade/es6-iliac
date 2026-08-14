@@ -16,6 +16,9 @@ public class PlayerInteract : MonoBehaviour
         {
             // Named cast first: a SpeakingActor opens the topic menu, where an
             // NpcInteractable only barks one line.
+            var pickup = hit.collider.GetComponentInParent<WorldPickup>();
+            if (pickup != null) { pickup.Take(); return; }
+
             var speaker = hit.collider.GetComponentInParent<SpeakingActor>();
             if (speaker != null) { speaker.Talk(); return; }
 

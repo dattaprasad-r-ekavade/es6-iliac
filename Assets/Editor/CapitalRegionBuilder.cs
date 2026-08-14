@@ -329,6 +329,10 @@ public static class CapitalRegionBuilder
         var spawn = new GameObject("spawn.region");
         spawn.transform.SetParent(context.transform, false);
         spawn.transform.position = CapitalRegion.PlayerSpawn;
+
+        // Facing north, up the market street. A spawn that drops the player looking at a blank
+        // wall wastes the one authored view the region has.
+        spawn.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
         spawn.AddComponent<SceneSpawnPoint>().Configure("spawn.region");
     }
 
