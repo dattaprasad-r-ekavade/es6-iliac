@@ -126,8 +126,12 @@ public static class PlaythroughCapture
             cam.transform.rotation = Quaternion.Euler(0f, shot.Yaw, 0f);
             cam.fieldOfView = 70f;
             cam.nearClipPlane = 0.1f;
-            cam.farClipPlane = 2000f;
-            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.farClipPlane = 7000f;
+            // Render the skybox when the scene has one, or the capture shows a flat clear
+            // colour and reports "there is no sky" no matter what the sky actually is.
+            cam.clearFlags = RenderSettings.skybox != null
+                ? CameraClearFlags.Skybox
+                : CameraClearFlags.SolidColor;
             cam.backgroundColor = RenderSettings.fogColor;
 
             cam.targetTexture = rt;

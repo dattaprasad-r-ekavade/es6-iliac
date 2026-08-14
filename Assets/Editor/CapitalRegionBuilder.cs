@@ -338,6 +338,12 @@ public static class CapitalRegionBuilder
 
     private static void BuildLighting(Transform root)
     {
+        // The sky was a flat band of fog colour with no horizon — the worst thing in the first
+        // playthrough capture. A baked skybox paints registers instead, and unlike geometry it
+        // is not swallowed by the 340 m fog.
+        var sky = ProceduralSurfaceBaker.BakeSky();
+        if (sky != null) RenderSettings.skybox = sky;
+
         var sunGo = new GameObject("Sun");
         sunGo.transform.SetParent(root, false);
         sunGo.transform.rotation = Quaternion.Euler(42f, 150f, 0f);

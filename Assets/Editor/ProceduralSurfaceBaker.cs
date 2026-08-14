@@ -35,10 +35,62 @@ public static class ProceduralSurfaceBaker
             count++;
         }
 
+        BakeSky();
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log($"[ProceduralSurface] Baked {count} surfaces at {ProceduralSurface.Size}px "
                   + $"for {ArtDirection.Active.Name}.");
+    }
+
+    private const string SkyTexturePath = "Assets/Art/Generated/Textures/T_Sky.png";
+    private const string SkyMaterialPath = "Assets/Art/Generated/Materials/M_Sky.mat";
+
+    /// <summary>
+    /// Bakes the painted sky and returns the skybox material.
+    ///
+    /// A skybox rather than a dome because fog is linear and ends at 340 m — any geometry
+    /// standing in for sky renders as solid fog colour. Baked to an asset because a
+    /// runtime-created material does not survive a scene save, which is the trap that ate the
+    /// billboards once already.
+    /// </summary>
+    public static Material BakeSky()
+    {
+        EnsureFolders();
+
+        File.WriteAllBytes(SkyTexturePath, ProceduralSky.BuildTexture(ArtDirection.Active).EncodeToPNG());
+        AssetDatabase.ImportAsset(SkyTexturePath, ImportAssetOptions.ForceUpdate);
+
+        if (AssetImporter.GetAtPath(SkyTexturePath) is TextureImporter importer)
+        {
+            importer.textureType = TextureImporterType.Default;
+            importer.filterMode = FilterMode.Point;
+            importer.mipmapEnabled = false;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.maxTextureSize = 256;
+            importer.SaveAndReimport();
+        }
+
+        var material = AssetDatabase.LoadAssetAtPath<Material>(SkyMaterialPath);
+        if (material == null)
+        {
+            var shader = Shader.Find("Skybox/Panoramic");
+            if (shader == null)
+            {
+                Debug.LogWarning("[ProceduralSky] Skybox/Panoramic is unavailable; sky not baked.");
+                return null;
+            }
+            material = new Material(shader) { name = "M_Sky" };
+            AssetDatabase.CreateAsset(material, SkyMaterialPath);
+        }
+
+        material.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(SkyTexturePath));
+        if (material.HasProperty("_Mapping")) material.SetFloat("_Mapping", 1f);      // lat-long
+        if (material.HasProperty("_ImageType")) material.SetFloat("_ImageType", 0f);  // 360 degrees
+        if (material.HasProperty("_Exposure")) material.SetFloat("_Exposure", 1f);
+        EditorUtility.SetDirty(material);
+        AssetDatabase.SaveAssets();
+        return material;
     }
 
     /// <summary>The asset-backed material for a surface, baking it first if it is missing.</summary>

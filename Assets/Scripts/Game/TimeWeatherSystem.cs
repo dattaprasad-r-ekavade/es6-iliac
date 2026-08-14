@@ -224,9 +224,14 @@ public class TimeWeatherSystem : MonoBehaviour
         var cam = Camera.main;
         if (cam != null)
         {
-            // Solid colour matched to fog, so the horizon dissolves rather than ending at
-            // a visible skybox seam.
-            cam.clearFlags = CameraClearFlags.SolidColor;
+            // When a painted skybox exists, render it. This used to force SolidColor
+            // unconditionally, on the reasoning that a flat horizon dissolves rather than
+            // ending at a seam — which was true, and also meant the top half of every outdoor
+            // frame was one band of fog colour. There was no sky in the game at all.
+            //
+            // The fallback stays for scenes with no skybox assigned.
+            bool hasSky = RenderSettings.skybox != null;
+            cam.clearFlags = hasSky ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
             cam.backgroundColor = Color.Lerp(fogColor, Color.black, night ? 0.45f : 0f);
         }
 

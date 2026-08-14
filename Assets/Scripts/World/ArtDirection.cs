@@ -58,6 +58,12 @@ public static class ArtDirection
         public float BloomIntensity;
         public float VignetteIntensity;
 
+        // --- sky -----------------------------------------------------------
+        /// <summary>Zenith band. Miniature skies are stacked flat registers, not a ramp.</summary>
+        public Color SkyHigh;
+        /// <summary>Horizon band. Fog is matched to this so distance dissolves into the sky.</summary>
+        public Color SkyLow;
+
         /// <summary>Authored base colours for the world surfaces. See <see cref="Palette"/>.</summary>
         public Palette Palette;
     }
@@ -117,6 +123,8 @@ public static class ArtDirection
         ColorFilter = new Color(1.00f, 0.98f, 0.93f),
         BloomIntensity = 0.10f,
         VignetteIntensity = 0.26f,
+        SkyHigh = new Color(0.46f, 0.50f, 0.53f),
+        SkyLow = new Color(0.60f, 0.62f, 0.58f),
         Palette = new Palette
         {
             Ocean     = new Color(0.20f, 0.29f, 0.32f),
@@ -149,6 +157,8 @@ public static class ArtDirection
         ColorFilter = new Color(0.96f, 0.97f, 1.00f),
         BloomIntensity = 0f,
         VignetteIntensity = 0.38f,
+        SkyHigh = new Color(0.34f, 0.40f, 0.46f),
+        SkyLow = new Color(0.48f, 0.52f, 0.54f),
         Palette = new Palette
         {
             Ocean     = new Color(0.16f, 0.24f, 0.29f),
@@ -207,6 +217,10 @@ public static class ArtDirection
         BloomIntensity = 0f,                            // flat pigment does not bloom
         VignetteIntensity = 0.08f,                      // a border, not a darkened lens
 
+        // Lapis overhead falling to a gilded horizon — the register the figures stand against.
+        SkyHigh = new Color(0.26f, 0.45f, 0.72f),
+        SkyLow = new Color(0.85f, 0.78f, 0.56f),
+
         Palette = new Palette
         {
             Ocean     = new Color(0.16f, 0.30f, 0.55f),  // indigo
@@ -259,7 +273,9 @@ public static class ArtDirection
         // The default procedural sky is the single biggest reason the build reads as an
         // engine project: a bright blue gradient behind a muted world. A flat sky in the
         // fog colour makes the horizon dissolve instead, which is what sells the distance.
-        RenderSettings.skybox = null;
+        // Deliberately does *not* clear RenderSettings.skybox any more. Nulling it is what left
+        // the top half of every outdoor frame as one flat band of fog colour; the painted
+        // skybox baked by ProceduralSurfaceBaker is the horizon this look needs.
         RenderSettings.fog = true;
 
         // A contoured look wants a hard horizon, not a dissolved one. Exponential fog reads as
@@ -277,6 +293,6 @@ public static class ArtDirection
             RenderSettings.fogMode = FogMode.ExponentialSquared;
         }
 
-        RenderSettings.fogColor = Grade(RenderSettings.fogColor, preset);
+        RenderSettings.fogColor = preset.SkyLow;
     }
 }
