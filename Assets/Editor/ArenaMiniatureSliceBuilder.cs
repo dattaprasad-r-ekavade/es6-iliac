@@ -34,6 +34,13 @@ public static class ArenaMiniatureSliceBuilder
         Material foliage = Mat(ProceduralSurface.Kind.Foliage);
         Material water = Mat(ProceduralSurface.Kind.Water);
 
+        // A paved apron under the whole corridor. The facades stand in four blocks with gaps
+        // between them, and through those gaps you could see the region's temperate ground —
+        // strips of grass running down the middle of a city, plainly visible in the capture.
+        Block(root, "Street_Apron", new Vector3(0f, 0.01f, 0f),
+            new Vector3(44f, 0.04f, ArenaMiniatureSliceLayout.StreetLength + 24f),
+            stone, false, GameLayers.Ground);
+
         // The underlying region ground owns collision. These thin painted registers sit just
         // above it, so the street has no invisible curb or duplicate collision plane.
         Block(root, "Road_PaintedRegister", new Vector3(0f, 0.025f, 0f),
@@ -47,8 +54,8 @@ public static class ArenaMiniatureSliceBuilder
         foreach (float side in new[] { -1f, 1f })
         {
             Block(root, side < 0f ? "Walkway_West" : "Walkway_East",
-                new Vector3(side * 11.5f, 0.11f, 0f),
-                new Vector3(5f, 0.22f, ArenaMiniatureSliceLayout.StreetLength),
+                new Vector3(side * 4.9f, 0.11f, 0f),
+                new Vector3(2.6f, 0.22f, ArenaMiniatureSliceLayout.StreetLength),
                 stone, true, GameLayers.Ground);
         }
 
@@ -106,15 +113,15 @@ public static class ArenaMiniatureSliceBuilder
     /// </summary>
     private static void BuildStreetPickups(Transform root, Material stone, Material road, Material water)
     {
-        Pickup(root, "pickup.jiva_stone", new Vector3(-13.2f, 1.06f, -47f),
+        Pickup(root, "pickup.jiva_stone", new Vector3(-5.0f, 1.06f, -47f),
             new Vector3(0.34f, 0.5f, 0.34f), water,
             SoulCrystals.LesserId, SoulCrystals.LesserName, "crystal");
 
-        Pickup(root, "pickup.ledger", new Vector3(13.2f, 1.02f, 8f),
+        Pickup(root, "pickup.ledger", new Vector3(5.0f, 1.02f, 8f),
             new Vector3(0.5f, 0.14f, 0.66f), road,
             "tower_ledger", "Harbour Ledger", "quest");
 
-        Pickup(root, "pickup.lamp", new Vector3(-13.6f, 0.9f, 5f),
+        Pickup(root, "pickup.lamp", new Vector3(-5.2f, 0.9f, 5f),
             new Vector3(0.3f, 0.42f, 0.3f), stone,
             "brass_lamp", "Brass Lamp", "loot");
     }

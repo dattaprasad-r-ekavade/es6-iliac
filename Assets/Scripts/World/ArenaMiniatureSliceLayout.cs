@@ -18,8 +18,21 @@ public static class ArenaMiniatureSliceLayout
     public static readonly Vector3 StreetOrigin = new(140f, CapitalRegion.GroundHeight, -610f);
 
     public const float StreetLength = 196f;
-    public const float StreetClearHalfWidth = 8f;
-    public const float StreetReservedHalfWidth = 46f;
+
+    /// <summary>
+    /// Half the carriageway. Facade fronts sit at 6 m, so the street is **12 m** wall to wall.
+    ///
+    /// It was 32 m, which is a boulevard — the first playthrough capture showed a runway with
+    /// buildings distantly either side, and it is the main reason the city read as empty. For
+    /// reference a whole Daggerfall city block, containing several buildings and the alleys
+    /// between them, is 102.4 m square; ours was spending a third of that on one street.
+    /// Against 12–19 m facades this now gives roughly a 1:1 canyon, which is what makes a
+    /// street feel like a street.
+    /// </summary>
+    public const float StreetClearHalfWidth = 3.5f;
+
+    /// <summary>How much region the street keeps clear of generic city blocks.</summary>
+    public const float StreetReservedHalfWidth = 40f;
 
     [Flags]
     public enum FacadeFeature
@@ -82,33 +95,33 @@ public static class ArenaMiniatureSliceLayout
     // The differing roofs and projections give the street a readable, non-random silhouette.
     private static readonly FacadeSpec[] AuthoredFacades =
     {
-        new("facade.west.south", new Vector3(-31f, 0f, -72f), new Vector3(38f, 12f, 30f),
+        new("facade.west.south", new Vector3(-21f, 0f, -72f), new Vector3(38f, 12f, 30f),
             90f, FacadeFeature.Arcade | FacadeFeature.Awning),
-        new("facade.east.south", new Vector3(31f, 0f, -72f), new Vector3(38f, 16f, 30f),
+        new("facade.east.south", new Vector3(21f, 0f, -72f), new Vector3(38f, 16f, 30f),
             270f, FacadeFeature.Balcony),
-        new("facade.west.market", new Vector3(-31f, 0f, -24f), new Vector3(38f, 17f, 30f),
+        new("facade.west.market", new Vector3(-21f, 0f, -24f), new Vector3(38f, 17f, 30f),
             90f, FacadeFeature.Balcony | FacadeFeature.Pavilion),
-        new("facade.east.market", new Vector3(31f, 0f, -24f), new Vector3(38f, 13f, 30f),
+        new("facade.east.market", new Vector3(21f, 0f, -24f), new Vector3(38f, 13f, 30f),
             270f, FacadeFeature.Arcade | FacadeFeature.Awning),
-        new("facade.west.north", new Vector3(-31f, 0f, 24f), new Vector3(38f, 14f, 30f),
+        new("facade.west.north", new Vector3(-21f, 0f, 24f), new Vector3(38f, 14f, 30f),
             90f, FacadeFeature.Arcade),
-        new("facade.east.north", new Vector3(31f, 0f, 24f), new Vector3(38f, 18f, 30f),
+        new("facade.east.north", new Vector3(21f, 0f, 24f), new Vector3(38f, 18f, 30f),
             270f, FacadeFeature.Balcony | FacadeFeature.Pavilion),
-        new("facade.west.gate", new Vector3(-31f, 0f, 72f), new Vector3(38f, 19f, 30f),
+        new("facade.west.gate", new Vector3(-21f, 0f, 72f), new Vector3(38f, 19f, 30f),
             90f, FacadeFeature.Balcony | FacadeFeature.Pavilion),
-        new("facade.east.gate", new Vector3(31f, 0f, 72f), new Vector3(38f, 15f, 30f),
+        new("facade.east.gate", new Vector3(21f, 0f, 72f), new Vector3(38f, 15f, 30f),
             270f, FacadeFeature.Arcade | FacadeFeature.Awning)
     };
 
     private static readonly StreetPropSpec[] AuthoredStreetProps =
     {
-        new("prop.stall.spice", StreetPropKind.MarketStall, new Vector3(-13.5f, 0f, -47f), 90f),
-        new("prop.stall.cloth", StreetPropKind.MarketStall, new Vector3(13.5f, 0f, 8f), 270f),
-        new("prop.banner.west", StreetPropKind.Banner, new Vector3(-14.5f, 0f, 43f), 90f),
-        new("prop.banner.east", StreetPropKind.Banner, new Vector3(14.5f, 0f, -22f), 270f),
-        new("prop.tree.west", StreetPropKind.ShadeTree, new Vector3(-14f, 0f, 73f)),
-        new("prop.tree.east", StreetPropKind.ShadeTree, new Vector3(14f, 0f, -72f)),
-        new("prop.basin", StreetPropKind.WaterBasin, new Vector3(-14f, 0f, 5f)),
+        new("prop.stall.spice", StreetPropKind.MarketStall, new Vector3(-5.0f, 0f, -47f), 90f),
+        new("prop.stall.cloth", StreetPropKind.MarketStall, new Vector3(5.0f, 0f, 8f), 270f),
+        new("prop.banner.west", StreetPropKind.Banner, new Vector3(-5.4f, 0f, 43f), 90f),
+        new("prop.banner.east", StreetPropKind.Banner, new Vector3(5.4f, 0f, -22f), 270f),
+        new("prop.tree.west", StreetPropKind.ShadeTree, new Vector3(-5.2f, 0f, 73f)),
+        new("prop.tree.east", StreetPropKind.ShadeTree, new Vector3(5.2f, 0f, -72f)),
+        new("prop.basin", StreetPropKind.WaterBasin, new Vector3(-5.2f, 0f, 5f)),
         new("prop.arch.north", StreetPropKind.CivicArch, new Vector3(0f, 0f, 96f))
     };
 
@@ -136,12 +149,12 @@ public static class ArenaMiniatureSliceLayout
     // adding nobody here recreated the very “empty city” failure the slice exists to answer.
     private static readonly StreetFigureSpec[] AuthoredStreetFigures =
     {
-        new("figure.spice_vendor", new Vector3(-10.5f, 0f, -51f), 1, 1.72f),
-        new("figure.dock_runner", new Vector3(10.4f, 0f, -68f), 2, 1.78f),
-        new("figure.cloth_vendor", new Vector3(10.5f, 0f, 12f), 3, 1.69f),
-        new("figure.water_bearer", new Vector3(-10.2f, 0f, 3f), 0, 1.74f),
-        new("figure.palace_clerk", new Vector3(-10.8f, 0f, 46f), 2, 1.82f),
-        new("figure.watchman", new Vector3(10.8f, 0f, 71f), 1, 1.86f)
+        new("figure.spice_vendor", new Vector3(-4.0f, 0f, -51f), 1, 1.72f),
+        new("figure.dock_runner", new Vector3(4.0f, 0f, -68f), 2, 1.78f),
+        new("figure.cloth_vendor", new Vector3(4.0f, 0f, 12f), 3, 1.69f),
+        new("figure.water_bearer", new Vector3(-3.9f, 0f, 3f), 0, 1.74f),
+        new("figure.palace_clerk", new Vector3(-4.2f, 0f, 46f), 2, 1.82f),
+        new("figure.watchman", new Vector3(4.2f, 0f, 71f), 1, 1.86f)
     };
 
     public static IReadOnlyList<StreetFigureSpec> StreetFigures => AuthoredStreetFigures;
