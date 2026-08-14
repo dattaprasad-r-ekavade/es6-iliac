@@ -138,6 +138,7 @@ public class GameHud : MonoBehaviour
         //
         // Whatever else is broken, the player must always be able to stop playing.
         if (GameInput.Cancel.WasPressedThisFrame()
+            && PauseReachableFrom(mode)
             && mode != GameState.Gameplay
             && !AnyMenuOpen)
         {
@@ -239,6 +240,18 @@ public class GameHud : MonoBehaviour
         if (_pauseRoot != null) _pauseRoot.SetActive(false);
         GameStateService.Ensure().SetState(GameState.Gameplay);
     }
+
+    /// <summary>
+    /// Which game states the pause menu can be opened from. **Every one of them**, and this is
+    /// a rule rather than an accident.
+    ///
+    /// Quitting the program lives inside the pause menu. A state that cannot reach pause is
+    /// therefore a state the player cannot leave the game from — which is what happened when
+    /// the pause key was read below a gate that returned early on Loading, Cinematic and Death.
+    /// The input path consults this, so narrowing it here narrows it there too, and
+    /// <c>PlayabilitySmokeTests</c> will say so.
+    /// </summary>
+    public static bool PauseReachableFrom(GameState state) => true;
 
     private void OpenPause()
     {
