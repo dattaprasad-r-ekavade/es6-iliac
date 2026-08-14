@@ -38,8 +38,38 @@ public class PlayerSafetyGuard : MonoBehaviour
         CheckBounds(elapsed);
     }
 
+    /// <summary>
+    /// The guard only understands the open world: it measures drowning against the bay's
+    /// water level and solid ground against the world generator's terrain.
+    ///
+    /// An authored interior has neither. Its floor sits at y≈0, which is below
+    /// <c>WaterLevel - 1.5</c>, so walking into the docks read as drowning and teleported the
+    /// player out to the overworld spawn — and <see cref="KessilWorldGenerator.HasGroundAt"/>
+    /// finds no generated terrain in there either, so the off-ground rescue fired as well.
+    ///
+    /// Interiors are enclosed, have their own floor and their own exit door. There is nothing
+    /// for this to protect the player from, so it stands down.
+    /// </summary>
+    public static bool PolicesScene(string sceneName)
+    {
+        if (string.IsNullOrWhiteSpace(sceneName)) return true;
+        return GreyThreadSceneCatalog.Find(sceneName) == null;
+    }
+
+    private static bool PolicesCurrentScene()
+    {
+        var transition = SceneTransitionService.Instance;
+        return PolicesScene(transition != null ? transition.ActiveContentSceneName : null);
+    }
+
     private void CheckBounds(float elapsed)
     {
+        if (!PolicesCurrentScene())
+        {
+            _offGroundFor = 0f;
+            return;
+        }
+
         var pos = transform.position;
 
         // Drowned / fell through the world. The old test was `pos.y < 8f`, but terrain

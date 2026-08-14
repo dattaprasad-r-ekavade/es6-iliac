@@ -195,9 +195,15 @@ public static class CapitalRegionBuilder
             holder.rotation = Quaternion.Euler(0f, anchor.FacingDegrees, 0f);
 
             float size = anchor.Footprint;
-            var shell = Block(holder, "Shell",
-                Vector3.up * 9f, new Vector3(size, 18f, size), Palette(1));
-            WorldTagger.SetLayerRecursive(shell, GameLayers.Structure);
+            float height = anchor.Height > 0f ? anchor.Height : 18f;
+
+            if (anchor.IsQuay) BuildQuay(holder, anchor, size, height);
+            else
+            {
+                var shell = Block(holder, "Shell",
+                    Vector3.up * (height * 0.5f), new Vector3(size, height, size), Palette(1));
+                WorldTagger.SetLayerRecursive(shell, GameLayers.Structure);
+            }
 
             // The doorway is a trigger in front of the shell, not a hole in it — the interior
             // is a separate scene, so nothing needs to be modelled through the wall.
@@ -210,6 +216,51 @@ public static class CapitalRegionBuilder
             var link = portal.AddComponent<RegionPortal>();
             link.Configure(anchor.Id, anchor.DisplayName, anchor.SceneName, anchor.SpawnId);
         }
+    }
+
+    /// <summary>
+    /// A working waterfront: a low deck the player walks onto, with piers running out over the
+    /// water and mooring posts along them.
+    ///
+    /// The docks used to be built like every other anchor — one 60 x 18 x 60 m cube — which put
+    /// a tower block on the quayside and, since the player starts here, made the first thing in
+    /// the game a featureless wall. A quay is the opposite shape: low, open and horizontal.
+    /// </summary>
+    private static void BuildQuay(Transform holder, CapitalRegion.Anchor anchor, float size, float height)
+    {
+        var deck = Block(holder, "Deck",
+            Vector3.up * (height * 0.5f), new Vector3(size, height, size * 0.55f), Palette(2));
+        WorldTagger.SetLayerRecursive(deck, GameLayers.Ground);
+
+        // Piers reach out from the seaward face. Walkable, so the harbour is somewhere to go
+        // rather than something to look at.
+        const int pierCount = 3;
+        float pierLength = size * 0.7f;
+        float pierWidth = 6f;
+        for (int i = 0; i < pierCount; i++)
+        {
+            float t = (i + 0.5f) / pierCount - 0.5f;
+            var pier = Block(holder, $"Pier_{i}",
+                new Vector3(t * size * 0.8f, height * 0.5f, -(size * 0.275f + pierLength * 0.5f)),
+                new Vector3(pierWidth, height * 0.8f, pierLength), Palette(2));
+            WorldTagger.SetLayerRecursive(pier, GameLayers.Ground);
+
+            // Mooring posts give the flat deck something to read distance against.
+            for (int p = 0; p < 2; p++)
+            {
+                float pz = -(size * 0.275f + pierLength * (0.35f + 0.45f * p));
+                var post = Block(holder, $"Post_{i}_{p}",
+                    new Vector3(t * size * 0.8f + pierWidth * 0.5f, height + 1.1f, pz),
+                    new Vector3(0.9f, 2.2f, 0.9f), Palette(3));
+                WorldTagger.SetLayerRecursive(post, GameLayers.Structure);
+            }
+        }
+
+        // A single low warehouse behind the deck, so the quay still has a landward edge and the
+        // door has something to sit in.
+        var shed = Block(holder, "Warehouse",
+            new Vector3(0f, height + 4f, size * 0.42f), new Vector3(size * 0.7f, 8f, size * 0.28f), Palette(1));
+        WorldTagger.SetLayerRecursive(shed, GameLayers.Structure);
     }
 
     /// <summary>

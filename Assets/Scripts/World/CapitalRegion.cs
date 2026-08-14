@@ -59,6 +59,20 @@ public static class CapitalRegion
         /// <summary>Facing of the doorway, so the building is placed with its front outward.</summary>
         public float FacingDegrees;
         public float Footprint;
+
+        /// <summary>
+        /// Height of the exterior shell. Every anchor used to be an 18 m cube regardless of
+        /// what it was, which made the docks a tower block on a quayside and gave the skyline
+        /// nothing to navigate by. Silhouette is the only landmark cue this art direction has.
+        /// </summary>
+        public float Height;
+
+        /// <summary>
+        /// A working waterfront: a low deck with piers running out from it, rather than a
+        /// building. Set for the docks and the harbour, which sit on the shore and should read
+        /// as open ground the player walks onto.
+        /// </summary>
+        public bool IsQuay;
     }
 
     /// <summary>
@@ -69,36 +83,36 @@ public static class CapitalRegion
     {
         new() { Id = "anchor.palace", DisplayName = "The Palace", SceneName = "Palace",
                 SpawnId = "spawn.entry", Position = new Vector3(0f, GroundHeight, 300f),
-                FacingDegrees = 180f, Footprint = 90f },
+                FacingDegrees = 180f, Footprint = 90f, Height = 30f },
 
         new() { Id = "anchor.prison", DisplayName = "The Prison", SceneName = "Prison",
                 SpawnId = "spawn.entry", Position = new Vector3(-260f, GroundHeight, 220f),
-                FacingDegrees = 135f, Footprint = 70f },
+                FacingDegrees = 135f, Footprint = 70f, Height = 12f },
 
         new() { Id = "anchor.tower", DisplayName = "The Secured Tower", SceneName = "Secured_Tower",
                 SpawnId = "spawn.entry", Position = new Vector3(-380f, GroundHeight, 180f),
-                FacingDegrees = 90f, Footprint = 40f },
+                FacingDegrees = 90f, Footprint = 40f, Height = 44f },
 
         new() { Id = "anchor.arcanum", DisplayName = "The Siddha Order", SceneName = "Order_Hall",
                 SpawnId = "spawn.entry", Position = new Vector3(300f, GroundHeight, 160f),
-                FacingDegrees = 225f, Footprint = 60f },
+                FacingDegrees = 225f, Footprint = 60f, Height = 22f },
 
         new() { Id = "anchor.guardyard", DisplayName = "The Guard Yard", SceneName = "Tutorial_Warrior",
                 SpawnId = "spawn.entry", Position = new Vector3(-180f, GroundHeight, -180f),
-                FacingDegrees = 45f, Footprint = 55f },
+                FacingDegrees = 45f, Footprint = 55f, Height = 7f },
 
         new() { Id = "anchor.docks", DisplayName = "The Survivor Docks", SceneName = "Docks",
                 SpawnId = "spawn.entry", Position = new Vector3(140f, GroundHeight, -780f),
-                FacingDegrees = 0f, Footprint = 60f },
+                FacingDegrees = 0f, Footprint = 60f, Height = 4f, IsQuay = true },
 
         new() { Id = "anchor.harbor", DisplayName = "The Harbour", SceneName = "Harbor",
                 SpawnId = "spawn.entry", Position = new Vector3(-140f, GroundHeight, -800f),
-                FacingDegrees = 0f, Footprint = 60f },
+                FacingDegrees = 0f, Footprint = 60f, Height = 4f, IsQuay = true },
 
         // Outside the walls, along the coast — the escape surfaces away from the city.
         new() { Id = "anchor.seacave", DisplayName = "The Sea Cave", SceneName = "Sea_Cave",
                 SpawnId = "spawn.escape", Position = new Vector3(-900f, GroundHeight, -700f),
-                FacingDegrees = 315f, Footprint = 45f }
+                FacingDegrees = 315f, Footprint = 45f, Height = 9f }
     };
 
     /// <summary>Where a new arrival starts: the docks, because Chapter 01 begins with a rescue.</summary>

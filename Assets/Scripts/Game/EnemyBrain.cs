@@ -6,7 +6,13 @@ using UnityEngine;
 public class EnemyBrain : MonoBehaviour
 {
     [SerializeField] private float maxHealth = 55f;
-    [SerializeField] private float moveSpeed = 4.2f;
+    /// <summary>
+    /// Must stay above the player's default travel speed (5.25 m/s, see
+    /// <see cref="SimplePlayerController"/>). This was 4.2 when the player walked at 3.5 by
+    /// default; making run the default would silently have made every fight optional, because
+    /// nothing in the world could close the distance any more.
+    /// </summary>
+    [SerializeField] private float moveSpeed = 5.6f;
     [SerializeField] private float aggroRange = 14f;
     [SerializeField] private float attackRange = 2.1f;
     [SerializeField] private float attackDamage = 4f;

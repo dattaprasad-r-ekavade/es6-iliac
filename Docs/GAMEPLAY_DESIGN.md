@@ -27,6 +27,26 @@ survivor—which *is* character creation—and you are summoned to Raja Vikram.
 
 This was arrived at independently. Treat it as evidence the instinct is sound.
 
+
+### Movement speed — revised by playtest 2026-08-14
+
+| | m/s | Crosses the 1.6 km city in |
+|---|---|---|
+| Walk (hold **Shift**) | 3.5 | 7.6 min |
+| **Run — the default** | 5.25 | 5.1 min |
+| Enemy pursuit | 5.6 | — |
+
+The 3.5 m/s figure and the 7–8 minute metric it derives from are unchanged; what changed is
+that the player no longer *travels* at it. Sprint cost nothing and had no downside, so holding
+Shift was strictly correct at every moment — the only thing the default achieved was requiring
+the player to hold a key for four unbroken minutes. Morrowind, Oblivion and Skyrim all default
+to running for the same reason.
+
+Enemy speed went 4.2 → 5.6 in the same change. Left alone, making run the default would have
+silently made every fight optional, because nothing in the world could close the distance any
+more. Outrunning a fight should be a decision, not the resting state of the world.
+
+
 ## The Stambha is the HUD
 
 **The single load-bearing design decision in this document.**

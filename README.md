@@ -29,7 +29,7 @@ the short version loaded automatically by Claude Code.
    directions to your objective — walk there and press **E** at the door.
 
 ## Controls
-WASD · mouse look · **Shift** sprint · Space jump · Esc unlock cursor  
+WASD · mouse look · **Shift** walk (you run by default) · Space jump · Esc unlock cursor  
 **M** map/FT · **J** journal · **I** inventory · **T** wait · **E** talk  
 **LMB/1** melee · **RMB/LAlt** block · **2** cast · **Q** potion · **F5** save · **F9** load
 
