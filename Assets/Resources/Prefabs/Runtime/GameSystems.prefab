@@ -199,6 +199,7 @@ MonoBehaviour:
     OpenedLocks: []
     LootedObjects: []
     SkippedCinematics: []
+    KnownTopics: []
     PlayerChanneled: 0
 --- !u!114 &8161283971359312945
 MonoBehaviour:

@@ -1,63 +1,83 @@
-Here’s a cleaned-up, ready-to-use version of your opening that incorporates everything we’ve locked in.
+# Ratna Bay — Chapter 01 storyline
 
----
+**Adopted setting:** 2026-08-12
+**Plot status:** locked; this is the Chapter 01 plot authority.
 
-### **Kessil Bay – Opening Sequence**
+The names and metaphysics below are canonical. Stable implementation ids may retain older
+internal codenames, but no player-facing copy may do so. The precise rules for lawful and
+black jiva-binding live in [`Docs/JIVA_METAPHYSICS.md`](Docs/JIVA_METAPHYSICS.md).
 
-**1. Opening Cutscene**
-- The player is a passenger on a merchant ship sailing the Kessil Bay.
-- In the distance, the **Everspire** rises from the Isle of Corrath.
-- Several **Ivory Concord warships** are visible on the horizon, watching the island.
-- Without warning, a massive pulse of arcane energy erupts from the Tower. The shockwave hits the ship, tearing it apart. The player is thrown into the water as the vessel sinks.
+## Opening sequence
 
-**2. Rescue & Arrival**
-- The player is pulled from the water by a nearby rescue ship.
-- They are brought to the docks of **Estmere**.
-- While recovering, guards process the survivors. This is where **Character Creation** takes place (name, race, appearance, basic background).
+### 1. Voyage and wreck
 
-**3. Audience with the King**
-- Because Estmere has a strict law against idle people and beggars (“every soul must contribute”), the player is brought before the **King of Estmere**.
-- The King is agitated. His son and heir has been missing for some time after leaving on a ship. He questions the player about whether they saw him.
-- The player has no clear memory of the prince (or only a vague one).
-- Regardless of the answer, the King orders the player to make themselves useful immediately. They are assigned based on declared skills or inclination:
+- The player is a passenger on a merchant ship crossing Ratna Bay.
+- In the distance, the **Stambha** rises from the island of Meru.
+- Several **Dhruva Order warships** watch the island from the horizon.
+- A strange pranic pulse erupts from the Stambha. The merchant ship breaks apart and the
+  player is thrown into the sea.
 
-  - **Warrior path** → Sent to the city guard / army.
-  - **Mage path** → Sent to the Arcanum.
-  - **Commerce / Thief path** → Sent to the docks and merchant navy.
-  - **None / Refuse path** → Thrown into the city prison (designed for speedrunners and players who want the fastest route).
+### 2. Rescue and Ratnapur
 
-**4. Branching Tutorials (all converge on the same reveal)**
+- The player is recovered under blackout by the Raja's own search ship, which has been
+  following the route taken by his missing son's vessel.
+- They wake at the docks of **Ratnapur**, the ship's home port and nearest safe harbour.
+- Survivor registration is the diegetic character-creation sequence.
 
-- **Warrior Path**  
-  Basic combat training and a short hunt/patrol. During the mission the player finds a wounded prisoner who was being transported in secret. The prisoner is the prince.
+### 3. Audience with Raja Vikram
 
-- **Mage Path**  
-  Basic spell training. The player is ordered to deliver soul crystals to a restricted section of the prison. An accident opens a sealed cell, revealing the prince.
+- Ratnapur enforces the edict “every soul must contribute.” Because the castaway may also be
+  a witness from the Yuvraj's route, the Registrar summons them before **Raja Vikram**.
+- Vikram is agitated. His son and heir, **Yuvraj Arun**, disappeared after leaving by ship.
+  He questions the player about what they remember.
+- Regardless of the answer, Vikram orders the player to make themselves useful immediately.
+  Their declared inclination assigns one of four routes:
+  - **Warrior** → the city guard under **Senapati Karan**.
+  - **Mage** → the **Siddha Order** under **Acharya Meera**.
+  - **Commerce / Thief** → the docks under **Harbourmaster Vasu**.
+  - **Refuse / None** → imprisonment under the city's idle-person edict.
 
-- **Commerce / Thief Path**  
-  The player is taught basic sailing, lockpicking, pickpocketing, and sneaking by the dock crew. They are later sent to retrieve something from a secured tower connected to the prison and end up discovering the prince.
+## Four routes to the same discovery
 
-- **None Path (Speedrunner / Easy route)**  
-  The player is locked in the general prison population. Other prisoners lore-dump the key information: the king has been secretly harvesting souls from prisoners for black soul crystals, and his own son was locked away when he tried to stop it. The player eventually reaches the solitary cell and finds the prince.
+- **Warrior route:** movement and combat training, then a patrol or hunt. The player finds a
+  wounded prisoner being moved secretly beneath the city and follows the transport to Arun.
+- **Mage route:** basic spell training and the cost of prana. The player delivers jiva stones
+  to a restricted prison wing; an accident opens a sealed cell and reveals Arun.
+- **Commerce / Thief route:** sailing, sneaking, lockpicking and pickpocketing. A secured-tower
+  ledger leads through a hidden connection into the prison and to Arun.
+- **Refuse route:** the player enters general population. **Hari** and **Lekha** reveal that
+  Vikram has been stealing whole jivas from prisoners to create **black jiva**, and that Arun
+  was imprisoned for trying to stop it. This is deliberately the fastest route.
 
-**5. The Prince’s Reveal**
-- The prince explains that he had left Estmere on a quiet quest to find a better alternative to the city’s dependence on the soul-crystal trade.
-- His father saw this as a direct threat to both the kingdom’s wealth and his own power. When the prince’s ship was intercepted, the king had him imprisoned and declared missing so he could continue the soul-binding operation unchallenged.
-- The energy burst from the Everspire is mentioned only in passing by the prince as something unnatural that the Ivory Concord seemed very interested in — planting the seed that the Tower is far more important than it first appears.
+## The Yuvraj, the escape and the title moment
 
-**6. Escape & Confrontation**
-- The player and the prince escape the prison.
-- With the prince’s testimony and evidence of the soul-crystal operation, they confront the King.
-- The King is dethroned (imprisoned or killed, depending on player choice or fixed outcome).
+- Arun explains that he left Ratnapur seeking an alternative to the city's dependence on the
+  jiva-stone trade. His proposal could reduce demand and buy time, but it could not replace
+  the city's supply overnight.
+- Vikram saw the plan as a threat to Ratnapur's survival and to his rule. He intercepted
+  Arun's ship, imprisoned him, and publicly continued the search as political theatre.
+- Arun mentions the Stambha pulse and the Dhruva Order only in passing. Chapter 01 does not
+  reveal what the pillar is.
+- The player and Arun secure evidence of the black-jiva operation and escape through a sea
+  cave. Emerging into the open world triggers the title card exactly once.
 
-**7. New Status Quo**
-- The prince takes the throne (or a close legitimate heir if you prefer the prince remains a key ally instead of the new king).
-- The soul-binding of prisoners is immediately outlawed.
-- In recognition of the player’s role, they are granted a short official title suitable for subtitles and dubbing (examples: **Royal Agent**, **King’s Envoy**, or **Warden of Estmere**).
-- The new ruler explains that the change in power will not be considered fully legitimate until it is recognized by the other major rulers of Halbrand.
+## Confrontation and consequence
 
-**8. Transition to the Wider Game**
-- The player is asked to travel to **Caldemar** as the first step in securing approval from the **Crown Council**.
-- As the player leaves Estmere, a final shot or line of dialogue reminds them of the strange energy that erupted from **the Everspire**, making it clear the Tower will be central to the main story.
+- With Arun's testimony and the evidence, the player returns to the palace. Karan and court
+  witnesses make the confrontation institutionally credible rather than a two-person coup.
+- Vikram argues **āpad-dharma**: lawful supply had failed, Ratnapur's food, defence and trade
+  depended on prana, and Arun's reforms needed years the city did not have. He does not repent.
+- The player chooses whether Vikram is imprisoned or killed.
+- Arun is crowned Raja. Prisoner jiva-binding is outlawed and the prisoners are released.
+  Lawful dāna stones remain legal; the wider question of whether *any* prana use is just is
+  deliberately unresolved.
+- The player is named **Rajdoot**: a neutral outsider, wreck witness and carrier of evidence
+  whom Ratnapur's factions cannot easily claim as their own.
 
-the Opening scene is walking out of cave moment with title crawl
+## Handoff to the wider story
+
+- Arun explains that the change of rule will not be considered legitimate until the other
+  rulers of Uttara recognise it through the **Sabha**.
+- The player travels to **Sabhapur** to seek that recognition and meets **Mantri Devan**.
+- A final image or line recalls the strange pulse from the **Stambha**, making clear that the
+  pillar will stand at the centre of the wider story.

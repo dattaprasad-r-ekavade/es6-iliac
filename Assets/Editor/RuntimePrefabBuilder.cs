@@ -142,14 +142,14 @@ public static class RuntimePrefabBuilder
 
     private static void CreateQuestAssets()
     {
-        CreateQuest("main_bay", "Winds of the Kessil",
-            "Learn the lay of the bay. Discover Estmere or Qadris, then return to Caldemar's gate.",
-            "Discover Estmere or Qadris", 0, null, "city_east");
-        CreateQuest("bounty_bandits", "Kelrith Bounty",
-            "Bandits prey on the southern road from Caldemar. Clear their camp.",
+        CreateQuest("main_bay", "Winds of Ratna Bay",
+            "Learn the lay of the bay. Discover Ratnapur or Marukot, then return to Sabhapur's gate.",
+            "Discover Ratnapur or Marukot", 0, null, "city_east");
+        CreateQuest("bounty_bandits", "Vela Bounty",
+            "Bandits prey on the southern road from Sabhapur. Clear their camp.",
             "Slay bandits (0/3)", 3, "Bandit", null);
         CreateQuest("ruin_scout", "Coastal Ruin",
-            "Scout the ruin south of Caldemar and survive whatever lurks there.",
+            "Scout the ruin south of Sabhapur and survive whatever lurks there.",
             "Discover Coastal Ruin", 0, null, "coastal_ruin");
     }
 
@@ -197,6 +197,20 @@ public static class RuntimePrefabBuilder
 
     private static void CreateDialogueAssets()
     {
+        // These were superseded by the adopted Ratna Bay setting. Keeping them under
+        // Resources makes both vocabularies load and creates duplicate resolver signatures.
+        string[] retired =
+        {
+            "topic_ashgrove_sailing", "topic_ashgrove_tower", "topic_black_crystals",
+            "topic_black_crystals_rumor", "topic_estmere", "topic_everspire",
+            "topic_falk_count", "topic_guard_law", "topic_guard_memory",
+            "topic_quill_casting", "topic_quill_progress", "topic_reed_operation",
+            "topic_soul_crystals", "topic_the_king", "topic_thorne_blade",
+            "topic_thorne_transport"
+        };
+        foreach (string id in retired)
+            AssetDatabase.DeleteAsset($"Assets/Resources/Data/Dialogue/{id}.asset");
+
         CreateDialogue("topic_black_jiva", "black jiva",
             "Black jiva are not cut from any seam. Their manifests point to living prisoners.",
             null, null, new DialogueCondition { Key = "evidence_count", Operator = "min", Value = "3" });
@@ -218,7 +232,7 @@ public static class RuntimePrefabBuilder
         // argument collapses into an abolition story. The Indic frame gives the distinction its
         // real name: dana, freely given, against steya, taken. The trade is not the crime.
         CreateDialogue("topic_jiva_stones", "jiva stones",
-            "A stone holds a jiva, and a jiva holds the light. Most are given at a natural death, or bought from the beast-drovers. That is dana - freely given - and it has fed this city for two hundred years.",
+            "A lawful dana stone takes only the pranic imprint released at a natural death; the jiva moves on. Beast-drovers gather naturally shed charge. It has fed this city for two hundred years.",
             null, null);
         CreateDialogue("topic_the_raja", "the raja",
             "Raja Vikram, of House Surya. His line has held Ratnapur longer than the walls have. He has not been himself since the heir went missing.",
@@ -243,7 +257,7 @@ public static class RuntimePrefabBuilder
             "role.instructor_warrior", null);
 
         CreateDialogue("topic_mage_casting", "casting",
-            "Prana is drawn, not conjured. Spend a stone and you have spent something that was alive. The Order has learned to say that quickly.",
+            "Prana is drawn, not conjured. Spend a stone and you have spent charge left by life. No draw is free, though the Order has learned to say that quickly.",
             "role.instructor_mage", null);
         CreateDialogue("topic_mage_progress", "the order",
             "Four new workings this year alone. We do more with one stone than my teachers dreamed - and we get through rather more of them doing it.",
@@ -301,19 +315,19 @@ public static class RuntimePrefabBuilder
         {
             CreateNpc("mira_provisioner", "Mira the Provisioner", "character-female-b", "city_west",
                 new Vector3(15f, 0f, 10f), new Color(0.35f, 0.45f, 0.7f),
-                new[] { "Potions and rumors, traveler.", "Estmere lies far east across the hills." }, true, false),
-            CreateNpc("ralen_gate_guard", "Gate Guard Ralen", "character-male-e", "city_west",
+                new[] { "Potions and rumours, traveller.", "Ratnapur lies far east across the hills." }, true, false),
+            CreateNpc("ralen_gate_guard", "Gate Guard Ratan", "character-male-e", "city_west",
                 new Vector3(-10f, 0f, 25f), new Color(0.4f, 0.4f, 0.45f),
                 new[] { "Keep your blade sheathed in the city.", "Bandits haunt the southern road." }, false, false),
             CreateNpc("alid_captain", "Captain Alid", "character-male-c", "city_west",
                 new Vector3(10f, 0f, -15f), new Color(0.55f, 0.4f, 0.25f),
-                new[] { "Clear the Kelrith bandits.", "The bay remembers those who wander it." }, false, true),
-            CreateNpc("estmere_dockhand", "Estmere Dockhand", "character-male-b", "city_east",
+                new[] { "Clear the Vela bandits.", "The bay remembers those who wander it." }, false, true),
+            CreateNpc("estmere_dockhand", "Ratnapur Dockhand", "character-male-b", "city_east",
                 new Vector3(-20f, 0f, 10f), new Color(0.3f, 0.5f, 0.4f),
-                new[] { "Welcome to Estmere, jewel of the Esk." }, false, false),
-            CreateNpc("qadris_scout", "Qadris Scout", "character-female-d", "city_south",
+                new[] { "Welcome to Ratnapur, jewel-port of the Nira." }, false, false),
+            CreateNpc("qadris_scout", "Marukot Scout", "character-female-d", "city_south",
                 new Vector3(20f, 0f, -10f), new Color(0.7f, 0.55f, 0.3f),
-                new[] { "Hot wind and hotter steel — this is Qadris." }, false, false)
+                new[] { "Hot wind and hotter steel — this is Marukot." }, false, false)
         };
     }
 

@@ -12,6 +12,20 @@ using UnityEngine;
 public class WorldLayoutTests
 {
     [Test]
+    public void GeneratedCityScaleUsesStableIds_NotDisplayNames()
+    {
+        KessilWorldGenerator.GetCityLayout("city_west", out float westRadius, out int westBuildings);
+        KessilWorldGenerator.GetCityLayout("city_east", out float eastRadius, out int eastBuildings);
+        KessilWorldGenerator.GetCityLayout("city_south", out float southRadius, out int southBuildings);
+
+        Assert.AreEqual(220f, westRadius);
+        Assert.AreEqual(105, westBuildings);
+        Assert.AreEqual(200f, eastRadius);
+        Assert.AreEqual(90, eastBuildings);
+        Assert.AreEqual(210f, southRadius);
+        Assert.AreEqual(95, southBuildings);
+    }
+    [Test]
     public void VersionedJsonIsTheRuntimeWorldSource()
     {
         var source = Resources.Load<TextAsset>(WorldLayoutData.ResourcePath);
@@ -184,6 +198,38 @@ public class WorldLayoutTests
                 WorldLayout.MapMaxZ - north,
                 WorldLayout.MapExtentPadding,
                 $"'{land.Name}' lacks north map padding.");
+        }
+    }
+
+    /// <summary>
+    /// Every site must be authored at roughly its own terrain height.
+    ///
+    /// Nothing checked this, and the map redesign of 2026-08-14 shipped three POIs authored
+    /// several metres *below* the ground they stand on — Meru by 6.5 m, Shaka by 6.1 m, the
+    /// coastal ruin by 5 m. Fast travel puts the player at the travel position, so an
+    /// under-authored site drops them inside a hill; an over-authored one drops them from a
+    /// height. Both are invisible in the JSON and in a top-down capture.
+    ///
+    /// The band is deliberately loose. Sites away from a city centre sit on procedural relief,
+    /// so exact agreement is not the goal — catching metres of error is.
+    /// </summary>
+    [Test]
+    public void EverySite_IsAuthoredAtItsOwnTerrainHeight()
+    {
+        foreach (var site in WorldLayout.Sites)
+        {
+            Assert.IsTrue(WorldLayout.TryGetLandmassAt(site.WorldPosition, out var land),
+                $"'{site.Id}' is not over land at all.");
+
+            float ground = TerrainHeightSampler.Sample(
+                site.WorldPosition.x, site.WorldPosition.z, land);
+
+            Assert.GreaterOrEqual(site.WorldPosition.y, ground - 0.1f,
+                $"'{site.Id}' is authored at y={site.WorldPosition.y:0.0} but its terrain is at "
+                + $"{ground:0.0} — it is buried {ground - site.WorldPosition.y:0.0} m underground.");
+            Assert.LessOrEqual(site.WorldPosition.y, ground + 3f,
+                $"'{site.Id}' is authored at y={site.WorldPosition.y:0.0}, {site.WorldPosition.y - ground:0.0} m "
+                + "above its own terrain.");
         }
     }
 

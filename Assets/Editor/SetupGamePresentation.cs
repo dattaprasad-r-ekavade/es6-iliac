@@ -625,7 +625,7 @@ public static class SetupGamePresentation
         var cardImg = menuCard.GetComponent<Image>();
         UiTheme.StylePanel(cardImg, UiTheme.PanelBrown, UiTheme.PanelSoft);
 
-        var title = CreateText(menuCard.transform, "Title", "KESSIL BAY", 58, FontStyle.Normal, TextAnchor.MiddleCenter, display: true);
+        var title = CreateText(menuCard.transform, "Title", "RATNA BAY", 58, FontStyle.Normal, TextAnchor.MiddleCenter, display: true);
         var titleRt = title.rectTransform;
         titleRt.anchorMin = new Vector2(0.08f, 0.74f);
         titleRt.anchorMax = new Vector2(0.92f, 0.91f);
@@ -633,7 +633,7 @@ public static class SetupGamePresentation
         titleRt.offsetMax = Vector2.zero;
         title.color = UiTheme.Silver;
 
-        var sub = CreateText(menuCard.transform, "Subtitle", "HALBRAND · SARRAKH · THE OPEN BAY", 18, FontStyle.Normal, TextAnchor.MiddleCenter);
+        var sub = CreateText(menuCard.transform, "Subtitle", "UTTARA · MARU · THE OPEN BAY", 18, FontStyle.Normal, TextAnchor.MiddleCenter);
         var subRt = sub.rectTransform;
         subRt.anchorMin = new Vector2(0.08f, 0.62f);
         subRt.anchorMax = new Vector2(0.92f, 0.72f);

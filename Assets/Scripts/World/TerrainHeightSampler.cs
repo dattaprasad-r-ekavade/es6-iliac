@@ -191,7 +191,7 @@ public static class TerrainHeightSampler
     {
         return landmass.Biome switch
         {
-            WorldLayout.Biome.Sarrakh => new BiomeProfile(
+            WorldLayout.Biome.Arid => new BiomeProfile(
                 28f, 0.0009f, 0.0036f, 0.01f, 0.0016f,
                 0.36f, 0.30f, 0.12f, 0.18f),
             WorldLayout.Biome.IslandGreen => new BiomeProfile(

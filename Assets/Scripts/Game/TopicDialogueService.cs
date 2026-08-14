@@ -14,16 +14,32 @@ public sealed class TopicDialogueService : MonoBehaviour
         Instance = this;
         if (topics == null || topics.Length == 0)
             topics = Resources.LoadAll<DialogueTopic>("Data/Dialogue");
-        foreach (var topic in topics)
-            if (topic != null && !string.IsNullOrWhiteSpace(topic.Keyword)) _knownTopics.Add(topic.Keyword);
+        // Resources.LoadAll does not promise an order. Stable ordering also makes an
+        // accidental equal-specificity resolver deterministic while authoring catches up.
+        Array.Sort(topics, (a, b) => string.Compare(a?.Id, b?.Id, StringComparison.Ordinal));
     }
 
     private void OnDestroy() { if (Instance == this) Instance = null; }
 
     public IReadOnlyCollection<string> KnownTopics => _knownTopics;
+    public bool KnowsTopic(string keyword) => !string.IsNullOrWhiteSpace(keyword) && _knownTopics.Contains(keyword);
     public void LearnTopic(string keyword)
     {
         if (!string.IsNullOrWhiteSpace(keyword)) _knownTopics.Add(keyword);
+    }
+
+    public List<string> CaptureKnownTopics()
+    {
+        var result = new List<string>(_knownTopics);
+        result.Sort(StringComparer.OrdinalIgnoreCase);
+        return result;
+    }
+
+    public void RestoreKnownTopics(IEnumerable<string> keywords)
+    {
+        _knownTopics.Clear();
+        if (keywords == null) return;
+        foreach (var keyword in keywords) LearnTopic(keyword);
     }
 
     public DialogueTopic Resolve(string keyword, DialogueContext context)
@@ -40,13 +56,20 @@ public sealed class TopicDialogueService : MonoBehaviour
             int specificity = topic.Conditions.Count
                               + (string.IsNullOrEmpty(topic.ActorId) ? 0 : 2)
                               + (string.IsNullOrEmpty(topic.FactionId) ? 0 : 1);
-            if (specificity > bestSpecificity) { best = topic; bestSpecificity = specificity; }
+            if (specificity > bestSpecificity
+                || (specificity == bestSpecificity
+                    && string.Compare(topic.Id, best?.Id, StringComparison.Ordinal) < 0))
+            {
+                best = topic;
+                bestSpecificity = specificity;
+            }
         }
         return best;
     }
 
     public string Respond(string keyword, DialogueContext context)
     {
+        if (!KnowsTopic(keyword)) return null;
         var topic = Resolve(keyword, context);
         if (topic == null) return null;
         LearnTopic(topic.Keyword);

@@ -106,6 +106,10 @@ public class GameFlowSmokeTests : SmokeTestFixture
         Assert.AreEqual(
             4321, PlayerStats.Instance.Gold,
             "Continue reached gameplay but never applied the save.");
+        Assert.AreEqual("B630", StoryDirector.Instance.State.BeatId,
+            "Continue restored the save, then the grey-thread driver restarted it at B010.");
+        Assert.IsFalse(GreyThreadDirector.Instance.IsRunning,
+            "Continue started a second Chapter 01 route over the restored story.");
     }
 
     [UnityTest]
@@ -131,6 +135,26 @@ public class GameFlowSmokeTests : SmokeTestFixture
         Assert.IsNotNull(reloaded, "The scene did not come back after returning to the menu.");
         Assert.IsFalse(reloaded.IsInGameplay, "The reloaded scene came back already in gameplay.");
         Assert.AreEqual(1f, Time.timeScale, "Returning to the menu left the game paused.");
+
+        yield return StartAndSkipIntro(reloaded);
+        Assert.IsTrue(reloaded.IsInGameplay, "A second New Game was blocked by the old systems root.");
+        Assert.AreEqual(1,
+            Object.FindObjectsByType<GameSystemsBootstrap>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length,
+            "A second New Game left duplicate active GameSystems graphs.");
+    }
+
+    [UnityTest]
+    public IEnumerator AReplacementSystemsRootDestroysThePersistentOldCopy()
+    {
+        var oldRoot = Track(new GameObject("GameSystems"));
+        oldRoot.AddComponent<GameSystemsBootstrap>();
+        var replacement = Track(new GameObject("GameSystems"));
+        var replacementBootstrap = replacement.AddComponent<GameSystemsBootstrap>();
+
+        yield return null;
+
+        Assert.IsTrue(oldRoot == null, "The title reload left its previous persistent systems graph alive.");
+        Assert.AreSame(replacementBootstrap, GameSystemsBootstrap.Instance);
     }
 
     // --- helpers -------------------------------------------------------------
@@ -168,7 +192,15 @@ public class GameFlowSmokeTests : SmokeTestFixture
             Health = 100f, MaxHealth = 100f,
             Mana = 80f, MaxMana = 80f,
             Stamina = 100f, MaxStamina = 100f,
-            TimeOfDay01 = 0.4f
+            TimeOfDay01 = 0.4f,
+            SceneId = "Main",
+            Story = new StorySnapshot
+            {
+                Profile = new CharacterProfile { Name = "Saved Castaway", AncestryId = "anc.isleborn" },
+                StageId = "stage.escape",
+                BeatId = "B630",
+                RouteId = "route.trade"
+            }
         };
 
         var spawn = KessilWorldGenerator.GetPlayerSpawn();

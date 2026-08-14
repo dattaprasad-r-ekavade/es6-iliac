@@ -33,9 +33,10 @@ public sealed class StorySystemsSmokeTests : SmokeTestFixture
         for (int i = 0; i < 3; i++)
             story.AddEvidence(new EvidenceRecord { Id = $"ev.test_{i}", Title = "Proof", DocumentBody = "Full text" });
 
-        var response = dialogue.Respond("black crystals", new DialogueContext { Disposition = 50 });
+        dialogue.LearnTopic("black jiva");
+        var response = dialogue.Respond("black jiva", new DialogueContext { Disposition = 50 });
         StringAssert.Contains("living prisoners", response);
-        Assert.IsTrue(story.State.DialogueChoices.Exists(c => c.Id == "topic.topic_black_crystals"));
+        Assert.IsTrue(story.State.DialogueChoices.Exists(c => c.Id == "topic.topic_black_jiva"));
     }
 
     [UnityTest]

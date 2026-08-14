@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-8132604244387861506
+--- !u!114 &-5999453222883586912
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -50,7 +50,7 @@ MonoBehaviour:
   dirtIntensity:
     m_OverrideState: 1
     m_Value: 0
---- !u!114 &-6325191230342976579
+--- !u!114 &-5690473308371440225
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -78,7 +78,7 @@ MonoBehaviour:
   rounded:
     m_OverrideState: 1
     m_Value: 0
---- !u!114 &-4223875721923858440
+--- !u!114 &-353353791449956826
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -119,6 +119,6 @@ MonoBehaviour:
   m_Name: KessilVolume
   m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.VolumeProfile
   components:
-  - {fileID: -4223875721923858440}
-  - {fileID: -6325191230342976579}
-  - {fileID: -8132604244387861506}
+  - {fileID: -353353791449956826}
+  - {fileID: -5690473308371440225}
+  - {fileID: -5999453222883586912}

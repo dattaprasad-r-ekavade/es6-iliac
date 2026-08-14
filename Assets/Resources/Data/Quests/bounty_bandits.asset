@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: bounty_bandits
   m_EditorClassIdentifier: Game.Runtime::QuestDefinition
   id: bounty_bandits
-  title: Kelrith Bounty
-  description: Bandits prey on the southern road from Caldemar. Clear their camp.
+  title: Vela Bounty
+  description: Bandits prey on the southern road from Sabhapur. Clear their camp.
   initialStageText: Slay bandits (0/3)
   targetCount: 3
   targetEnemy: Bandit

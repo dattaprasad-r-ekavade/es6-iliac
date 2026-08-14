@@ -4,7 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Small in-game placeholder for the King's audience. It is deliberately data-light for
+/// Small in-game placeholder for the Raja's audience. It is deliberately data-light for
 /// VS2, but it is a real clickable assignment screen rather than a developer-only hotkey.
 /// </summary>
 public sealed class GreyThreadAssignmentPanel : MonoBehaviour
@@ -52,7 +52,7 @@ public sealed class GreyThreadAssignmentPanel : MonoBehaviour
         rootRect.sizeDelta = new Vector2(760f, 620f);
         _root.GetComponent<Image>().color = UiTheme.Panel;
 
-        MakeText(_root.transform, "Title", "THE KING'S AUDIENCE", 34, TextAnchor.UpperCenter,
+        MakeText(_root.transform, "Title", "THE RAJA'S AUDIENCE", 34, TextAnchor.UpperCenter,
             new Vector2(0.08f, 0.84f), new Vector2(0.92f, 0.96f), UiTheme.WarmAccent);
         MakeText(_root.transform, "Prompt", "Every soul must contribute. State your name and inclination.",
             18, TextAnchor.MiddleCenter, new Vector2(0.08f, 0.73f), new Vector2(0.92f, 0.84f), UiTheme.Silver);
@@ -64,7 +64,7 @@ public sealed class GreyThreadAssignmentPanel : MonoBehaviour
         MakeText(_root.transform, "RouteLabel", "Choose your inclination", 18, TextAnchor.MiddleCenter,
             new Vector2(0.08f, 0.52f), new Vector2(0.92f, 0.60f), UiTheme.MutedSilver);
         MakeButton(_root.transform, "Warrior", "City Guard", "route.warrior", new Vector2(0.12f, 0.38f), new Vector2(0.48f, 0.50f));
-        MakeButton(_root.transform, "Mage", "The Arcanum", "route.mage", new Vector2(0.52f, 0.38f), new Vector2(0.88f, 0.50f));
+        MakeButton(_root.transform, "Mage", "The Siddha Order", "route.mage", new Vector2(0.52f, 0.38f), new Vector2(0.88f, 0.50f));
         MakeButton(_root.transform, "Trade", "Docks / Commerce", "route.trade", new Vector2(0.12f, 0.23f), new Vector2(0.48f, 0.35f));
         MakeButton(_root.transform, "Refuse", "Refuse Assignment", "route.refuse", new Vector2(0.52f, 0.23f), new Vector2(0.88f, 0.35f));
         MakeText(_root.transform, "Hint", "The rough slice uses placeholder training spaces; your choice changes the route.",

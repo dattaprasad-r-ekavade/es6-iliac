@@ -16,7 +16,7 @@ MonoBehaviour:
   keyword: jiva stones
   actorId: 
   factionId: 
-  response: A stone holds a jiva, and a jiva holds the light. Most are given at a
-    natural death, or bought from the beast-drovers. That is dana - freely given
-    - and it has fed this city for two hundred years.
+  response: A lawful dana stone takes only the pranic imprint released at a natural
+    death; the jiva moves on. Beast-drovers gather naturally shed charge. It has
+    fed this city for two hundred years.
   conditions: []

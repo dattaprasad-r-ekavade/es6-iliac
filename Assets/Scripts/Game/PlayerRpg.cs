@@ -36,7 +36,7 @@ public class PlayerStats : MonoBehaviour
     {
         if (Health <= 0f) return;
 
-        // Mana does not regenerate. It is charge drawn from soul crystals — the setting's
+        // Prana does not regenerate. It is charge drawn from jiva stones — the setting's
         // scarcity is not real if the player's own bar refills for free.
 
         // Combat regen used to be zero, which gave 12 swings and then six seconds of standing
@@ -58,8 +58,8 @@ public class PlayerStats : MonoBehaviour
             MaxStamina += 8f;
             Health = MaxHealth;
             Stamina = MaxStamina;
-            // Mana is charge, not a pool: levelling raises the ceiling but does not hand out
-            // free crystals. Refilling here would make every level-up a silent resupply.
+            // Prana is charge, not a pool: levelling raises the ceiling but does not hand out
+            // free stones. Refilling here would make every level-up a silent resupply.
             GameSfx.Instance?.PlayLevelUp();
             GameHud.Instance?.ShowToast($"Level Up! You are now level {Level}");
         }
@@ -105,8 +105,8 @@ public class PlayerStats : MonoBehaviour
     }
 
     /// <summary>
-    /// Spend charge, drawing on a crystal if the reserve is short. Returns false only when
-    /// the player has neither enough charge nor a crystal to burn.
+    /// Spend charge, drawing on a jiva stone if the reserve is short. Returns false only when
+    /// the player has neither enough charge nor a stone to draw.
     /// </summary>
     public bool SpendMana(float amount)
     {
@@ -118,7 +118,7 @@ public class PlayerStats : MonoBehaviour
     }
 
     /// <summary>
-    /// Burn one crystal for charge. Deliberately announced: the player should feel every one
+    /// Draw one jiva stone for charge. Deliberately announced: the player should feel every one
     /// of these, because the whole arc is an argument about what they cost.
     /// </summary>
     public bool TryDrawCrystal()
@@ -151,7 +151,7 @@ public class PlayerStats : MonoBehaviour
     {
         var gameState = GameStateService.Instance;
         gameState?.SetState(GameState.Death);
-        GameHud.Instance?.ShowToast("You were defeated — returned to Caldemar.");
+        GameHud.Instance?.ShowToast("You were defeated — returned to safe ground.");
         if (PlayerRef.TryGet(out var player)) PlayerSafetyGuard.TeleportToSpawn(player);
         else FullRestore();
         gameState?.SetState(GameState.Gameplay);

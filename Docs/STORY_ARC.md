@@ -1,11 +1,11 @@
 # Story arc — original naming (superseded)
 
 > **Superseded 2026-08-12 by [`STORY_ARC_INDIC.md`](STORY_ARC_INDIC.md)**, which is now the
-> authority for names, factions and themes. This file is kept rather than deleted because it
-> still owns things the variant does not restate: the hub-and-spoke chapter structure, the
-> spoke contract, the convergence rules, the reveal gate and the three endings. Where the two
-> disagree on a **name**, the variant wins. Where this file is the only one that says
-> something, it stands.
+> authority for setting, names, factions and themes. This file is kept rather than deleted
+> because it still owns the hub-and-spoke chapter structure, spoke contract, convergence
+> rules, reveal gate and three endings. It no longer owns jiva/prana mechanics:
+> [`JIVA_METAPHYSICS.md`](JIVA_METAPHYSICS.md) overrides every older claim that a lawful
+> stone contains or burns a continuing soul.
 
  — the crystal question
 
@@ -17,12 +17,15 @@
 |---|---|
 | `storyline.md` | Chapter 01's plot, beat for beat |
 | `Docs/CHAPTER01_BEATS.md` | Chapter 01's implementation contract |
-| **This file** | the world premise, the Everspire truth, factions, and Chapters 02+ |
+| **This file** | structural archive: hubs, spokes, convergence, reveal gate and endings |
+| `Docs/STORY_ARC_INDIC.md` | adopted world premise, Stambha truth, factions and Chapters 02+ |
+| `Docs/JIVA_METAPHYSICS.md` | jiva/prana/black-binding rules |
 
-Where they touch, this file supplies the **world facts Chapter 01 must not contradict**;
-`storyline.md` still decides what happens in Chapter 01. Nothing here rewrites it. What it
-does do is tell the Chapter 01 screenplay what it is planting — see “What Chapter 01 must
-plant”, which is the operative section for work happening now.
+This file supplies **structure only**. Its Western display names and older statements about
+souls/crystals are historical design context, not implementable world facts. `storyline.md`
+decides what happens in Chapter 01; `STORY_ARC_INDIC.md` decides what that chapter plants;
+`JIVA_METAPHYSICS.md` decides how every stone and prana draw works. The similarly named
+sections below remain useful only when translated through those two current authorities.
 
 ## The premise
 
@@ -100,8 +103,9 @@ invented to fill your sketch. Replace the proposals freely — the ids are what 
 | `faction.abolition` | **Aldreth** (`city_north`) — *name proposed* | Karnoth Highlands | **full ban**, on moral grounds | none — they are trying to end the trade, not open anything |
 | `faction.concord` | The Ivory Concord — *derived* | foreign | indifferent; they care about the instrument, not the trade | **guardians** — keep it protected and the truth buried |
 
-Aldreth needs one new authored city in a region the naming policy already establishes and
-which currently has no purpose. The name is a placeholder; `city_north` is the stable id.
+This archived draft proposed a new city under the placeholder Aldreth. That production gap
+is now closed: Shantipur exists as `city_north`, with the highland route and baseline city
+generated in the world. The stable id remains authoritative if the display name changes.
 Highland isolation is what makes principled abolition affordable for them and nobody else.
 
 ### The Concord reversal
@@ -324,7 +328,11 @@ B750 currently reads "soul-binding outlawed", which — under this premise — w
 bans the entire crystal trade in his first act. `storyline.md:55` is precise: *"The
 soul-binding **of prisoners** is immediately outlawed."* The beat sheet should match.
 
-## Open questions
+## Historical open questions
+
+> Current answers live in `STORY_ARC_INDIC.md`: Aldreth is Shantipur, and the returned beings
+> are framed through pretas/black-jiva consequences. The numbered wording below is retained as
+> a record of what the superseded Western draft had not yet resolved.
 
 The five questions this document opened on 2026-08-01 are all closed. What replaces them is a
 tier down — none of it blocks the Chapter 01 screenplay, and none of it needs answering until

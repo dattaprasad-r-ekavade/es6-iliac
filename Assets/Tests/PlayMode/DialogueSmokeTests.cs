@@ -127,6 +127,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         meera.Configure("role.instructor_mage", "Meera", "faction.order", "scene.order_hall");
 
         // "the transport" is Karan's alone; Meera has nothing to say about it.
+        TopicDialogueService.Instance.LearnTopic("the transport");
         Assert.IsNotNull(karan.Ask("the transport"), "Karan would not answer his own topic.");
         Assert.IsNull(meera.Ask("the transport"), "Meera answered a topic authored for Karan.");
     }
@@ -139,6 +140,7 @@ public class DialogueSmokeTests : SmokeTestFixture
         var actor = go.AddComponent<SpeakingActor>();
         actor.Configure("role.prisoner_a", "Hari", null, "scene.prison");
 
+        TopicDialogueService.Instance.LearnTopic("ratnapur");
         Assert.IsNotNull(actor.Ask("ratnapur"),
             "A shared topic went unanswered, so common knowledge is not actually common.");
     }
@@ -160,6 +162,48 @@ public class DialogueSmokeTests : SmokeTestFixture
 
         CollectionAssert.Contains(service.KnownTopics.ToArray(), "the law",
             "Asking about something did not add it to what the player knows.");
+    }
+
+    [Test]
+    public void AuthoredTopicsStartUnknown_UntilConversationTeachesThem()
+    {
+        var service = SpawnDialogue();
+        Assert.IsEmpty(service.KnownTopics,
+            "Loading dialogue assets made every subject known before the player spoke to anyone.");
+
+        var go = Track(new GameObject("Volunteer"));
+        var actor = go.AddComponent<SpeakingActor>();
+        actor.Configure("role.processing_guard", "Guard", "faction.crown", "scene.docks", "ratnapur");
+        Assert.IsNull(actor.Ask("ratnapur"),
+            "The player could ask an authored subject before learning its keyword.");
+        actor.Talk();
+
+        CollectionAssert.Contains(service.KnownTopics.ToArray(), "ratnapur");
+    }
+
+    [Test]
+    public void TopicMenuKeepsMoreThanNineSubjects()
+    {
+        SpawnDialogue();
+        var player = SpawnPlayer();
+        var hudGo = Track(new GameObject("Hud_Test"));
+        var hud = hudGo.AddComponent<GameHud>();
+        var existingEventSystem = Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>();
+        hud.Build(player.transform);
+        if (existingEventSystem == null)
+        {
+            var createdEventSystem = Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>();
+            if (createdEventSystem != null) Track(createdEventSystem.gameObject);
+        }
+        var actorGo = Track(new GameObject("Scholar"));
+        var actor = actorGo.AddComponent<SpeakingActor>();
+        actor.Configure("role.instructor_mage", "Meera", "faction.order", "scene.order_hall");
+        var subjects = Enumerable.Range(1, 12).Select(i => $"subject {i}").ToList();
+
+        hud.ShowTopicMenu(actor, subjects);
+
+        Assert.AreEqual(12, hud.OfferedTopics.Count,
+            "The dialogue menu silently discarded subjects after number nine.");
     }
 
     [Test]

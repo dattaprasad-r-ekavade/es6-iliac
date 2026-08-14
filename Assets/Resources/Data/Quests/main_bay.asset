@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: main_bay
   m_EditorClassIdentifier: Game.Runtime::QuestDefinition
   id: main_bay
-  title: Winds of the Kessil
-  description: Learn the lay of the bay. Discover Estmere or Qadris, then return
-    to Caldemar's gate.
-  initialStageText: Discover Estmere or Qadris
+  title: Winds of Ratna Bay
+  description: Learn the lay of the bay. Discover Ratnapur or Marukot, then return
+    to Sabhapur's gate.
+  initialStageText: Discover Ratnapur or Marukot
   targetCount: 0
   targetEnemy: 
   targetLocationId: city_east

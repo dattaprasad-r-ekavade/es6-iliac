@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: qadris_scout
   m_EditorClassIdentifier: Game.Runtime::NpcArchetype
   id: qadris_scout
-  displayName: Qadris Scout
+  displayName: Marukot Scout
   modelId: character-female-d
   anchorSiteId: city_south
   offset: {x: 20, y: 0, z: -10}
   tint: {r: 0.7, g: 0.55, b: 0.3, a: 1}
   lines:
-  - "Hot wind and hotter steel \u2014 this is Qadris."
+  - "Hot wind and hotter steel \u2014 this is Marukot."
   merchant: 0
   questGiver: 0

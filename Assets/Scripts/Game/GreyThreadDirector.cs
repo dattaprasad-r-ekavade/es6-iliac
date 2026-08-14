@@ -46,12 +46,34 @@ public sealed class GreyThreadDirector : MonoBehaviour
     {
         // The director is on the persistent GameSystems prefab. Wait for the real HUD and
         // gameplay handoff before opening the audience panel.
-        while (GameHud.Instance == null || !IsGameplay()) yield return null;
+        while (GameHud.Instance == null || !IsGameplay()
+               || (GameFlowController.Instance != null && GameFlowController.Instance.IsContinuing)
+               || (SaveLoadService.Instance != null && SaveLoadService.Instance.IsLoading))
+            yield return null;
+
+        // A Continue restores the exact scene, position and story snapshot. Starting this
+        // routine again would overwrite all three with B010 and the prologue scene.
+        if (HasRestoredProgress(Story?.State))
+        {
+            _interactiveStarted = true;
+            yield break;
+        }
         if (!_interactiveStarted && !IsRunning)
         {
             _interactiveStarted = true;
             BeginInteractiveRoute();
         }
+    }
+
+    public static bool HasRestoredProgress(StorySnapshot snapshot)
+    {
+        if (snapshot == null) return false;
+        return !string.Equals(snapshot.BeatId, "B010", StringComparison.Ordinal)
+               || !string.Equals(snapshot.StageId, "stage.prologue", StringComparison.Ordinal)
+               || snapshot.Profile?.IsValid == true
+               || !string.IsNullOrWhiteSpace(snapshot.RouteId)
+               || snapshot.Flags?.Count > 0
+               || snapshot.Evidence?.Count > 0;
     }
 
     public void BeginInteractiveRoute()
@@ -85,10 +107,10 @@ public sealed class GreyThreadDirector : MonoBehaviour
 
         yield return Visit("Prologue_Ship", "spawn.entry", "B010", "stage.prologue");
         if (Failed()) yield break;
-        AdvanceBeat("B020", "stage.prologue", "Warships hold the horizon.");
-        AdvanceBeat("B030", "stage.prologue", "The Everspire pulse breaks across the water.");
+        AdvanceBeat("B020", "stage.prologue", "Dhruva Order warships hold the horizon.");
+        AdvanceBeat("B030", "stage.prologue", "The Stambha pulse breaks across the water.");
         AdvanceBeat("B040", "stage.prologue", "The deck breaks. Water. Blackout.");
-        AdvanceBeat("B050", "stage.prologue", "The King's ship pulls you aboard under blackout.");
+        AdvanceBeat("B050", "stage.prologue", "The Raja's search ship pulls you aboard under blackout.");
         Story.SetFlag("flag.rescued");
         SaveCheckpoint();
 
@@ -105,7 +127,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
         yield return Visit("Palace", "spawn.entry", "B090", "stage.assignment");
         if (Failed()) yield break;
         AdvanceBeat("B100", "stage.assignment", "Every soul must contribute.");
-        AdvanceBeat("B110", "stage.assignment", "The King questions the missing prince and the pulse.");
+        AdvanceBeat("B110", "stage.assignment", "Raja Vikram questions the missing Yuvraj and the pulse.");
 
         string route;
         if (interactive)
@@ -122,7 +144,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
         Story.RecordChoice("choice.audience_assignment", route);
         Story.RecordChoice("choice.profile_name", Story.State.Profile.Name);
         AdvanceBeat("B120", "stage.assignment", "Your name and inclination are recorded.");
-        AdvanceBeat("B130", "stage.assignment", "The King assigns your route.");
+        AdvanceBeat("B130", "stage.assignment", "Raja Vikram assigns your route.");
         Story.SetFlag("flag.route", route);
 
         // Assignment grants the route's two skills. route.refuse grants none — the fastest
@@ -144,11 +166,11 @@ public sealed class GreyThreadDirector : MonoBehaviour
             case "route.mage":
                 yield return Visit("Order_Hall", "spawn.entry", "B300", "stage.mage");
                 if (Failed()) yield break;
-                // The Arcanum issues the charge its lesson consumes. B310's manifest is what
+                // The Siddha Order issues the charge its lesson consumes. B310's manifest is what
                 // makes the player look at where that charge came from.
                 IssueGear(SoulCrystals.LesserId, SoulCrystals.LesserName, SoulCrystals.ItemKind, 5);
-                AddEvidence("ev.crystal_manifest", "Crystal Manifest", "The source column names prisoners transferred under royal seal.");
-                AdvanceBeat("B310", "stage.mage", "The soul-crystal delivery exposes an impossible source column.");
+                AddEvidence("ev.crystal_manifest", "Jiva Manifest", "The source column names prisoners transferred under royal seal.");
+                AdvanceBeat("B310", "stage.mage", "The jiva-stone delivery exposes an impossible source column.");
                 break;
             case "route.trade":
                 yield return Visit("Harbor", "spawn.entry", "B400", "stage.trade");
@@ -157,13 +179,13 @@ public sealed class GreyThreadDirector : MonoBehaviour
                 AdvanceBeat("B410", "stage.trade", "Sailing, stealth, locks and pickpocketing are introduced.");
                 yield return Visit("Secured_Tower", "spawn.entry", "B420", "stage.trade");
                 if (Failed()) yield break;
-                AddEvidence("ev.tower_ledger", "Tower Ledger", "A crown ledger ties the prisoner operation to the east tower.");
+                AddEvidence("ev.tower_ledger", "Tower Ledger", "A royal ledger ties the prisoner operation to the east tower.");
                 break;
             default:
                 yield return Visit("Prison", "spawn.entry", "B500", "stage.refuse");
                 if (Failed()) yield break;
                 AddEvidence("ev.prisoner_testimony", "Prisoner Testimony", "A named prisoner confirms the living cargo below the palace.");
-                AdvanceBeat("B510", "stage.refuse", "A prisoner reveals the soul-harvesting operation in motion.");
+                AdvanceBeat("B510", "stage.refuse", "A prisoner reveals the black-jiva operation in motion.");
                 AdvanceBeat("B520", "stage.refuse", "The route to solitary is the deliberate speed path.");
                 break;
         }
@@ -175,20 +197,20 @@ public sealed class GreyThreadDirector : MonoBehaviour
 
         yield return Visit("Prison", "spawn.route", "B320", "stage.convergence");
         if (Failed()) yield break;
-        AdvanceBeat("B600", "stage.convergence", "The prince is located.");
+        AdvanceBeat("B600", "stage.convergence", "Yuvraj Arun is located.");
         Story.SetFlag("flag.prince_located");
-        AdvanceBeat("B610", "stage.convergence", "The prince explains the interception and his father's motive.");
-        AddEvidence("ev.prince_testimony", "Prince's Testimony", "Terrin names the interception, the missing alternative and the King's motive.");
-        AdvanceBeat("B615", "stage.convergence", "The Everspire and Ivory Concord are seeded for later chapters.");
+        AdvanceBeat("B610", "stage.convergence", "Arun explains the interception and Raja Vikram's motive.");
+        AddEvidence("ev.prince_testimony", "Yuvraj's Testimony", "Arun names the interception, the missing alternative and Raja Vikram's motive.");
+        AdvanceBeat("B615", "stage.convergence", "The Stambha and Dhruva Order are seeded for later chapters.");
         SaveCheckpoint();
 
         yield return Visit("Sea_Cave", "spawn.escape", "B620", "stage.escape");
         if (Failed()) yield break;
-        AddEvidence("ev.black_crystal", "Black Crystal", "A resonant shard remembers the voices of the prisoners.");
+        AddEvidence("ev.black_crystal", "Black Jiva", "A resonant shard cages the voices and continuing selves of prisoners.");
         // The evidence room holds what was taken on the way in.
         PlayerEquipment.Instance?.RestoreStashedGear();
         Story.SetCompanion("role.prince", true, "Sea_Cave", "spawn.escape", 100f);
-        AdvanceBeat("B630", "stage.escape", "The prince follows you into the sea cave.");
+        AdvanceBeat("B630", "stage.escape", "Arun follows you into the sea cave.");
         Story.SetFlag("flag.prince_following");
         yield return PlayTitleCrawl();
         if (Failed()) yield break;
@@ -196,20 +218,20 @@ public sealed class GreyThreadDirector : MonoBehaviour
 
         yield return Visit("Palace_Aftermath", "spawn.entry", "B700", "stage.aftermath");
         if (Failed()) yield break;
-        AdvanceBeat("B710", "stage.aftermath", "Evidence is presented; the prince testifies.");
-        AdvanceBeat("B720", "stage.aftermath", "The King gives the legitimate-supply defence.");
+        AdvanceBeat("B710", "stage.aftermath", "Evidence is presented; Yuvraj Arun testifies.");
+        AdvanceBeat("B720", "stage.aftermath", "Raja Vikram invokes apad-dharma and the supply emergency.");
         string outcome = route == "route.refuse" ? "imprisoned" : "killed";
         Story.SetOutcome(outcome, string.Empty, string.Empty);
-        AdvanceBeat("B730", "stage.aftermath", "The King's outcome is decided.");
-        AdvanceBeat("B740", "stage.aftermath", "The prince is crowned.");
+        AdvanceBeat("B730", "stage.aftermath", "Raja Vikram's outcome is decided.");
+        AdvanceBeat("B740", "stage.aftermath", "Arun is crowned Raja.");
         Story.SetOutcome(string.Empty, "role.prince", string.Empty);
         Story.SetFlag("flag.ruler", "prince");
-        AdvanceBeat("B750", "stage.aftermath", "Prisoner soul-binding is outlawed; prisoners are released.");
+        AdvanceBeat("B750", "stage.aftermath", "Prisoner jiva-binding is outlawed; prisoners are released.");
         Story.SetFlag("flag.ban_enacted");
-        AdvanceBeat("B760", "stage.aftermath", "The player is granted the Crown Envoy title.");
+        AdvanceBeat("B760", "stage.aftermath", "The player is granted the Rajdoot title.");
         Story.SetOutcome(string.Empty, string.Empty, "title.crown_envoy");
         Story.SetFlag("flag.title_granted");
-        AdvanceBeat("B800", "stage.aftermath", "The new king asks for Crown Council recognition.");
+        AdvanceBeat("B800", "stage.aftermath", "Raja Arun asks for recognition through the Sabha.");
         Story.RecordChoice("choice.council_mission", "seek_recognition");
         SaveCheckpoint();
 
@@ -217,7 +239,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
         if (Failed()) yield break;
         yield return Visit("Council_Arrival", "spawn.council", "B820", "stage.handoff");
         if (Failed()) yield break;
-        AdvanceBeat("B830", "stage.handoff", "The opening chapter is complete; the Council awaits.");
+        AdvanceBeat("B830", "stage.handoff", "The opening chapter is complete; the Sabha awaits.");
         Story.SetFlag("flag.chapter_complete");
         SaveCheckpoint();
 
@@ -341,7 +363,7 @@ public sealed class GreyThreadDirector : MonoBehaviour
             IsRunning = false;
             yield break;
         }
-        AdvanceBeat("B640", "stage.escape", "KESSIL BAY");
+        AdvanceBeat("B640", "stage.escape", "RATNA BAY");
     }
 
     /// <summary>

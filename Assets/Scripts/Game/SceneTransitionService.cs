@@ -262,11 +262,13 @@ public sealed class SceneTransitionService : MonoBehaviour
 
         while (elapsed < fadeSeconds)
         {
+            if (fadeCanvas == null) yield break;
             elapsed += Time.unscaledDeltaTime;
             fadeCanvas.alpha = Mathf.Lerp(start, target, Mathf.Clamp01(elapsed / fadeSeconds));
             yield return null;
         }
 
+        if (fadeCanvas == null) yield break;
         fadeCanvas.alpha = target;
         fadeCanvas.blocksRaycasts = target > 0.001f;
     }

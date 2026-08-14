@@ -15,7 +15,7 @@ public class NpcInteractable : MonoBehaviour
         if (IsMerchant) line = Trade();
         if (IsQuestGiver)
         {
-            line = "Clear the Kelrith bandits and the road will thank you.";
+            line = "Clear the Vela bandits and the road will thank you.";
             QuestSystem.Instance?.NotifyLocation("bandit_camp");
         }
         GameHud.Instance?.ShowDialogue(NpcName, line);
@@ -28,7 +28,7 @@ public class NpcInteractable : MonoBehaviour
     /// is shortest of. A real shop UI replaces this — but the gold must always change hands
     /// first, because it silently stopped doing so once already (2026-07-26 audit).
     ///
-    /// Crystals are offered only when the player is nearly out, so the merchant does not
+    /// Jiva stones are offered only when the player is nearly out, so the merchant does not
     /// compete with potions while the player is well supplied.
     /// </summary>
     private string Trade()
@@ -43,7 +43,7 @@ public class NpcInteractable : MonoBehaviour
         {
             stats.Gold -= SoulCrystals.LesserBasePrice;
             inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 1, SoulCrystals.ItemKind);
-            return $"A lesser crystal, {SoulCrystals.LesserBasePrice} gold. They came dearer last season.";
+            return $"A lesser jiva stone, {SoulCrystals.LesserBasePrice} gold. They came dearer last season.";
         }
 
         if (stats.Gold >= PotionPrice)

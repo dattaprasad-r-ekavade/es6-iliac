@@ -57,8 +57,17 @@ public static class ProceduralSurfaceBaker
     private static void Bake(ProceduralSurface.Kind surface)
     {
         string texturePath = TexturePath(surface);
-        File.WriteAllBytes(texturePath, ProceduralSurface.Get(surface).EncodeToPNG());
-        AssetDatabase.ImportAsset(texturePath, ImportAssetOptions.ForceUpdate);
+        byte[] encoded = ProceduralSurface.Get(surface).EncodeToPNG();
+        // A second deterministic bake should not touch an identical imported PNG. Apart from
+        // needless churn, Windows can keep a just-imported texture memory-mapped long enough
+        // for an immediate overwrite to fail with ERROR_USER_MAPPED_FILE (1224).
+        bool textureChanged = !File.Exists(texturePath)
+                              || !BytesEqual(File.ReadAllBytes(texturePath), encoded);
+        if (textureChanged)
+        {
+            File.WriteAllBytes(texturePath, encoded);
+            AssetDatabase.ImportAsset(texturePath, ImportAssetOptions.ForceUpdate);
+        }
 
         // The import settings matter as much as the pixels. Compression would blur the texels
         // that the whole direction depends on, and mipmaps would average them back into the
@@ -80,10 +89,19 @@ public static class ProceduralSurfaceBaker
         var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
         if (material == null)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var shader = Shader.Find("Universal Render Pipeline/Unlit")
+                         ?? Shader.Find("Unlit/Texture")
+                         ?? Shader.Find("Universal Render Pipeline/Lit");
             material = new Material(shader) { name = $"M_{surface}" };
             AssetDatabase.CreateAsset(material, materialPath);
         }
+
+        // Existing baked materials may predate the unlit pigment contract. Reassign the
+        // shader on every deterministic bake so a rebuild actually fixes their lighting.
+        var unlit = Shader.Find("Universal Render Pipeline/Unlit")
+                    ?? Shader.Find("Unlit/Texture")
+                    ?? Shader.Find("Universal Render Pipeline/Lit");
+        if (unlit != null && material.shader != unlit) material.shader = unlit;
 
         if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
         else material.mainTexture = texture;
@@ -92,6 +110,15 @@ public static class ProceduralSurfaceBaker
         if (material.HasProperty("_SpecularHighlights")) material.SetFloat("_SpecularHighlights", 0f);
         if (material.HasProperty("_EnvironmentReflections")) material.SetFloat("_EnvironmentReflections", 0f);
         EditorUtility.SetDirty(material);
+    }
+
+    private static bool BytesEqual(byte[] left, byte[] right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left == null || right == null || left.Length != right.Length) return false;
+        for (int i = 0; i < left.Length; i++)
+            if (left[i] != right[i]) return false;
+        return true;
     }
 
     private static string TexturePath(ProceduralSurface.Kind surface) =>

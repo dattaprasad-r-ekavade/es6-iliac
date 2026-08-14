@@ -19,7 +19,7 @@ MonoBehaviour:
   offset: {x: 15, y: 0, z: 10}
   tint: {r: 0.35, g: 0.45, b: 0.7, a: 1}
   lines:
-  - Potions and rumors, traveler.
-  - Estmere lies far east across the hills.
+  - Potions and rumours, traveller.
+  - Ratnapur lies far east across the hills.
   merchant: 1
   questGiver: 0

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Game.Runtime::QuestDefinition
   id: ruin_scout
   title: Coastal Ruin
-  description: Scout the ruin south of Caldemar and survive whatever lurks there.
+  description: Scout the ruin south of Sabhapur and survive whatever lurks there.
   initialStageText: Discover Coastal Ruin
   targetCount: 0
   targetEnemy: 

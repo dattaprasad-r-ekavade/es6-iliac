@@ -15,6 +15,7 @@ using UnityEngine.TestTools;
 public class RegionSmokeTests : SmokeTestFixture
 {
     private const string RegionScene = "Capital_Region";
+    private string _harnessSceneName;
 
     [UnityTearDown]
     public IEnumerator UnloadRegion()
@@ -25,6 +26,18 @@ public class RegionSmokeTests : SmokeTestFixture
         var region = SceneManager.GetSceneByName(RegionScene);
         if (region.IsValid() && region.isLoaded)
             yield return SceneManager.UnloadSceneAsync(region);
+
+        var palace = SceneManager.GetSceneByName("Palace");
+        if (palace.IsValid() && palace.isLoaded)
+            yield return SceneManager.UnloadSceneAsync(palace);
+
+        if (!string.IsNullOrEmpty(_harnessSceneName))
+        {
+            var harness = SceneManager.GetSceneByName(_harnessSceneName);
+            if (harness.IsValid() && harness.isLoaded)
+                yield return SceneManager.UnloadSceneAsync(harness);
+            _harnessSceneName = null;
+        }
 
         RegionReturn.Clear();
     }
@@ -135,5 +148,53 @@ public class RegionSmokeTests : SmokeTestFixture
         Assert.AreEqual(
             CapitalRegion.PlayerSpawn, RegionReturn.ReturnPosition(),
             "A save loaded straight into an interior would have nowhere to exit to.");
+    }
+
+    [Test]
+    public void ReturnPlacementMovesThePlayerOutsideTheRememberedDoor()
+    {
+        RegionReturn.Remember("anchor.prison");
+        var player = Track(new GameObject("ReturnPlayer"));
+
+        RegionReturn.PlacePlayerAtReturn(player.transform);
+
+        Assert.AreEqual(RegionReturn.ReturnPosition(), player.transform.position);
+    }
+
+    [Test]
+    public void CapitalRegionFailuresRespawnInsideTheRegion()
+    {
+        var respawn = PlayerSafetyGuard.RespawnPositionForScene("Capital_Region");
+        Assert.AreEqual(CapitalRegion.PlayerSpawn, respawn);
+        Assert.IsTrue(CapitalRegion.IsOverLand(respawn));
+    }
+
+    [UnityTest]
+    public IEnumerator InteriorExitTransitionPlacesPlayerAtTheRememberedDoor()
+    {
+        _harnessSceneName = "RegionHarness_" + Time.frameCount;
+        var harness = SceneManager.CreateScene(_harnessSceneName);
+        SceneManager.SetActiveScene(harness);
+        var player = SpawnPlayer();
+        SceneManager.MoveGameObjectToScene(player, harness);
+        Track(new GameObject("GameState_Region"))
+            .AddComponent<GameStateService>().SetState(GameState.Gameplay);
+        var service = Track(new GameObject("Transition_Region")).AddComponent<SceneTransitionService>();
+        service.Configure(0f, player.transform, persistentScene: _harnessSceneName);
+
+        yield return service.TransitionTo("Palace", "spawn.entry");
+        Assert.AreEqual("Palace", service.ActiveContentSceneName);
+        RegionReturn.Remember("anchor.palace");
+        var exit = Track(new GameObject("InteriorExit_Test")).AddComponent<InteriorExit>();
+        Assert.IsTrue(exit.Leave());
+
+        float deadline = Time.realtimeSinceStartup + 10f;
+        while ((service.ActiveContentSceneName != RegionScene || service.IsTransitioning)
+               && Time.realtimeSinceStartup < deadline)
+            yield return null;
+
+        Assert.AreEqual(RegionScene, service.ActiveContentSceneName);
+        Assert.Less(Vector3.Distance(player.transform.position, RegionReturn.ReturnPosition()), 0.01f,
+            "Leaving the palace returned the player to the docks instead of its doorway.");
     }
 }

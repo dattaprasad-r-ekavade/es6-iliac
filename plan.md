@@ -1,20 +1,21 @@
 # Vertical slice plan — `storyline.md`, fully playable
 
-**Audit date:** 2026-08-01 · **Retargeted to the vertical slice:** 2026-07-29
+**Audit date:** 2026-08-12 · **Retargeted to the vertical slice:** 2026-07-29
 
-**Story authority:** `storyline.md` for Chapter 01 · [`Docs/STORY_ARC.md`](Docs/STORY_ARC.md)
-for the world premise and Chapters 02+
+**Story authority:** `storyline.md` for Chapter 01 ·
+[`Docs/STORY_ARC_INDIC.md`](Docs/STORY_ARC_INDIC.md) for the world premise and Chapters 02+ ·
+[`Docs/JIVA_METAPHYSICS.md`](Docs/JIVA_METAPHYSICS.md) for all jiva/prana rules
 
 **Gameplay flow authority:** [`Docs/GAMEPLAY_DESIGN.md`](Docs/GAMEPLAY_DESIGN.md) — navigation,
-dialogue, travel, combat scope and the Everspire-as-HUD decision
+dialogue, travel, combat scope and the Stambha-as-HUD decision
 
 **Picking this up cold?** Start at [`Docs/AGENT_HANDOFF.md`](Docs/AGENT_HANDOFF.md) — verification
 commands, invariants, known traps and the ordered work packets.
 
 **Target:** a vertical slice in which the complete authored opening chapter is playable end
-to end — shipwreck, rescue, character creation, King's audience, all four tutorial routes,
-the prince reveal, prison escape, cave-exit title crawl, confrontation and regime change,
-player title, and the Caldemar / Crown Council handoff. Content-complete, quality-reduced.
+to end — shipwreck, rescue, character creation, Raja's audience, all four tutorial routes,
+the Yuvraj reveal, prison escape, cave-exit title crawl, confrontation and regime change,
+Rajdoot title, and the Sabhapur / Sabha handoff. Content-complete, quality-reduced.
 See “Vertical slice definition” for the cut-lines.
 
 **Expected first-route length:** about 45–70 minutes before polish/playtest adjustment,
@@ -23,9 +24,17 @@ with substantial replay-only content in the other three routes.
 **Studio:** DataTheCodie Studios · **Engine:** Unity 6000.5.3f1, URP 17.5 · **Platform:**
 Windows player
 
-**Current delivery goal:** build the Map Editor MVP now that VS2's complete Chapter 01 grey
-thread is green. VS1's persistent technical spine and the four-route VS2 gate are complete;
-the generic open-world P2 backlog remains parked until the editor can feed authored scenes.
+**Current delivery status (2026-08-12):** the P1 runtime-flow defects, player-facing Ratna Bay
+migration/content guard, one-page jiva contract and deterministic Arena Miniature street /
+dungeon proof are complete. W-11 then delivered the standalone Ratna World Builder MVP with
+one-button Unity preview and 14/14 Python tests. Shantipur's baseline highland city and road are
+also present. The next world milestone is the full W-12 dense Ratnapur region rebuild; free-form
+heightmaps, marker import, a real-controller walkthrough and 45+ FPS acceptance remain open.
+VS1's technical spine and the four-route VS2 grey thread remain green.
+
+> Historical completion notes below may retain old display names when quoting an earlier
+> build or stable internal identifiers. Current player-facing names are Ratna Bay, Uttara,
+> Maru, Ratnapur, Sabhapur, Marukot, Stambha, Dhruva Order, Siddha Order, Sabha and Rajdoot.
 
 ### Plain-English stage names
 
@@ -36,12 +45,13 @@ the generic open-world P2 backlog remains parked until the editor can feed autho
 | VS0 | Finish planning the story and dialogue |
 | VS1 | Build the underlying save, scene, quest and dialogue systems |
 | VS2 | Make the entire story playable in rough grey boxes |
-| **Map Editor MVP** | Build the easy external world-layout editor before detailed environments |
+| **Proof-slice gate** | Repair P1 flows, lock the setting/metaphysics and prove the Arena Miniature look |
+| **Map Editor MVP** | External world-layout editor delivered after the proof-slice gate |
 | VS3 | Replace the rough opening with the real shipwreck, rescue, creator and audience |
 | VS4 | Build the reusable route mechanics: sailing, stealth, locks, pickpocketing and companion AI |
 | VS5 | Build the four actual tutorial routes |
-| VS6 | Build the prince reveal, prison escape and cave title moment |
-| VS7 | Build the confrontation, new ruler and Caldemar handoff |
+| VS6 | Build the Yuvraj reveal, prison escape and cave title moment |
+| VS7 | Build the confrontation, new Raja and Sabhapur handoff |
 | VS8 | Polish, test and package the complete chapter |
 
 Other repeated planning terms:
@@ -49,7 +59,7 @@ Other repeated planning terms:
 - **Technical spine** = invisible foundations shared by every story scene.
 - **Grey thread** = the whole story works from beginning to end, but uses plain rooms,
   placeholder text and simple actors.
-- **Convergence** = all four routes meet when the prince is found.
+- **Convergence** = all four routes meet when Yuvraj Arun is found.
 - **Gate** = the test that must pass before moving to the next stage.
 - **Stable id** = an internal computer label; players and world authors never need to see it.
 
@@ -58,28 +68,26 @@ Other repeated planning terms:
 `storyline.md` is authoritative. This plan does not replace, condense, or redirect it.
 The following are required content, not stretch goals:
 
-1. Merchant ship voyage, Tower sightline, Ivory Concord warships, arcane pulse, wreck, and water
+1. Merchant ship voyage, Stambha sightline, Dhruva Order warships, pranic pulse, wreck, and water
    sequence.
-2. Rescue ship, Estmere arrival, survivor processing, and real character creation.
-3. King's audience and assignment by the player's declared inclination.
+2. Rescue ship, Ratnapur arrival, survivor processing, and real character creation.
+3. Raja's audience and assignment by the player's declared inclination.
 4. Four materially distinct routes:
    - Warrior: combat training, hunt/patrol, secret prisoner transport.
-   - Mage: spell training, soul-crystal delivery, restricted prison accident.
+   - Mage: spell training, jiva-stone delivery, restricted prison accident.
    - Commerce/Thief: sailing, lockpicking, pickpocketing, sneaking, and secured tower.
    - None/Refuse: general prison, soul-harvesting reveal, and the deliberately fastest
      route.
-5. Prince discovery, explanation, route convergence, evidence, and joint escape.
+5. Yuvraj discovery, explanation, route convergence, evidence, and joint escape.
 6. A shared sea-cave exit used as the walking-into-the-world title-crawl moment.
-7. Confrontation with the King, his removal, the successor, the prisoner soul-binding
+7. Confrontation with Vikram, his removal, the successor, the prisoner jiva-binding
    ban, and persistent world-state changes.
-8. The player's official title and the mission to Caldemar to seek recognition from the
-   Crown Council.
-9. A final Tower reminder that hands the player into the wider main story.
+8. The player's Rajdoot title and the mission to Sabhapur to seek recognition from the Sabha.
+9. A final Stambha reminder that hands the player into the wider main story.
 
-The setting rename was applied on 2026-07-29 (see “Naming policy” below). Story names in
-this plan and in `storyline.md` are the current display names. Technical IDs are stable and
-separate from display strings, so any further rename stays a display-only change and does
-not require rewriting saves, quest logic, or scene references.
+The Ratna Bay setting was adopted on 2026-08-12. `storyline.md` now carries current display
+names. Technical ids remain stable and separate from display strings, so the migration does
+not rewrite saves, quest logic or scene references.
 
 ## Verdict
 
@@ -94,18 +102,20 @@ placeholder audio, no voice acting, minimum animation. What makes it risky is th
 distinct routes must all reach one convergence contract. The plan front-loads that risk
 into VS2 (the grey thread) so it is discovered in week three rather than month three.
 
-Estimated readiness for the complete authored opening: **20–25%**.
+Estimated readiness for the complete authored opening: **30–35%**. The playable grey thread
+and reusable systems are substantially ahead of the authored screenplay, performances and
+final environments, so this is not a content-completion percentage.
 
 | Area | Readiness | Evidence |
 |---|---:|---|
-| Build and tooling | 80% | Windows build, asmdefs, compile checker, 20 EditMode tests |
-| Exterior-world foundation | 60% | elevated land, walled cities, roads, docks, collision, map/travel |
-| General gameplay prototype | 55% | movement, basic combat, inventory, NPCs, enemies, save/load |
-| Story architecture | 25% | 42-beat contract plus Bootstrap/additive scene and stable-spawn runtime exist; quest/dialogue graph and authored story scenes remain |
-| Route-specific mechanics | 10–15% | basic combat/magic exist; sailing, stealth, locks, and pickpocketing do not |
-| Interiors, cinematics, and actors | 5–10% | useful source assets exist; no authored interiors, performances, or companion flow |
+| Build and tooling | 90% | Windows build, asmdefs, compile checker, headless capture bridge and Ratna World Builder MVP |
+| Exterior-world foundation | 65% | elevated land, four baseline walled cities, roads, docks, collision, map/travel; dense-region architecture pending |
+| General gameplay prototype | 70% | movement, combat/equipment, five spells, inventory, NPCs, enemies, save/load |
+| Story architecture | 55% | 42-beat grey thread, Bootstrap/additive scenes, topic dialogue, evidence and stable saves exist; authored screenplay/content remains |
+| Route-specific mechanics | 55% | combat/magic, sailing, stealth, locks and pickpocket systems exist; authored route use remains |
+| Interiors, cinematics, and actors | 30% | multi-room grey interiors, deterministic cinematics, billboard cast and Arena prison proof exist; performances/final spaces remain |
 | Audio, animation, and final feel | 10–15% | SFX library and fonts exist; actors are static and there is no narrative mix |
-| Story QA and shipping | 10–15% | clean build and geometry tests exist; no end-to-end route or save-state coverage |
+| Story QA and shipping | 45% | full route/save-state automation exists; packaged full-play, performance and blind-playtest gates remain |
 
 Planning ranges, assuming one focused developer using existing low-poly assets:
 
@@ -119,16 +129,19 @@ Planning ranges, assuming one focused developer using existing low-poly assets:
 These are planning ranges rather than promises. The milestone gates below keep the full
 story intact while exposing technical or content problems early.
 
-## Current goals — 2026-08-01
+## Current goals — 2026-08-12
 
 | Order | Goal | Current state | Exit condition |
 |---:|---|---|---|
 | 1 | **Close VS0** | Complete except screenplay, deliberately deferred to the VS2→VS3 content window | narrative contracts, regression baseline and asset ledger stay authoritative |
 | 2 | **Build VS1** | **Complete: W-01–W-09 and consequence gate pass** | preserve the green technical-spine regression suite |
 | 3 | **Prove VS2** | **Complete: four routes reach B830** | preserve the grey-thread route gate and stable scene contract |
-| 4 | **Build the Map Editor MVP** | **Next** | edit and preview world layout without Unity before detailed environments are authored |
-| 5 | **Replace the grey thread with content** | Not started | VS3–VS7 gates pass in order |
-| 6 | **Package the slice** | Not started | VS8 route/outcome matrix, performance floor, second-machine build and blind playtests pass |
+| 4 | **Stabilise/migrate/prove Arena Miniature** | **Complete: P1 fixes, content guard, jiva contract, captures and automated checks** | keep the manual controller/45+ FPS acceptance debt visible |
+| 5 | **Build Ratna World Builder MVP** | **Complete: one-button Unity preview; 14/14 Python tests** | preserve validation, backups, undo/redo and preview pipeline |
+| 6 | **Add Shantipur baseline** | **Complete: `city_north`, highland footprint and connecting road** | preserve stable-id, dry-arrival, collision and road contracts |
+| 7 | **Build W-12 dense Ratnapur region** | **Next world milestone** | one dense region proves cost, navigation and performance before wider propagation |
+| 8 | **Replace the grey thread with content** | Not started | VS3–VS7 gates pass in order |
+| 9 | **Package the slice** | Not started | VS8 route/outcome matrix, performance floor, second-machine build and blind playtests pass |
 
 Immediate work is therefore documentation and architecture, not more free-roam POIs,
 crafting, settlements or visual sprawl. Existing exploration systems stay working, but new
@@ -138,17 +151,18 @@ work must serve a Chapter 01 beat or a VS1/VS2 dependency.
 
 Verified in the repository and Unity Editor:
 
-- 51 runtime scripts plus 14 editor scripts;
+- 74 runtime scripts plus 18 editor scripts, plus the standalone Python world-authoring tool;
 - persistent `Bootstrap`, generated legacy `Main`, additive `Capital_Exterior`, and 11
   regenerable Chapter 01 grey scenes, plus four small transition fixtures;
 - a successful local Windows player (143.8 MB) booting through `Bootstrap`;
-- 45/45 EditMode and 30/30 PlayMode tests passing as of 2026-08-01, including scene-contract
+- release verification: 120/120 EditMode and 130/130 PlayMode passing on 2026-08-12,
+  including scene-contract
   checks, the complete 42-beat VS2 union, typed outcome/evidence/autosave checks and all four
-  routes reaching the Caldemar handoff;
-- 5 NPCs, 5 hostile spawns, 3 quests, and 8 discovery/travel markers;
+  routes reaching the Sabhapur handoff; the World Builder Python suite is 14/14 green;
+- 5 NPC archetypes, 5 hostile spawns, 3 quests, and 9 discovery/travel markers;
 - SaveGameV4 persists player stats, inventory, quests, discovery, scene/spawn, profile, route,
   evidence, companion, cinematics, equipment, skills, mutations and outcome state;
-- one 6.8 km generated bay with ten continuous elevated landmasses, three walled cities,
+- one 6.8 km generated bay with ten continuous elevated landmasses, four baseline walled cities,
   five regional roads/causeways, and three islands;
 - CC0 environment packs, OFL fonts, UI/combat SFX, and a Blender-generated seven-piece
   desert architecture kit;
@@ -158,7 +172,7 @@ Verified in the repository and Unity Editor:
   keyboard/mouse `.inputactions` asset owns every current binding.
 
 `storyline.md` now supplies the narrative outline. VS2 has a playable grey implementation:
-placeholder geometry, an in-game King's audience assignment panel, all 42 beat milestones,
+placeholder geometry, an in-game Raja's audience assignment panel, all 42 beat milestones,
 evidence, companion, typed outcome state and route autosaves all run through B830. Authored
 screenplay, actors, mechanics and final environments remain VS3–VS7 work.
 
@@ -287,14 +301,14 @@ contracts; those remaining gaps are VS3–VS8 content and polish.
 - [x] Decompose `storyline.md` into 42 stable beats with owning scenes, system
   dependencies, exit states and acceptance tests in `Docs/CHAPTER01_BEATS.md`.
 - [x] Lock the continuity contract shared by all routes:
-  - the prince's location and condition at each stage;
+  - Arun's location and condition at each stage;
   - which route-specific evidence enters the shared evidence inventory;
   - how each route reaches the same prison checkpoint without contradicting another;
-  - how the prince and player reach the sea cave;
+  - how Arun and the player reach the sea cave;
   - the cave exit as the title-crawl checkpoint;
-  - how they safely return to confront the King after the title moment.
-- [x] Lock the outcome scope: the player chooses kill or imprison, the prince succeeds,
-  and the player becomes Crown Envoy.
+  - how they safely return to confront Vikram after the title moment.
+- [x] Lock the outcome scope: the player chooses kill or imprison, Arun succeeds,
+  and the player becomes Rajdoot.
 - [x] Lock the character-creation production ceiling: 3–4 ancestries using one shared body
   and rig.
 - [ ] Finish the Chapter 01 screenplay and dialogue against the beat ids. **Unblocked as of
@@ -302,10 +316,10 @@ contracts; those remaining gaps are VS3–VS8 content and polish.
 - [x] Name and characterize the principal cast, and define the four ancestries and their
   origins. House Selwyn, six named recurring roles, four regional ancestries. Only ancestry
   *starting values* remain, and they are a VS3 item.
-- [x] Resolve why the rescue ship chooses Estmere and why the survivors receive a royal
-  audience. **The rescue ship is the King's own**, searching the prince's route; one premise
+- [x] Resolve why the rescue ship chooses Ratnapur and why the survivors receive a royal
+  audience. **The rescue ship is the Raja's own**, searching the Yuvraj's route; one premise
   answers both.
-- [x] Define the Everspire pulse rules before VS3 authors the wreck and memory responses.
+- [x] Define the Stambha pulse rules before VS3 authors the wreck and memory responses.
   **Cause deferred to later chapters; effect authored** — memory disruption for everyone who
   was on the water.
 - [x] Specify the speed route as intentional content. Target time **15 minutes**; mandatory
@@ -319,7 +333,7 @@ contracts; those remaining gaps are VS3–VS8 content and polish.
   covered, plus SaveGameV4 migration/atomicity, story/dialogue/cinematic contracts,
   additive A→B→C travel, transactional rollback and the W-09 consequence gate. New Game,
   Continue and Return-to-Menu still drive the real generated `Main` flow.
-- [x] Produce a current Kessil Bay Windows build and repeat the packaged launch smoke.
+- [x] Produce a current Ratna Bay Windows build and repeat the packaged launch smoke.
   **Updated 2026-08-01 after VS1:** `Builds/Windows/Kessil.exe`, 142.1 MB, 0 errors,
   built headlessly in 38.3s with Bootstrap as scene zero. The packaged player initializes
   with **0 exceptions in its smoke log**.
@@ -343,25 +357,31 @@ contracts; those remaining gaps are VS3–VS8 content and polish.
 - [x] Replace scattered pause, cursor and gameplay-input checks with one `GameStateService`.
   **W-02 complete 2026-08-01.** It owns menu, cinematic, gameplay, dialogue, loading and
   death modes, including nested loading rollback.
-- Replace random line pools and auto-active quests with conditional dialogue, explicit
+- [x] Replace random line pools and auto-active quests with conditional dialogue, explicit
   quest stages, story flags, route gates, evidence requirements, and consequences.
-- Add generic interaction, doors, locks, readable evidence, item use, stealth/detection,
+- [x] Add generic interaction, doors, locks, readable evidence, item use, stealth/detection,
   crouching, pickpocketing, sailing, follower/escort, scene transition, and world-mutation
-  systems. Combat and magic need tutorial-state hooks rather than special-case scene code.
-- Add character profiles and route assignment. Character appearance must persist across
+  systems. Combat and magic expose tutorial-state hooks rather than special-case scene code.
+- [x] Add character profiles and route assignment. Character appearance persists across
   every scene and save.
-- Upgrade the save format to include current scene/spawn, character profile, story chapter
-  and stage, flags, route, evidence, dialogue choices, companion state, King outcome,
+- [x] Upgrade the save format to include current scene/spawn, character profile, story chapter
+  and stage, flags, route, evidence, dialogue choices, companion state, Vikram outcome,
   ruler state, granted title, opened locks, looted objects, and skipped cinematics.
-- Version the new save schema and migrate, preserve as legacy sandbox, or safely reject
+- [x] Version the new save schema and migrate, preserve as legacy sandbox, or safely reject
   current v3 prototype saves.
-- The current Kessil prototype is already schema v3. The story-aware format must therefore
+- [x] The legacy prototype was already schema v3. The story-aware format is therefore
   be **v4**, not v3; otherwise old stat/world saves could be accepted without route or
   chapter state.
-- Continue is enabled by file existence; an old-version/corrupt save is rejected safely
-  only after entering gameplay. Add lightweight header validation on the menu.
+- [x] Continue validates the header before entering gameplay; old-version/corrupt saves are
+  rejected safely.
 - Add PlayMode coverage for generated city collision, gate clearance, harbor causeways,
   and save-height migration; current geometry checks are editor inspection/probes.
+
+**P1 full-flow repair complete 2026-08-12.** Duplicate persistent `GameSystems` roots are
+replaced immediately; Return to Title → second New Game is covered; Continue waits for load
+and story restoration; Capital Region death respawns in-region; interior exits apply the
+remembered doorway only after transition; city density branches on stable ids; and learned
+topics save/restore with deterministic response selection and pagination beyond nine topics.
 
 ### P1 — world and performance debt
 
@@ -372,10 +392,10 @@ contracts; those remaining gaps are VS3–VS8 content and polish.
 - The current cities are readable, collidable exterior shells, not authored hero spaces:
   buildings have no doors/interiors, walls have no battlements or climb routes, and there
   is no navmesh.
-- Estmere specifically needs a survivor-processing dock, functioning palace/throne room,
-  guard yard, Arcanum, working harbor, secured tower, layered prison, soul-harvesting
-  chamber, escape route, and sea cave. Caldemar needs at least a convincing arrival and
-  Council handoff space for this chapter.
+- Ratnapur specifically needs a survivor-processing dock, functioning palace/throne room,
+  guard yard, Siddha Order hall, working harbor, secured tower, layered prison, black-jiva
+  chamber, escape route, and sea cave. Sabhapur needs at least a convincing arrival and
+  Sabha handoff space for this chapter.
 - The story needs reliable crowd and companion navigation. Bake or build navigation per
   authored scene, add off-mesh links only where tested, and keep large decorative areas
   outside active simulation.
@@ -404,27 +424,27 @@ contracts; those remaining gaps are VS3–VS8 content and polish.
 
 ```mermaid
 flowchart TD
-    A["Merchant ship and Tower pulse"] --> B["Rescue ship and Estmere docks"]
+    A["Merchant ship and Stambha pulse"] --> B["Rescue ship and Ratnapur docks"]
     B --> C["Character creation"]
-    C --> D["King's audience and assignment"]
+    C --> D["Raja's audience and assignment"]
     D --> W["Warrior tutorial"]
     D --> M["Mage tutorial"]
     D --> T["Commerce / Thief tutorial"]
     D --> N["None / Refuse prison route"]
-    W --> P["Prince found and evidence secured"]
+    W --> P["Arun found and evidence secured"]
     M --> P
     T --> P
     N --> P
-    P --> E["Prison escape with prince"]
+    P --> E["Prison escape with Arun"]
     E --> X["Sea-cave exit and title crawl"]
-    X --> K["Confront the King"]
+    X --> K["Confront Vikram"]
     K --> R["New ruler, ban, title, persistent consequences"]
-    R --> G["Travel to Caldemar / Crown Council"]
+    R --> G["Travel to Sabhapur / Sabha"]
     G --> H["Tower main-story reminder"]
 ```
 
 The four branches may vary in length, mechanics, information order, and evidence, but
-they must enter the convergence checkpoint with a valid prince, evidence set, companion
+they must enter the convergence checkpoint with a valid Arun state, evidence set, companion
 state, and story stage. No route may rely on another route having happened.
 
 ## Scene and loading architecture
@@ -439,11 +459,11 @@ Use one persistent scene and authored additive scenes. Do not keep expanding the
 | `Docks` | rescue arrival, processing, character creator | valid character profile |
 | `Palace` | first audience, questioning, assignment | one route locked |
 | `Capital_Exterior` | current exterior extracted from `Main` | safe regional traversal |
-| `Tutorial_Warrior` | training and hunt/patrol | prince/evidence convergence payload |
+| `Tutorial_Warrior` | training and hunt/patrol | Arun/evidence convergence payload |
 | `Order_Hall` | spell training and delivery setup | access to restricted prison |
 | `Harbor` | sailing and thief instruction | tower objective complete |
-| `Secured_Tower` | infiltration objective | evidence/prince route transition |
-| `Prison` | general cells, solitary, soul operation, convergence | prince follows player |
+| `Secured_Tower` | infiltration objective | evidence/Arun route transition |
+| `Prison` | general cells, solitary, black-jiva operation, convergence | Arun follows player |
 | `Sea_Cave` | shared escape and title-crawl vista | prologue escape complete |
 | `Palace_Aftermath` | confrontation and outcome | ruler/title/world mutation saved |
 | `Council_Arrival` | Council mission handoff and Tower reminder | opening chapter complete |
@@ -467,14 +487,14 @@ contract, autosave policy, companion handoff, and recovery path if loading fails
 | `DetectionSystem` | sight, hearing, suspicion, alert, concealment, route tutorial feedback |
 | `PickpocketSystem` | target inventory, chance/skill rule, detection, consequence |
 | `SailingController` | board, steer, throttle, disembark, reset, objective corridor |
-| `CompanionController` | prince follow/wait/teleport recovery, combat policy, scene handoff. **Authored sequences only** — no open-world travel companions, so it never has to survive ferries, private sailing or arbitrary world save/load |
-| `WorldMutation` | King/ruler swap, guards/dialogue, prison policy, banners, blocked/open areas |
+| `CompanionController` | Arun follow/wait/teleport recovery, combat policy, scene handoff. **Authored sequences only** — no open-world travel companions, so it never has to survive ferries, private sailing or arbitrary world save/load |
+| `WorldMutation` | Raja/ruler swap, guards/dialogue, prison policy, banners, blocked/open areas |
 | `GameState` | gameplay, dialogue, cinematic, menu, loading, death; input/cursor/time ownership |
 | `SceneTransitionService` | additive load order, spawn placement, companion handoff, fade, failure recovery |
 | `CinematicRunner` | deterministic cues plus an idempotent end-state applied when watched or skipped |
 | `Equipment` | weapon and armour slots with stats on `InvItem`; `PlayerCombat` reads the equipped weapon instead of a hardcoded field |
 | `SkillSystem` | eight use-based skills; `Level` derives from total skill progress; the five anti-grind rules in `Docs/GAMEPLAY_DESIGN.md` |
-| `CrystalCharge` | Mana becomes non-regenerating charge drawn from soul crystals — the setting's scarcity made playable |
+| retained `CrystalCharge` API | Prana is non-regenerating charge drawn from jiva stones—the setting's scarcity made playable |
 | `SaveGameV4` | atomic write/backup, profile plus all story/system state, scene/spawn, versioning, safe v3 handling, **plus skills and equipped set** |
 
 Author content in ScriptableObjects or another inspectable data format; keep logic in
@@ -484,7 +504,7 @@ one-off scene scripts.
 ## Vertical slice definition
 
 **The deliverable is one build in which `storyline.md` plays from the first frame to the
-Caldemar handoff, on all four routes, with no missing beats and no developer
+Sabhapur handoff, on all four routes, with no missing beats and no developer
 intervention.**
 
 This is a *content-complete, quality-reduced* slice rather than the classic
@@ -515,7 +535,7 @@ Deferred to a later production tier, and listed here so they are not smuggled in
   `Docs/GAMEPLAY_DESIGN.md`.
 - Diving and underwater content. Swimming is surface-only and deliberately slow.
 - Animation beyond a minimum set: locomotion, attack, block, hit, cast, death, and the
-  handful of story-critical performances (imprisonment, the King's removal).
+  handful of story-critical performances (imprisonment, Vikram's removal).
 - Final art, lighting and material passes; interiors beyond what a beat requires; world
   density outside the critical path.
 - Controller support, localization, and accessibility beyond subtitle size and volume.
@@ -547,14 +567,14 @@ speculation into a measurable burn-down, and it should land inside the first thr
 - Break `storyline.md` into numbered beats with ids, objectives, dialogue, choices and
   transition conditions. This is transcription and decomposition, not rewriting.
 - Write the screenplay pass for every scene: ship, rescue, processing, both audiences,
-  four tutorials, the prince reveal, prisoner exposition, escape, confrontation,
-  succession, title grant, Caldemar handoff.
+  four tutorials, the Yuvraj reveal, prisoner exposition, escape, confrontation,
+  succession, title grant, Sabhapur handoff.
 - Build the route/outcome matrix and the stable id registry (ids follow the naming policy:
   setting-neutral, never a display name).
 - Record the shared convergence payload and the cave-exit title placement as hard
   contracts — these are what keep four routes from diverging into four games.
 - Snapshot current build, test, scene and save behaviour as the regression baseline.
-- Resolve the narrative locks that block authoring: King outcome, successor, player title,
+- Resolve the narrative locks that block authoring: Vikram outcome, successor, player title,
   supported character options. See the locks list below.
 
 **Gate:** every sentence in `storyline.md` maps to at least one beat id, owning scene,
@@ -613,36 +633,37 @@ good.
 **Delivered:** 11 regenerable Chapter 01 grey scenes plus the extracted `Capital_Exterior`
 scene are enabled in build settings. Each grey scene has a stable `SceneContext`, named
 spawns, stone walls, a gate, stepped elevations, lights and collision-backed geometry. The
-`GreyThreadDirector` drives all **42/42** beat waypoints: prologue, the real King's audience
+`GreyThreadDirector` drives all **42/42** beat waypoints: prologue, the real Raja's audience
 assignment panel, four genuinely different route branches, prison/cave convergence, the
-B640 title crawl, aftermath and Caldemar Council handoff. The assignment panel records the
+B640 title crawl, aftermath and Sabhapur Sabha handoff. The assignment panel records the
 player name and inclination with keyboard/mouse-accessible buttons; a player is preserved in
 persistent Bootstrap while old content scenes unload, fixing the first-scene transition
-destruction bug. Route checkpoints use SaveGameV4, and typed King outcome, ruler, title and
+destruction bug. Route checkpoints use SaveGameV4, and typed Vikram outcome, ruler, title and
 evidence state are captured for the next slice.
 
 **Evidence:** 45/45 EditMode, 30/30 PlayMode; the PlayMode gate asserts the union of all 42
-beat ids across the four routes, B640 title state, prince testimony, typed outcomes and valid
+beat ids across the four routes, B640 title state, Arun's testimony, typed outcomes and valid
 autosaves. Representative captures are in
-[`Docs/Screenshots/vs2-estmere-palace.png`](Docs/Screenshots/vs2-estmere-palace.png) and
-[`Docs/Screenshots/vs2-caldemar-arrival.png`](Docs/Screenshots/vs2-caldemar-arrival.png).
+legacy-named captures [`Docs/Screenshots/vs2-estmere-palace.png`](Docs/Screenshots/vs2-estmere-palace.png)
+(Ratnapur) and [`Docs/Screenshots/vs2-caldemar-arrival.png`](Docs/Screenshots/vs2-caldemar-arrival.png)
+(Sabhapur).
 
-**Gate passed:** a developer can start a new game and reach the Caldemar handoff on **all four
+**Gate passed:** a developer can start a new game and reach the Sabhapur handoff on **all four
 routes** without touching the editor. Total playtime is short and it looks intentionally
 grey; every later milestone now replaces placeholder content inside a proven structure.
 
 ### VS3 — opening: voyage, pulse, wreck, rescue, creator, audience (8–12 days)
 
 - Traversable merchant-ship deck, passengers and crew, with a constrained sightline to the
-  Everspire and the Ivory Concord warships.
+  Stambha and the Dhruva Order warships.
 - The pulse staged with lighting, VFX, audio, camera impulse, a damaged ship variant,
   controlled physics, water entry and blackout. Tightly directed is fine; every described
   visual beat must appear.
-- Rescue ship, Estmere arrival, and the survivor-processing dock.
+- Rescue ship, Ratnapur arrival, and the survivor-processing dock.
 - Character creation: preview, validation, random/default options, profile persistence,
   keyboard navigation.
-- The King's audience: the "every soul must contribute" edict, the questioning about the
-  missing prince, the remembered/vague/no-memory responses, skill declaration, and four
+- Raja Vikram's audience: the “every soul must contribute” edict, the questioning about the
+  missing Yuvraj, the remembered/vague/no-memory responses, skill declaration, and four
   valid assignments. The edict foreshadows the prison operation without revealing it.
 
 **Gate:** New Game reaches each of the four assignments with no broken camera, lost
@@ -672,10 +693,10 @@ largest unknowns in the whole slice.
 The largest milestone. Each route replaces its VS2 stub with real content.
 
 - **Warrior** — guard-yard instruction (movement, melee, block, hit feedback, safe spar),
-  hunt/patrol with encounter pacing, the secret prisoner transport, and the wounded-prince
+  hunt/patrol with encounter pacing, the secret prisoner transport, and the wounded-Arun
   discovery.
 - **Mage** — spell instruction with cast/resource/target feedback, a nonlethal practice
-  space, the soul-crystal delivery, restricted-access rules, and the staged accident that
+  space, the jiva-stone delivery, restricted-access rules, and the staged accident that
   opens the sealed cell.
 - **Commerce / Thief** — the bounded sailing lesson, sneaking and detection, pickpocketing,
   lockpicking, crime response with non-blocking retries, and the secured-tower
@@ -685,24 +706,24 @@ The largest milestone. Each route replaces its VS2 stub with real content.
   intentional route to solitary. Measured against a target completion time.
 
 Each route delivers its own evidence into the shared evidence set and enters convergence
-with a valid prince state, companion state and story stage.
+with a valid Arun state, companion state and story stage.
 
 **Gate:** four clean-save end-to-end runs reach an identical convergence contract. The None
 route is measurably fastest. No route relies on another having happened. Failure, death,
 save/load and sequence breaks cannot strand progression.
 
-### VS6 — prison, prince, escape, and the title moment (8–12 days)
+### VS6 — prison, Yuvraj, escape, and the title moment (8–12 days)
 
 - Prison layout: public cells, restricted wing, solitary, processing, evidence room, the
   soul-binding operation, guard routes and escape connections.
-- The prince's explanation: his alternative, the interception, the imprisonment, his
-  father's motive, and the Everspire/Ivory Concord seed.
+- Arun's explanation: his alternative, the interception, the imprisonment, his
+  father's motive, and the Stambha/Dhruva Order seed.
 - Route-specific discovery dialogue over one canonical reveal.
 - Escort behaviour, guard alerts, alternate traversal, checkpoints, stuck recovery.
 - The sea-cave exit composed as one tested sequence: exterior reveal, music swell, title
   card, subtitle timing, input hand-back, autosave.
 
-**Gate:** every route escorts the prince from discovery to cave exit. Watching or skipping
+**Gate:** every route escorts Arun from discovery to cave exit. Watching or skipping
 produces identical required state. The title card appears exactly once, at the authored
 cave checkpoint.
 
@@ -710,7 +731,7 @@ cave checkpoint.
 
 - The return and confrontation path, including why the evidence can be presented rather
   than the player simply being rearrested.
-- Evidence presentation, prince testimony, the King's defence, player response, and the
+- Evidence presentation, Arun's testimony, Vikram's defence, player response, and the
   authored outcome.
 - World mutation: successor on the throne, throne-room population swap, guard and faction
   reactions, prisoner release, the operation outlawed, doors opened and closed, updated
@@ -719,14 +740,14 @@ cave checkpoint.
   metadata.
 - Safe defaults for conflicting or missing flags, so a development save cannot produce two
   rulers or none.
-- The Crown Council quest, gated on a valid aftermath state, and a Caldemar arrival that is
-  a real space rather than a map marker. The chapter ends on the Everspire reminder and a
+- The Sabha quest, gated on a valid aftermath state, and a Sabhapur arrival that is
+  a real space rather than a map marker. The chapter ends on the Stambha reminder and a
   clear next objective.
 
 **Gate:** every route and supported outcome reaches one valid post-coup world. Save,
 reload, death, fast travel and scene re-entry all preserve ruler, law, NPC set, title and
-quest stage. A blind player can state who rules Estmere, what changed, why their title
-matters, and why the Everspire matters.
+quest stage. A blind player can state who rules Ratnapur, what changed, why their title
+matters, and why the Stambha matters.
 
 ### VS8 — POC assessment (3–5 days) · rescoped 2026-08-01
 
@@ -761,7 +782,7 @@ the whole game, rather than now for one chapter.
   navigation, and the minimum animation set. Not a final art pass — the test is whether a
   stranger can navigate it without commentary.
 - Lay in the narrative audio mix: bay, ship, storm, docks, city, palace, guild, prison,
-  cave, confrontation, Caldemar. Footsteps, Foley, UI, impacts, music transitions.
+  cave, confrontation, Sabhapur. Footsteps, Foley, UI, impacts, music transitions.
 - UI pass on creator, dialogue choices, tutorial prompts, evidence, journal, title card and
   save/load at common aspect ratios.
 - Profile the five stress locations; hold the chosen frame-time and memory floor.
@@ -809,11 +830,11 @@ wrong way.
 
 | Region | Contains | First needed by |
 |---|---|---|
-| **Estmere** | city, docks, palace, prison, Arcanum, harbour, secured tower, sea cave, hinterland | **Chapter 01 — all of it** |
-| Caldemar | Crown Council seat, city, hinterland | Chapter 02. Chapter 01 needs only an **arrival sliver**, not the plane |
-| Qadris | arid city, the settlement that went dark, hinterland | Qadris spoke |
-| Aldreth | highland city, hinterland | Aldreth spoke |
-| Corrath | the Everspire — a small special location, not a full plane | Chapter 06 |
+| **Ratnapur** | city, docks, palace, prison, Siddha Order hall, harbour, secured tower, sea cave, hinterland | **Chapter 01—all of it** |
+| Sabhapur | Sabha seat, city, hinterland | Chapter 02. Chapter 01 needs only an **arrival sliver**, not the plane |
+| Marukot | arid city, the settlement that went dark, hinterland | Marukot spoke |
+| Shantipur | highland city, hinterland | Shantipur spoke; baseline city/road exists, dense region does not |
+| Meru | the Stambha—a small special location, not a full plane | Chapter 06 |
 
 ### Region dimensions — locked 2026-08-01
 
@@ -834,12 +855,12 @@ no seams, no cross-region streaming, no terrain continuity to maintain.
 Compare to the retired architecture: 6.8 km of continuous thin terrain. The trade is roughly
 40:1 area for density, and that is the correct direction.
 
-**Build Estmere first and measure what it actually costs before committing to four regions.**
+**Build Ratnapur first and measure what it actually costs before committing to four regions.**
 
 ### What this does to Chapter 01's scope
 
-**Chapter 01 needs one region.** `Prologue_Ship` at sea, the Estmere plane, and a Caldemar
-arrival space. Caldemar and Qadris as authored regions are Chapter 02+ work.
+**Chapter 01 needs one region.** `Prologue_Ship` at sea, the Ratnapur plane, and a Sabhapur
+arrival space. Sabhapur, Marukot and Shantipur as dense authored regions are Chapter 02+ work.
 
 That is a scope reduction, not only a rework.
 
@@ -858,63 +879,49 @@ That is a scope reduction, not only a rework.
 The ferry network already designed in `Docs/GAMEPLAY_DESIGN.md` is the right connective
 tissue between planes, and needs no change.
 
-## World-authoring goal — Kessil World Builder
+## World-authoring goal — Ratna World Builder
 
 Build this in two steps:
 
 1. [x] **Completed during VS1:** global dimensions, anchors, landmasses, sites and roads now
    load from versioned `kessil.world.json`. The current map still generates exactly as
    before, enforced by the original geometry suite plus a JSON-source contract test.
-2. **Immediately after VS2 and before VS3:** build the usable Tiled-backed Map Editor MVP.
-   At that point the whole story structure has been proven, but detailed environments have
-   not been authored, so coast, elevation, city, road and story-anchor edits do not force a
-   large art/content rebuild.
+2. [x] **Completed 2026-08-12:** build the usable standalone Ratna World Builder MVP after the
+   proof slice and before large environment production.
 
-The optional polished standalone 3D editor remains post-VS8. It is not needed to start
-authoring the improved world.
+The optional polished 3D/sculpt layer remains post-slice. It is not needed to start authoring
+the improved world.
 
-This is viable and fits the project unusually well: `WorldLayout` already centralizes
-landmasses, biomes, sites and road spines, and the generator already rebuilds the world
-from those values. The problem is usability, not generation. Today those values are static
-C# arrays and terrain shapes are mostly ellipses plus seeded noise, so changing the world
-still means editing code and regenerating a destructive Unity scene.
+This is viable and now implemented: `kessil.world.json` is authoritative, `WorldLayout` is its
+stable runtime API, and the generator rebuilds from those values. The MVP removes code and
+interactive Unity from ordinary layout editing while preserving existing save-stable ids.
 
-### Recommended route
+### Delivered workflow and boundary
 
-Start with **Tiled** as the easy external 2D authoring surface, then add a Kessil importer,
-validator and one-click headless preview. Tiled is free/open source, supports large maps,
-painted tile layers, polygons, polylines, custom properties, JSON and JavaScript extensions.
-It can therefore prove the workflow before time is spent building a bespoke GUI.
+Double-click `Tools/WorldBuilder/Launch World Builder.cmd`. The bespoke Python/Tk editor changes
+landmass centre/size/base-height/relief/biome, roads, sites, city gates and story-spawn metadata;
+supports undo/redo; validates before atomic backup/save; and exports labelled PNG/SVG previews.
+**Unity Preview** invokes the sanctioned headless bridge, production generator and top-down /
+approach capture path. The Python suite is 14/14 green. See
+[`Tools/WorldBuilder/README.md`](Tools/WorldBuilder/README.md).
 
-Suggested authoring layers:
-
-- `Elevation` — painted height bands or signed height values on a coarse cell grid;
-- `Biome` — Halbrand, Sarrakh, coast, rock, forest and city-ground masks;
-- `Land` / `Water` — editable coast polygons rather than fixed ellipses;
-- `Roads`, `Rivers`, `Walls` — polylines with width/material/type properties;
-- `Cities` — build-zone polygons with gates, districts, docks and flatten heights;
-- `Sites` — cities, POIs, fast-travel anchors and discovery radii;
-- `StoryAnchors` — stable beat/spawn ids for Chapter 01 and later chapters;
-- `Exclusions` — no-foliage, no-building, encounter and navigation-control zones.
-
-The source of truth becomes a versioned `kessil.world.json`, not a Unity scene and not
-hand-edited C#. A converter reads Tiled JSON, validates stable ids and geometry, writes the
-runtime format, invokes Unity headlessly, and produces a playable build plus top-down and
-perspective preview images. The normal workflow requires no Unity Editor interaction.
+The MVP deliberately retains ellipse-plus-relief terrain. Free-form heightmaps/coasts and the
+runtime marker importer are W-12/tool-expansion work, not delivered features.
 
 ### Tool fit
 
 | Tool | Best use here | Limitation |
 |---|---|---|
-| [Tiled](https://www.mapeditor.org/) | recommended macro map, elevation/biome painting, roads, zones, POIs and metadata | 2D authoring; needs generated 3D previews |
+| Bespoke Ratna World Builder | **implemented MVP** for current runtime landmasses, roads, sites and metadata | no free-form heightmap; marker metadata importer pending |
+| [Tiled](https://www.mapeditor.org/) | historical alternative if free-form 2D layers outgrow the bespoke editor | would need a separate importer and workflow |
 | [Gaea](https://www.quadspinner.com/) | optional natural terrain/erosion heightmaps and masks | weak for cities, walls, quests and precise gameplay layout |
 | [TrenchBroom](https://trenchbroom.github.io/) | optional fast brush-built interiors, caves and compact city blocks | not a regional terrain/world-map editor; requires a custom importer |
 | [Crocotile 3D](https://www.crocotile3d.com/) | simple low-poly modular props and compact tile-built spaces | scene/asset modeller, not authoritative world data |
 
-### Delivery range
+### Original estimate and actual status
 
-- **8–14 focused days:** data refactor, Tiled project/template, importer, validation,
-  undo-safe source files and one-click headless rebuild with preview screenshots.
+- **MVP complete:** JSON data path, standalone editor, validation, undo/redo, atomic backups,
+  PNG/SVG preview and one-click headless Unity rebuild/captures.
 - **A further 10–20 days:** dedicated standalone 3D preview, elevation sculpt brushes,
   prefab palette, live validation, autosave, undo/redo and polished non-technical UX.
 
@@ -922,11 +929,10 @@ The 8–14 day MVP is additional to the 73–111 day story-slice estimate, makin
 story-plus-editor planning range **81–125 focused days**. The optional post-slice 3D polish
 is not included in that total.
 
-**Gate:** a non-Unity user can move a coastline, paint elevations/biomes, redraw a road,
-place a city gate and story spawn, press one Build/Preview button, and receive a valid
-Kessil world without editing C# or opening the Unity Editor. Existing stable ids and saves
-survive geometry changes, and invalid water/road/spawn configurations are rejected with
-plain-language errors.
+**MVP gate passed at the current terrain vocabulary:** a non-Unity user can move/resize an
+elliptical coastline, change elevation/relief and biome, redraw a road, place a city gate and
+story spawn, press Unity Preview, and receive validated captures without editing C# or opening
+the Unity Editor. Free-form painting and runtime consumption of marker metadata remain open.
 
 ## Art direction — **Arena Miniature, locked 2026-08-12**
 
@@ -1109,20 +1115,20 @@ props belong to the release-candidate tier, not here.
 | Story location/beat | Required content |
 |---|---|
 | Merchant ship | intact and damaged variants, deck collision, rigging/cargo, passengers, crew, rescue ship |
-| Bay event | distant Tower, Ivory Concord silhouettes, pulse VFX, shockwave, debris, water entry, underwater/blackout transition |
-| Estmere docks | harbor approach, survivor triage, guards, civilians, processing stations, character-creator backdrop |
-| First palace visit | gate-to-throne route, throne room, King, court, guards, missing-prince visual references |
+| Bay event | distant Stambha, Dhruva Order silhouettes, pulse VFX, shockwave, debris, water entry, underwater/blackout transition |
+| Ratnapur docks | harbor approach, survivor triage, guards, civilians, processing stations, character-creator backdrop |
+| First palace visit | gate-to-throne route, throne room, Raja, court, guards, missing-Yuvraj visual references |
 | Warrior route | guard yard, weapons, targets, patrol/hunt terrain, hostile encounter, secret transport |
-| Mage route | guild hall, training room, spell targets, soul-crystal props, service corridor, sealed-cell mechanism |
+| Mage route | Siddha Order hall, training room, spell targets, jiva-stone props, service corridor, sealed-cell mechanism |
 | Commerce/Thief route | steerable boat, dock lesson space, stealth route, pockets/loot, locks, secured tower |
-| Prison | general population, solitary, restricted wing, guard posts, evidence, black soul crystals, harvesting machinery |
-| Escape | alternate cover/doors where appropriate, guard response, prince navigation, sea cave, reveal vista |
-| Confrontation | evidence presentation, throne variants, King removal, successor, post-coup guards/prisoners/banners |
-| Caldemar handoff | arrival landmark, travel transition, Council representatives/setup, next-quest framing |
+| Prison | general population, solitary, restricted wing, guard posts, evidence, black jiva, binding machinery |
+| Escape | alternate cover/doors where appropriate, guard response, Arun navigation, sea cave, reveal vista |
+| Confrontation | evidence presentation, throne variants, Vikram removal, successor, post-coup guards/prisoners/banners |
+| Sabhapur handoff | arrival landmark, travel transition, Sabha representatives/setup, next-quest framing |
 
-Named speaking roles needed at minimum are the King, prince, rescue captain or sailor,
+Named speaking roles needed at minimum are Raja Vikram, Yuvraj Arun, rescue captain or sailor,
 processing guard, one route instructor per branch, two or more prisoners, confrontation
-witnesses/allies, successor if not the prince, and a Caldemar/Council contact. Names can
+witnesses/allies, successor if not Arun, and a Sabhapur/Sabha contact. Names can
 remain temporary, but stable role IDs, casting requirements, dialogue ownership, and
 animation needs cannot.
 
@@ -1135,7 +1141,7 @@ animation needs cannot.
 4. Detection/locks/pickpocket/sailing precede the Commerce/Thief route.
 5. Dialogue conditions, evidence, doors, companion AI, and navigation precede convergence
    and escape.
-6. World mutation and outcome persistence precede confrontation and Caldemar gating.
+6. World mutation and outcome persistence precede confrontation and Sabhapur gating.
 7. Final lighting, audio, animation, and environment dressing follow greybox route lock,
    but representative assets must be proven early in each location.
 
@@ -1152,18 +1158,18 @@ effort is sunk into scenes that a structural problem would invalidate.
 
 | Test family | Required coverage |
 |---|---|
-| Four routes | Warrior, Mage, Commerce/Thief, None from New Game to Caldemar handoff |
+| Four routes | Warrior, Mage, Commerce/Thief, None from New Game to Sabhapur handoff |
 | Assignment | every background/declared-skill mapping, refusal, invalid/default selection |
 | Route recovery | failure, arrest, death, checkpoint, objective retry, accidental area exit |
-| Convergence | correct prince state, route evidence, dialogue variant, inventory, quest stage |
+| Convergence | correct Arun state, route evidence, dialogue variant, inventory, quest stage |
 | Cinematics | watch and skip shipwreck, audiences, reveal, title, confrontation, transition |
 | Saves | before/after every scene boundary, mid-route, mid-escape, pre/post-coup, corrupt/old save |
 | Companion | blocked path, combat, wait, teleport recovery, scene load, save/load, death prevention |
-| Outcomes | every supported King result and successor result, including reload and re-entry |
+| Outcomes | every supported Vikram result and successor result, including reload and re-entry |
 | World mutation | ruler/NPC/banner/door/prison/dialogue/journal state cannot regress or duplicate |
 | Input/UI | keyboard/mouse, common aspect ratios, pause/dialogue/loading ownership (controller is out of slice) |
 | Geometry | doors, stairs, cells, ships, walls, cave, docks, navigation, no fall-through or softlocks |
-| Performance | ship destruction, docks crowd, city, palace, prison, VFX, Caldemar arrival |
+| Performance | ship destruction, docks crowd, city, palace, prison, VFX, Sabhapur arrival |
 | Speed route | intended fastest completion, mandatory exposition retained, no invalid skips |
 
 Automate state-machine, save, route-convergence, world-mutation, and scene-load invariants
@@ -1200,29 +1206,26 @@ not by reference to another title.
 design philosophies are the shorthand being used. `plan.md`'s art direction section and
 [`Docs/GAMEPLAY_DESIGN.md`](Docs/GAMEPLAY_DESIGN.md) both do so deliberately.
 
-## Naming policy — applied 2026-07-29
+## Naming policy — Ratna Bay adopted 2026-08-12
 
-The setting was renamed off its original derived names. The project now uses an original
-setting throughout: code, scene object names, editor menus, product name, docs, and
-`storyline.md`.
+Player-facing product, world, story and dialogue names use Ratna Bay vocabulary. Internal
+`Kessil*` types, the JSON filename, generated-kit paths, stable ids and migration aliases stay
+unchanged until a separate tooling-safe rename is justified.
 
-| Concept | Name |
-|---|---|
-| Sea | Kessil Bay |
-| North realm (temperate) | Halbrand |
-| South realm (arid) | Sarrakh |
-| Regions | Kelrith Coast, Karnoth Highlands, Sarrakh Waste, Kiln Hills |
-| River | the Esk |
-| Cities | Caldemar (`city_west`), Estmere (`city_east`), Qadris (`city_south`) |
-| Planned city | Aldreth (`city_north`), Karnoth Highlands — Chapters 02+ only; **not in `WorldLayout` and not built** |
-| Islands | Tolm (`isle_west`), Corrath (`isle_center`), Sarn (`isle_south`) |
-| Landmark | the Everspire, on Corrath |
-| Foreign order | the Ivory Concord |
-| Magic institution | the Arcanum |
-| Institution | the Crown Council |
-| Player resource | Mana |
-| Story items | soul crystal, black soul crystal; the practice is soul-binding |
-| Generated art kit | `Assets/Art/Generated/SarrakhKit` |
+| Concept | Superseded display name | Current display name |
+|---|---|---|
+| Sea | Kessil Bay | **Ratna Bay** |
+| North / south | Halbrand / Sarrakh | **Uttara / Maru** |
+| Cities | Caldemar / Estmere / Qadris / Aldreth | **Sabhapur (`city_west`) / Ratnapur (`city_east`) / Marukot (`city_south`) / Shantipur (`city_north`)** |
+| Islands | Tolm / Corrath / Sarn | **Kusha / Meru / Shaka** |
+| Landmark | the Everspire | **the Stambha** |
+| Foreign order | the Ivory Concord | **the Dhruva Order** |
+| Magic institution | the Arcanum | **the Siddha Order** |
+| Institution | the Crown Council | **the Sabha** |
+| Player resource | Mana | **prana** |
+| Story items | soul crystal / black soul crystal / soul-binding | **jiva stone / black jiva / jiva-binding** |
+| Principal roles | King Osric / Prince Terrin | **Raja Vikram / Yuvraj Arun** |
+| Generated art kit | — | internal path `Assets/Art/Generated/SarrakhKit` retained |
 
 Rules that keep this cheap to revisit:
 
@@ -1246,7 +1249,7 @@ Rules that keep this cheap to revisit:
 | Contact | hello@datathecodie.com |
 | Site | datathecodie.com |
 | Unity `companyName` | `DataTheCodie Studios` (set — determines the save folder path) |
-| Unity `productName` | `Kessil Bay` |
+| Unity `productName` | `Ratna Bay` |
 
 Applies to the credits/about screen, the packaged build's file properties, and third-party
 notices. Two things to know:
@@ -1268,13 +1271,13 @@ scope.
 
 **Resolved 2026-07-29** and recorded in [`Docs/CHAPTER01_BEATS.md`](Docs/CHAPTER01_BEATS.md):
 
-- **King's fate — a player choice**, kill or imprison. Costs a second authored outcome and
+- **Vikram's fate—a player choice**, kill or imprison. Costs a second authored outcome and
   doubles the route matrix to eight end-to-end runs; VS7 and VS8 are re-estimated above to
   absorb it. The beat sheet caps what may differ between branches, which is what keeps the
   doubling affordable.
-- **Successor — the prince is crowned.** No new character arrives late in the chapter; the
-  cost is that the prince cannot accompany the player to Caldemar.
-- **Player title — Crown Envoy.** Neutral about the ruler and still meaningful in the next
+- **Successor—Arun is crowned Raja.** No new character arrives late in the chapter; the
+  cost is that Arun cannot accompany the player to Sabhapur.
+- **Player title—Rajdoot.** Neutral about the ruler and still meaningful in the next
   chapter.
 - **Character creation — moderate, 3–4 ancestries**, implemented as head/skin/hair variants
   on **one shared body and rig**. Distinct per-ancestry meshes are out of scope; that is
@@ -1286,26 +1289,26 @@ scope.
 under “Premises”. These were the two locks blocking the screenplay, plus three that were
 due before VS3:
 
-- **Rescue and audience — the rescue ship is the King's own**, out searching the route his
-  son's ship took. Estmere is its home port and the nearest safe harbour. He wants the
+- **Rescue and audience—the rescue ship is the Raja's own**, out searching the route his
+  son's ship took. Ratnapur is its home port and the nearest safe harbour. He wants the
   player because his own crew pulled them from a wreck on that route. The idle-persons law
   is retained as the legal frame that converts a witness into a conscript at B130, so B100's
-  edict is still required. The King is **not** staged on-screen during the rescue: B040's
+  edict is still required. Vikram is **not** staged on-screen during the rescue: B040's
   blackout covers it, so character creation stays at the docks and no shipboard scene is
   needed.
-- **Cast — House Selwyn.** King Osric Selwyn and Prince Terrin Selwyn. Six recurring roles
+- **Cast—House Surya.** Raja Vikram and Yuvraj Arun. Six recurring roles
   named; the rescue captain and processing guard stay as titles by decision.
-- **The King is a true believer.** Soul-binding is what he thinks feeds and defends Estmere.
+- **Vikram is a true believer.** Black jiva-binding is what he thinks feeds and defends Ratnapur.
   B720 must give him a real argument, which is what makes B730 a choice rather than an
   execution.
-- **The prince is a competent reformer**, intercepted before he could bring his alternative
+- **Arun is a competent reformer**, intercepted before he could bring his alternative
   home. B740 therefore leaves a stable settlement.
-- **Everspire pulse — cause unexplained and deferred to later chapters; effect authored.**
+- **Stambha pulse—cause unexplained and deferred to later chapters; effect authored.**
   It disrupted the memory of everyone who was on the water, scaled by proximity. This is the
   only rule VS3 needs; wider scope would be a main-story commitment this chapter has not
   made.
-- **Ancestries — four, one per region** (Kelrith Coast, Karnoth Highlands, Sarrakh, isle-born
-  from Tolm or Sarn), appearance and origin only.
+- **Ancestries—four, one per region** (Uttara coast, Uttara highlands, Maru, island-born
+  from Kusha or Shaka), appearance and origin only.
 - **`route.refuse` target — 15 minutes.** Aggressive; see the risk note in the beat sheet.
 
 Also closed 2026-08-01: **tutorial failure rules and gear carryover** (no failure is terminal;
@@ -1345,5 +1348,10 @@ beats is not yet proven.
 
 Current conclusion: **the complete story is viable as a playable slice, and the grey thread
 is now complete.** VS0's contracts, VS1's technical spine and VS2's four-route traversal are
-green. Visible screenplay, actors, route mechanics and final environments remain VS3-VS7
-work. The Map Editor MVP is next. The delivered VS2 director walks `storyline.md` to B830.
+green. The P1 repair/content guard, [`JIVA_METAPHYSICS.md`](Docs/JIVA_METAPHYSICS.md), Arena
+Miniature [Ratnapur street](Docs/Screenshots/arena-miniature-ratnapur-street.png) / [prison](Docs/Screenshots/arena-miniature-prison.png)
+proof, Ratna World Builder and Shantipur baseline are complete. Release verification is
+120/120 EditMode, 130/130 PlayMode and 14/14 World Builder tests. Visible screenplay, actors,
+authored route-mechanic use and final environments remain VS3–VS7
+work. The Ratna World Builder MVP is complete; W-12's dense Ratnapur region is next. The
+delivered VS2 director walks `storyline.md` to B830.

@@ -68,6 +68,7 @@ public static class GreyThreadSceneBuilder
         CreateTitle(geometry, spec);
 
         BuildDeeperRooms(geometry, spec);
+        if (spec.Name == "Prison") ArenaMiniatureSliceBuilder.BuildPrisonDungeon(geometry);
         if (spec.HasExitDoor) BuildExit(root.transform);
         BuildMechanic(root.transform, spec);
         BuildCast(root.transform, spec);
@@ -77,17 +78,20 @@ public static class GreyThreadSceneBuilder
         lightGo.transform.rotation = Quaternion.Euler(48f, -32f, 0f);
         var light = lightGo.AddComponent<Light>();
         light.type = LightType.Directional;
-        light.intensity = 1.05f;
+        light.intensity = spec.Name == "Prison" ? 0.58f : 1.05f;
         light.color = Color.Lerp(new Color(1f, 0.82f, 0.64f), spec.Accent, 0.18f);
+        if (spec.Name == "Prison") light.shadows = LightShadows.None;
 
         var ambient = new GameObject("GreyThread_Ambient");
         ambient.transform.SetParent(root.transform, false);
         var fill = ambient.AddComponent<Light>();
         fill.type = LightType.Point;
         fill.range = 24f;
-        fill.intensity = 2.2f;
+        fill.intensity = spec.Name == "Prison" ? 0.72f : 2.2f;
         fill.color = Color.Lerp(spec.Accent, Color.white, 0.25f);
         fill.transform.position = new Vector3(0f, 5.5f, 2.5f);
+
+        if (spec.Name == "Prison") ConfigureMiniatureInteriorLighting();
 
         EditorSceneManager.SaveScene(scene, path);
     }
@@ -139,7 +143,7 @@ public static class GreyThreadSceneBuilder
             var light = lamp.AddComponent<Light>();
             light.type = LightType.Point;
             light.range = 22f;
-            light.intensity = 1.5f;
+            light.intensity = spec.Name == "Prison" ? 0.48f : 1.5f;
             light.color = Color.Lerp(spec.Accent, Color.white, 0.3f);
         }
 
@@ -162,7 +166,7 @@ public static class GreyThreadSceneBuilder
         var trigger = exit.AddComponent<BoxCollider>();
         trigger.isTrigger = true;
         trigger.size = new Vector3(10f, 3f, 3f);
-        exit.AddComponent<InteriorExit>().Configure("Back to Estmere");
+        exit.AddComponent<InteriorExit>().Configure("Back to Ratnapur");
     }
 
     /// <summary>
@@ -173,7 +177,7 @@ public static class GreyThreadSceneBuilder
     {
         if (spec.Mechanic == GreyThreadSceneCatalog.Feature.None) return;
 
-        float deepZ = 10f + RoomDepth * (Mathf.Max(1, spec.Rooms) - 0.5f);
+        float deepZ = ArenaMiniatureSliceLayout.DeepestDungeonRoomCentreZ(spec.Rooms);
         var holder = new GameObject("Mechanic_" + spec.Mechanic).transform;
         holder.SetParent(root, false);
         holder.localPosition = new Vector3(0f, 0f, deepZ);
@@ -351,12 +355,12 @@ public static class GreyThreadSceneBuilder
         var flame = brazier.AddComponent<Light>();
         flame.type = LightType.Point;
         flame.range = 8f;
-        flame.intensity = 1.6f;
+        flame.intensity = spec.Name == "Prison" ? 0.42f : 1.6f;
         flame.color = new Color(1f, 0.55f, 0.18f);
         var flameRight = brazierRight.AddComponent<Light>();
         flameRight.type = LightType.Point;
         flameRight.range = 8f;
-        flameRight.intensity = 1.6f;
+        flameRight.intensity = spec.Name == "Prison" ? 0.42f : 1.6f;
         flameRight.color = new Color(1f, 0.55f, 0.18f);
     }
 
@@ -419,10 +423,23 @@ public static class GreyThreadSceneBuilder
 
     private static Material Accent(GreyThreadSceneCatalog.SceneSpec spec)
     {
-        var material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+        var material = new Material(Shader.Find("Universal Render Pipeline/Unlit")
+                                    ?? Shader.Find("Unlit/Color")
+                                    ?? Shader.Find("Universal Render Pipeline/Lit"));
         material.name = spec.Name + "_Accent";
-        material.color = Color.Lerp(spec.Accent, new Color(0.9f, 0.68f, 0.35f), 0.3f);
+        Color colour = Color.Lerp(spec.Accent, new Color(0.9f, 0.68f, 0.35f), 0.3f);
+        material.color = colour;
+        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", colour);
         return material;
+    }
+
+    private static void ConfigureMiniatureInteriorLighting()
+    {
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = ArtDirection.Active.AmbientSky;
+        RenderSettings.ambientEquatorColor = ArtDirection.Active.AmbientEquator;
+        RenderSettings.ambientGroundColor = ArtDirection.Active.AmbientGround;
+        RenderSettings.fog = false;
     }
 
     private static void EnsureFolders()

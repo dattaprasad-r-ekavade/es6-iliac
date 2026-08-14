@@ -35,8 +35,8 @@ public static class WorldLayout
 
     public enum Biome
     {
-        Halbrand,
-        Sarrakh,
+        Temperate,
+        Arid,
         IslandGreen,
         IslandRock
     }
@@ -71,7 +71,9 @@ public static class WorldLayout
             Name = "Halbrand_KarnothHighlands",
             Center = new Vector3(200f, 0f, 3200f),
             Size = new Vector3(2200f, 55f, 900f),
-            Biome = Biome.Halbrand,
+            Biome = Biome.Temperate,
+            CityId = "city_north",
+            CityName = "Shantipur",
             PropCount = 180,
             TerrainSeed = 1101
         },
@@ -80,7 +82,7 @@ public static class WorldLayout
             Name = "Halbrand_KelrithCoast",
             Center = new Vector3(-400f, 0f, 2200f),
             Size = new Vector3(2000f, 28f, 800f),
-            Biome = Biome.Halbrand,
+            Biome = Biome.Temperate,
             PropCount = 160,
             TerrainSeed = 1102
         },
@@ -89,9 +91,9 @@ public static class WorldLayout
             Name = "Halbrand_CaldemarPeninsula",
             Center = new Vector3(-2000f, 0f, 1600f),
             Size = new Vector3(900f, 24f, 700f),
-            Biome = Biome.Halbrand,
+            Biome = Biome.Temperate,
             CityId = "city_west",
-            CityName = "Caldemar",
+            CityName = "Sabhapur",
             PropCount = 90,
             TerrainSeed = 1103
         },
@@ -100,9 +102,9 @@ public static class WorldLayout
             Name = "Halbrand_EstmereShore",
             Center = new Vector3(2200f, 0f, 1800f),
             Size = new Vector3(850f, 22f, 650f),
-            Biome = Biome.Halbrand,
+            Biome = Biome.Temperate,
             CityId = "city_east",
-            CityName = "Estmere",
+            CityName = "Ratnapur",
             PropCount = 80,
             TerrainSeed = 1104
         },
@@ -111,7 +113,7 @@ public static class WorldLayout
             Name = "Sarrakh_Waste",
             Center = new Vector3(300f, 0f, -3000f),
             Size = new Vector3(2600f, 16f, 1100f),
-            Biome = Biome.Sarrakh,
+            Biome = Biome.Arid,
             PropCount = 140,
             TerrainSeed = 2201
         },
@@ -120,9 +122,9 @@ public static class WorldLayout
             Name = "Sarrakh_QadrisCoast",
             Center = new Vector3(-1600f, 0f, -2200f),
             Size = new Vector3(900f, 18f, 700f),
-            Biome = Biome.Sarrakh,
+            Biome = Biome.Arid,
             CityId = "city_south",
-            CityName = "Qadris",
+            CityName = "Marukot",
             PropCount = 85,
             TerrainSeed = 2202
         },
@@ -131,7 +133,7 @@ public static class WorldLayout
             Name = "Sarrakh_KilnHills",
             Center = new Vector3(2400f, 0f, -2400f),
             Size = new Vector3(900f, 60f, 1000f),
-            Biome = Biome.Sarrakh,
+            Biome = Biome.Arid,
             PropCount = 100,
             TerrainSeed = 2203
         },
@@ -207,19 +209,21 @@ public static class WorldLayout
 
     public static readonly Site[] Sites =
     {
-        new Site { Id = "city_west", DisplayName = "Caldemar", IsCity = true, DiscoverRadius = 280f,
+        new Site { Id = "city_north", DisplayName = "Shantipur", IsCity = true, DiscoverRadius = 260f,
+                   WorldPosition = new Vector3(200f, 55f, 3200f), TravelPosition = new Vector3(200f, 56.2f, 3000f) },
+        new Site { Id = "city_west", DisplayName = "Sabhapur", IsCity = true, DiscoverRadius = 280f,
                    WorldPosition = new Vector3(-2000f, 24f, 1600f), TravelPosition = new Vector3(-2000f, 25.2f, 1450f) },
-        new Site { Id = "city_east", DisplayName = "Estmere", IsCity = true, DiscoverRadius = 280f,
+        new Site { Id = "city_east", DisplayName = "Ratnapur", IsCity = true, DiscoverRadius = 280f,
                    WorldPosition = new Vector3(2200f, 22f, 1800f), TravelPosition = new Vector3(2200f, 23.2f, 1550f) },
-        new Site { Id = "city_south", DisplayName = "Qadris", IsCity = true, DiscoverRadius = 280f,
+        new Site { Id = "city_south", DisplayName = "Marukot", IsCity = true, DiscoverRadius = 280f,
                    WorldPosition = new Vector3(-1600f, 18f, -2200f), TravelPosition = new Vector3(-1600f, 19.2f, -1950f) },
-        new Site { Id = "isle_west", DisplayName = "Tolm", IsCity = false, DiscoverRadius = 120f,
+        new Site { Id = "isle_west", DisplayName = "Kusha", IsCity = false, DiscoverRadius = 120f,
                    WorldPosition = new Vector3(-2800f, 16f, 200f), TravelPosition = new Vector3(-2800f, 17.2f, 200f) },
-        new Site { Id = "isle_center", DisplayName = "Corrath", IsCity = false, DiscoverRadius = 120f,
+        new Site { Id = "isle_center", DisplayName = "Meru", IsCity = false, DiscoverRadius = 120f,
                    WorldPosition = new Vector3(150f, 28f, -100f), TravelPosition = new Vector3(150f, 29.2f, -100f) },
-        new Site { Id = "isle_south", DisplayName = "Sarn", IsCity = false, DiscoverRadius = 100f,
+        new Site { Id = "isle_south", DisplayName = "Shaka", IsCity = false, DiscoverRadius = 100f,
                    WorldPosition = new Vector3(-900f, 14f, -700f), TravelPosition = new Vector3(-900f, 15.2f, -700f) },
-        new Site { Id = "bandit_camp", DisplayName = "Kelrith Bandit Camp", IsCity = false, DiscoverRadius = 90f,
+        new Site { Id = "bandit_camp", DisplayName = "Vela Bandit Camp", IsCity = false, DiscoverRadius = 90f,
                    WorldPosition = BanditCamp, TravelPosition = BanditCamp },
         new Site { Id = "coastal_ruin", DisplayName = "Coastal Ruin", IsCity = false, DiscoverRadius = 90f,
                    WorldPosition = CoastalRuin, TravelPosition = CoastalRuin }
@@ -261,9 +265,12 @@ public static class WorldLayout
             new Vector3(-1400f, 0f, 1900f),
             BanditCamp
         },
-        // Kelrith -> Karnoth, joining the two northern Halbrand regions.
+        // Main east-west road -> Shantipur, crossing the Kelrith/Karnoth water gap
+        // as a generated causeway and finishing at the city's south gate.
         new[]
         {
+            new Vector3(0f, 0f, 2000f),
+            new Vector3(-120f, 0f, 2200f),
             new Vector3(-200f, 0f, 2400f),
             new Vector3(0f, 0f, 2600f),
             new Vector3(100f, 0f, 2800f),
@@ -360,10 +367,22 @@ public static class WorldLayout
         return Mathf.Sqrt(dx * dx + dz * dz);
     }
 
+    /// <summary>
+    /// Tolerance on the coast test, in normalised ellipse units.
+    ///
+    /// A point authored exactly *on* the coast is meant to count as land. Without slack it
+    /// depends on float rounding: <c>Center + radius</c> is rounded to the nearest float, and
+    /// subtracting <c>Center</c> back out can return marginally more than the radius, so the
+    /// same authored coastline is inside for one landmass and outside for the next purely
+    /// because of where its centre sits in the float grid. This is 1e-4 of a landmass radius —
+    /// a few centimetres on a kilometre — so it cannot make water into land.
+    /// </summary>
+    private const float CoastEpsilon = 1e-4f;
+
     /// <summary>True when an XZ position is on or inside a landmass's shared coast.</summary>
     public static bool IsInsideCoast(Vector3 pos, Landmass landmass)
     {
-        return GetNormalizedCoastDistance(pos, landmass) <= 1f;
+        return GetNormalizedCoastDistance(pos, landmass) <= 1f + CoastEpsilon;
     }
 
     /// <summary>

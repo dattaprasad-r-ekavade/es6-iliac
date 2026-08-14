@@ -87,7 +87,7 @@ public static class KessilMapArt
 
     private static Color BiomeColor(WorldLayout.Biome biome) => biome switch
     {
-        WorldLayout.Biome.Sarrakh => new Color(0.6f, 0.46f, 0.27f),
+        WorldLayout.Biome.Arid => new Color(0.6f, 0.46f, 0.27f),
         WorldLayout.Biome.IslandRock => new Color(0.41f, 0.41f, 0.44f),
         WorldLayout.Biome.IslandGreen => new Color(0.3f, 0.5f, 0.28f),
         _ => new Color(0.24f, 0.44f, 0.22f)

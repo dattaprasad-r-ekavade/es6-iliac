@@ -19,7 +19,7 @@ MonoBehaviour:
   offset: {x: 10, y: 0, z: -15}
   tint: {r: 0.55, g: 0.4, b: 0.25, a: 1}
   lines:
-  - Clear the Kelrith bandits.
+  - Clear the Vela bandits.
   - The bay remembers those who wander it.
   merchant: 0
   questGiver: 1

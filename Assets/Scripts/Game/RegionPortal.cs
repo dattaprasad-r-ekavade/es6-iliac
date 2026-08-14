@@ -109,4 +109,14 @@ public static class RegionReturn
         var facing = Quaternion.Euler(0f, anchor.Value.FacingDegrees, 0f) * Vector3.forward;
         return anchor.Value.Position + facing * (anchor.Value.Footprint * 0.5f + 4f);
     }
+
+    public static void PlacePlayerAtReturn(Transform player)
+    {
+        if (player == null) return;
+        var controller = player.GetComponent<CharacterController>();
+        bool wasEnabled = controller != null && controller.enabled;
+        if (wasEnabled) controller.enabled = false;
+        player.position = ReturnPosition();
+        if (wasEnabled) controller.enabled = true;
+    }
 }

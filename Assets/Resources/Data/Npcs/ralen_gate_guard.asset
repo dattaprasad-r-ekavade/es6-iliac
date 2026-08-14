@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: ralen_gate_guard
   m_EditorClassIdentifier: Game.Runtime::NpcArchetype
   id: ralen_gate_guard
-  displayName: Gate Guard Ralen
+  displayName: Gate Guard Ratan
   modelId: character-male-e
   anchorSiteId: city_west
   offset: {x: -10, y: 0, z: 25}

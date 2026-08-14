@@ -404,7 +404,7 @@ public class GameHud : MonoBehaviour
             sb.AppendLine();
         }
         if (QuestSystem.Instance.Quests.Count == 0)
-            sb.AppendLine("No quests yet. Speak with Captain Alid in Caldemar.");
+            sb.AppendLine("No quests yet. Speak with Captain Alid in Sabhapur.");
         _journalText.text = sb.ToString();
     }
 
@@ -468,6 +468,8 @@ public class GameHud : MonoBehaviour
 
     private SpeakingActor _topicSpeaker;
     private readonly List<string> _topicKeywords = new();
+    private const int TopicsPerPage = 9;
+    private int _topicPage;
 
     /// <summary>Whether a topic menu is currently open. Exposed for tests.</summary>
     public bool TopicMenuOpen => _topicSpeaker != null && _dialogueRoot != null && _dialogueRoot.activeSelf;
@@ -488,8 +490,9 @@ public class GameHud : MonoBehaviour
 
         _topicSpeaker = speaker;
         _topicKeywords.Clear();
+        _topicPage = 0;
         if (keywords != null)
-            for (int i = 0; i < keywords.Count && i < 9; i++) _topicKeywords.Add(keywords[i]);
+            for (int i = 0; i < keywords.Count; i++) _topicKeywords.Add(keywords[i]);
 
         HideMenus();
         _dialogueRoot.SetActive(true);
@@ -506,8 +509,14 @@ public class GameHud : MonoBehaviour
 
         var sb = new StringBuilder();
         sb.Append("What do you want to ask about?\n\n");
-        for (int i = 0; i < _topicKeywords.Count; i++)
-            sb.Append(i + 1).Append(".  ").Append(_topicKeywords[i]).Append('\n');
+        int first = _topicPage * TopicsPerPage;
+        int last = Mathf.Min(first + TopicsPerPage, _topicKeywords.Count);
+        for (int i = first; i < last; i++)
+            sb.Append(i - first + 1).Append(".  ").Append(_topicKeywords[i]).Append('\n');
+        int pages = Mathf.Max(1, Mathf.CeilToInt(_topicKeywords.Count / (float)TopicsPerPage));
+        if (pages > 1)
+            sb.Append("\nPage ").Append(_topicPage + 1).Append('/').Append(pages)
+              .Append("  ·  P/N previous/next");
         sb.Append("\n<size=18><color=#9da09e>1-9 ask  ·  E / Enter / Esc  leave</color></size>");
         _dialogueBody.text = sb.ToString();
     }
@@ -530,10 +539,9 @@ public class GameHud : MonoBehaviour
         // Asking can teach new keywords, so the menu is rebuilt from what is now askable.
         _topicKeywords.Clear();
         foreach (var available in _topicSpeaker.AvailableTopics())
-        {
-            if (_topicKeywords.Count >= 9) break;
             _topicKeywords.Add(available);
-        }
+        int pages = Mathf.Max(1, Mathf.CeilToInt(_topicKeywords.Count / (float)TopicsPerPage));
+        _topicPage = Mathf.Clamp(_topicPage, 0, pages - 1);
         return true;
     }
 
@@ -542,6 +550,22 @@ public class GameHud : MonoBehaviour
         var keyboard = UnityEngine.InputSystem.Keyboard.current;
         if (keyboard == null) return false;
 
+        int pages = Mathf.Max(1, Mathf.CeilToInt(_topicKeywords.Count / (float)TopicsPerPage));
+        if ((keyboard.nKey.wasPressedThisFrame || keyboard.pageDownKey.wasPressedThisFrame
+             || keyboard.rightArrowKey.wasPressedThisFrame) && _topicPage + 1 < pages)
+        {
+            _topicPage++;
+            RenderTopicList();
+            return true;
+        }
+        if ((keyboard.pKey.wasPressedThisFrame || keyboard.pageUpKey.wasPressedThisFrame
+             || keyboard.leftArrowKey.wasPressedThisFrame) && _topicPage > 0)
+        {
+            _topicPage--;
+            RenderTopicList();
+            return true;
+        }
+
         var digits = new[]
         {
             keyboard.digit1Key, keyboard.digit2Key, keyboard.digit3Key,
@@ -549,9 +573,11 @@ public class GameHud : MonoBehaviour
             keyboard.digit7Key, keyboard.digit8Key, keyboard.digit9Key
         };
 
-        for (int i = 0; i < digits.Length && i < _topicKeywords.Count; i++)
+        int first = _topicPage * TopicsPerPage;
+        int visible = Mathf.Min(TopicsPerPage, _topicKeywords.Count - first);
+        for (int i = 0; i < digits.Length && i < visible; i++)
             if (digits[i] != null && digits[i].wasPressedThisFrame)
-                return AskTopic(i);
+                return AskTopic(first + i);
 
         return false;
     }
@@ -641,10 +667,11 @@ public class GameHud : MonoBehaviour
             new Vector2(0.04f, 0.1f), new Vector2(0.96f, 0.9f), new Color(0.96f, 0.9f, 0.68f),
             wrap: false, display: true, outline: true);
 
-        // Vitals rhythm: mana left, health centre, stamina right.
+        // Vitals rhythm: prana left, health centre, stamina right. The serialized stat keeps
+        // its legacy field name so old saves remain compatible.
         var vitals = MakeImage(_hudRoot.transform, "Vitals", null,
             new Vector2(0.04f, 0.012f), new Vector2(0.96f, 0.072f), Color.clear);
-        _manaFill = MakeSpriteBar(vitals.transform, "Mana", new Vector2(0.00f, 0.20f), new Vector2(0.25f, 0.56f), UiTheme.BarBlue, new Color(0.22f, 0.34f, 0.72f));
+        _manaFill = MakeSpriteBar(vitals.transform, "Prana", new Vector2(0.00f, 0.20f), new Vector2(0.25f, 0.56f), UiTheme.BarBlue, new Color(0.22f, 0.34f, 0.72f));
         _healthFill = MakeSpriteBar(vitals.transform, "Health", new Vector2(0.385f, 0.20f), new Vector2(0.615f, 0.56f), UiTheme.BarRed, new Color(0.62f, 0.12f, 0.10f));
         _staminaFill = MakeSpriteBar(vitals.transform, "Stamina", new Vector2(0.75f, 0.20f), new Vector2(1.00f, 0.56f), UiTheme.BarGreen, new Color(0.20f, 0.52f, 0.22f));
         _manaLabel = MakeText(vitals.transform, "MLbl", "", 12, TextAnchor.MiddleRight, new Vector2(0.12f, 0.57f), new Vector2(0.25f, 0.96f), UiTheme.Silver, false, false, true);
@@ -706,7 +733,7 @@ public class GameHud : MonoBehaviour
             new Vector2(0.31f, 0.25f), new Vector2(0.69f, 0.75f), UiTheme.Panel);
         MakeText(waitCard.transform, "WaitTitle", "REST", 40, TextAnchor.UpperCenter,
             new Vector2(0.1f, 0.72f), new Vector2(0.9f, 0.95f), new Color(0.96f, 0.9f, 0.7f), false, true, true);
-        MakeText(waitCard.transform, "WaitHint", "Recover health, mana, and stamina.", 20, TextAnchor.UpperCenter,
+        MakeText(waitCard.transform, "WaitHint", "Recover health and stamina. Prana does not replenish by resting.", 20, TextAnchor.UpperCenter,
             new Vector2(0.1f, 0.58f), new Vector2(0.9f, 0.72f), new Color(0.9f, 0.85f, 0.75f), true, false, true);
         MakeWaitButton(waitCard.transform, "1 Hour", new Vector2(0.12f, 0.38f), new Vector2(0.88f, 0.52f), () => WaitHours(1f));
         MakeWaitButton(waitCard.transform, "8 Hours", new Vector2(0.12f, 0.22f), new Vector2(0.88f, 0.36f), () => WaitHours(8f));
@@ -736,7 +763,7 @@ public class GameHud : MonoBehaviour
         _promptText = At<Text>(root, "Hud/Prompt");
         _combatText = At<Text>(root, "Hud/Combat");
         _healthFill = At<Image>(root, "Hud/Vitals/HealthBg/HealthFill");
-        _manaFill = At<Image>(root, "Hud/Vitals/ManaBg/ManaFill");
+        _manaFill = At<Image>(root, "Hud/Vitals/PranaBg/PranaFill");
         _staminaFill = At<Image>(root, "Hud/Vitals/StaminaBg/StaminaFill");
         _healthLabel = At<Text>(root, "Hud/Vitals/HLbl");
         _manaLabel = At<Text>(root, "Hud/Vitals/MLbl");

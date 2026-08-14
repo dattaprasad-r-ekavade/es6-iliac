@@ -8,6 +8,18 @@ using UnityEngine.SceneManagement;
 public sealed class GreyThreadSceneTests
 {
     [Test]
+    public void ContinueProgressDoesNotRestartThePrologue()
+    {
+        Assert.IsFalse(GreyThreadDirector.HasRestoredProgress(new StorySnapshot()),
+            "A genuinely new story should still start Chapter 01.");
+        Assert.IsTrue(GreyThreadDirector.HasRestoredProgress(new StorySnapshot
+        {
+            BeatId = "B630",
+            StageId = "stage.escape",
+            RouteId = "route.trade"
+        }), "A restored mid-story snapshot would be overwritten by B010.");
+    }
+    [Test]
     public void CatalogContainsTheElevenAuthoredGreySpaces()
     {
         Assert.AreEqual(11, GreyThreadSceneCatalog.Scenes.Count);

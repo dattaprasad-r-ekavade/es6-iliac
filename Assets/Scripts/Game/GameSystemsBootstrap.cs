@@ -15,7 +15,27 @@ public class GameSystemsBootstrap : MonoBehaviour
 
     private void Awake()
     {
-        Instance = this;
+        // Main is loaded again when the player returns to the title. The systems root is
+        // persistent, so without replacing the old copy that reload leaves two complete
+        // singleton graphs alive and New Game talks to whichever one happened to Awake last.
+        // Prefer the freshly-authored scene copy: it has a clean `_started` flag and will be
+        // wired to the new player created by Main.
+        if (Instance != null && Instance != this)
+        {
+            var staleRoot = Instance.gameObject;
+            Instance = this;
+            if (Application.isPlaying)
+            {
+                staleRoot.SetActive(false);
+                Destroy(staleRoot);
+            }
+            else DestroyImmediate(staleRoot);
+        }
+        else
+        {
+            Instance = this;
+        }
+
         if (Application.isPlaying && gameObject.name == "GameSystems")
             DontDestroyOnLoad(gameObject);
     }
@@ -67,7 +87,7 @@ public class GameSystemsBootstrap : MonoBehaviour
 
         SpawnWorldContent();
 
-        GameHud.Instance?.ShowToast("Kessil Bay — M Map · J Journal · I Inv · E Talk");
+        GameHud.Instance?.ShowToast("Ratna Bay — M Map · J Journal · I Inv · E Talk");
         Debug.Log("[GameSystems] P0/P1 systems online.");
     }
 

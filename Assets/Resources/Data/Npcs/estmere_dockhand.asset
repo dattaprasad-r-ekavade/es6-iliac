@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: estmere_dockhand
   m_EditorClassIdentifier: Game.Runtime::NpcArchetype
   id: estmere_dockhand
-  displayName: Estmere Dockhand
+  displayName: Ratnapur Dockhand
   modelId: character-male-b
   anchorSiteId: city_east
   offset: {x: -20, y: 0, z: 10}
   tint: {r: 0.3, g: 0.5, b: 0.4, a: 1}
   lines:
-  - Welcome to Estmere, jewel of the Esk.
+  - Welcome to Ratnapur, jewel-port of the Nira.
   merchant: 0
   questGiver: 0

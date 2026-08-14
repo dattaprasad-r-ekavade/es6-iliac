@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Generates the Estmere region scene from <see cref="CapitalRegion"/>.
+/// Generates the Ratnapur region scene from <see cref="CapitalRegion"/>.
 ///
 /// The look is Arena's: flat-topped blocks, gridded streets, a rectangular curtain wall with
 /// cardinal gates. It is procedural because hand-authoring a 2.4 km region is not available to
@@ -25,7 +25,7 @@ public static class CapitalRegionBuilder
     private const float BlockSize = 60f;
     private const float StreetWidth = 14f;
 
-    [MenuItem("Kessil/Architecture/Build Estmere Region")]
+    [MenuItem("Kessil/Architecture/Build Capital Region")]
     public static void Build()
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -37,6 +37,7 @@ public static class CapitalRegionBuilder
         BuildSea(root);
         BuildCityWall(root);
         BuildDistricts(root, random);
+        ArenaMiniatureSliceBuilder.BuildCapitalStreet(root);
         BuildAnchors(root);
         BuildCrowd(root, random);
         BuildSpawn(root);
@@ -133,6 +134,8 @@ public static class CapitalRegionBuilder
 
                 if (IsReserved(centre, reserved)) continue;
                 if (IsOnGateApproach(centre)) continue;
+                if (ArenaMiniatureSliceLayout.OverlapsStreetReservation(centre, BlockSize * 0.5f))
+                    continue;
 
                 float height = 8f + (float)random.NextDouble() * 14f;
                 var go = Block(district, $"Block_{ix}_{iz}",
@@ -235,6 +238,8 @@ public static class CapitalRegionBuilder
                 CapitalRegion.CityCenter.z + ((float)random.NextDouble() * 2f - 1f) * half);
 
             if (IsReserved(spot, reserved)) continue;
+            if (ArenaMiniatureSliceLayout.OverlapsStreetReservation(spot, 0f)) continue;
+            if (IsOnGateApproach(spot)) continue;
 
             var tint = tints[random.Next(tints.Length)];
             var actor = BillboardActor.Spawn($"Citizen_{placed}", spot, tint, 1.75f + (float)random.NextDouble() * 0.2f);
@@ -265,8 +270,22 @@ public static class CapitalRegionBuilder
         sunGo.transform.rotation = Quaternion.Euler(42f, 150f, 0f);
         var sun = sunGo.AddComponent<Light>();
         sun.type = LightType.Directional;
-        sun.intensity = 1.05f;
-        sun.shadows = LightShadows.Soft;
+        sun.intensity = 0.58f;
+        sun.color = Color.Lerp(Color.white, ArtDirection.Active.Palette.Sand, 0.18f);
+        sun.shadows = LightShadows.None;
+
+        // Miniature painting separates flat registers with pigment and ink, not dramatic cast
+        // shadows. These scene settings also make headless proof captures match the runtime look.
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = ArtDirection.Active.AmbientSky;
+        RenderSettings.ambientEquatorColor = ArtDirection.Active.AmbientEquator;
+        RenderSettings.ambientGroundColor = ArtDirection.Active.AmbientGround;
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.Linear;
+        RenderSettings.fogColor = Color.Lerp(ArtDirection.Active.Palette.Sand,
+            ArtDirection.Active.Palette.Ocean, 0.14f);
+        RenderSettings.fogStartDistance = 180f;
+        RenderSettings.fogEndDistance = 380f;
     }
 
     // --- helpers -------------------------------------------------------------

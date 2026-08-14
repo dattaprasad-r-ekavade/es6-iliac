@@ -64,7 +64,7 @@ public class PlayerSafetyGuard : MonoBehaviour
         if (_offGroundFor >= OffGroundGrace)
         {
             _offGroundFor = 0f;
-            TeleportToSpawn(transform, "You cannot leave the map — returned to Caldemar.");
+            TeleportToSpawn(transform, "You cannot leave the map — returned to safe ground.");
         }
     }
 
@@ -72,7 +72,7 @@ public class PlayerSafetyGuard : MonoBehaviour
     {
         if (player == null) return;
         var cc = player.GetComponent<CharacterController>();
-        var pos = KessilWorldGenerator.GetPlayerSpawn(cc);
+        var pos = RespawnPosition(cc);
         if (cc != null) cc.enabled = false;
         player.position = pos;
         if (cc != null) cc.enabled = true;
@@ -89,5 +89,23 @@ public class PlayerSafetyGuard : MonoBehaviour
 
         if (!string.IsNullOrEmpty(toast))
             GameHud.Instance?.ShowToast(toast);
+    }
+
+    public static Vector3 RespawnPosition(CharacterController controller = null)
+    {
+        var transition = SceneTransitionService.Instance;
+        string sceneName = transition != null
+            ? transition.ActiveContentSceneName
+            : UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (string.IsNullOrWhiteSpace(sceneName))
+            sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        return RespawnPositionForScene(sceneName, controller);
+    }
+
+    public static Vector3 RespawnPositionForScene(string sceneName, CharacterController controller = null)
+    {
+        return sceneName == GreyThreadDirector.RegionScene
+            ? CapitalRegion.PlayerSpawn
+            : KessilWorldGenerator.GetPlayerSpawn(controller);
     }
 }

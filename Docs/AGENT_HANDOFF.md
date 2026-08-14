@@ -38,9 +38,10 @@ Do not resolve a question from the wrong file.
 
 | Question | Authority |
 |---|---|
-| Chapter 01 plot, beat for beat | `storyline.md` |
+| Chapter 01 plot, beat for beat | `storyline.md` — adopted Ratna Bay wording |
 | Chapter 01 implementation contract, beats, cast, flags, evidence | `Docs/CHAPTER01_BEATS.md` |
 | World premise, the Stambha truth, factions, Chapters 02+ | `Docs/STORY_ARC_INDIC.md` — **authority since 2026-08-12** |
+| Jiva, prana, dāna, black binding, pretas and Stambha mechanics | `Docs/JIVA_METAPHYSICS.md` — narrow authority, locked 2026-08-12 |
 | The same arc in its original Western-fantasy naming | `Docs/STORY_ARC.md` — **superseded**; kept because it still owns structure, the spoke contract and the endings, which the variant does not restate |
 | Navigation, dialogue, travel, combat, skills, economy | `Docs/GAMEPLAY_DESIGN.md` |
 | Milestones, gates, risks, world architecture, art direction | `plan.md` |
@@ -51,20 +52,20 @@ Do not resolve a question from the wrong file.
 
 ## 3. Verification — commands that actually work
 
-All four are verified working as of 2026-08-11. Unity must be **closed** for the headless
-ones (they take the project lock).
+The Unity commands and external-editor checks below are verified working. Unity must be
+**closed** for headless Unity runs (they take the project lock).
 
 ```bash
 # Compile-check every assembly without opening Unity. Fast, run this constantly.
 python Tools/compile-check.py
 
-# EditMode tests — currently 99/99
+# EditMode tests — release run: 120/120
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform EditMode \
   -testResults "<scratch>/em.xml" -logFile "<scratch>/em.log"
 
-# PlayMode tests — currently 124/124
+# PlayMode tests — last full recorded run: 130/130
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -runTests -testPlatform PlayMode \
@@ -74,6 +75,10 @@ python Tools/compile-check.py
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode -quit \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -executeMethod BuildPlayerCommand.BuildWindows -logFile "<scratch>/build.log"
+
+# External Ratna World Builder — release run: 14/14 Python tests
+python Tools/WorldBuilder/world_builder.py --validate
+python -m unittest discover -s Tools/WorldBuilder/tests -v
 ```
 
 Exit code 0 means pass. Parse the results XML for the `total/passed/failed` attributes —
@@ -91,14 +96,15 @@ most expensive kind of mistake here.
 
 | Invariant | Why | Enforced by |
 |---|---|---|
-| Save-persisted ids never embed display names (`city_west`, not `Caldemar`) | renames must stay display-only | `WorldLayoutTests` |
-| Palette colours stay in the muted range; `ArtDirection.Current` is Morrowind Clean | prevents drift back to the engine-project look | `ArtDirectionTests` |
+| Save-persisted ids never embed display names (`city_west`, not `Sabhapur`) | renames must stay display-only | `WorldLayoutTests` |
+| `ArtDirection.Current` is Arena Miniature; flat pigment, hard contour and code-baked 64 px surfaces | prevents drift back to the engine-project look | `ArtDirectionTests` |
 | Code branches on ids, never on display names | same as above | convention |
 | The title card fires exactly once, only at B640 | authored moment | `CinematicRunner`, `GreyThreadDirector`, PlayMode gate |
 | Watching and skipping a cinematic produce identical flags | save integrity | beat sheet acceptance tests |
 | All four routes enter B600 **unarmed**, gear stored not destroyed | lets B630 be authored once | convergence contract clause 6 |
-| Chapter 01 must never hint that the Everspire is an alarm | it is the Chapter 06 reveal | `STORY_ARC.md` |
-| Chapter 01 must establish organic soul sourcing as **normal and legal** | without it the whole arc collapses into an abolition story | `STORY_ARC.md` plant list |
+| Chapter 01 must never reveal that the Stambha measures, warns and holds | it is the Chapter 06 reveal | `STORY_ARC_INDIC.md` |
+| Chapter 01 must establish lawful dāna as pranic-imprint capture—the jiva moves on | without it the whole arc collapses into an abolition story | `JIVA_METAPHYSICS.md` |
+| A black jiva cages a continuing person; a lawful stone never does; every prana draw still burdens the world | keeps dialogue, economy and endings logically compatible | `JIVA_METAPHYSICS.md` |
 | `player.channeled` is tracked, **never** mechanically punished | it changes dialogue, not damage | `GAMEPLAY_DESIGN.md` |
 | The protagonist is silent, permanently | it is what makes topic dialogue affordable | slice definition |
 | Spoke chapters condition on `evidence_count`, never on *which* spokes are done | keeps the open hub consistent | spoke contract |
@@ -132,8 +138,8 @@ purpose, declare it with `LogAssert.Expect(LogType.Error, new Regex(...))`.
 
 **`PlayerStats.Update` regenerates stamina every frame** (4/sec in combat, 12/sec at rest).
 Use `[Test]` rather than `[UnityTest]` when asserting on stamina, so no frames advance.
-**Mana does not regenerate at all** — it is crystal charge. If you find yourself adding mana
-regen to make a test pass, the test is wrong.
+**Prana does not regenerate at all** — it is jiva-stone charge. The retained code field/API
+may still say `Mana`; if you add regeneration to make a test pass, the test is wrong.
 
 **`KessilWorldGenerator.SnapCharacterToGround` returns its input unchanged when no terrain is
 present.** This is why save/load round-trips exactly in a bare test scene.
@@ -168,6 +174,13 @@ must build a `SceneContext` and at least one `SceneSpawnPoint`.
 **`Game.Tests.asmdef` is Editor-only** (`includePlatforms: ["Editor"]`). PlayMode tests live
 in the separate `Game.PlayModeTests` assembly.
 
+**The overworld renderer has not been migrated to Arena Miniature.** `KessilWorldGenerator`
+paints `Main.unity` from the hand-authored PBR materials in `Assets/Art/Materials`, not from
+`ProceduralSurface`. The world map therefore still renders in the old muted look, and the
+top-down proof view shows colours that are not in the locked palette at all. Geography is
+correct and tested; the *look* of the overworld is the open half. Do not read that capture as
+evidence the palette is broken.
+
 **There are two scene lists, and only one of them ships.** `EditorBuildSettings` governs the
 editor and PlayMode tests. `BuildPlayerCommand` decides what goes into a **player**. These were
 maintained separately, and that is how `Capital_Region` came to be in build settings — so
@@ -197,9 +210,9 @@ look must restore `ArenaMiniature` in `[TearDown]`, or whether
 `ArtDirectionTests.DefaultLook_IsTheLockedOne` passes depends on the order NUnit happened to
 run the fixtures in.
 
-**Learned dialogue topics are not saved.** `TopicDialogueService.KnownTopics` is absent from
-`StorySnapshot`, so a load loses every keyword the player has picked up. That made the Indic
-keyword rename free, and it is a real gap for anyone implementing save/continue properly.
+**Learned dialogue topics are save-persisted.** This used to be a gap; `StorySnapshot` now
+stores the known-topic set and restores it deterministically. Keep save migration defaults
+for old files and do not reintroduce a session-only keyword list.
 
 **Git diff stats on this repo are wildly misleading.** `.unity` files are enormous generated
 YAML. The VS1+VS2 commit reads as 336,372 insertions; 324,507 of those are scene files, and
@@ -214,22 +227,32 @@ git show --numstat <sha> -- "*.cs" | awk '$1 ~ /^[0-9]+$/ {a+=$1; d+=$2; n++} EN
 ## 6. Current state
 
 **VS2 is complete (2026-08-01).** The grey-thread route gate runs all four assignments through
-additive Chapter 01 scenes, covering 42/42 beat ids to B830 / Caldemar Council. The next packet
-is W-11, the external Map Editor MVP.
+additive Chapter 01 scenes, covering 42/42 beat ids to the B830 Sabhapur handoff. The 2026-08-12
+stabilisation gate is also complete: P1 full-flow defects are repaired, the Ratna Bay migration
+and content guard are in place, the jiva contract is locked, and the Arena Miniature street /
+dungeon captures plus automated checks pass. W-11 then delivered the Ratna World Builder MVP
+with one-button Unity preview and 14/14 Python tests. Shantipur's baseline city/road is present;
+the full W-12 dense-region rebuild is not.
 
 | | Status |
 |---|---|
 | VS0 — story package and regression baseline | **Complete**, except the screenplay (deliberately deferred to the VS2→VS3 window) |
 | VS1 — technical spine | **Complete — W-01–W-09 gate passed** |
 | VS2 — grey thread | **Complete — 42/42 grey beats; all four routes reach B830** |
-| Tests | EditMode 99/99, PlayMode 124/124 |
+| P1 + setting/metaphysics + proof slice | **Complete — content guard, two captures, automated geometry/collision tests** |
+| W-11 Ratna World Builder | **Complete — standalone editor, one-button Unity preview, 14/14 Python tests** |
+| Wider world | **Shantipur baseline city/road complete; full W-12 dense-region rebuild pending** |
+| Tests | Release verification: EditMode 120/120, PlayMode 130/130; rerun after any integration change |
 | Build | `Builds/Windows/Kessil.exe`, 143.8 MB, 0 errors; Bootstrap is scene zero; **15 scenes incl. `Capital_Region`** |
-| Code | 53 runtime scripts, 15 editor scripts, plus Python tooling |
+| Code | 74 runtime scripts, 18 editor scripts, plus Python tooling (2026-08-12 working count) |
 | Scenes | `Bootstrap`, generated `Main`, `Capital_Region`, additive `Capital_Exterior`, 11 Chapter 01 grey scenes; four test fixtures. **All named for the building, never the city** |
 | Prefabs / ScriptableObjects / `.inputactions` | 4 runtime prefabs; NPC, dialogue, quest and cinematic data assets; one input-actions asset |
 
-Every narrative and production lock for Chapter 01 is closed. The grey implementation covers
-all 42 beat ids; “authored content 0/42” is intentionally still the next content burn-down.
+Every plot lock for Chapter 01 is closed. `JIVA_METAPHYSICS.md` is the narrow authority that
+keeps lawful dāna, black binding, pretas and the Stambha compatible. The grey implementation
+covers all 42 beat ids; authored-content burn-down and W-12 density work are now the critical
+paths. Do not treat the real-controller street/prison walkthrough or 45+ FPS minimum-machine
+acceptance as complete; both remain manual gates.
 
 ### Velocity, for planning
 
@@ -256,9 +279,10 @@ starting** — they contain decisions that are expensive to contradict.
 
 ### Sequencing — read this before picking a packet
 
-**The region rebuild and the Map Editor are both deferred until after VS2.** The architecture
-decision is recorded in `plan.md`; executing it is not urgent, and an earlier draft of this
-document wrongly said otherwise.
+**The Map Editor correctly waited until after VS2 and is now complete at MVP scope.** W-12 is
+the next world milestone. Its first step is a dense Ratnapur region, not an indiscriminate
+four-region expansion; Shantipur currently proves only a baseline fourth city and road in the
+legacy bay layout.
 
 The reasoning:
 
@@ -364,7 +388,7 @@ build 142.1 MB, 0 errors.
 disaster here.
 
 Must carry: current scene and spawn id, `CharacterProfile`, chapter, stage, `flag.route`,
-all story flags, evidence set with inspected state, dialogue choices, companion state, King
+all story flags, evidence set with inspected state, dialogue choices, companion state, Raja
 outcome, ruler state, granted title, opened locks, looted objects, skipped cinematics —
 **plus skills and the equipped set** (see `GAMEPLAY_DESIGN.md` deltas 12–13).
 
@@ -447,15 +471,16 @@ state. Dialogue is placeholder text driven by the real topic graph.
 
 **Delivered:** `GreyThreadSceneBuilder` regenerates 11 Chapter 01 rooms with stable contexts,
 spawns, stepped elevations and collision-backed walls. `GreyThreadDirector` now visits all
-**42/42** beat ids across the prologue, a real clickable King's audience assignment panel,
+**42/42** beat ids across the prologue, a real clickable Raja's audience assignment panel,
 distinct Warrior/Mage/Trade/Refuse branches, prison/cave convergence, the invoked B640 title
-crawl, aftermath and Caldemar handoff. It records profile/route choices, prince testimony,
-typed King outcome/ruler/title state and valid V4 route checkpoints. The player-preservation
+crawl, aftermath and Sabhapur handoff. It records profile/route choices, Arun's testimony,
+typed Vikram outcome/ruler/title state and valid V4 route checkpoints. The player-preservation
 fix keeps the generated player alive when the first content scene unloads. Screenshots:
-`Docs/Screenshots/vs2-estmere-palace.png`, `Docs/Screenshots/vs2-caldemar-arrival.png`.
+legacy-named files `Docs/Screenshots/vs2-estmere-palace.png` and
+`Docs/Screenshots/vs2-caldemar-arrival.png` (current Ratnapur/Sabhapur views).
 
 **Gate passed:** a developer starts a new game, chooses a name and assignment in-game, and
-reaches the Caldemar handoff on **all four routes** without touching the editor. It is
+reaches the Sabhapur handoff on **all four routes** without touching the editor. It is
 intentionally grey; the next packet replaces these placeholders with authored environments,
 dialogue and mechanics.
 
@@ -513,7 +538,7 @@ Do not "fix" that by making the gate interactive — it would then depend on UI 
 
 **Known gaps for the next session:**
 
-- The King's audience blocks on `WaitForAssignment()`, a UI panel. Fine when a human plays;
+- Raja Vikram's audience blocks on `WaitForAssignment()`, a UI panel. Fine when a human plays;
   it is why the gate runs non-interactively.
 - Interiors are still single grey rooms. The region is a place; the interiors are not yet.
 - VS4 mechanics are wired to route beats but nothing in an interior *uses* detection, locks,
@@ -527,12 +552,12 @@ Closes the four gaps W-15 left open.
 
 - **Multi-room interiors.** `GreyThreadSceneCatalog` declares rooms and contents per scene;
   the builder lays chambers out behind the entrance hall joined by real doorways. Prison is
-  four rooms, palace and Arcanum three.
+  four rooms, palace and Siddha Order hall three.
 - **Exits.** `InteriorExit` returns the player to the door they entered by. The prologue, sea
   cave and aftermath deliberately have none — a door there would let the player walk out of
   the ending, and a test holds that.
 - **Mechanics in the world.** Tower has a lock and a watcher, prison has a mark and a watcher,
-  harbour has a boat, guard yard and Arcanum have training targets.
+  harbour has a boat, guard yard and Siddha Order hall have training targets.
 - **The audience is testable.** `GreyThreadAssignmentPanel.Submit` is what its buttons call;
   the director exposes `AssignmentPanel` and `AwaitingAssignment`.
 
@@ -559,16 +584,16 @@ talk to. Now there is.
 - `PlayerInteract` prefers a `SpeakingActor` over an `NpcInteractable`, so the named cast open
   a conversation where street dressing only barks.
 
-**The "soul crystals" topic carries a story requirement, not colour.** It states that crystals
-are given at a natural death or bought from beast-drovers, and that this is lawful and has fed
-Estmere for two centuries. `STORY_ARC.md` names establishing organic sourcing as normal and
-legal the single most important thing Chapter 01 must plant — without it the audience
-concludes all crystal use is monstrous and the eight-chapter argument collapses into an
-abolition story. **Do not cut or soften that topic.**
+**The “jiva stones” topic carries a story requirement, not colour.** A lawful dāna rite
+captures only the released pranic imprint and the continuing jiva moves on; beast-drovers
+gather naturally shed charge. Black binding instead cages the whole unwilling person. Without
+that distinction, the audience reasonably concludes all use creates pretas and the
+eight-chapter argument collapses. **Do not cut or contradict the topic; the exact rule lives
+in `JIVA_METAPHYSICS.md`.**
 
-Cast placement follows the beat sheet: processing guard at the docks, Thorne in the guard
-yard, Quill in the Arcanum, Ashgrove at the harbour, Reed and Falk in the prison, Osric in the
-palace, Ambrose at Caldemar. B510 requires the prison reveal split across two speakers; a test
+Cast placement follows the beat sheet: Registrar at the docks, Karan in the guard yard, Meera
+in the Siddha Order hall, Vasu at the harbour, Hari and Lekha in the prison, Vikram in the
+palace, Devan at Sabhapur. B510 requires the prison reveal split across two speakers; a test
 holds that both are present.
 
 ### W-18 · Arena Miniature, and the setting goes Indic — **complete 2026-08-12**
@@ -603,54 +628,63 @@ proper noun to that list.
 stones, prana, the Stambha, Raja Vikram. Role/route/flag/evidence/skill/anchor ids were
 already neutral, so this was a display swap — the naming policy paying for itself.
 
-**Do not soften the "jiva stones" topic.** It is the only place Chapter 01 establishes that
-lawful sourcing is normal — **dāna**, freely given, against **steya**, taken. Without it the
-audience concludes all jiva use is monstrous and the eight-chapter argument collapses into an
-abolition story.
+**Do not soften or metaphysically contradict the “jiva stones” topic.** Dāna captures a
+released pranic imprint while the jiva moves on; steya cages an unwilling continuing person.
+Every draw still burdens the world. `JIVA_METAPHYSICS.md` is authoritative.
 
 **Deliberately not done**, so this is not mistaken for finished:
 
 - **Sprite rotations.** Figures are frontal only; Arena drew 5–8 angles. Largest known gap.
-- **The `Kessil*` classes and the `Kessil/` menu root.** The project's own codename, referenced
-  throughout the docs. Whether the project becomes Ratna Bay is a separate call.
+- **The `Kessil*` classes, `.sln` and `Kessil/` menu root.** Internal codenames deliberately
+  retained to avoid a risky tooling-only rename; the player-facing product is Ratna Bay.
 - **`WorldLayout.Biome` and the landmass `Name` strings.** Internal, unpersisted, not
   player-visible.
 - **The legacy CC0 kits.** Off the critical path but still in the build, costing download size.
 
-### W-11 · Map Editor MVP · **next**
+### W-11 · Ratna World Builder MVP · **complete 2026-08-12**
 
-Now — not before — because you will have authored thirteen scenes and know what the pain
-actually is. A tool built after one manual pass is far better than one built before it.
+The MVP is a self-contained Python/Tk application; it needs no Unity interaction for normal
+editing and no pip packages. Start `Tools/WorldBuilder/Launch World Builder.cmd`. It edits the
+versioned `kessil.world.json` source through the current runtime vocabulary:
 
-- Read: `plan.md` § *World-authoring goal — Kessil World Builder*
-- Tiled-backed, with a Kessil importer, validator and one-click headless preview.
-- Source of truth becomes a versioned `kessil.world.json`, not a Unity scene and not
-  hand-edited C#.
+- landmass centre, size, base height, elevation/relief and biome;
+- road polylines and stable ids;
+- city/POI sites plus city-gate and story-spawn metadata;
+- undo/redo, validation, timestamped backups and atomic saves;
+- labelled PNG/SVG previews; and
+- one-button **Unity Preview**, which invokes `WorldBuilderPreviewCommand` headlessly, rebuilds
+  generated `Main` through the production path and captures top-down/approach images in
+  `Docs/Screenshots/WorldBuilder/`.
 
-**Gate:** a non-Unity user can move a coastline, paint elevation and biome, redraw a road,
-place a city gate and a story spawn, press one button, and get a valid region back — with
-plain-language errors for invalid configurations.
+The Python suite is **14/14 green**. Read `Tools/WorldBuilder/README.md`; the external overview
+capture is `Docs/Screenshots/world-builder-preview.png`.
 
-### W-12 · Region rebuild · *after W-11*
+**Boundary:** land remains the runtime's ellipse-plus-relief model. Gates and story spawns are
+safe editor metadata but do not yet drive runtime placement. Free-form heightmaps/coasts and
+the marker importer remain follow-on work; do not describe them as MVP features.
 
-Execute the architecture already decided in `plan.md` § *World architecture*. The bay becomes
-Witcher 3-style regions: a city plus a dense walkable hinterland per plane, connected by the
-ferry network.
+### W-12 · Dense region rebuild · **baseline expansion started; full rebuild pending**
 
-**Dimensions are locked:** city core ~1.2 km, region 2 km × 2 km square bounded by open sea,
-~10 minutes corner to corner at the 3.5 m/s walk. Do not re-derive these — see
-`GAMEPLAY_DESIGN.md` § *Traversal and scale*.
+Shantipur now exists under stable id `city_north` on the Uttara highlands with a dry arrival,
+bounded city footprint, walls/building colliders and a road joining the main route. This closes
+the fourth-city **baseline**, not W-12: it is still part of the legacy continuous-bay generator.
 
-**Chapter 01 needs only the Estmere region**, plus the shipboard prologue and a Caldemar
-arrival sliver. Caldemar, Qadris and Aldreth as full regions are Chapter 02+ work.
-**Build Estmere and measure what it actually costs before committing to four.**
+The full packet remains the region architecture decided in `plan.md`: a city plus a dense,
+walkable hinterland per plane, connected by ferries. **Dimensions are locked:** city core
+~1.2 km, region 2 km × 2 km square bounded by open sea, ~10 minutes corner to corner at the
+3.5 m/s walk.
 
-- Rearchitect `KessilWorldGenerator` (1,107 lines) around a region rather than a world.
-- **Rewrite `WorldLayoutTests`.** 16 of the 20 EditMode tests assert on the current bay's
-  elliptical coasts, road spines and city-to-landmass links, and will not survive. Replace
-  them rather than deleting them — the id-stability and dry-interior assertions still matter.
-- Art direction's "keep the bay thin and fog-limited" was a consequence of the *old*
-  architecture. **Regions are meant to be dense.** Do not carry the thinness rule over.
+**Chapter 01 needs only the Ratnapur region**, plus the shipboard prologue and a Sabhapur
+arrival sliver. Sabhapur, Marukot and Shantipur as full dense regions are Chapters 02+ work.
+**Build Ratnapur and measure its real content/performance cost before committing to four.**
+
+- Rearchitect `KessilWorldGenerator` around a region rather than one continuous bay.
+- Replace ellipse-specific `WorldLayoutTests` with region contracts while retaining id
+  stability, dry-arrival, collision and safe-spawn assertions.
+- Add free-form heightmap/coast authoring and consume World Builder marker metadata only when
+  W-12 actually needs those capabilities.
+- Complete the real-controller street/prison walkthrough and minimum-machine 45+ FPS gate
+  before propagating the Arena treatment across the region.
 
 ---
 
@@ -708,15 +742,16 @@ it — the entire hostile roster is humans and humans who came back wrong.
 
 None of these block current work. Raise them when their packet comes up.
 
-0. ~~Map Editor sequencing~~ — **resolved 2026-08-01.** Both the editor (W-11) and the region
-   rebuild (W-12) come after VS2. See *Sequencing* above.
+0. ~~Map Editor sequencing~~ — **resolved and delivered 2026-08-12.** W-11 is complete; W-12
+   follows the proof/editor gates. See *Sequencing* above.
 1. **The weaponmaster.** The director wants one NPC introducing all weapons, but Chapter 01
-   already has `role.instructor_warrior` (Alaric Thorne) in the guard yard, which three of the
-   four routes never visit. Either the weaponmaster *is* Thorne and only warriors meet him, or
+   already has `role.instructor_warrior` (Senapati Karan) in the guard yard, which three of the
+   four routes never visit. Either the weaponmaster *is* Karan and only warriors meet him, or
    he sits somewhere every route passes.
 
-3. Aldreth is a placeholder name (`city_north` is the stable id).
-4. What returned souls look like beyond "humans with purple fume" — the late-game bestiary.
+3. ~~Northern-city name~~ — **resolved:** Shantipur is present under stable id `city_north`.
+4. What pretas and other returned beings look like beyond “humans with purple fume”—the
+   late-game bestiary.
 5. Subtitle standard; frame-time and memory floor. Both VS8-tier.
 
 ## 9. Standing preferences

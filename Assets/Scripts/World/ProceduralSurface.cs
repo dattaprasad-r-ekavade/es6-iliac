@@ -101,13 +101,20 @@ public static class ProceduralSurface
         return texture;
     }
 
-    /// <summary>An unlit-friendly Lit material carrying the surface. Shared, so it batches.</summary>
+    /// <summary>
+    /// An unlit pigment material carrying the surface. Miniature depth comes from drawn
+    /// contours and colour registers, not a directional-light multiplier. Using URP/Lit here
+    /// made the same lime-plaster texture turn swamp green under the region's ambient probe.
+    /// Shared materials still batch.
+    /// </summary>
     public static Material MaterialFor(Kind surface)
     {
         EnsureCurrent();
         if (Materials.TryGetValue(surface, out var cached) && cached != null) return cached;
 
-        var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var shader = Shader.Find("Universal Render Pipeline/Unlit")
+                     ?? Shader.Find("Unlit/Texture")
+                     ?? Shader.Find("Universal Render Pipeline/Lit");
         var material = new Material(shader) { name = $"M_{surface}" };
 
         var texture = Get(surface);

@@ -79,7 +79,7 @@ public static class CapitalRegion
                 SpawnId = "spawn.entry", Position = new Vector3(-380f, GroundHeight, 180f),
                 FacingDegrees = 90f, Footprint = 40f },
 
-        new() { Id = "anchor.arcanum", DisplayName = "The Arcanum", SceneName = "Order_Hall",
+        new() { Id = "anchor.arcanum", DisplayName = "The Siddha Order", SceneName = "Order_Hall",
                 SpawnId = "spawn.entry", Position = new Vector3(300f, GroundHeight, 160f),
                 FacingDegrees = 225f, Footprint = 60f },
 

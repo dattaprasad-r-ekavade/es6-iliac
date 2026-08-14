@@ -54,6 +54,7 @@ public sealed class StorySnapshot
     public List<string> OpenedLocks = new();
     public List<string> LootedObjects = new();
     public List<string> SkippedCinematics = new();
+    public List<string> KnownTopics = new();
     /// <summary>
     /// Lifetime crystals burned. Owned here rather than in <see cref="SaveData"/> because
     /// topic dialogue reads it through the `player.channeled` condition — this is the copy
@@ -193,6 +194,7 @@ public sealed class StoryDirector : MonoBehaviour
         state.OpenedLocks ??= new List<string>();
         state.LootedObjects ??= new List<string>();
         state.SkippedCinematics ??= new List<string>();
+        state.KnownTopics ??= new List<string>();
     }
 
     private void AddUnique(List<string> values, string id)

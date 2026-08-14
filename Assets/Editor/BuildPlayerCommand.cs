@@ -10,7 +10,7 @@ using UnityEngine;
 /// </summary>
 public static class BuildPlayerCommand
 {
-    private const string OutputPath = "Builds/Windows/Kessil.exe";
+    private const string OutputPath = "Builds/Windows/RatnaBay.exe";
 
     [MenuItem("Kessil/Build/Windows Player")]
     public static void BuildWindows()
@@ -21,10 +21,14 @@ public static class BuildPlayerCommand
         // player on New Game.
         var allScenes = SceneArchitectureBuilder.ShippingScenePaths()
             .FindAll(File.Exists);
+        var requiredScenes = SceneArchitectureBuilder.ShippingScenePaths();
 
-        if (allScenes.Count == 0)
+        if (allScenes.Count != requiredScenes.Count)
         {
-            Debug.LogError("[Build] No shipping scenes exist on disk. Regenerate them first.");
+            var missing = requiredScenes.FindAll(path => !File.Exists(path));
+            Debug.LogError("[Build] Required shipping scenes are missing: "
+                           + string.Join(", ", missing)
+                           + ". Regenerate them before building.");
             EditorApplication.Exit(1);
             return;
         }

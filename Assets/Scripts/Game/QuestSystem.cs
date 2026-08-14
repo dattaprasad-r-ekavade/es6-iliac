@@ -47,7 +47,7 @@ public class QuestSystem : MonoBehaviour
             if (!q.Active || q.Completed) continue;
             if (q.TargetLocationId == locationId)
             {
-                if (q.Id == "main_bay") q.StageText = "Return toward Caldemar (or explore freely)";
+                if (q.Id == "main_bay") q.StageText = "Return toward Sabhapur (or explore freely)";
                 Complete(q);
             }
             if (q.Id == "main_bay" && (locationId == "city_east" || locationId == "city_south")) Complete(q);

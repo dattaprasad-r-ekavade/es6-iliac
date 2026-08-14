@@ -16,6 +16,6 @@ MonoBehaviour:
   keyword: casting
   actorId: role.instructor_mage
   factionId: 
-  response: Prana is drawn, not conjured. Spend a stone and you have spent something
-    that was alive. The Order has learned to say that quickly.
+  response: Prana is drawn, not conjured. Spend a stone and you have spent charge
+    left by life. No draw is free, though the Order has learned to say that quickly.
   conditions: []

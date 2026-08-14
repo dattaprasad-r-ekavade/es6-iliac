@@ -37,6 +37,9 @@ public class GameFlowController : MonoBehaviour
     private bool _skipRequested;
     private bool _continueRequested;
 
+    /// <summary>True until Continue has finished applying its save.</summary>
+    public bool IsContinuing => _continueRequested;
+
     /// <summary>True once the player has control.</summary>
     public bool IsInGameplay { get; private set; }
 
@@ -217,7 +220,9 @@ public class GameFlowController : MonoBehaviour
         SetPlayerActive(true);
         GameStateService.Ensure().SetState(GameState.Gameplay);
 
-        var bootstrap = FindAnyObjectByType<GameSystemsBootstrap>();
+        var bootstrap = GameSystemsBootstrap.Instance;
+        if (bootstrap == null)
+            bootstrap = FindAnyObjectByType<GameSystemsBootstrap>();
         if (bootstrap == null)
         {
             Debug.LogError("[GameFlow] GameSystems prefab/bootstrap is missing.");
@@ -229,9 +234,19 @@ public class GameFlowController : MonoBehaviour
             if (_continueRequested)
             {
                 SaveLoadService.Instance?.Load();
-                _continueRequested = false;
+                StartCoroutine(FinishContinueRoutine());
             }
         }
+    }
+
+    private IEnumerator FinishContinueRoutine()
+    {
+        // Keep the story driver gated for both same-scene loads (one frame) and additive
+        // scene restoration (however long its transition takes).
+        yield return null;
+        while (SaveLoadService.Instance != null && SaveLoadService.Instance.IsLoading)
+            yield return null;
+        _continueRequested = false;
     }
 
     public void ShowSubtitle(string speaker, string line)

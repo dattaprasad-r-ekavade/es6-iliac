@@ -1,12 +1,12 @@
-# Story arc — Indic variant
+# Ratna Bay story arc
 
 **Written:** 2026-08-12 · **Adopted as the setting:** 2026-08-12
 
-> **This is the authority for names, factions and themes.** It supersedes
-> [`STORY_ARC.md`](STORY_ARC.md), which is kept because it still owns the chapter
-> structure, the spoke contract, the convergence rules and the endings — none of which
-> this file restates. Adopted in code the same day: cast, topic keywords, scene titles and
-> world display names all moved.
+> **This is the authority for setting, names, factions and themes.** It supersedes the
+> player-facing setting in [`STORY_ARC.md`](STORY_ARC.md), which remains a structural
+> archive for the spoke contract and endings. [`JIVA_METAPHYSICS.md`](JIVA_METAPHYSICS.md)
+> is the narrower authority whenever a line concerns jiva, prana, black binding, pretas or
+> the Stambha. `storyline.md` still owns the unchanged Chapter 01 plot.
 
 ## What this is
 
@@ -20,39 +20,38 @@ onto their original Western-fantasy dress.
 
 ### A note on source material
 
-This treats concepts from Hindu, Jain and Buddhist thought as source material for a fantasy
-setting, in the way the existing bible treats medieval European material. It is not a
-depiction of any living religion.
+This fantasy setting draws from multiple living Hindu, Jain and Buddhist traditions. Those
+traditions disagree about the self, rebirth, duty and liberation; the game must not flatten
+them into a single “Indian religion.” Ratna Bay therefore has a deliberately fictional,
+syncretic metaphysics and recognisably different schools inside the world.
 
-Two rules followed throughout: **no deity names are used for characters**, and the
-philosophical positions the factions hold are *real positions from genuine debates* rather
-than invented ones. Where a faction has an argument, that argument has been made by actual
-people. That is the point — it is what makes them harder to dismiss than a fantasy faction
-usually is.
+Three production rules follow: **do not name characters after deities; do not map a fantasy
+faction onto a living caste, religion or community; and do not use sacred language or imagery
+as undifferentiated decoration.** Philosophical vocabulary should support character and
+conflict rather than function as an exotic glossary. Final culturally loaded writing needs
+review by human readers familiar with both intellectual history and contemporary reception.
 
-Names are kept short and pronounceable. Nothing longer than three syllables, no retroflex or
-aspirated clusters that an English speaker would stumble over.
+Names should remain readable in English UI, but accessibility is not an excuse to erase sound
+or regional texture. Supply pronunciation help where needed rather than designing the world
+only around what an English speaker already knows.
 
 ---
 
 ## Why this fits better than it has any right to
 
-The current story's central horror is that a king burns prisoners' souls to power a city. In a
-broadly Christian-derived frame that is murder plus desecration — bad, but the soul has already
-gone somewhere.
-
-**In a frame where souls transmigrate, binding one into a stone is a categorically worse
-crime.** It does not merely end a life. It *stops the cycle*. A bound soul cannot be reborn,
-cannot work off what it owes, cannot go on. It is held.
+The current story's central horror is that a ruler cages prisoners' continuing selves to
+power a city. **Binding the whole jiva is a categorically worse crime than taking life.** It
+interrupts the person's passage through saṃsāra: the captive cannot continue, change or be
+released by ordinary death.
 
 That single shift makes every argument in the story sharper:
 
 - The abolitionists are not squeamish; they are objecting to the interruption of rebirth
   itself, which is the gravest thing they can name.
-- The King's defence — *they were condemned anyway* — collapses on their terms and holds
+- Raja Vikram's defence—*they were condemned anyway*—collapses on their terms and holds
   perfectly on his, because he does not believe what they believe.
-- The fissures venting what was spent is no longer a horror-movie conceit. It is what happens
-  when a very large number of souls are prevented from moving on and eventually stop waiting.
+- The fissures venting pretas is no longer a horror-movie conceit. It is the consequence of
+  people damaged and stranded by black binding, while the world itself bears every prana draw.
 
 The existing story arrived at all of this on its own. The Indic frame simply supplies the
 vocabulary it was reaching for.
@@ -82,22 +81,26 @@ vocabulary it was reaching for.
 | Sarrakh Waste | **Maru Waste** | — |
 | Kiln Hills | **Agni Hills** | *agni*, fire |
 | the Esk | **the Nira** | *nira*, water |
-| soul crystal | **jiva stone** | *jiva*, the living soul — the Jain term especially |
-| black soul crystal | **black jiva** | one holding a soul taken, not given |
+| soul crystal | **jiva stone** | a stone carrying pranic imprint; the trade name preserves an older belief |
+| black soul crystal | **black jiva** | a stone that cages the whole person, taken rather than given |
 | soul-binding | **jiva-binding** | — |
-| Mana | **prana** | *prana*, life-breath — the energy released when a jiva burns |
+| Mana | **prana** | life-breath and charge; what magic draws from a stone |
 | Crown Envoy | **Rajdoot** | *raj* + *doot*, royal envoy |
 | fissure creatures | **pretas** | the departed who could not move on |
 
 ### The two-term resource, which is an improvement
 
-The current game has one word, "soul crystal," doing two jobs. The variant splits it:
+The superseded Western vocabulary used one term, "soul crystal," for two different things.
+The adopted vocabulary and metaphysics split them:
 
-- A **jiva stone** holds a soul.
-- Burning it releases **prana**, which is what magic actually spends.
+- A lawful **jiva stone** carries the pranic imprint released through a witnessed dāna rite;
+  the donor's jiva continues onward.
+- A **black jiva** cages the continuing person as well as their charge.
+- Drawing the stone releases **prana**, which is what magic actually spends.
 
-So the player's bar is prana and their consumable is jiva. The mechanic is unchanged; the
-naming now states plainly what the transaction is. Every point of prana was somebody's jiva.
+So the player's bar is prana and their consumable is a charged stone. The distinction does
+not make ordinary use consequence-free: every point drawn adds to the burden the Stambha
+measures. The full locked rule is in [`JIVA_METAPHYSICS.md`](JIVA_METAPHYSICS.md).
 
 ---
 
@@ -131,20 +134,21 @@ who precedes his father's reckoning and then takes the throne, that is almost to
 ## The moral line the whole arc rests on
 
 The existing bible identifies one thing Chapter 01 must establish or the eight-chapter argument
-collapses: **organic sourcing is normal and legal**, and only the shortcut is monstrous.
+collapses: **lawful prana capture is normal and legal**, while caging a person is monstrous.
 
 The Indic frame gives that distinction a name, and it is a sharper one:
 
 | | Term | What it is |
 |---|---|---|
-| Lawful sourcing | **dāna** | a gift. A jiva offered at a natural death, or taken from creatures whose turn of the wheel is short. Freely given, and giving is a virtue |
-| The King's operation | **steya** | theft. A jiva taken from someone who did not offer it |
+| Lawful sourcing | **dāna** | a witnessed gift at natural death: the stone receives the released pranic imprint and the jiva continues onward |
+| Vikram's operation | **steya** | theft: an unwilling living person is torn out and caged whole inside a black jiva |
 
-*Dāna* and *steya* — giving and stealing — are both classical categories. The trade is not
-evil; **theft is**. That is the entire distinction the story needs, and it is the difference
-between a defensible civilisation and a crime.
+*Dāna* and *steya* — giving and stealing — are both classical categories. That legal line
+distinguishes ordinary civilisation from Vikram's crime without declaring ordinary demand
+innocent. Shantipur may still argue that poverty corrupts consent and that all prana draw
+burdens the world.
 
-It also sharpens the King. Vikram is not defending theft in the abstract. He is arguing
+It also sharpens the Raja. Vikram is not defending theft in the abstract. He is arguing
 **āpad-dharma** — that duty bends under emergency, that a ruler whose city is starving may do
 what a ruler at peace may not. That is a real doctrine, argued at length in the Mahabharata,
 and it is a much better speech than "the economy needs it."
@@ -178,8 +182,9 @@ The inversion is unchanged:
 A **preta** is one of the departed who has not moved on — in Hindu and Buddhist cosmology, a
 spirit caught between, usually depicted as hungry and unable to be satisfied.
 
-That is exactly what a burned jiva becomes. Not destroyed: *stranded*. And when the fissures
-open, what comes through is every soul the world has spent, coming back wrong.
+A preta here is the victim left when black binding cages and damages a person. They are not
+the automatic product of a lawful stone and not an evil species. When fissures open, those
+stranded victims return altered by captivity.
 
 This makes the "humans with purple fume" bestiary decision thematically inevitable rather than
 a budget compromise. They look human because they were, and because nothing let them stop
@@ -228,11 +233,13 @@ the warmest one.** Acharya Meera should be somebody the player is sorry about.
 ### Shantipur — *"We are not asking you to become poor. We are telling you what you already
 are."*
 
-**Holds:** *ahimsa paramo dharma* — non-violence is the highest duty. A power that requires a
-jiva is illegitimate however politely it is taken, and consent under need is not consent. When
-a poor family can offer a dying grandmother's jiva, that is not a gift; it is a market in the
-dying. And the demand curve guarantees the market reaches prisoners eventually. Vikram did not
-corrupt the system. He completed it.
+**Holds:** *ahimsa paramo dharma* — non-violence is the highest duty. A power economy built on
+the dying is illegitimate however carefully its rites are written, and consent under need is
+not consent. When a poor donor's family needs the stipend attached to her released pranic
+imprint, Shantipur calls that a market in dying rather than a gift. Ratnapur law calls it dāna
+because no continuing jiva is contained; Shantipur disputes that the legal distinction makes
+the bargain free. The demand curve, it argues, guarantees the market reaches prisoners
+eventually. Vikram did not corrupt the system. He completed it.
 
 **Blind spot — and it is a pointed one:** radical non-violence has always been most
 practicable for those whose living does not require killing. Shantipur is highland, watered
@@ -247,7 +254,7 @@ should leave uncomfortable that it works.
 
 **Holds:** *rajadharma* — that rule is itself a duty with rules, and that nothing holds unless
 everyone has agreed to it. Assemblies of this kind are old; *sabha* and *samiti* appear in the
-Vedas as bodies a king answers to.
+Vedas as bodies a raja answers to.
 
 **Blind spot:** they will take a bad agreement over none, every time.
 
@@ -306,14 +313,14 @@ Short list of concepts that carry weight here, so a writer can reach for them ac
 
 | Concept | What it means | Where it earns its place |
 |---|---|---|
-| **saṃsāra** | the cycle of death and rebirth | what jiva-binding interrupts; the reason it is the gravest crime |
-| **jiva / ātman** | the living soul | what a stone holds |
-| **prana** | life-breath, vital energy | what burning a stone releases; the player's resource |
+| **saṃsāra** | the cycle of death and rebirth | what black jiva-binding interrupts; the reason it is the gravest crime |
+| **jiva** | the setting's continuing person | what black binding cages; traditions outside the fiction do not all agree on such a self |
+| **prana** | life-breath, vital energy | the charge a lawful stone carries and magic spends |
 | **preta** | one who could not move on | the fissure creatures |
 | **dāna** | giving, as a virtue | lawful sourcing |
-| **steya** | theft | the King's operation |
+| **steya** | theft | Vikram's operation |
 | **ahimsa** | non-violence | Shantipur's founding claim |
-| **āpad-dharma** | duty under distress | Marukot's defence, and the King's |
+| **āpad-dharma** | duty under distress | Marukot's defence, and Vikram's |
 | **rajadharma** | the duty of rulers | the Sabha's whole reason to exist |
 | **siddhi** | attainment, power | the Siddha Order — and the warning about it |
 | **ṛta** | cosmic order | what the Stambha maintains |

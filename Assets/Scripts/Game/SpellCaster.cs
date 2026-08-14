@@ -1,9 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Casting. Charge comes from crystals via <see cref="PlayerStats.SpendMana"/>, so every
-/// spell here eventually spends a soul — which is the whole argument of the story the player
-/// is walking through.
+/// Casting. Prana charge comes from jiva stones via <see cref="PlayerStats.SpendMana"/>.
+/// Lawful stones do not contain a person, but every draw still adds to the burden measured by
+/// the Stambha — the argument the player is walking through.
 /// </summary>
 public sealed class SpellCaster : MonoBehaviour
 {
@@ -61,7 +61,7 @@ public sealed class SpellCaster : MonoBehaviour
 
         if (!stats.SpendMana(CostOf(spell)))
         {
-            GameHud.Instance?.ShowToast("No charge, and no crystal to draw on.");
+            GameHud.Instance?.ShowToast("No prana, and no jiva stone to draw on.");
             return false;
         }
 

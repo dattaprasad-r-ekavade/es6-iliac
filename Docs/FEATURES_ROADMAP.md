@@ -1,8 +1,9 @@
-# Kessil Bay — features roadmap
+# Ratna Bay — features roadmap
 
-An open-world first-person RPG set on **Kessil Bay**, between the temperate north
-(Halbrand) and the arid south (Sarrakh). Original setting, writing and layout; art is
-CC0 / licensed packs plus generated kits, tracked in `Assets/ThirdParty/ATTRIBUTION.md`.
+An open-world first-person RPG set on **Ratna Bay**, between temperate Uttara and arid Maru.
+Magic draws prana from lawful dāna stones while black jiva-binding cages unwilling people;
+the locked contract is [`JIVA_METAPHYSICS.md`](JIVA_METAPHYSICS.md). The look is Arena
+Miniature: Arena-budget geometry through Rajput/Pahari flat pigment and contour.
 
 Use this doc to track the active delivery goals. `plan.md` owns estimates and gates;
 `Docs/CHAPTER01_BEATS.md` owns the 42-beat story contract.
@@ -11,14 +12,17 @@ Use this doc to track the active delivery goals. `plan.md` owns estimates and ga
 
 ## Active goal: complete Chapter 01
 
-**VS2 update (2026-08-01): complete.** The grey thread now traverses all **42/42** beat
-waypoints through the extracted Estmere exterior, 11 regenerable Chapter 01 rooms, the
-clickable King's audience assignment panel, all four branches, convergence, B640 title crawl,
-aftermath and Caldemar Council handoff. It records typed outcomes/evidence and autosaves route
-checkpoints. The next active milestone is the external Map Editor MVP.
+**Delivery update (2026-08-12):** VS2 remains complete. The grey thread traverses all **42/42** beat
+waypoints through the extracted Ratnapur exterior, 11 regenerable Chapter 01 rooms, the
+clickable Raja's audience assignment panel, all four branches, convergence, B640 title crawl,
+aftermath and Sabhapur Sabha handoff. It records typed outcomes/evidence and autosaves route
+checkpoints. The P1 runtime repair, adopted-setting migration, Indic content guard, one-page
+jiva contract and Arena Miniature proof captures/automated checks are complete. The external
+Ratna World Builder MVP, its one-button Unity preview and the baseline Shantipur city/road
+expansion are complete too. Human walkthrough/performance gates remain explicitly open.
 
 The active deliverable is a content-complete, quality-reduced vertical slice in which the
-entire `storyline.md` opening is playable on all four routes through the Crown Council
+entire `storyline.md` opening is playable on all four routes through the Sabha
 handoff. The story is not being shortened. Free-roam expansion remains parked while the
 Map Editor and authored Chapter 01 environments are built.
 
@@ -27,24 +31,27 @@ Map Editor and authored Chapter 01 environments are built.
 | 1 | **VS0 — story package and regression baseline** | Complete except deferred screenplay | preserve the locked story contracts and baseline |
 | 2 | **VS1 — persistent technical spine** | **Complete — W-01–W-09 gate passed** | preserve the technical-spine regression suite |
 | 3 | **VS2 — rough complete story** | **Complete — 42/42 grey beats, four routes reach B830** | preserve the grey scene/route contract |
-| 4 | **Map Editor MVP** | **Next** | edit terrain, biomes, coasts, roads, cities and story anchors without opening Unity |
-| 5 | **VS3 — real opening** | Not started | ship through the four audience assignments is real content |
-| 6 | **VS4 — reusable route mechanics** | Not started | combat/magic hooks, sailing, stealth, locks, pickpocket and companion systems proven |
-| 7 | **VS5 — four real routes** | Not started | four authored routes satisfy the shared convergence contract |
-| 8 | **VS6 — prison and escape** | Not started | prince reveal, evidence, escort and one-time cave title moment complete |
-| 9 | **VS7 — ending and handoff** | Not started | both King outcomes, coronation, Crown Envoy title and Caldemar handoff persist |
-| 10 | **VS8 — polish and package** | Not started | eight route/outcome runs, packaged build and blind playtests pass |
-| 11 | **Advanced 3D map-editor polish** | Optional after VS8 | direct 3D preview, sculpt brushes, prefab palette and polished UX |
+| 4 | **Stabilisation + Arena Miniature proof slice** | **Complete: code/content guard, captures and automated tests** | preserve P1 flows, the jiva contract and deterministic proof builds; manual walk/performance acceptance remains below |
+| 5 | **Ratna World Builder MVP** | **Complete: standalone editor, one-button Unity preview, 14/14 Python tests** | preserve validation, backups, undo/redo, PNG/SVG output and headless production preview |
+| 6 | **Shantipur baseline expansion** | **Complete: `city_north`, highland footprint and connecting road** | preserve stable id, dry arrival, collision and road contracts |
+| 7 | **W-12 dense region rebuild** | Not started | one dense Ratnapur region proves the region architecture before wider propagation |
+| 8 | **VS3 — real opening** | Not started | ship through the four audience assignments is real content |
+| 9 | **VS4 — reusable route mechanics** | System layer complete; authored use pending | combat/magic hooks, sailing, stealth, locks, pickpocket and companion systems proven in content |
+| 10 | **VS5 — four real routes** | Not started | four authored routes satisfy the shared convergence contract |
+| 11 | **VS6 — prison and escape** | Not started | Arun reveal, evidence, escort and one-time cave title moment complete |
+| 12 | **VS7 — ending and handoff** | Not started | both Vikram outcomes, coronation, Rajdoot title and Sabhapur handoff persist |
+| 13 | **VS8 — polish and package** | Not started | eight route/outcome runs, packaged build and blind playtests pass |
+| 14 | **Advanced map-editor/region polish** | Optional after the slice | free-form heightmap, runtime marker importer, direct 3D sculpt/prefab UX |
 
 ### VS0 remaining checklist
 
 - [x] 42 beats with stable ids, scenes, dependencies, exit states and acceptance tests
 - [x] Route, flag, evidence and cast-role registries
 - [x] Four-route convergence contract
-- [x] King kill/imprison outcome matrix; prince successor; Crown Envoy title
+- [x] Vikram kill/imprison outcome matrix; Arun successor; Rajdoot title
 - [x] Character-creator production ceiling: 3–4 ancestries, one shared body/rig
 - [x] Name and characterize the principal cast
-- [x] Explain why the rescue ship chooses Estmere and why survivors receive a royal audience
+- [x] Explain why the rescue ship chooses Ratnapur and why survivors receive a royal audience
 - [ ] Write the screenplay/dialogue pass against beat ids
 - [x] Snapshot the current compile, tests, scene, saves and packaged player
 - [x] Complete the asset/source/license ledger
@@ -57,14 +64,23 @@ Map Editor and authored Chapter 01 environments are built.
 - Additional generic quests beyond regression maintenance
 - Controller/localization/final accessibility work beyond the slice cut-line
 
-### Queued world-authoring tool
+### Ratna World Builder MVP — complete
 
-VS1 moved the world definition into versioned `kessil.world.json`. Immediately after VS2, build a
-Tiled-backed Kessil World Builder before detailed environment production begins. The first
-version uses an external 2D map editor plus a project-specific importer, validators and
-one-click headless Unity preview. A polished standalone 3D editor is an optional post-VS8
-stage. See the “World-authoring goal” in [plan.md](../plan.md) for layers, alternatives,
-estimates and its gate.
+VS1 moved the world definition into versioned `kessil.world.json`; W-11 now supplies a
+standalone Python/Tk editor that requires neither Unity interaction nor a pip install. It edits
+the current elliptical landmass vocabulary, elevation/relief parameters, biomes, roads, sites,
+city gates and story-spawn metadata; validates before save; creates backups; supports undo/redo;
+and exports PNG/SVG previews. Its **Unity Preview** button invokes the production generator
+headlessly and captures top-down and approach views. All 14 Python tests pass.
+
+Start with `Tools/WorldBuilder/Launch World Builder.cmd`; full instructions are in
+[`Tools/WorldBuilder/README.md`](../Tools/WorldBuilder/README.md). The approved external preview
+is [`Screenshots/world-builder-preview.png`](Screenshots/world-builder-preview.png).
+
+The MVP is not a free-form terrain sculptor. Free-form coast/heightmap authoring and importing
+gate/story-spawn metadata into runtime placement remain follow-on work. The next world milestone
+is W-12: rebuild Ratnapur as one dense 2 km-scale region, measure it, then decide how far to
+propagate the architecture.
 
 ## Long-term product north star
 
@@ -72,26 +88,28 @@ The genre targets this project is built against:
 
 | Genre pillar | Our target |
 |---|---|
-| Huge walkable world | Kessil Bay at travel scale (cities kilometres apart) |
+| Huge walkable world | Ratna Bay at travel scale (cities kilometres apart) |
 | Discoverable map + fast travel | Fog-of-war map, markers, carriage / discovered FT |
-| Living weather & time | Day/night + regional weather (Halbrand rain, Sarrakh Waste clear/dust) |
+| Living weather & time | Day/night + regional weather (Uttara rain, Maru clear/dust) |
 | Dense nature | Proper trees/foliage, not floaty props |
 | Cities that feel inhabited | Districts, NPCs, services, names |
 | Adventure loop | Quests, combat, loot, leveling, radiant jobs |
 
 ---
 
-## Current baseline (as of 2026-08-01)
+## Current baseline (as of 2026-08-12)
 
 ### Done
 - [x] Unity 6 + URP project, MCP agent workflow
-- [x] Original Kessil Bay setting rename applied in project settings, code, scene and docs
-- [x] Locked Morrowind Clean art-direction palette with automated drift tests
+- [x] Ratna Bay setting migration applied to player-facing product, world, story, scenes and docs;
+      retained `Kessil*`/file/internal ids are explicitly documented codenames
+- [x] Locked Arena Miniature art direction with automated drift tests and two proof captures
 - [x] Chapter 01 decomposed into 42 stable beats with route/convergence/outcome contracts
-- [x] Compile check passes for 14 Editor, 51 Runtime, 9 PlayMode and 5 EditMode test files (2026-08-01)
-- [x] Latest EditMode run: 45/45 passed (2026-08-01)
-- [x] Latest PlayMode run: 30/30 passed, including all four VS2 routes through the Caldemar
-      handoff (2026-08-01)
+- [x] Compile check passes for 18 Editor, 74 Runtime and 11 test source files (2026-08-12)
+- [x] Release EditMode run: 120/120 passed (2026-08-12)
+- [x] Latest full PlayMode run: 130/130 passed, including all four VS2 routes through the
+      Sabhapur handoff (2026-08-12)
+- [x] Ratna World Builder Python suite: 14/14 passed (2026-08-12)
 - [x] W-01: Bootstrap scene, additive transition service, stable spawns, fades, recovery,
       exterior snapshot and three-scene fixtures
 - [x] W-02: one `GameStateService` owns pause, cursor and gameplay-input policy across
@@ -112,9 +130,12 @@ The genre targets this project is built against:
       landmasses, sites and roads; the existing map geometry remains regression-identical
 - [x] Current packaged Windows build: 142.5 MB, Bootstrap scene zero, 0 errors
 - [x] VS2 captures: `Screenshots/vs2-estmere-palace.png` and
-      `Screenshots/vs2-caldemar-arrival.png`
-- [x] Kessil Bay landmass layout (Halbrand N / Sarrakh S / bay / islands)
-- [x] Cities: **Caldemar**, **Estmere**, **Qadris** (district streets, walls, gates, docks, name signs)
+      `Screenshots/vs2-caldemar-arrival.png` (legacy filenames, current Ratnapur/Sabhapur views)
+- [x] Arena proof captures: `Screenshots/arena-miniature-ratnapur-street.png` and
+      `Screenshots/arena-miniature-prison.png`
+- [x] Ratna Bay landmass layout (Uttara north / Maru south / bay / islands)
+- [x] Cities: **Sabhapur**, **Ratnapur**, **Marukot**, plus Shantipur's baseline highland
+      district/road (district streets, walls, gates, docks and signs where applicable)
 - [x] Cities ~**4 km** apart (not “one jump”)
 - [x] Player WASD + mouse look + sprint (Shift) + jump
 - [x] Menu → intro dialogue → scenic flyover → gameplay
@@ -144,7 +165,7 @@ The genre targets this project is built against:
 - [ ] HUD is now prefabbed but still uses legacy uGUI `Text` (no TextMeshPro or scrolling lists)
 
 > **2026-07-26 hardening pass.** The P1 slice was not actually playable as described:
-> `SnapToWalkable` ignored its argument and returned the Caldemar spawn pad, so every
+> `SnapToWalkable` ignored its argument and returned the Sabhapur spawn pad, so every
 > NPC and enemy spawned in one pile on the start plaza. The bandit camp and coastal ruin
 > were also authored in open water. Both are fixed — see [plan.md](../plan.md).
 
@@ -158,6 +179,10 @@ Assets: `Assets/ThirdParty/ATTRIBUTION.md`
 The checklists below describe the pre-story sandbox. They remain useful history and
 maintenance context, but they are **not the active execution order**. New work comes from
 VS0–VS8 above unless it fixes a regression in an existing system.
+
+Names such as Caldemar, Estmere, Qadris, Aldreth, Kessil Bay, Halbrand, Sarrakh, Arcanum and
+Mana in this legacy block are contemporaneous historical labels. The active equivalents are
+Sabhapur, Ratnapur, Marukot, Shantipur, Ratna Bay, Uttara, Maru, Siddha Order and prana.
 
 ### Former P0 — foundation polish
 
@@ -340,16 +365,15 @@ Rules:
 ## Open questions
 
 Resolved for the slice: additive authored scenes, first-person, single-player, Windows,
-keyboard/mouse, silent protagonist, subtitles, and the locked Morrowind Clean art direction.
+keyboard/mouse, silent protagonist, subtitles, and the locked Arena Miniature art direction.
 
 Still open:
 
-1. King/prince and supporting-character names, appearances and factions.
-2. Why the rescue ship chooses Estmere and why the survivors receive a royal audience.
-3. Everspire pulse rules and the player's partial memory.
-4. Four ancestry names, origins and starting values.
-5. Tutorial failure/gear carryover rules and the Refuse-route target time.
-6. Slice frame-time and memory floor at the five stress locations.
+1. Full W-12 dense Ratnapur region rebuild and the decision to propagate it wider.
+2. Free-form heightmap/coast authoring beyond the current ellipse/elevation parameters.
+3. Runtime importer for World Builder gate and story-spawn metadata.
+4. Real-controller dock-street/prison walkthrough and the minimum-machine 45+ FPS proof.
+5. Subtitle standard and slice frame-time/memory floors at the stress locations.
 
 ---
 
@@ -358,6 +382,8 @@ Still open:
 | Action | Menu |
 |---|---|
 | Full rebuild menu + world | **Kessil → Presentation → Setup Menu + Cutscene + Smooth Map** |
+| External world editor | `Tools/WorldBuilder/Launch World Builder.cmd` |
+| External validation/tests | `python Tools/WorldBuilder/world_builder.py --validate`; `python -m unittest discover -s Tools/WorldBuilder/tests -v` |
 | Map layout notes | `Assets/Scripts/World/KESSIL_LAYOUT.md` |
 | Blender MCP notes | `Tools/BlenderMCP/README.md` |
 
@@ -378,4 +404,5 @@ Still open:
 | 2026-08-01 | **VS1 W-04 complete** — four runtime prefabs, five NPC ScriptableObjects, matching component files, no root fallbacks; 35/35 EditMode, 22/22 PlayMode, 142.1 MB build | W-05: SaveGameV4 |
 | 2026-08-01 | **VS1 complete (W-05–W-09 + world JSON)** — SaveGameV4, topic dialogue, StoryDirector, authored quests/evidence, CinematicRunner, consequence proof and versioned world source; 38/38 EditMode, 29/29 PlayMode, 142.1 MB build | VS2: all 42 beats as a four-route grey thread |
 | 2026-08-01 | **VS2 complete** — 42/42 beat waypoints, clickable audience assignment UI, B640 title crawl, four routes to B830, typed outcomes/evidence, route autosaves, player-preserving additive unload, 45/45 EditMode, 30/30 PlayMode, screenshot captures | W-11: external Map Editor MVP |
+| 2026-08-12 | **Stabilisation and world-authoring gate complete** — P1 flow defects fixed; Indic content guard and jiva contract locked; Arena street/prison captures and automated checks complete; Ratna World Builder MVP with one-button Unity preview and 14/14 Python tests; Shantipur baseline city/road added | W-12 dense Ratnapur region; free-form terrain and marker importer; manual controller/45+ FPS acceptance |
 | | | |

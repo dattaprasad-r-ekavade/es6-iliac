@@ -40,7 +40,9 @@ public sealed class BillboardActor : MonoBehaviour
         // the whole look reads as a stretched image rather than as a drawing.
         quad.transform.localScale = new Vector3(
             height * (CharacterSprite.Width / (float)CharacterSprite.Height), height, 1f);
-        Object.Destroy(quad.GetComponent<Collider>());
+        var quadCollider = quad.GetComponent<Collider>();
+        if (Application.isPlaying) Object.Destroy(quadCollider);
+        else Object.DestroyImmediate(quadCollider);
 
         var actor = quad.AddComponent<BillboardActor>();
         actor.height = height;
@@ -68,7 +70,13 @@ public sealed class BillboardActor : MonoBehaviour
     /// after the editor reopened it. Regenerating costs 2,048 pixels, which is cheaper than
     /// storing it would be.
     /// </summary>
-    private void Awake() => Apply();
+    private void Awake()
+    {
+        // AddComponent invokes Awake before Spawn has assigned its authored seed. Waiting for
+        // that seed avoids allocating one throwaway texture/material per generated citizen.
+        // Saved actors already have a seed and rebuild normally when their scene loads.
+        if (!string.IsNullOrEmpty(figureKey)) Apply();
+    }
 
     private void Apply()
     {

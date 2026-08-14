@@ -177,7 +177,7 @@ public class KessilWorldGenerator : MonoBehaviour
 
         var mat = patch.Biome switch
         {
-            Biome.Sarrakh => sarrakhMaterial,
+            Biome.Arid => sarrakhMaterial,
             Biome.IslandRock => mountainMaterial,
             _ => halbrandMaterial
         };
@@ -187,7 +187,7 @@ public class KessilWorldGenerator : MonoBehaviour
         var palette = ArtDirection.Active.Palette;
         var color = patch.Biome switch
         {
-            Biome.Sarrakh => palette.Arid,
+            Biome.Arid => palette.Arid,
             Biome.IslandRock => palette.Mountain,
             Biome.IslandGreen => palette.Temperate,
             _ => palette.Temperate
@@ -233,7 +233,7 @@ public class KessilWorldGenerator : MonoBehaviour
         if (patch.HasCity)
         {
             float surfaceY = TerrainHeightSampler.Sample(patch.Center.x, patch.Center.z, patch) + 0.05f;
-            BuildCity(go.transform, patch.CityName, surfaceY, patch.Biome == Biome.Sarrakh);
+            BuildCity(go.transform, patch.CityId, patch.CityName, surfaceY, patch.Biome == Biome.Arid);
         }
 
         if (patch.CityId == "city_west")
@@ -272,7 +272,7 @@ public class KessilWorldGenerator : MonoBehaviour
             Mathf.CeilToInt(Mathf.Max(radii.x, radii.y) / targetSpacing),
             8,
             64);
-        float tileMeters = patch.Biome == Biome.Sarrakh ? 48f : patch.Biome == Biome.IslandRock ? 40f : 56f;
+        float tileMeters = patch.Biome == Biome.Arid ? 48f : patch.Biome == Biome.IslandRock ? 40f : 56f;
         var verts = new Vector3[1 + radialRings * angularSegments];
         var uvs = new Vector2[verts.Length];
         var tris = new int[angularSegments * 3 + (radialRings - 1) * angularSegments * 6];
@@ -448,22 +448,9 @@ public class KessilWorldGenerator : MonoBehaviour
             256);
     }
 
-    private void BuildCity(Transform parent, string cityName, float surfaceY, bool desertCity)
+    private void BuildCity(Transform parent, string cityId, string cityName, float surfaceY, bool desertCity)
     {
-        float radius = cityName switch
-        {
-            "Caldemar" => 220f,
-            "Estmere" => 200f,
-            "Qadris" => 210f,
-            _ => 160f
-        };
-        int buildings = cityName switch
-        {
-            "Caldemar" => 105,
-            "Estmere" => 90,
-            "Qadris" => 95,
-            _ => 70
-        };
+        GetCityLayout(cityId, out float radius, out int buildings);
 
         CityDistrictBuilder.Build(parent, surfaceY, new CityDistrictBuilder.Config
         {
@@ -481,6 +468,27 @@ public class KessilWorldGenerator : MonoBehaviour
             RoadMat = roadMaterial != null ? roadMaterial : cityMaterial,
             SandMat = sandMaterial
         });
+    }
+
+    /// <summary>Stable city scale: display-name changes must never alter generated geometry.</summary>
+    public static void GetCityLayout(string cityId, out float radius, out int buildings)
+    {
+        radius = cityId switch
+        {
+            "city_west" => 220f,
+            "city_east" => 200f,
+            "city_south" => 210f,
+            "city_north" => 180f,
+            _ => 160f
+        };
+        buildings = cityId switch
+        {
+            "city_west" => 105,
+            "city_east" => 90,
+            "city_south" => 95,
+            "city_north" => 80,
+            _ => 70
+        };
     }
 
     private void BuildLandmarkTower_Corrath()
@@ -614,7 +622,7 @@ public class KessilWorldGenerator : MonoBehaviour
                 if (patch.HasCity && new Vector2(x, z).magnitude < 280f) continue;
 
                 // Prefer clusters away from exact center for Halbrand forests
-                if (patch.Biome == Biome.Halbrand && _rng.NextDouble() < 0.35)
+                if (patch.Biome == Biome.Temperate && _rng.NextDouble() < 0.35)
                 {
                     x *= 0.7f;
                     z *= 0.7f;
@@ -642,7 +650,7 @@ public class KessilWorldGenerator : MonoBehaviour
             return;
         }
 
-        bool desert = biome == Biome.Sarrakh;
+        bool desert = biome == Biome.Arid;
         bool rockyIsland = biome == Biome.IslandRock;
         bool greenIsland = biome == Biome.IslandGreen;
 
@@ -877,7 +885,7 @@ public class KessilWorldGenerator : MonoBehaviour
         // Legacy path unused — kept for compile safety if referenced.
         PlacePropWorld(
             parent.TransformPoint(localPos + Vector3.up * 40f),
-            desert ? Biome.Sarrakh : Biome.Halbrand);
+            desert ? Biome.Arid : Biome.Temperate);
     }
 
     private void SpawnPlayerAt(Vector3 worldPos)
@@ -1083,20 +1091,36 @@ public class KessilWorldGenerator : MonoBehaviour
         return go;
     }
 
-    private static void ApplyMat(GameObject go, Material mat, Color fallback)
+    /// <summary>
+    /// Assigns a surface material <em>and</em> the palette colour that goes with it.
+    ///
+    /// This used to return early whenever <paramref name="mat"/> was non-null, throwing the
+    /// colour away — three lines below a call site promising "surface colours come from the
+    /// locked palette, never from literals here". Since the materials are always assigned in
+    /// practice, biome colour never reached the overworld at all: every landmass rendered
+    /// whatever its shared material happened to hold, so two identical rebuilds could paint the
+    /// desert green and the highlands brown. Exactly the failure the palette lock exists to
+    /// catch, in the one place nothing was checking.
+    ///
+    /// The colour goes through a property block rather than onto the material. Writing it to a
+    /// shared asset would make the last patch built win for every patch that shares it — the
+    /// same bug wearing a different hat — and would dirty a checked-in material as a side
+    /// effect of generating a scene.
+    /// </summary>
+    private static void ApplyMat(GameObject go, Material mat, Color color)
     {
         var r = go.GetComponent<Renderer>();
         if (r == null) return;
-        if (mat != null)
-        {
-            r.sharedMaterial = mat;
-            return;
-        }
 
-        var m = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", fallback);
-        else m.color = fallback;
-        r.sharedMaterial = m;
+        r.sharedMaterial = mat != null
+            ? mat
+            : new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+
+        var block = new MaterialPropertyBlock();
+        r.GetPropertyBlock(block);
+        block.SetColor("_BaseColor", color);
+        block.SetColor("_Color", color);
+        r.SetPropertyBlock(block);
     }
 
     private static void DestroyColliderSafe(Collider col)

@@ -48,9 +48,15 @@ public sealed class InteriorExit : MonoBehaviour
         var transition = SceneTransitionService.Instance;
         if (transition == null || transition.IsTransitioning) return false;
 
-        transition.StartCoroutine(
-            transition.TransitionTo(GreyThreadDirector.RegionScene, "spawn.region"));
+        transition.StartCoroutine(LeaveRoutine(transition));
         return true;
+    }
+
+    private static System.Collections.IEnumerator LeaveRoutine(SceneTransitionService transition)
+    {
+        yield return transition.TransitionTo(GreyThreadDirector.RegionScene, "spawn.region");
+        if (!string.IsNullOrEmpty(transition.LastError)) yield break;
+        RegionReturn.PlacePlayerAtReturn(PlayerRef.Transform);
     }
 
     private static bool IsPlayer(Collider other) =>

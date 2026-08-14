@@ -169,6 +169,7 @@ public class SaveLoadSmokeTests : SmokeTestFixture
         SpawnPlayer();
         var systems = Track(new GameObject("StorySystems_Test"));
         var story = systems.AddComponent<StoryDirector>();
+        var dialogue = systems.AddComponent<TopicDialogueService>();
         var save = systems.AddComponent<SaveLoadService>();
         story.SetProfile(new CharacterProfile { Name = "Nara", AncestryId = "anc.isleborn", Pronouns = "she" });
         story.SelectRoute("route.trade");
@@ -183,9 +184,11 @@ public class SaveLoadSmokeTests : SmokeTestFixture
         story.MarkLooted("loot.warden_key");
         story.RecordChoice("choice.king", "imprison");
         story.AddChanneled(18f);
+        dialogue.LearnTopic("black jiva");
         save.Save();
 
         story.Restore(new StorySnapshot());
+        dialogue.RestoreKnownTopics(null);
         save.Load();
 
         Assert.AreEqual("Nara", story.State.Profile.Name);
@@ -197,6 +200,8 @@ public class SaveLoadSmokeTests : SmokeTestFixture
         Assert.Contains("lock.prison_gate", story.State.OpenedLocks);
         Assert.Contains("loot.warden_key", story.State.LootedObjects);
         Assert.AreEqual(18f, story.State.PlayerChanneled, 0.01f);
+        Assert.IsTrue(dialogue.KnowsTopic("black jiva"),
+            "Learned dialogue subjects were forgotten after loading the save.");
     }
 
     [Test]

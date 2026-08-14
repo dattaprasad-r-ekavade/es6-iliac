@@ -64,6 +64,7 @@ public class SaveLoadService : MonoBehaviour
     public static bool HasValidSave => TryReadSave(out _, out _);
     private Vector3 _checkpoint;
     private bool _hasCheckpoint;
+    public bool IsLoading { get; private set; }
 
     private void Awake() => Instance = this;
 
@@ -122,6 +123,9 @@ public class SaveLoadService : MonoBehaviour
             ? SceneTransitionService.Instance.ActiveSpawnId
             : string.Empty;
         data.Story = StoryDirector.Instance != null ? StoryDirector.Instance.Capture() : new StorySnapshot();
+        data.Story.KnownTopics = TopicDialogueService.Instance != null
+            ? TopicDialogueService.Instance.CaptureKnownTopics()
+            : new List<string>();
         data.SavedUtc = DateTime.UtcNow.ToString("O");
 
         try
@@ -141,9 +145,12 @@ public class SaveLoadService : MonoBehaviour
 
     public void Load()
     {
+        if (IsLoading) return;
+        IsLoading = true;
         if (!HasSaveFile)
         {
             GameHud.Instance?.ShowToast("No save found");
+            IsLoading = false;
             return;
         }
 
@@ -154,6 +161,7 @@ public class SaveLoadService : MonoBehaviour
             else
                 Debug.LogError($"[Save] Could not read save file: {error}");
             GameHud.Instance?.ShowToast("Save file unreadable or incompatible");
+            IsLoading = false;
             return;
         }
 
@@ -170,6 +178,7 @@ public class SaveLoadService : MonoBehaviour
         }
 
         Apply(data);
+        IsLoading = false;
         GameHud.Instance?.ShowToast("Game loaded (F9)");
     }
 
@@ -238,6 +247,7 @@ public class SaveLoadService : MonoBehaviour
             TimeWeatherSystem.Instance.SetTimeOfDay01(data.TimeOfDay01);
 
         StoryDirector.Instance?.Restore(data.Story);
+        TopicDialogueService.Instance?.RestoreKnownTopics(data.Story?.KnownTopics);
     }
 
     private System.Collections.IEnumerator TransitionAndApply(SaveData data)
@@ -246,9 +256,11 @@ public class SaveLoadService : MonoBehaviour
         if (!string.IsNullOrEmpty(SceneTransitionService.Instance.LastError))
         {
             Debug.LogError($"[Save] Could not restore scene '{data.SceneId}': {SceneTransitionService.Instance.LastError}");
+            IsLoading = false;
             yield break;
         }
         Apply(data);
+        IsLoading = false;
         GameHud.Instance?.ShowToast("Game loaded (F9)");
     }
 
@@ -274,7 +286,7 @@ public class SaveLoadService : MonoBehaviour
             // Chapter 01 contract explicitly rather than pretending those fields existed.
             data.Version = CurrentVersion;
             data.Story = new StorySnapshot();
-            data.SceneId ??= "Main";
+            data.SceneId = MigrateSceneName(data.SceneId ?? "Main");
             return true;
         }
         if (data.Version != CurrentVersion)

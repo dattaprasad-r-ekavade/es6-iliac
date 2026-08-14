@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+<rect width="1200" height="900" fill="rgb(20, 43, 61)"/>
+<g font-family="Segoe UI, sans-serif" font-size="13" fill="#f4e8c8">
+<path d="M 261.1 0 V 900" stroke="#28404e" stroke-width="1"/>
+<path d="M 374.1 0 V 900" stroke="#28404e" stroke-width="1"/>
+<path d="M 487.0 0 V 900" stroke="#28404e" stroke-width="1"/>
+<path d="M 600.0 0 V 900" stroke="#28404e" stroke-width="1"/>
+<path d="M 713.0 0 V 900" stroke="#28404e" stroke-width="1"/>
+<path d="M 825.9 0 V 900" stroke="#28404e" stroke-width="1"/>
+<path d="M 938.9 0 V 900" stroke="#28404e" stroke-width="1"/>
+<path d="M 0 794.6 H 1200" stroke="#28404e" stroke-width="1"/>
+<path d="M 0 681.6 H 1200" stroke="#28404e" stroke-width="1"/>
+<path d="M 0 568.6 H 1200" stroke="#28404e" stroke-width="1"/>
+<path d="M 0 455.6 H 1200" stroke="#28404e" stroke-width="1"/>
+<path d="M 0 342.7 H 1200" stroke="#28404e" stroke-width="1"/>
+<path d="M 0 229.7 H 1200" stroke="#28404e" stroke-width="1"/>
+<path d="M 0 116.7 H 1200" stroke="#28404e" stroke-width="1"/>
+<ellipse cx="622.6" cy="94.1" rx="121.8" ry="49.8" fill="rgb(116, 133, 92)" stroke="#d6c69e" stroke-width="2"/>
+<text x="622.6" y="94.1" text-anchor="middle">Shantipur · 55m</text>
+<ellipse cx="554.8" cy="207.1" rx="110.7" ry="44.3" fill="rgb(116, 133, 92)" stroke="#d6c69e" stroke-width="2"/>
+<text x="554.8" y="207.1" text-anchor="middle">Halbrand_KelrithCoast · 28m</text>
+<ellipse cx="374.1" cy="274.9" rx="49.8" ry="38.7" fill="rgb(116, 133, 92)" stroke="#d6c69e" stroke-width="2"/>
+<text x="374.1" y="274.9" text-anchor="middle">Sabhapur · 24m</text>
+<ellipse cx="848.5" cy="252.3" rx="47.1" ry="36.0" fill="rgb(116, 133, 92)" stroke="#d6c69e" stroke-width="2"/>
+<text x="848.5" y="252.3" text-anchor="middle">Ratnapur · 22m</text>
+<ellipse cx="633.9" cy="794.6" rx="143.9" ry="60.9" fill="rgb(169, 124, 73)" stroke="#d6c69e" stroke-width="2"/>
+<text x="633.9" y="794.6" text-anchor="middle">Sarrakh_Waste · 16m</text>
+<ellipse cx="419.2" cy="704.2" rx="49.8" ry="38.7" fill="rgb(169, 124, 73)" stroke="#d6c69e" stroke-width="2"/>
+<text x="419.2" y="704.2" text-anchor="middle">Marukot · 18m</text>
+<ellipse cx="871.1" cy="726.8" rx="49.8" ry="55.4" fill="rgb(169, 124, 73)" stroke="#d6c69e" stroke-width="2"/>
+<text x="871.1" y="726.8" text-anchor="middle">Sarrakh_KilnHills · 60m</text>
+<ellipse cx="283.7" cy="433.1" rx="15.5" ry="12.2" fill="rgb(94, 138, 103)" stroke="#d6c69e" stroke-width="2"/>
+<text x="283.7" y="433.1" text-anchor="middle">Island_Tolm · 16m</text>
+<ellipse cx="616.9" cy="466.9" rx="13.3" ry="11.1" fill="rgb(119, 116, 110)" stroke="#d6c69e" stroke-width="2"/>
+<text x="616.9" y="466.9" text-anchor="middle">Island_Corrath · 28m</text>
+<ellipse cx="498.3" cy="534.7" rx="11.1" ry="8.9" fill="rgb(119, 116, 110)" stroke="#d6c69e" stroke-width="2"/>
+<text x="498.3" y="534.7" text-anchor="middle">Island_Sarn · 14m</text>
+<polyline points="374.1,291.8 389.9,285.1 398.5,274.9 441.8,246.6 464.4,241.0 600.0,229.7 701.7,241.0 809.0,263.6 826.4,252.3 839.5,265.9 848.5,274.9" fill="none" stroke="rgb(219, 179, 100)" stroke-width="5" stroke-linejoin="round"/>
+<polyline points="374.1,291.8 389.9,285.1 398.5,274.9 441.8,241.0 470.1,235.4" fill="none" stroke="rgb(219, 179, 100)" stroke-width="5" stroke-linejoin="round"/>
+<polyline points="600.0,229.7 586.4,207.1 577.4,184.5 600.0,161.9 611.3,139.3 622.6,116.7" fill="none" stroke="rgb(219, 179, 100)" stroke-width="5" stroke-linejoin="round"/>
+<polyline points="430.5,692.9 442.5,704.2 464.4,738.1 487.0,760.7 504.0,777.6" fill="none" stroke="rgb(219, 179, 100)" stroke-width="5" stroke-linejoin="round"/>
+<polyline points="752.5,777.6 780.8,766.3 809.0,755.0 831.6,749.4" fill="none" stroke="rgb(219, 179, 100)" stroke-width="5" stroke-linejoin="round"/>
+<circle cx="622.6" cy="94.1" r="7" fill="rgb(226, 151, 69)" stroke="#201d19" stroke-width="2"/>
+<text x="632.6" y="86.1">Shantipur [city]</text>
+<circle cx="374.1" cy="274.9" r="7" fill="rgb(226, 151, 69)" stroke="#201d19" stroke-width="2"/>
+<text x="384.1" y="266.9">Sabhapur [city]</text>
+<circle cx="848.5" cy="252.3" r="7" fill="rgb(226, 151, 69)" stroke="#201d19" stroke-width="2"/>
+<text x="858.5" y="244.3">Ratnapur [city]</text>
+<circle cx="419.2" cy="704.2" r="7" fill="rgb(226, 151, 69)" stroke="#201d19" stroke-width="2"/>
+<text x="429.2" y="696.2">Marukot [city]</text>
+<circle cx="283.7" cy="433.1" r="7" fill="rgb(235, 222, 174)" stroke="#201d19" stroke-width="2"/>
+<text x="293.7" y="425.1">Kusha [poi]</text>
+<circle cx="616.9" cy="466.9" r="7" fill="rgb(235, 222, 174)" stroke="#201d19" stroke-width="2"/>
+<text x="626.9" y="458.9">Meru [poi]</text>
+<circle cx="498.3" cy="534.7" r="7" fill="rgb(235, 222, 174)" stroke="#201d19" stroke-width="2"/>
+<text x="508.3" y="526.7">Shaka [poi]</text>
+<circle cx="470.1" cy="235.4" r="7" fill="rgb(235, 222, 174)" stroke="#201d19" stroke-width="2"/>
+<text x="480.1" y="227.4">Kelrith Bandit Camp [poi]</text>
+<circle cx="487.0" cy="184.5" r="7" fill="rgb(235, 222, 174)" stroke="#201d19" stroke-width="2"/>
+<text x="497.0" y="176.5">Coastal Ruin [poi]</text>
+<text x="24" y="32" font-size="24" font-weight="600">Ratna Bay world preview</text>
+<text x="24" y="54" font-size="12">Bounds -3200…3200 X / -3650…3750 Z</text>
+</g>
+</svg>

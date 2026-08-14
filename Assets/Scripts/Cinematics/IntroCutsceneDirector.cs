@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// Intro: two characters converse with subtitles, then a scenic camera flyover of Kessil Bay.
+/// Intro: two characters converse with subtitles, then a scenic camera flyover of Ratna Bay.
 /// </summary>
 public class IntroCutsceneDirector : MonoBehaviour
 {
@@ -47,7 +47,7 @@ public class IntroCutsceneDirector : MonoBehaviour
             new DialogueLine
             {
                 speaker = "Liora",
-                text = "Traveler… look out over the Kessil Bay. Halbrand to the north, Sarrakh to the south.",
+                text = "Traveler… look out over Ratna Bay. Uttara to the north, Maru to the south.",
                 holdSeconds = 4.2f
             },
             new DialogueLine
@@ -59,7 +59,7 @@ public class IntroCutsceneDirector : MonoBehaviour
             new DialogueLine
             {
                 speaker = "Liora",
-                text = "Caldemar, Estmere, Qadris… islands of Tolm, Corrath, Sarn. Walk them as you will.",
+                text = "Sabhapur, Ratnapur, Marukot… islands of Kusha, Meru, Shaka. Walk them as you will.",
                 holdSeconds = 4.5f
             },
             new DialogueLine

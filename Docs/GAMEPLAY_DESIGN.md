@@ -1,6 +1,8 @@
 # Gameplay design — flow, systems and scope
 
-**Locked:** 2026-08-01 · **Companion doc to:** [`STORY_ARC.md`](STORY_ARC.md)
+**Locked:** 2026-08-01 · **Ratna Bay migration/metaphysics sync:** 2026-08-12 ·
+**Companion docs:** [`STORY_ARC_INDIC.md`](STORY_ARC_INDIC.md) and
+[`JIVA_METAPHYSICS.md`](JIVA_METAPHYSICS.md)
 
 Third-party games are named here as design benchmarks. That is deliberate and permitted:
 the naming policy in `plan.md` governs **shipped and distributed material**, not internal
@@ -10,22 +12,22 @@ planning documents.
 
 The art direction lock chose Morrowind as its north star. This document extends that from
 *look* to *flow* — because the two are not separable, and because the arc in
-[`STORY_ARC.md`](STORY_ARC.md) turned out to already be Morrowind-shaped.
+[`STORY_ARC_INDIC.md`](STORY_ARC_INDIC.md) turned out to already be Morrowind-shaped.
 
 Morrowind's main quest is formal recognition: the player must be acknowledged as Nerevarine
 by four Ashlander tribes and as Hortator by three Great Houses, each on its own terms, in
-almost any order, before they can act on Red Mountain. Kessil Bay's arc is a Crown Envoy
-seeking recognition from a Crown Council, touring three powers who each need convincing on
+almost any order, before they can act on Red Mountain. Ratna Bay's arc is a Rajdoot
+seeking recognition from the Sabha, touring three powers who each need convincing on
 their own terms, in any order, before the finale.
 
 The openings are nearly the same scene too. Morrowind: arrive by boat, a bureaucrat
 processes you and completes your paperwork — which *is* character creation — and sends you
-to an important man elsewhere. Kessil Bay: arrive by boat, a guard registers you as a
-survivor — which *is* character creation — and you are summoned to the King.
+to an important man elsewhere. Ratna Bay: arrive by boat, a guard registers you as a
+survivor—which *is* character creation—and you are summoned to Raja Vikram.
 
 This was arrived at independently. Treat it as evidence the instinct is sound.
 
-## The Everspire is the HUD
+## The Stambha is the HUD
 
 **The single load-bearing design decision in this document.**
 
@@ -33,10 +35,10 @@ Red Mountain is visible across most of Vvardenfell. It storms, it glows, it sits
 centre of both the map and the plot, and players navigate by it without ever thinking of it
 as an interface element.
 
-Kessil Bay already has this geography: the Everspire on Corrath, at the centre of the bay,
+Ratna Bay already has this geography: the Stambha on Meru, at the centre of the bay,
 with the cities around it.
 
-**Make the Everspire's state readable from every playable space, and make it the game's only
+**Make the Stambha's state readable from every playable space, and make it the game's only
 channeling meter.**
 
 | Stage | What the tower does |
@@ -50,12 +52,12 @@ channeling meter.**
 This costs a shader, a tracked value, and discipline about sightlines. In exchange it gives
 a diegetic, world-scale, zero-UI meter for the story's central variable.
 
-It complements the Terrin barometer rather than duplicating it: **Terrin reports what people
+It complements the Arun barometer rather than duplicating it: **Arun reports what people
 believe; the tower reports what is true.** The gap between them is the drama.
 
 ### Sightline requirement
 
-Every exterior playable space must have at least one authored viewpoint of the Everspire,
+Every exterior playable space must have at least one authored viewpoint of the Stambha,
 and every hub must have one that is unavoidable on the critical path. This is a world-layout
 constraint, not a polish item — it belongs in the Map Editor's validation rules.
 
@@ -78,8 +80,9 @@ Three reasons this is correct here:
    discipline maintained by review. In a topic system it is simply how the data works —
    "player holds ≥ 2 evidence" is one condition among many. The architecture does the work
    that would otherwise be done by hand.
-3. **It makes the barometer cheap.** Terrin with topics — *your father*, *the trade*,
-   *Qadris*, *what you would do* — filtered on `terrin.lean` costs far less than authoring
+3. **It makes the barometer cheap.** Arun with topics—*your father*, *the trade*,
+   *Marukot*, *what you would do*—filtered on the stable internal key `terrin.lean` costs far
+   less than authoring
    trees per lean state. It also produces the required lag-and-resist behaviour naturally,
    because he can hold different positions on different topics simultaneously. That is what
    someone mid-change actually sounds like.
@@ -146,7 +149,7 @@ were wrong. Every direction must be walked. Budget it as QA, not as writing.
 
 ### What makes this viable here
 
-The Everspire is a permanent bay-wide orienting landmark, which solves the hardest half of
+The Stambha is a permanent bay-wide orienting landmark, which solves the hardest half of
 navigation before any work is done.
 
 **The Map Editor MVP is promoted from convenience tooling to enabling work.** Landmark-legible
@@ -215,14 +218,14 @@ Morrowind's travel is a system the player learns rather than a menu: public rout
 teleport, and Mark/Recall for the initiated. Geography stays meaningful; travel never becomes
 tedious.
 
-Kessil Bay is a bay. Boats are the obvious network, and `SailingController` is already being
-built for the Chapter 01 trade route.
+Ratna Bay is a bay. Boats are the obvious network, and `SailingController` serves the
+Chapter 01 trade route.
 
 | Layer | Availability |
 |---|---|
-| Public ferries | scheduled, cheap, **not instant**, on fixed routes between Estmere, Caldemar, Qadris, Aldreth and Corrath |
+| Public ferries | scheduled, cheap, **not instant**, on fixed routes between Ratnapur, Sabhapur, Marukot, Shantipur and Meru |
 | Private sailing | for players who learned it in Chapter 01; reaches places the ferries do not |
-| Arcanum halls | instant travel between Arcanum sites — **lost if the player alienates them** |
+| Siddha Order halls | instant travel between Order sites—**lost if the player alienates them** |
 
 So the Chapter 01 tutorial with the most expensive mechanic becomes the one with the longest
 payoff. `DiscoveryTravelSystem`'s menu fast-travel retires; the P1 list already wanted this.
@@ -247,32 +250,23 @@ apply it everywhere.
 swing misses because of an unseen roll — is its most disliked feature by a wide margin. The
 project already has working direct combat. Do not touch it.
 
-### Current state of the code — 2026-08-01
+### Implemented state of the code — 2026-08-12
 
-Worth recording, because the gap between this section and `PlayerCombat.cs` is wide.
+The earlier cosmetic-inventory and combat-stamina defects are closed.
 
 | | Today |
 |---|---|
-| Melee | 18 damage, 2.4 m, 0.45 s cooldown, 8 stamina |
-| Magic | one spell (Flare), 26 damage, 16 mana, 18 m |
-| Level-up | +12 HP, +8 MP, +8 SP, full restore |
-| Mana regen | 4/sec, always |
-| Stamina regen | 12/sec, **only out of combat** |
+| Melee | equipped weapon class/tier supplies damage; blocking and armour are live |
+| Magic | five mechanically distinct spells spend non-regenerating prana |
+| Level-up | derives from eight use-based skills; levelling does not refill prana |
+| Prana regeneration | **none**; an empty reserve auto-draws lawful jiva-stone charge when available |
+| Stamina regeneration | 4/sec in combat, 12/sec at rest |
 
-Two defects to fix before anything is balanced on top of them:
+### Resources — prana is jiva-stone charge
 
-1. **The inventory is cosmetic.** `InvItem` is `{Id, Name, Count, Kind}` — no stats, no slots,
-   no equip system. The Iron Sword in the player's pack does nothing; melee damage is a
-   hardcoded serialized field.
-2. **Stamina has a dead zone in combat.** Regen is disabled entirely while `InCombat`, combat
-   persists 6 s past the last hit, and swings cost 8 from a 100 pool. That is 12 swings, then
-   six seconds of standing there unable to attack. Give combat a reduced regen rate rather
-   than none.
-
-### Resources — mana is crystal charge
-
-**Mana does not regenerate.** It is charge drawn from soul crystals, which are bought, looted
-or issued.
+**Prana does not regenerate.** It is charge drawn from jiva stones, which are bought, looted
+or issued. A lawful stone holds a released pranic imprint, not the continuing jiva; a black
+jiva cages the person. The full rule is [`JIVA_METAPHYSICS.md`](JIVA_METAPHYSICS.md).
 
 This is the setting made playable. The arc's central conflict is demand outstripping humane
 supply; a player regenerating free magic for forty hours contradicts it at every second.
@@ -281,7 +275,7 @@ supply; a player regenerating free magic for forty hours contradicts it at every
 |---|---|
 | Gold gets a real sink | it currently has almost nowhere to go |
 | `player.channeled` becomes literal | it is the player's receipts, not an abstract counter |
-| Scarcity becomes playable | crystal price and availability tighten as the story bites |
+| Scarcity becomes playable | jiva-stone price and availability tighten as the story bites |
 | The Chapter 08 vote becomes personal | voting abolition disarms the player |
 | Mage and warrior feel structurally different | resource anxiety versus stamina rhythm |
 
@@ -290,11 +284,11 @@ supply; a player regenerating free magic for forty hours contradicts it at every
 **Roughly 20× across the game, absorbed by skill.** Not the literal meal-to-used-car swing,
 which is nearer 1000× and would end the mage build partway through Chapter 06.
 
-| | Early (Estmere) | Late |
+| | Early (Ratnapur) | Late |
 |---|---|---|
-| Crystal price | about the cost of a meal | about 20× that |
-| Novice casts per crystal | baseline | baseline |
-| Expert casts per crystal | — | **3–4× baseline** |
+| Jiva-stone price | about the cost of a meal | about 20× that |
+| Novice casts per stone | baseline | baseline |
+| Expert casts per stone | — | **3–4× baseline** |
 
 So a committed mage pays roughly 5× more per cast late-game than they did at the start, while
 a dabbler pays the full 20×. **Scarcity prices out the tourist and squeezes the specialist**,
@@ -303,21 +297,21 @@ which is exactly the right shape: it rewards commitment to the route without col
 This makes Destruction and Restoration the most economically valuable skills in the game.
 That asymmetry is intentional — no other skill pays a dividend in gold.
 
-Pace it: crystals cheap and everywhere in Chapters 01–03, tightening later. That is the plot
+Pace it: lawful stones are cheap and common in Chapters 01–03, tightening later. That is the plot
 arriving in the player's inventory.
 
 #### Difficulty and the economy
 
-Difficulty is an Elder-Scrolls-style 1×–6× slider. That interacts with crystal cost directly:
+Difficulty is a 1×–6× slider. That interacts with jiva-stone cost directly:
 six times the enemy health means six times the casts means six times the spend, so **on the
 hardest setting a mage goes broke and a warrior does not.**
 
-The slider must therefore scale crystal *prices* alongside enemy health, or hard mode
+The slider must therefore scale jiva-stone *prices* alongside enemy health, or hard mode
 silently becomes a warrior-only mode. This is not optional balancing — it is a structural
-consequence of making mana a purchased resource.
+consequence of making prana a purchased resource.
 
-**This is a cost, not a punishment.** Casting spends a crystal — ordinary economy. Having spent
-five hundred crystals must change what Terrin says, never how hard enemies hit. The
+**This is a cost, not a punishment.** Casting spends stone charge—ordinary economy. Having
+drawn five hundred stones' worth must change what Arun says, never how hard enemies hit. The
 never-punish rule for `player.channeled` still stands.
 
 ### Weapons — three classes, tiers not variety
@@ -350,11 +344,11 @@ something.
 |---|---|---|
 | Fire | burn over time | groups, unarmoured |
 | Frost | slows, drains stamina | chargers |
-| Shock | burns enemy mana, chains | casters |
-| Heal | restore, at crystal cost | — |
+| Shock | burns enemy prana, chains | casters |
+| Heal | restore, at jiva-stone cost | — |
 | Light | utility: caves, prison, sea cave | — |
 
-Light earns its slot thematically. In a world lit by crystals, carrying a light *is* consuming
+Light earns its slot thematically. In a world lit by jiva stones, carrying a light *is* consuming
 the resource, so every dark corridor is a small decision.
 
 ### Progression — skill use, without Morrowind's flaw
@@ -391,14 +385,16 @@ them, use-based progression becomes jumping in a corner for an hour.
 3. **Diminishing returns per encounter**, so a single enemy cannot be farmed.
 4. **No attribute multipliers on level-up.** Morrowind's worst tax was planning level-ups to
    avoid wasting them. Flat pools remove the planning game entirely.
-5. **Magic is self-limiting** — casting costs crystals, so grinding Destruction means buying
+5. **Magic is self-limiting** — casting costs prana, so grinding Destruction means buying
    levels with gold. Self-capping, and the world can notice.
 
 #### The mage's bill
 
 Worth stating plainly, because it is the strongest thing these systems do together: **a mage's
-character growth has a body count.** Getting better at Fire requires casting Fire, which spends
-crystals, which spends souls. A warrior's growth is free.
+character growth adds measurable burden to the Stambha.** Getting better at Fire requires
+casting Fire, which spends prana and depletes jiva-stone charge. Lawful dāna does not cage or
+burn a person—the jiva has moved on—but the draw still counts, and black-jiva supply can hide
+people inside the same economy. A warrior's growth does not add that channeling burden.
 
 No line of dialogue achieves that. It also means the Chapter 08 vote lands differently
 depending on how the player played — a mage voting for abolition votes against their own
@@ -418,9 +414,9 @@ progression.
 
 **No recruitable companions in open-world travel. Scripted-sequence escorts remain.**
 
-This is a required distinction, not a quibble. Chapter 01's B630 escorts the prince from his
-cell through the prison to the sea cave, sets `flag.prince_following`, and the convergence
-contract requires the companion to be in a recoverable state.
+This is a required distinction, not a quibble. Chapter 01's B630 escorts Yuvraj Arun from his
+cell through the prison to the sea cave, sets the stable internal flag `flag.prince_following`,
+and requires the companion to be in a recoverable state at convergence.
 
 The scope consequence is large and favourable. `CompanionController` no longer has to survive
 the 6.8 km world, ferries, private sailing or arbitrary open-world save/load — it must handle
@@ -429,17 +425,19 @@ save-state as the largest progression risk; this removes most of it.
 
 Combined with cutting conjuration, **the game needs no persistent ally AI anywhere.**
 
-The existing narrative lock already agrees: the prince is crowned and cannot travel to
-Caldemar.
+The existing narrative lock already agrees: Arun is crowned Raja and cannot travel to
+Sabhapur.
 
 ## Player channeling — the player is part of the problem
 
-Spells consume crystals. Crystals consume souls. The Everspire reads total channeling.
+Spells spend prana. A lawful jiva stone carries only a released pranic imprint and its jiva
+has moved on; a black jiva cages a continuing person. **Every draw, from either source,
+burdens the Stambha.**
 
 Therefore **every spell the player casts is on the same meter they have been watching in the
-sky for forty hours.** A mage-route player arriving at the Chapter 08 vote — having
-personally burned crystals for the entire game — occupies a materially different moral
-position than a warrior who arrives with clean hands.
+sky for forty hours.** A mage-route player arriving at the Chapter 08 vote—having personally
+drawn prana for the entire game—occupies a materially different policy position from a warrior
+who added no magical draw. That does not make lawful dāna murder; it makes demand personal.
 
 This pays off the four Chapter 01 routes forty hours later without a single new system.
 
@@ -448,8 +446,8 @@ This pays off the four Chapter 01 routes forty hours later without a single new 
 No damage penalty, no resource starvation, no mechanical disadvantage of any kind. Punishing
 a player for using a core mechanic is bad design.
 
-What it changes is **what the world notices**: what Terrin says, what the Concord remarks on,
-and what the player can claim with a straight face at the Council. Track `player.channeled`
+What it changes is **what the world notices**: what Arun says, what the Dhruva Order remarks
+on, and what the player can claim with a straight face before the Sabha. Track `player.channeled`
 as a running total and expose it as a dialogue condition. That is the entire implementation.
 
 ## Evidence as documents
@@ -484,10 +482,10 @@ with systems already planned.
 | 5 | `CompanionController` scoped to authored sequences only | VS4 — reduces scope |
 | 6 | Magic scope fixed: elements, healing, targeting; no conjuration | VS4 |
 | 7 | Swimming surface-only, deliberately poor; no diving systems | VS4 |
-| 8 | Map Editor MVP promoted — it enables landmark navigation | after VS2, as planned |
-| 9 | Everspire sightline validation added to world-layout rules | Map Editor |
+| 8 | Map Editor MVP promoted — it enables landmark navigation | ✅ **built after VS2**; advanced terrain remains |
+| 9 | Stambha sightline validation added to world-layout rules | Map Editor expansion |
 | 10 | `player.channeled` tracked and exposed as a dialogue condition | ✅ **built** — `PlayerStats.Channeled`, saved |
-| 11 | Mana becomes non-regenerating crystal charge | ✅ **built** — `SoulCrystals`, `PlayerStats.SpendMana` |
+| 11 | Prana becomes non-regenerating jiva-stone charge | ✅ **built** — retained internal APIs `SoulCrystals`, `PlayerStats.SpendMana` |
 | 12 | Equip system: weapon/armour slots with stats, read by `PlayerCombat` | ✅ **built** — `EquipmentCatalog`, `PlayerEquipment` |
 | 13 | Eight use-based skills; `Level` derives from total skill progress | ✅ **built** — `Skills`, `SkillSystem` |
 | 14 | Three weapon classes with tiers; five distinct spells | ✅ **built** — `EquipmentCatalog`, `SpellCatalog`, `SpellCaster` |
@@ -498,9 +496,9 @@ with systems already planned.
 **Items 10–17 were built on 2026-08-04** and are covered by 36 PlayMode tests. Decisions made
 during implementation that are not otherwise recorded:
 
-- **A crystal restores 40 charge and costs 12 gold early.** Deliberately close to a health
+- **A jiva stone restores 40 charge and costs 12 gold early.** Deliberately close to a health
   potion, so the player reads it as an ordinary consumable before the arc makes it precious.
-- **Casting auto-draws a crystal** when the reserve is short, announced by a toast. Fluid to
+- **Casting auto-draws a jiva stone** when the reserve is short, announced by a toast. Fluid to
   play, and the player still feels every one.
 - **Neither death nor levelling refills charge.** Both were silent resupply routes.
 - **Locks and pickpocketing resolve deterministically against Security**, not by dice. The

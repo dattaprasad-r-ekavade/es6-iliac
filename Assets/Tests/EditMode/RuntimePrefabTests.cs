@@ -56,7 +56,7 @@ public sealed class RuntimePrefabTests
             Assert.IsFalse(string.IsNullOrWhiteSpace(topic.Response));
         }
         Assert.IsTrue(System.Array.Exists(topics, t =>
-            t.Id == "topic_black_crystals" && System.Linq.Enumerable.Any(t.Conditions,
+            t.Id == "topic_black_jiva" && System.Linq.Enumerable.Any(t.Conditions,
                 c => c.Key == "evidence_count" && c.Operator == "min")));
     }
 
