@@ -274,6 +274,14 @@ chapters: **2–4 years**.
 
 ## 7. Work packets
 
+> **Read [`COURSE_CORRECTION.md`](COURSE_CORRECTION.md) first (2026-08-15).** The packets below
+> are accurate about what was *built*; that file is what to build *next* and in what order. The
+> short version: no agent has ever run this game, every playability defect was found by the
+> developer pressing Play, and Phase 0 — a headless playthrough harness that captures frames —
+> comes before everything else.
+
+
+
 Ordered by dependency. Each is sized to be picked up cold. **Read the listed sections before
 starting** — they contain decisions that are expensive to contradict.
 
