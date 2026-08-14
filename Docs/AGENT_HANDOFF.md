@@ -71,7 +71,7 @@ python Tools/compile-check.py
   -runTests -testPlatform PlayMode \
   -testResults "<scratch>/pm.xml" -logFile "<scratch>/pm.log"
 
-# Windows build → Builds/Windows/Kessil.exe
+# Windows build → Builds/Windows/RatnaBay.exe
 "/c/Program Files/Unity/Hub/Editor/6000.5.3f1/Editor/Unity.exe" -batchmode -quit \
   -projectPath "D:/Projects/Elder Scrolls 6" \
   -executeMethod BuildPlayerCommand.BuildWindows -logFile "<scratch>/build.log"
@@ -243,7 +243,7 @@ the full W-12 dense-region rebuild is not.
 | W-11 Ratna World Builder | **Complete — standalone editor, one-button Unity preview, 14/14 Python tests** |
 | Wider world | **Shantipur baseline city/road complete; full W-12 dense-region rebuild pending** |
 | Tests | Release verification: EditMode 120/120, PlayMode 130/130; rerun after any integration change |
-| Build | `Builds/Windows/Kessil.exe`, 143.8 MB, 0 errors; Bootstrap is scene zero; **15 scenes incl. `Capital_Region`** |
+| Build | `Builds/Windows/RatnaBay.exe`, 145.2 MB, 0 errors; Bootstrap is scene zero; **15 scenes incl. `Capital_Region`** |
 | Code | 74 runtime scripts, 18 editor scripts, plus Python tooling (2026-08-12 working count) |
 | Scenes | `Bootstrap`, generated `Main`, `Capital_Region`, additive `Capital_Exterior`, 11 Chapter 01 grey scenes; four test fixtures. **All named for the building, never the city** |
 | Prefabs / ScriptableObjects / `.inputactions` | 4 runtime prefabs; NPC, dialogue, quest and cinematic data assets; one input-actions asset |

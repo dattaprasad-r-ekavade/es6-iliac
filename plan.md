@@ -272,7 +272,7 @@ screenplay, actors, mechanics and final environments remain VS3–VS7 work.
   collider violations, 0 wall collider violations, and 0 approach collider violations**.
 - Physics probes: representative wall and building rays hit their box colliders; the
   south gate walking ray remains clear; every city has five collider-backed approaches.
-- Current Windows x64 build **2026-08-12: `Builds/Windows/Kessil.exe`, 143.8 MB, 0 errors**,
+- Current Windows x64 build **2026-08-14: `Builds/Windows/RatnaBay.exe`, 145.2 MB, 0 errors**,
   built headlessly in 24.7s via `BuildPlayerCommand.BuildWindows`, with `Bootstrap` as scene
   zero. This replaces the stale
   pre-rename `IliacBay.exe`, which still sits beside it in the (gitignored) build folder and
