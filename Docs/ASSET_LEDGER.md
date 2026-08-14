@@ -1,6 +1,6 @@
 # Asset ledger
 
-**Audited:** 2026-08-01 · **VS0 deliverable**
+**Audited:** 2026-08-01 · **Licence proofs consolidated:** 2026-08-14 · **VS0 deliverable**
 
 Every third-party asset in `Assets/`, with source, licence, where the proof lives, and
 whether the source files may be redistributed in a public repository.
@@ -13,14 +13,14 @@ keeping the source in a public repo.
 
 | Asset | Location | Source | Licence | Proof in repo | Redistribute source? |
 |---|---|---|---|---|---|
-| Kenney CastleKit | `Assets/ThirdParty/Kenney/CastleKit` | kenney.nl | CC0 1.0 | `TempDownloads/castle/License.txt` | Yes |
-| Kenney CityKitCommercial **2.1** | `.../Kenney/CityKitCommercial` | [kenney.nl](https://kenney.nl/assets/city-kit-commercial) | CC0 1.0 | `TempDownloads/_extract_kenney_city-kit-commercial_2.1.zip/License.txt` | Yes |
-| Kenney FantasyTown | `.../Kenney/FantasyTown` | kenney.nl | CC0 1.0 | `TempDownloads/fantasy-town/License.txt` | Yes |
+| Kenney CastleKit | `Assets/ThirdParty/Kenney/CastleKit` | kenney.nl | CC0 1.0 | `.../CastleKit/License.txt` | Yes |
+| Kenney CityKitCommercial **2.1** | `.../Kenney/CityKitCommercial` | [kenney.nl](https://kenney.nl/assets/city-kit-commercial) | CC0 1.0 | `.../CityKitCommercial/License.txt` | Yes |
+| Kenney FantasyTown | `.../Kenney/FantasyTown` | kenney.nl | CC0 1.0 | `.../FantasyTown/License.txt` | Yes |
 | Kenney FurnitureKit | `.../Kenney/FurnitureKit` | kenney.nl | CC0 1.0 | *(missing — see gaps)* | Yes |
 | Kenney GraveyardKit | `.../Kenney/GraveyardKit` | kenney.nl | CC0 1.0 | *(missing — see gaps)* | Yes |
-| Kenney MiniCharacters | `.../Kenney/MiniCharacters` | kenney.nl | CC0 1.0 | `TempDownloads/mini-chars/License.txt` | Yes |
-| Kenney NatureKit | `.../Kenney/NatureKit` | kenney.nl | CC0 1.0 | `TempDownloads/nature/License.txt` | Yes |
-| Kenney PirateKit | `.../Kenney/PirateKit` | [kenney.nl](https://kenney.nl/assets/pirate-kit) | CC0 1.0 | `TempDownloads/_extract_kenney_pirate-kit.zip/License.txt` | Yes |
+| Kenney MiniCharacters | `.../Kenney/MiniCharacters` | kenney.nl | CC0 1.0 | `.../MiniCharacters/License.txt` | Yes |
+| Kenney NatureKit | `.../Kenney/NatureKit` | kenney.nl | CC0 1.0 | `.../NatureKit/License.txt` | Yes |
+| Kenney PirateKit | `.../Kenney/PirateKit` | [kenney.nl](https://kenney.nl/assets/pirate-kit) | CC0 1.0 | `.../PirateKit/License.txt` | Yes |
 | Kenney SurvivalKit | `.../Kenney/SurvivalKit` | kenney.nl | CC0 1.0 | *(missing — see gaps)* | Yes |
 | Kenney ImpactSounds | `.../KenneyAudio/ImpactSounds` | kenney.nl | CC0 1.0 | `Assets/ThirdParty/KenneyAudio/ImpactSounds/License.txt` | Yes |
 | Kenney InterfaceSounds | `.../KenneyAudio/InterfaceSounds` | kenney.nl | CC0 1.0 | `.../InterfaceSounds/License.txt` | Yes |
@@ -56,13 +56,18 @@ is the likely source once the one humanoid base is rigged.
 
 Small, and none of them block anything.
 
-1. **Four licence files are missing from the repo:** Kenney FurnitureKit, GraveyardKit and
-   SurvivalKit, plus Poly Haven. All four are CC0 from sources whose blanket terms are
+1. **Four licence files are still missing from the repo:** Kenney FurnitureKit, GraveyardKit
+   and SurvivalKit, plus Poly Haven. All four are CC0 from sources whose blanket terms are
    published, so the risk is documentation rather than rights — but for a clean release the
    proof should sit beside the asset. Copy a `License.txt` into each.
-2. **Download dates are unrecorded.** Only two source URLs survive, in
-   `TempDownloads/download_kits.ps1`. Licences can change; a dated snapshot is the defence.
-   Record the date on the next fetch.
+
+   Six others were closed on 2026-08-14: CastleKit, CityKitCommercial, FantasyTown,
+   MiniCharacters, NatureKit and PirateKit. Their only copies had been sitting in the
+   untracked `TempDownloads/` scratch, so the ledger's proof column pointed at files that were
+   one `rm` from gone. They now sit beside the assets they cover.
+2. **Download dates are unrecorded.** The fetch scripts survive in `Tools/AssetProvenance/`
+   (`download_kits.ps1` carries the only source URLs on record). Licences can change; a dated
+   snapshot is the defence. Record the date on the next fetch.
 3. **Third-party licence text is not yet aggregated for distribution.** OFL in particular
    requires the licence to travel with the binary. This belongs in the credits/notices screen,
    which is already on the shipping-debt list.
@@ -71,12 +76,11 @@ Small, and none of them block anything.
 
 Two items outside the licensing question, flagged because the audit surfaced them:
 
-- **`_downloads/` (239 MB) and `TempDownloads/` (114 MB) are not in `.gitignore`.** They are
-  currently untracked, so nothing is committed — but a single `git add -A` would put 353 MB of
-  third-party archives into history permanently. Added to `.gitignore` as part of this pass.
-- **`dev/null/` is tracked and contains four git hook files** (`post-checkout`, `post-commit`,
-  `post-merge`, `pre-push`). This is almost certainly a Windows shell redirect to `/dev/null`
-  creating a literal directory. Harmless but junk; worth removing.
+- **`_downloads/` (239 MB) and `TempDownloads/` (114 MB)** were gitignored, then **deleted on
+  2026-08-14** along with two superseded player builds. They were extraction scratch, not
+  project assets — but six licence proofs were living in them, and those were rescued into
+  `Assets/ThirdParty/` first. The fetch scripts were rescued to `Tools/AssetProvenance/`.
+- **`dev/null/`** — a literal directory created by a Windows shell redirect. Deleted 2026-08-14.
 
 ## Policy reminders that apply on release
 
