@@ -40,39 +40,54 @@ public class IntroCutsceneDirector : MonoBehaviour
         lines = DefaultLines();
     }
 
+    /// <summary>
+    /// The opening of Chapter 01: the voyage in, before the wreck.
+    ///
+    /// This used to be a free-roam prototype tour — two characters named Liora and Kael, who
+    /// exist nowhere else in the game, listing city names and saying the coast was "a prototype
+    /// of one, early, unfinished". Shipping that as the first thing a player sees undercut the
+    /// chapter before it started, and a playtester reported it as a cutscene they did not
+    /// recognise. It was right to not recognise it.
+    ///
+    /// Covers B010 (the merchant deck, the Stambha in frame) and B020 (Dhruva sails on the
+    /// horizon), and stops before B030 — the pulse is witnessed in play, not narrated.
+    ///
+    /// **The Stambha is described but never explained.** Chapter 01 must never hint that it is
+    /// an alarm; that is the Chapter 06 reveal. Here it is only something old that nobody built.
+    /// </summary>
     public static DialogueLine[] DefaultLines()
     {
         return new[]
         {
             new DialogueLine
             {
-                speaker = "Liora",
-                text = "Traveler… look out over Ratna Bay. Uttara to the north, Maru to the south.",
+                speaker = "Ship's Master",
+                text = "Ratna Bay, and a fair wind for once. We'll see the lamps of Ratnapur before dark.",
                 holdSeconds = 4.2f
             },
             new DialogueLine
             {
-                speaker = "Kael",
-                text = "A young coast, and a prototype of one — early, unfinished, open to walk.",
+                speaker = "Deckhand",
+                text = "That's Meru off the bow, master. And the pillar standing on it.",
                 holdSeconds = 3.8f
             },
             new DialogueLine
             {
-                speaker = "Liora",
-                text = "Sabhapur, Ratnapur, Marukot… islands of Kusha, Meru, Shaka. Walk them as you will.",
+                speaker = "Ship's Master",
+                text = "The Stambha. Older than the city, older than the trade. Nobody built it, and nobody asks.",
                 holdSeconds = 4.5f
             },
             new DialogueLine
             {
-                speaker = "Kael",
-                text = "No fate is written here yet. Just wind, water, and the road ahead.",
-                holdSeconds = 3.6f
+                speaker = "Deckhand",
+                text = "Sails to starboard — Dhruva colours. Sitting still, in open water.",
+                holdSeconds = 3.8f
             },
             new DialogueLine
             {
-                speaker = "Liora",
-                text = "Come. Let the bay show itself… then the path is yours.",
-                holdSeconds = 3.4f
+                speaker = "Ship's Master",
+                text = "They watch the stone lanes. Mind your work, and they'll watch somebody else.",
+                holdSeconds = 3.6f
             }
         };
     }
@@ -181,7 +196,11 @@ public class IntroCutsceneDirector : MonoBehaviour
 
     private void AnimateTalkers(string speaker)
     {
-        bool leftTalks = speaker.IndexOf("Liora", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        // Whoever speaks first stands on the left. This used to match the literal string
+        // "Liora", so renaming the cast silently froze one of the two talkers.
+        string first = lines != null && lines.Length > 0 ? lines[0].speaker : null;
+        bool leftTalks = !string.IsNullOrEmpty(first)
+            && string.Equals(speaker, first, System.StringComparison.OrdinalIgnoreCase);
         if (actorLeft != null)
         {
             var baseScale = _actorLeftScaleCached ? _actorLeftBaseScale : actorLeft.localScale;

@@ -228,8 +228,15 @@ public static class CapitalRegionBuilder
     /// </summary>
     private static void BuildQuay(Transform holder, CapitalRegion.Anchor anchor, float size, float height)
     {
+        // A quay is a surface you step *onto*, so its deck top sits just above the surrounding
+        // ground and the rest of its thickness is buried. Building it upward from ground level
+        // instead — which is right for a building and wrong for a deck — put the player at the
+        // bottom of a four-metre trench of their own docks, with the warehouse floating over
+        // their head. Reported from playtest as "looks like I'm underground".
+        const float DeckTop = 0.5f;
+
         var deck = Block(holder, "Deck",
-            Vector3.up * (height * 0.5f), new Vector3(size, height, size * 0.55f), Palette(2));
+            Vector3.up * (DeckTop - height * 0.5f), new Vector3(size, height, size * 0.55f), Palette(2));
         WorldTagger.SetLayerRecursive(deck, GameLayers.Ground);
 
         // Piers reach out from the seaward face. Walkable, so the harbour is somewhere to go
@@ -241,8 +248,8 @@ public static class CapitalRegionBuilder
         {
             float t = (i + 0.5f) / pierCount - 0.5f;
             var pier = Block(holder, $"Pier_{i}",
-                new Vector3(t * size * 0.8f, height * 0.5f, -(size * 0.275f + pierLength * 0.5f)),
-                new Vector3(pierWidth, height * 0.8f, pierLength), Palette(2));
+                new Vector3(t * size * 0.8f, DeckTop - height * 0.5f, -(size * 0.275f + pierLength * 0.5f)),
+                new Vector3(pierWidth, height, pierLength), Palette(2));
             WorldTagger.SetLayerRecursive(pier, GameLayers.Ground);
 
             // Mooring posts give the flat deck something to read distance against.
@@ -250,7 +257,7 @@ public static class CapitalRegionBuilder
             {
                 float pz = -(size * 0.275f + pierLength * (0.35f + 0.45f * p));
                 var post = Block(holder, $"Post_{i}_{p}",
-                    new Vector3(t * size * 0.8f + pierWidth * 0.5f, height + 1.1f, pz),
+                    new Vector3(t * size * 0.8f + pierWidth * 0.5f, DeckTop + 1.1f, pz),
                     new Vector3(0.9f, 2.2f, 0.9f), Palette(3));
                 WorldTagger.SetLayerRecursive(post, GameLayers.Structure);
             }
@@ -258,8 +265,9 @@ public static class CapitalRegionBuilder
 
         // A single low warehouse behind the deck, so the quay still has a landward edge and the
         // door has something to sit in.
+        // Sits on the ground, not on top of the deck's full thickness.
         var shed = Block(holder, "Warehouse",
-            new Vector3(0f, height + 4f, size * 0.42f), new Vector3(size * 0.7f, 8f, size * 0.28f), Palette(1));
+            new Vector3(0f, DeckTop + 4f, size * 0.42f), new Vector3(size * 0.7f, 8f, size * 0.28f), Palette(1));
         WorldTagger.SetLayerRecursive(shed, GameLayers.Structure);
     }
 

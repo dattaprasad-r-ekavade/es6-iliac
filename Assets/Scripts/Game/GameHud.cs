@@ -121,6 +121,22 @@ public class GameHud : MonoBehaviour
         var mode = GameStateService.Instance != null
             ? GameStateService.Instance.CurrentState
             : GameState.Gameplay;
+
+        // Pause is read before any state gate, and deliberately so. It used to sit below this
+        // return, which meant a game left in Cinematic, Loading or Death had no pause menu —
+        // and since quitting lives *in* the pause menu, no way out of the program at all
+        // except Alt+F4. Reported from playtest 2026-08-14.
+        //
+        // Whatever else is broken, the player must always be able to stop playing.
+        if (GameInput.Cancel.WasPressedThisFrame()
+            && mode != GameState.Gameplay
+            && !AnyMenuOpen)
+        {
+            if (_pauseRoot != null && _pauseRoot.activeSelf) ClosePause();
+            else OpenPause();
+            return;
+        }
+
         if (mode == GameState.Loading || mode == GameState.Cinematic || mode == GameState.Death)
             return;
 

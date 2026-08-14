@@ -80,7 +80,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Game.Runtime::SimplePlayerController
   moveSpeed: 3.5
-  sprintMultiplier: 1.85
+  runMultiplier: 1.5
   lookSensitivity: 0.12
   gravity: -24
   jumpSpeed: 7
