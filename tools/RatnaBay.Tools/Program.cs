@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using SharpGLTF.Schema2;
 
 var command = args.Length == 0 ? "doctor" : args[0].ToLowerInvariant();
 var root = FindRepositoryRoot(Directory.GetCurrentDirectory());
 
 var checks = command switch
 {
-    "doctor" or "validate" => RunDoctor(root),
+    "doctor" => RunDoctor(root),
+    "validate" => RunDoctor(root),
+    "asset-info" => RunAssetInfo(root, args.Skip(1).ToArray()),
     "help" or "--help" or "-h" => PrintHelp(),
     _ => Unknown(command)
 };
@@ -25,6 +29,7 @@ static int RunDoctor(string root)
         "src/RatnaBay.Game/RatnaBay.Game.csproj",
         "src/RatnaBay.Game/Content/Content.mgcb",
         "src/RatnaBay.Game/.config/dotnet-tools.json",
+        "src/RatnaBay.Game/pipeline-references/MonoGame.Extended.Content.Pipeline.dll",
         "tests/RatnaBay.Domain.Tests/RatnaBay.Domain.Tests.csproj"
     };
 
@@ -45,8 +50,73 @@ static int RunDoctor(string root)
         return 1;
     }
 
-    Console.WriteLine("Toolchain baseline is valid.");
+    var packageChecks = new[]
+    {
+        ("game", "MonoGame.Extended"),
+        ("game", "Gum.MonoGame"),
+        ("game", "ImGui.NET"),
+        ("game", "FontStashSharp.MonoGame"),
+        ("game", "BepuPhysics"),
+        ("game", "DotRecast.Recast"),
+        ("game", "Ink"),
+        ("tools", "SharpGLTF.Core"),
+        ("tools", "SharpGLTF.Toolkit")
+    };
+
+    foreach (var (project, package) in packageChecks)
+    {
+        var assetsPath = project == "game"
+            ? Path.Combine(root, "src", "RatnaBay.Game", "obj", "project.assets.json")
+            : Path.Combine(root, "tools", "RatnaBay.Tools", "obj", "project.assets.json");
+        var present = File.Exists(assetsPath) &&
+            File.ReadAllText(assetsPath).Contains($"\"{package}/", StringComparison.OrdinalIgnoreCase);
+        Console.WriteLine($"[{(present ? "OK" : "FAIL")}] package {package}");
+        if (!present)
+            failures.Add($"package {package}");
+    }
+
+    if (failures.Count > 0)
+    {
+        Console.Error.WriteLine($"{failures.Count} required path or package check(s) failed.");
+        return 1;
+    }
+
+    Console.WriteLine("Toolchain and community package baseline is valid.");
     return 0;
+}
+
+static int RunAssetInfo(string root, string[] arguments)
+{
+    if (arguments.Length == 0)
+    {
+        Console.Error.WriteLine("Usage: asset-info <path-to-gltf-or-glb>");
+        return 2;
+    }
+
+    var path = Path.GetFullPath(Path.IsPathRooted(arguments[0])
+        ? arguments[0]
+        : Path.Combine(root, arguments[0]));
+    if (!File.Exists(path))
+    {
+        Console.Error.WriteLine($"Asset not found: {path}");
+        return 1;
+    }
+
+    try
+    {
+        var model = ModelRoot.Load(path);
+        Console.WriteLine($"Loaded glTF asset: {path}");
+        Console.WriteLine($"  Scenes: {model.LogicalScenes.Count}");
+        Console.WriteLine($"  Nodes: {model.LogicalNodes.Count}");
+        Console.WriteLine($"  Meshes: {model.LogicalMeshes.Count}");
+        Console.WriteLine($"  Materials: {model.LogicalMaterials.Count}");
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Could not read glTF asset: {exception.Message}");
+        return 1;
+    }
 }
 
 static int PrintHelp()
@@ -54,6 +124,7 @@ static int PrintHelp()
     Console.WriteLine("Ratna Bay tools");
     Console.WriteLine("  doctor     Check the repository/toolchain baseline (default)");
     Console.WriteLine("  validate   Alias for doctor; future source-data validation entry point");
+    Console.WriteLine("  asset-info Inspect a .gltf or .glb asset using SharpGLTF");
     Console.WriteLine("  help       Show this help");
     return 0;
 }

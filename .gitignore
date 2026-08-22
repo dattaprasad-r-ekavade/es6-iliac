@@ -7,5 +7,7 @@
 *.userprefs
 src/**/Content/bin/
 src/**/Content/obj/
+src/RatnaBay.Game/pipeline-references/
 artifacts/
 captures/
+build/

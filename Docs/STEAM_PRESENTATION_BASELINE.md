@@ -49,6 +49,10 @@ uses the logical-canvas transform.
    scaling do not hide it.
 4. Test the default borderless presentation before approving a visual milestone.
 5. Keep display settings separate from gameplay state and save data.
+6. Use the bundled Cinzel/Noto Sans typography pair; do not depend on fonts installed on
+   the player's machine.
+7. Keep body copy at or above the logical 14 px token and validate headings/body text at
+   720p before approving UI work.
 
 ## Next presentation work
 

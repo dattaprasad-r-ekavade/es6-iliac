@@ -16,3 +16,17 @@ These assets are included only to test MonoGame’s model import and rendering p
 - Used files: 1K FBX model and 1K diffuse texture
 
 The project keeps the downloaded source archive under `Content/Source/OnlineAssets` and uses a small copied subset under `Content/Feasibility` for the test scene. The feasibility code is not a commitment to these assets’ final visual style or production pipeline.
+
+## Cinzel
+
+- Source: <https://github.com/google/fonts/tree/main/ofl/cinzel>
+- License: SIL Open Font License 1.1
+- Runtime file: `Fonts/Cinzel/Cinzel-wght.ttf`
+- The license and family description are kept beside the font for redistribution review.
+
+## Noto Sans
+
+- Source: <https://github.com/google/fonts/tree/main/ofl/notosans>
+- License: SIL Open Font License 1.1
+- Runtime file: `Fonts/NotoSans/NotoSans-wght.ttf`
+- The license and family description are kept beside the font for redistribution review.

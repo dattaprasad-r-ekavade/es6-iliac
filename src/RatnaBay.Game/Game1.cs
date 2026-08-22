@@ -1,8 +1,11 @@
+using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace RatnaBay.Client;
 
@@ -26,9 +29,11 @@ public sealed class Game1 : Game
     private readonly Dictionary<string, Vector3> _modelCenters = new();
     private readonly List<string> _assetErrors = new();
     private SpriteBatch _spriteBatch = null!;
-    private SpriteFont _font = null!;
-    private SpriteFont _smallFont = null!;
-    private SpriteFont _headingFont = null!;
+    private FontSystem _fontSystem = null!;
+    private FontSystem _headingFontSystem = null!;
+    private DynamicSpriteFont _font = null!;
+    private DynamicSpriteFont _smallFont = null!;
+    private DynamicSpriteFont _headingFont = null!;
     private Texture2D _white = null!;
     private BasicEffect _primitiveEffect = null!;
     private VertexPositionNormalTexture[] _cubeVertices = null!;
@@ -43,6 +48,9 @@ public sealed class Game1 : Game
     private Matrix _projection;
     private Matrix _uiTransform = Matrix.Identity;
     private bool _borderlessFullscreen = true;
+
+    /// <summary>The live character. Null until a game is started or loaded.</summary>
+    private GameSession? _session;
 
     public Game1(string[] args)
     {
@@ -119,9 +127,30 @@ public sealed class Game1 : Game
     protected override void LoadContent()
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
-        _font = Content.Load<SpriteFont>("Feasibility/Fonts/FeasibilityUI");
-        _smallFont = Content.Load<SpriteFont>("Feasibility/Fonts/FeasibilityUISmall");
-        _headingFont = Content.Load<SpriteFont>("Feasibility/Fonts/FeasibilityUIHeading");
+        var fontsDirectory = Path.Combine(
+            AppContext.BaseDirectory,
+            "Content",
+            "Feasibility",
+            "Fonts");
+
+        _fontSystem = new FontSystem(new FontSystemSettings
+        {
+            // Render glyphs above their logical size, then downsample through the
+            // existing linear UI canvas transform for cleaner edges at 720p+.
+            FontResolutionFactor = 2f
+        });
+        _fontSystem.UseKernings = true;
+        _fontSystem.AddFont(File.ReadAllBytes(Path.Combine(fontsDirectory, "NotoSans", "NotoSans-wght.ttf")));
+        _font = _fontSystem.GetFont(24f);
+        _smallFont = _fontSystem.GetFont(18f);
+
+        _headingFontSystem = new FontSystem(new FontSystemSettings
+        {
+            FontResolutionFactor = 2f
+        });
+        _headingFontSystem.UseKernings = true;
+        _headingFontSystem.AddFont(File.ReadAllBytes(Path.Combine(fontsDirectory, "Cinzel", "Cinzel-wght.ttf")));
+        _headingFont = _headingFontSystem.GetFont(32f);
 
         _white = new Texture2D(GraphicsDevice, 1, 1);
         _white.SetData(new[] { Color.White });
@@ -147,6 +176,15 @@ public sealed class Game1 : Game
         LoadModel("tent", "Feasibility/Models/Kenney/tent_detailedOpen");
         LoadModel("tree", "Feasibility/Models/Kenney/tree_pineRoundA");
         LoadModel("cheeseBox", "Feasibility/Models/PolyHavenCheeseBox/CheeseBox_01_1k");
+    }
+
+    protected override void UnloadContent()
+    {
+        _fontSystem.Dispose();
+        _headingFontSystem.Dispose();
+        _white.Dispose();
+        _primitiveEffect.Dispose();
+        base.UnloadContent();
     }
 
     protected override void Update(GameTime gameTime)
@@ -208,9 +246,18 @@ public sealed class Game1 : Game
         base.Draw(gameTime);
     }
 
+    /// <summary>
+    /// Continue only appears when a save actually exists, so the menu never offers a door
+    /// that opens onto nothing.
+    /// </summary>
+    private static string[] MenuItems => GameSession.HasSaveFile
+        ? new[] { "Continue", "Start New Game", "Renderer Lab", "UI Stress Test", "Exit" }
+        : new[] { "Start New Game", "Renderer Lab", "UI Stress Test", "Exit" };
+
     private void UpdateMenu(KeyboardState keyboard)
     {
-        const int menuItemCount = 4;
+        var menuItemCount = MenuItems.Length;
+        _menuSelection = Math.Clamp(_menuSelection, 0, menuItemCount - 1);
 
         if (Pressed(keyboard, Keys.Up))
             _menuSelection = (_menuSelection + menuItemCount - 1) % menuItemCount;
@@ -223,19 +270,26 @@ public sealed class Game1 : Game
 
     private void ActivateMenuItem()
     {
-        switch (_menuSelection)
+        switch (MenuItems[_menuSelection])
         {
-            case 0:
+            case "Continue":
                 ResetCamera();
+                LoadSession();
                 _screen = GameScreen.WorldScene;
                 break;
-            case 1:
+            case "Start New Game":
+                ResetCamera();
+                _session = GameSession.NewGame();
+                _session.ShowToast("You wake on the Northwatch road.");
+                _screen = GameScreen.WorldScene;
+                break;
+            case "Renderer Lab":
                 _screen = GameScreen.AssetGallery;
                 break;
-            case 2:
+            case "UI Stress Test":
                 _screen = GameScreen.UiStress;
                 break;
-            case 3:
+            case "Exit":
                 Exit();
                 break;
         }
@@ -249,6 +303,47 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.M)) _screen = GameScreen.MainMenu;
 
         UpdateCamera(gameTime, keyboard);
+
+        if (_screen == GameScreen.WorldScene)
+            UpdateSession(gameTime, keyboard);
+    }
+
+    /// <summary>
+    /// Drive the domain from the running game: advance its clock, feed it the player's
+    /// position, and honour the save keys.
+    /// </summary>
+    private void UpdateSession(GameTime gameTime, KeyboardState keyboard)
+    {
+        if (_session is null) return;
+
+        // The camera is the player for now; a controller replaces this in iteration 7.
+        _session.Position = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+        _session.Yaw = _cameraYaw;
+        _session.Pitch = _cameraPitch;
+
+        _session.Tick((float)gameTime.ElapsedGameTime.TotalSeconds);
+
+        // Sprinting is the only thing that spends stamina yet, so it is what proves the
+        // vitals on screen are the domain's numbers rather than painted ones.
+        if (keyboard.IsKeyDown(Keys.LeftShift) && IsMoving(keyboard))
+            _session.Player.Vitals.SpendStamina(18f * (float)gameTime.ElapsedGameTime.TotalSeconds);
+
+        if (Pressed(keyboard, Keys.F5)) _session.ShowToast(_session.Save());
+        if (Pressed(keyboard, Keys.F9)) LoadSession();
+    }
+
+    private static bool IsMoving(KeyboardState keyboard) =>
+        keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.A)
+        || keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.D);
+
+    private void LoadSession()
+    {
+        _session ??= GameSession.NewGame();
+
+        var message = _session.Load();
+        _cameraPosition = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
+        _cameraYaw = _session.Yaw;
+        _session.ShowToast(message);
     }
 
     private void SetBorderlessFullscreen(bool enabled)
@@ -372,7 +467,7 @@ public sealed class Game1 : Game
         DrawPanel(new Rectangle(96, 222, 416, 322), new Color(8, 16, 24, 238), new Color(65, 105, 119));
         Text("MAIN MENU", new Vector2(124, 246), 14, new Color(214, 183, 108));
 
-        var menuItems = new[] { "Start New Game", "Renderer Lab", "UI Stress Test", "Exit" };
+        var menuItems = MenuItems;
         for (var index = 0; index < menuItems.Length; index++)
         {
             var itemBounds = new Rectangle(120, 286 + index * 56, 368, 42);
@@ -410,10 +505,9 @@ public sealed class Game1 : Game
         Text("NORTHWATCH OUTSKIRTS", new Vector2(164, 18), 12, new Color(157, 202, 207));
         TextRight("DAY 1  /  CLEAR WEATHER", 1254f, 20f, 12, new Color(190, 208, 204));
 
-        DrawPanel(new Rectangle(24, 88, 344, 142), new Color(7, 15, 22, 224), new Color(182, 137, 71));
-        Text("CURRENT OBJECTIVE", new Vector2(46, 108), 12, new Color(239, 196, 111));
-        TextFit("Reach the old watch road", new Vector2(46, 136), 290f, 19, Color.White);
-        TextFit("Follow the lantern markers beyond the camp.", new Vector2(46, 174), 290f, 13, new Color(202, 216, 207));
+        DrawVitals();
+        DrawObjective();
+        DrawToasts();
 
         DrawPanel(new Rectangle(24, 608, 1232, 80), new Color(4, 8, 13, 232), new Color(76, 101, 116));
         Text("WASD", new Vector2(48, 628), 13, new Color(224, 184, 101));
@@ -422,10 +516,77 @@ public sealed class Game1 : Game
         Text("look", new Vector2(248, 628), 12, new Color(181, 199, 198));
         Text("Shift", new Vector2(300, 628), 13, new Color(224, 184, 101));
         Text("sprint", new Vector2(350, 628), 12, new Color(181, 199, 198));
-        Text("M / Esc", new Vector2(420, 628), 13, new Color(224, 184, 101));
-        Text("menu", new Vector2(492, 628), 12, new Color(181, 199, 198));
-        TextRight("Scene foundation  /  60 fps", 1234f, 628f, 12, new Color(120, 158, 163));
+        Text("F5 / F9", new Vector2(420, 628), 13, new Color(224, 184, 101));
+        Text("save / load", new Vector2(492, 628), 12, new Color(181, 199, 198));
+        Text("M / Esc", new Vector2(586, 628), 13, new Color(224, 184, 101));
+        Text("menu", new Vector2(658, 628), 12, new Color(181, 199, 198));
+
+        if (_session is not null)
+        {
+            var vitals = _session.Player.Vitals;
+            TextRight($"LEVEL {vitals.Level}   {vitals.Gold} GOLD", 1234f, 628f, 12, new Color(120, 158, 163));
+        }
+
         EndUi();
+    }
+
+    /// <summary>
+    /// The player's real numbers, straight off the domain. Nothing here is painted — if the
+    /// bar moves, a rule moved it.
+    /// </summary>
+    private void DrawVitals()
+    {
+        if (_session is null) return;
+
+        var vitals = _session.Player.Vitals;
+
+        DrawPanel(new Rectangle(24, 88, 300, 128), new Color(7, 15, 22, 224), new Color(78, 128, 148));
+        Text("CONDITION", new Vector2(46, 104), 12, new Color(151, 206, 210));
+
+        DrawBar(new Rectangle(46, 132, 256, 12), Fraction(vitals.Health, vitals.MaxHealth),
+            new Color(194, 66, 72), $"HEALTH  {vitals.Health:0} / {vitals.MaxHealth:0}");
+
+        DrawBar(new Rectangle(46, 158, 256, 12), Fraction(vitals.Prana, vitals.MaxPrana),
+            new Color(70, 130, 212), $"PRANA  {vitals.Prana:0} / {vitals.MaxPrana:0}");
+
+        DrawBar(new Rectangle(46, 184, 256, 12), Fraction(vitals.Stamina, vitals.MaxStamina),
+            new Color(96, 168, 104), $"STAMINA  {vitals.Stamina:0} / {vitals.MaxStamina:0}");
+    }
+
+    private static float Fraction(float value, float max) =>
+        max <= 0f ? 0f : MathHelper.Clamp(value / max, 0f, 1f);
+
+    /// <summary>
+    /// The objective, with a live compass bearing generated from where the player actually
+    /// is — which is what replaces a marker.
+    /// </summary>
+    private void DrawObjective()
+    {
+        if (_session?.Player.Objective is not { HasObjective: true } objective) return;
+
+        DrawPanel(new Rectangle(24, 232, 300, 116), new Color(7, 15, 22, 224), new Color(182, 137, 71));
+        Text("CURRENT OBJECTIVE", new Vector2(46, 248), 12, new Color(239, 196, 111));
+        TextFit(objective.Title!, new Vector2(46, 272), 256f, 18, Color.White);
+        TextFit(objective.Directions ?? string.Empty, new Vector2(46, 300), 256f, 13,
+            new Color(202, 216, 207));
+
+        var bearing = objective.BearingLine(_session.Position);
+        if (bearing.Length > 0)
+            TextFit(bearing, new Vector2(46, 322), 256f, 13, new Color(224, 184, 101));
+    }
+
+    /// <summary>Domain events, rendered. Newest at the bottom, fading as they expire.</summary>
+    private void DrawToasts()
+    {
+        if (_session is null || _session.Toasts.Count == 0) return;
+
+        var y = 500f - _session.Toasts.Count * 26f;
+        foreach (var toast in _session.Toasts)
+        {
+            var alpha = MathHelper.Clamp(toast.Remaining, 0f, 1f);
+            Text(toast.Message, new Vector2(360, y), 15, new Color(238, 226, 196) * alpha);
+            y += 26f;
+        }
     }
 
     private void DrawGallery()
@@ -817,7 +978,7 @@ public sealed class Game1 : Game
         DrawString(font, value, new Vector2(right - width, y), drawScale, color);
     }
 
-    private (SpriteFont Font, float Scale) SelectFont(float requestedSize)
+    private (SpriteFontBase Font, float Scale) SelectFont(float requestedSize)
     {
         if (requestedSize <= 12f)
             return (_smallFont, requestedSize / 18f);
@@ -828,14 +989,41 @@ public sealed class Game1 : Game
         return (_font, requestedSize / 24f);
     }
 
-    private void DrawString(SpriteFont font, string value, Vector2 position, float scale, Color color)
+    private void DrawString(SpriteFontBase font, string value, Vector2 position, float scale, Color color)
     {
+        var fontScale = new Vector2(scale);
         if (color.A > 20)
         {
-            _spriteBatch.DrawString(font, value, position + new Vector2(1f, 1f), new Color(0, 0, 0, 150), 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+            _spriteBatch.DrawString(
+                font,
+                value,
+                position + new Vector2(1f, 1f),
+                new Color(0, 0, 0, 150),
+                0f,
+                Vector2.Zero,
+                fontScale,
+                0f,
+                0f,
+                0f,
+                TextStyle.None,
+                FontSystemEffect.None,
+                0);
         }
 
-        _spriteBatch.DrawString(font, value, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(
+            font,
+            value,
+            position,
+            color,
+            0f,
+            Vector2.Zero,
+            fontScale,
+            0f,
+            0f,
+            0f,
+            TextStyle.None,
+            FontSystemEffect.None,
+            0);
     }
 
     private bool Pressed(KeyboardState current, Keys key) => current.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);

@@ -10,28 +10,11 @@
 
 #-------------------------------- References --------------------------------#
 
+/reference:../pipeline-references/MonoGame.Extended.Content.Pipeline.dll
 
 #---------------------------------- Content ---------------------------------#
 
 #-------------------------------- Feasibility -------------------------------#
-
-#begin Feasibility/Fonts/FeasibilityUI.spritefont
-/importer:FontDescriptionImporter
-/processor:FontDescriptionProcessor
-/processorParam:PremultiplyAlpha=True
-/build:Feasibility/Fonts/FeasibilityUI.spritefont
-
-#begin Feasibility/Fonts/FeasibilityUISmall.spritefont
-/importer:FontDescriptionImporter
-/processor:FontDescriptionProcessor
-/processorParam:PremultiplyAlpha=True
-/build:Feasibility/Fonts/FeasibilityUISmall.spritefont
-
-#begin Feasibility/Fonts/FeasibilityUIHeading.spritefont
-/importer:FontDescriptionImporter
-/processor:FontDescriptionProcessor
-/processorParam:PremultiplyAlpha=True
-/build:Feasibility/Fonts/FeasibilityUIHeading.spritefont
 
 #begin Feasibility/Models/Kenney/bridge_wood.fbx
 /importer:FbxImporter

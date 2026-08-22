@@ -4,17 +4,17 @@ This is the lightweight working board for the solo Agile process. Keep only the 
 
 ## Current iteration
 
-**Iteration:** 3 — Steam presentation baseline  
-**Primary outcome:** Run the menu and first scene in borderless fullscreen with resolution-safe UI.  
-**Status:** Review / playtest  
-**Target build command:** `.\build.ps1 -Configuration Release`
+**Iteration:** 5 — Wire the shell
+
+**Primary outcome:** The tested domain drives the running game. Live vitals on screen, and a
+save that round-trips through a real file on disk.
+**Status:** Complete — ready for playtest
+**Target build command:** `.uild.ps1 -Configuration Release`
+**Plan of record:** [`PRODUCTION_PLAN.md`](PRODUCTION_PLAN.md)
 
 ### Ready
 
-- [ ] Verify on a physical 1280×720 display.
-- [ ] Verify on a physical 1920×1080 display.
-- [ ] Verify on an ultrawide display and confirm letterboxing.
-- [ ] Add a Settings screen for display and UI scale preferences.
+- [ ] Iteration 6 — First fight. See the production plan.
 
 ### In Progress
 
@@ -22,13 +22,21 @@ This is the lightweight working board for the solo Agile process. Keep only the 
 
 ### Review / Playtest
 
-- [ ] Borderless fullscreen startup.
-- [ ] 1280×720 logical canvas scaling.
-- [ ] F11 and `--windowed` development path.
-- [ ] Menu readability at the captured fullscreen size.
+- [ ] Start New Game, walk, watch stamina drain while sprinting and recover at rest.
+- [ ] F5 saves; the toast confirms it.
+- [ ] Quit, relaunch, choose Continue, and arrive back at the same spot with the same vitals.
+- [ ] Continue does not appear on the menu when no save exists.
 
 ### Done
 
+- [x] **Iteration 5:** `PlayerCharacter` ticked from the game loop.
+- [x] **Iteration 5:** Live health/prana/stamina HUD reading domain values.
+- [x] **Iteration 5:** Domain events surfaced as on-screen toasts.
+- [x] **Iteration 5:** F5/F9 save and load through a real file on disk.
+- [x] **Iteration 5:** Continue on the main menu, shown only when a save exists.
+- [x] **Iteration 5:** `--selftest` headless save round-trip harness.
+- [x] **Iteration 5:** Objective persisted; its bearing regenerated rather than stored.
+- [x] Port the Unity gameplay rules into `RatnaBay.Domain` (247 tests).
 - [x] Establish the MonoGame solution and projects.
 - [x] Install and restore MonoGame content tools.
 - [x] Add the release build, doctor check, and domain test pipeline.
@@ -41,6 +49,12 @@ This is the lightweight working board for the solo Agile process. Keep only the 
 - [x] Set borderless fullscreen as the default WindowsDX presentation.
 - [x] Add uniform UI scaling from a 1280×720 logical canvas.
 - [x] Document the Steam presentation baseline and active Kanban.
+- [x] Pin the initial community package baseline.
+- [x] Prepare the MonoGame.Extended content-pipeline reference path.
+- [x] Add SharpGLTF-backed `asset-info` tooling.
+- [x] Add the community tools baseline document.
+- [x] Bundle Cinzel and Noto Sans under SIL OFL for reproducible runtime font loading.
+- [x] Render the bundled fonts at 2× glyph resolution through FontStashSharp.
 
 ### Parked
 
