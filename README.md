@@ -44,14 +44,23 @@ Direct release builds can be launched in a specific state:
 & "src\RatnaBay.Game\bin\Release\net9.0-windows\RatnaBay.Game.exe" --mode ui
 ```
 
-Menu controls: Up/Down select, Enter/Space confirm, Escape exits. In the scene,
-WASD moves, the arrow keys look, Shift sprints, F5 saves, F9 loads, and M or Escape
-returns to the menu. **Continue** appears on the menu once a save exists.
+Menu: click or hover to choose, or Up/Down and Enter. **Continue** appears once a save
+exists.
+
+In the scene, the mouse looks and WASD moves. Click the world to take the pointer, Tab to
+give it back. Shift sprints and spends stamina, F5 saves, F9 loads, **F1 lists every
+control**, and M or Escape returns to the menu.
 
 The HUD reads live values from `RatnaBay.Domain` — health, prana and stamina are the
 domain's own numbers, not painted ones. Saves are written to
 `%APPDATA%\RatnaBay
 atnabay_save.json`.
+
+Capture a screenshot of any screen without playing to it:
+
+```powershell
+& "build\RatnaBay.exe" --mode scene --screenshot shot.png
+```
 
 A headless check of the whole save round trip, with no window:
 

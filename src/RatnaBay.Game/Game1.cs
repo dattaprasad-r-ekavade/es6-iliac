@@ -31,14 +31,19 @@ public sealed class Game1 : Game
     private SpriteBatch _spriteBatch = null!;
     private FontSystem _fontSystem = null!;
     private FontSystem _headingFontSystem = null!;
-    private DynamicSpriteFont _font = null!;
-    private DynamicSpriteFont _smallFont = null!;
-    private DynamicSpriteFont _headingFont = null!;
     private Texture2D _white = null!;
     private BasicEffect _primitiveEffect = null!;
     private VertexPositionNormalTexture[] _cubeVertices = null!;
     private short[] _cubeIndices = null!;
     private KeyboardState _previousKeyboard;
+    private MouseState _previousMouse;
+
+    /// <summary>True while the pointer is captured for looking. Tab releases it.</summary>
+    private bool _mouseLook;
+    private bool _showHelp;
+
+    /// <summary>Radians of rotation per pixel of mouse travel.</summary>
+    private const float MouseSensitivity = 0.0026f;
     private GameScreen _screen = GameScreen.MainMenu;
     private int _menuSelection;
     private Vector3 _cameraPosition = new(0f, 2.4f, 8.5f);
@@ -51,6 +56,20 @@ public sealed class Game1 : Game
 
     /// <summary>The live character. Null until a game is started or loaded.</summary>
     private GameSession? _session;
+
+    /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
+    private string? _screenshotPath;
+    private int _framesDrawn;
+
+    /// <summary>
+    /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
+    /// pixel so glyphs land 1:1 on the display instead of being resampled.
+    /// </summary>
+    private float _uiScale = 1f;
+
+    /// <summary>Fonts rasterized per device-pixel size. Scaling a fixed atlas blurs text.</summary>
+    private readonly Dictionary<int, DynamicSpriteFont> _bodyFonts = new();
+    private readonly Dictionary<int, DynamicSpriteFont> _headingFonts = new();
 
     public Game1(string[] args)
     {
@@ -70,6 +89,18 @@ public sealed class Game1 : Game
         Window.IsBorderless = true;
 
         _screen = ParseMode(args);
+        _screenshotPath = ParseOption(args, "--screenshot");
+        if (_screenshotPath is not null)
+        {
+            // Deterministic capture: a fixed window, no vsync wait, and quit when done.
+            _borderlessFullscreen = false;
+            _graphics.PreferredBackBufferWidth = LogicalWidth;
+            _graphics.PreferredBackBufferHeight = LogicalHeight;
+            _graphics.IsFullScreen = false;
+            _graphics.SynchronizeWithVerticalRetrace = false;
+            Window.IsBorderless = false;
+        }
+
         if (HasArgument(args, "--windowed"))
         {
             _borderlessFullscreen = false;
@@ -89,6 +120,16 @@ public sealed class Game1 : Game
         }
 
         return false;
+    }
+
+    /// <summary>Reads `--name value` from the command line.</summary>
+    private static string? ParseOption(string[] args, string name)
+    {
+        for (var index = 0; index < args.Length - 1; index++)
+            if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
+                return args[index + 1];
+
+        return null;
     }
 
     private static GameScreen ParseMode(string[] args)
@@ -121,6 +162,11 @@ public sealed class Game1 : Game
             200f);
 
         CreatePrimitiveCube();
+
+        // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
+        // character, or the HUD has nothing to show.
+        if (_screen == GameScreen.WorldScene) _session = GameSession.NewGame();
+
         base.Initialize();
     }
 
@@ -133,24 +179,15 @@ public sealed class Game1 : Game
             "Feasibility",
             "Fonts");
 
-        _fontSystem = new FontSystem(new FontSystemSettings
-        {
-            // Render glyphs above their logical size, then downsample through the
-            // existing linear UI canvas transform for cleaner edges at 720p+.
-            FontResolutionFactor = 2f
-        });
+        // Glyphs are rasterised at their real device size by SelectFont, so no resolution
+        // multiplier is needed here — one would just double every atlas for no sharpness.
+        _fontSystem = new FontSystem();
         _fontSystem.UseKernings = true;
         _fontSystem.AddFont(File.ReadAllBytes(Path.Combine(fontsDirectory, "NotoSans", "NotoSans-wght.ttf")));
-        _font = _fontSystem.GetFont(24f);
-        _smallFont = _fontSystem.GetFont(18f);
 
-        _headingFontSystem = new FontSystem(new FontSystemSettings
-        {
-            FontResolutionFactor = 2f
-        });
+        _headingFontSystem = new FontSystem();
         _headingFontSystem.UseKernings = true;
         _headingFontSystem.AddFont(File.ReadAllBytes(Path.Combine(fontsDirectory, "Cinzel", "Cinzel-wght.ttf")));
-        _headingFont = _headingFontSystem.GetFont(32f);
 
         _white = new Texture2D(GraphicsDevice, 1, 1);
         _white.SetData(new[] { Color.White });
@@ -160,10 +197,14 @@ public sealed class Game1 : Game
             VertexColorEnabled = false,
             TextureEnabled = false,
             LightingEnabled = true,
-            PreferPerPixelLighting = true,
-            AmbientLightColor = new Vector3(0.32f, 0.36f, 0.42f)
+            PreferPerPixelLighting = true
         };
+
+        // EnableDefaultLighting() overwrites the ambient colour and all three lights, so it
+        // has to run before they are set. It was being called after, which made every
+        // ambient value below it dead code and left the scene near-black.
         _primitiveEffect.EnableDefaultLighting();
+        _primitiveEffect.AmbientLightColor = new Vector3(0.54f, 0.57f, 0.62f);
         _primitiveEffect.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-0.4f, -1f, -0.25f));
         _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(1f, 0.83f, 0.64f);
         _primitiveEffect.DirectionalLight0.SpecularColor = new Vector3(0.28f);
@@ -190,6 +231,7 @@ public sealed class Game1 : Game
     protected override void Update(GameTime gameTime)
     {
         var keyboard = Keyboard.GetState();
+        var mouse = Mouse.GetState();
 
         if (Pressed(keyboard, Keys.F11))
             SetBorderlessFullscreen(!_borderlessFullscreen);
@@ -197,19 +239,77 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Escape))
         {
             if (_screen == GameScreen.MainMenu)
+            {
                 Exit();
+            }
+            else if (_showHelp)
+            {
+                _showHelp = false;
+            }
             else
+            {
+                SetMouseLook(false);
                 _screen = GameScreen.MainMenu;
+            }
         }
 
         if (_screen == GameScreen.MainMenu)
-            UpdateMenu(keyboard);
+            UpdateMenu(keyboard, mouse);
         else
-            UpdateGameScreen(gameTime, keyboard);
+            UpdateGameScreen(gameTime, keyboard, mouse);
 
         _previousKeyboard = keyboard;
+        _previousMouse = mouse;
         base.Update(gameTime);
     }
+
+    /// <summary>
+    /// Capture or release the pointer.
+    ///
+    /// While captured the cursor is hidden and re-centred every frame, so looking around
+    /// never runs out of desk and never lets a click land outside the window.
+    /// </summary>
+    private void SetMouseLook(bool enabled)
+    {
+        if (_screenshotPath is not null) enabled = false;
+
+        _mouseLook = enabled;
+        IsMouseVisible = !enabled;
+        if (enabled) CentreMouse();
+    }
+
+    private void CentreMouse()
+    {
+        var viewport = GraphicsDevice.Viewport;
+        Mouse.SetPosition(viewport.Width / 2, viewport.Height / 2);
+    }
+
+    /// <summary>Mouse travel since the last frame, in pixels, while looking.</summary>
+    private Vector2 ReadMouseDelta(MouseState mouse)
+    {
+        if (!_mouseLook || !IsActive) return Vector2.Zero;
+
+        var viewport = GraphicsDevice.Viewport;
+        var centre = new Point(viewport.Width / 2, viewport.Height / 2);
+        var delta = new Vector2(mouse.X - centre.X, mouse.Y - centre.Y);
+
+        CentreMouse();
+        return delta;
+    }
+
+    /// <summary>The pointer in 1280x720 logical space, so UI hit tests match what is drawn.</summary>
+    private Vector2 LogicalMouse(MouseState mouse)
+    {
+        if (_uiScale <= 0f) return Vector2.Zero;
+
+        var viewport = GraphicsDevice.Viewport;
+        var offsetX = (viewport.Width - LogicalWidth * _uiScale) * 0.5f;
+        var offsetY = (viewport.Height - LogicalHeight * _uiScale) * 0.5f;
+        return new Vector2((mouse.X - offsetX) / _uiScale, (mouse.Y - offsetY) / _uiScale);
+    }
+
+    private bool Clicked(MouseState mouse) =>
+        mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
 
     protected override void Draw(GameTime gameTime)
     {
@@ -244,6 +344,36 @@ public sealed class Game1 : Game
         }
 
         base.Draw(gameTime);
+
+        if (_screenshotPath is not null) CaptureAndExit();
+    }
+
+    /// <summary>
+    /// Save the frame that was just drawn and quit.
+    ///
+    /// This exists so a change to the interface can be looked at rather than described. A few
+    /// frames are skipped first because fonts rasterise and models settle on the first pass.
+    /// </summary>
+    private void CaptureAndExit()
+    {
+        const int warmupFrames = 4;
+        if (++_framesDrawn <= warmupFrames) return;
+
+        var viewport = GraphicsDevice.Viewport;
+        var pixels = new Color[viewport.Width * viewport.Height];
+        GraphicsDevice.GetBackBufferData(pixels);
+
+        using var texture = new Texture2D(GraphicsDevice, viewport.Width, viewport.Height);
+        texture.SetData(pixels);
+
+        var fullPath = Path.GetFullPath(_screenshotPath!);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+
+        using (var stream = File.Create(fullPath))
+            texture.SaveAsPng(stream, viewport.Width, viewport.Height);
+
+        Console.WriteLine($"Saved {viewport.Width}x{viewport.Height} screenshot to {fullPath}");
+        Exit();
     }
 
     /// <summary>
@@ -254,7 +384,7 @@ public sealed class Game1 : Game
         ? new[] { "Continue", "Start New Game", "Renderer Lab", "UI Stress Test", "Exit" }
         : new[] { "Start New Game", "Renderer Lab", "UI Stress Test", "Exit" };
 
-    private void UpdateMenu(KeyboardState keyboard)
+    private void UpdateMenu(KeyboardState keyboard, MouseState mouse)
     {
         var menuItemCount = MenuItems.Length;
         _menuSelection = Math.Clamp(_menuSelection, 0, menuItemCount - 1);
@@ -264,9 +394,33 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Down))
             _menuSelection = (_menuSelection + 1) % menuItemCount;
 
+        // Hovering moves the selection, so the keyboard and the mouse never disagree about
+        // which item is about to be chosen.
+        var pointer = LogicalMouse(mouse);
+        var hovered = -1;
+        for (var index = 0; index < menuItemCount; index++)
+            if (MenuItemBounds(index).Contains((int)pointer.X, (int)pointer.Y))
+                hovered = index;
+
+        if (hovered >= 0)
+        {
+            _menuSelection = hovered;
+            if (Clicked(mouse))
+            {
+                ActivateMenuItem();
+                return;
+            }
+        }
+
         if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
             ActivateMenuItem();
     }
+
+    /// <summary>
+    /// One menu row. Drawing and hit testing both read this, so a clickable row is always
+    /// exactly the row the player can see.
+    /// </summary>
+    private static Rectangle MenuItemBounds(int index) => new(120, 286 + index * 56, 368, 42);
 
     private void ActivateMenuItem()
     {
@@ -276,12 +430,14 @@ public sealed class Game1 : Game
                 ResetCamera();
                 LoadSession();
                 _screen = GameScreen.WorldScene;
+                SetMouseLook(true);
                 break;
             case "Start New Game":
                 ResetCamera();
                 _session = GameSession.NewGame();
                 _session.ShowToast("You wake on the Northwatch road.");
                 _screen = GameScreen.WorldScene;
+                SetMouseLook(true);
                 break;
             case "Renderer Lab":
                 _screen = GameScreen.AssetGallery;
@@ -295,14 +451,20 @@ public sealed class Game1 : Game
         }
     }
 
-    private void UpdateGameScreen(GameTime gameTime, KeyboardState keyboard)
+    private void UpdateGameScreen(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         if (Pressed(keyboard, Keys.D1)) _screen = GameScreen.AssetGallery;
         if (Pressed(keyboard, Keys.D2)) _screen = GameScreen.PhotoScene;
         if (Pressed(keyboard, Keys.D3)) _screen = GameScreen.UiStress;
-        if (Pressed(keyboard, Keys.M)) _screen = GameScreen.MainMenu;
+        if (Pressed(keyboard, Keys.M)) { SetMouseLook(false); _screen = GameScreen.MainMenu; }
+        if (Pressed(keyboard, Keys.F1)) { _showHelp = !_showHelp; if (_showHelp) SetMouseLook(false); }
+        if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
 
-        UpdateCamera(gameTime, keyboard);
+        // Clicking the world takes the pointer back; Tab or Escape gives it up. Nothing
+        // grabs the mouse without the player asking for it.
+        if (!_mouseLook && !_showHelp && Clicked(mouse) && IsActive) SetMouseLook(true);
+
+        UpdateCamera(gameTime, keyboard, mouse);
 
         if (_screen == GameScreen.WorldScene)
             UpdateSession(gameTime, keyboard);
@@ -381,6 +543,12 @@ public sealed class Game1 : Game
         var offsetX = (viewport.Width - LogicalWidth * scale) * 0.5f;
         var offsetY = (viewport.Height - LogicalHeight * scale) * 0.5f;
         _uiTransform = Matrix.CreateScale(scale) * Matrix.CreateTranslation(offsetX, offsetY, 0f);
+
+        // A changed scale invalidates every cached atlas: they are rasterized in device pixels.
+        if (MathF.Abs(scale - _uiScale) < 0.001f) return;
+        _uiScale = scale;
+        _bodyFonts.Clear();
+        _headingFonts.Clear();
     }
 
     private void LoadModel(string key, string contentPath)
@@ -400,7 +568,7 @@ public sealed class Game1 : Game
         }
     }
 
-    private void UpdateCamera(GameTime gameTime, KeyboardState keyboard)
+    private void UpdateCamera(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         var seconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
         var speed = keyboard.IsKeyDown(Keys.LeftShift) ? 7f : 3.5f;
@@ -414,6 +582,16 @@ public sealed class Game1 : Game
 
         _cameraYaw += yawInput * seconds * 1.5f;
         _cameraPitch = MathHelper.Clamp(_cameraPitch + pitchInput * seconds, -1.2f, 1.2f);
+
+        // Mouse look is framerate-independent by construction: it is pixels moved, not a
+        // rate held over time, so it must not be multiplied by the frame duration.
+        var lookDelta = ReadMouseDelta(mouse);
+        if (lookDelta != Vector2.Zero)
+        {
+            _cameraYaw += lookDelta.X * MouseSensitivity;
+            _cameraPitch = MathHelper.Clamp(
+                _cameraPitch - lookDelta.Y * MouseSensitivity, -1.35f, 1.35f);
+        }
 
         var forward = Forward;
         var flatForward = new Vector3(forward.X, 0f, forward.Z);
@@ -470,7 +648,7 @@ public sealed class Game1 : Game
         var menuItems = MenuItems;
         for (var index = 0; index < menuItems.Length; index++)
         {
-            var itemBounds = new Rectangle(120, 286 + index * 56, 368, 42);
+            var itemBounds = MenuItemBounds(index);
             var selected = index == _menuSelection;
             DrawPanel(
                 itemBounds,
@@ -491,7 +669,8 @@ public sealed class Game1 : Game
         Text("Code-drawn interface", new Vector2(592, 468), 14, new Color(190, 215, 208));
         Text("Keyboard-driven iteration", new Vector2(592, 494), 14, new Color(190, 215, 208));
 
-        Text("Up / Down select     Enter / Space confirm     Esc exit", new Vector2(98, 614), 12, new Color(133, 164, 168));
+        Text("Click or hover to choose      Up / Down select      Enter confirm      Esc exit",
+            new Vector2(98, 610), 14, new Color(163, 191, 194));
         EndUi();
     }
 
@@ -500,61 +679,42 @@ public sealed class Game1 : Game
         DrawPhotoScene(false);
 
         BeginUi();
-        DrawPanel(new Rectangle(0, 0, 1280, 64), new Color(4, 8, 13, 232), new Color(75, 129, 150));
-        Text("RATNA BAY", new Vector2(26, 12), 19, Color.White);
-        Text("NORTHWATCH OUTSKIRTS", new Vector2(164, 18), 12, new Color(157, 202, 207));
-        TextRight("DAY 1  /  CLEAR WEATHER", 1254f, 20f, 12, new Color(190, 208, 204));
 
-        DrawVitals();
+        DrawCrosshair();
+        DrawLocationBanner();
         DrawObjective();
+        DrawVitals();
         DrawToasts();
-
-        DrawPanel(new Rectangle(24, 608, 1232, 80), new Color(4, 8, 13, 232), new Color(76, 101, 116));
-        Text("WASD", new Vector2(48, 628), 13, new Color(224, 184, 101));
-        Text("move", new Vector2(104, 628), 12, new Color(181, 199, 198));
-        Text("Arrow keys", new Vector2(158, 628), 13, new Color(224, 184, 101));
-        Text("look", new Vector2(248, 628), 12, new Color(181, 199, 198));
-        Text("Shift", new Vector2(300, 628), 13, new Color(224, 184, 101));
-        Text("sprint", new Vector2(350, 628), 12, new Color(181, 199, 198));
-        Text("F5 / F9", new Vector2(420, 628), 13, new Color(224, 184, 101));
-        Text("save / load", new Vector2(492, 628), 12, new Color(181, 199, 198));
-        Text("M / Esc", new Vector2(586, 628), 13, new Color(224, 184, 101));
-        Text("menu", new Vector2(658, 628), 12, new Color(181, 199, 198));
-
-        if (_session is not null)
-        {
-            var vitals = _session.Player.Vitals;
-            TextRight($"LEVEL {vitals.Level}   {vitals.Gold} GOLD", 1234f, 628f, 12, new Color(120, 158, 163));
-        }
+        DrawStatusStrip();
+        if (_showHelp) DrawHelpOverlay();
 
         EndUi();
     }
 
-    /// <summary>
-    /// The player's real numbers, straight off the domain. Nothing here is painted — if the
-    /// bar moves, a rule moved it.
-    /// </summary>
-    private void DrawVitals()
+    /// <summary>Where a swing or a spell will go. Small, and always centred.</summary>
+    private void DrawCrosshair()
     {
-        if (_session is null) return;
+        const int cx = LogicalWidth / 2;
+        const int cy = LogicalHeight / 2;
+        var shadow = new Color(0, 0, 0, 165);
+        var ink = new Color(244, 248, 246, 225);
 
-        var vitals = _session.Player.Vitals;
-
-        DrawPanel(new Rectangle(24, 88, 300, 128), new Color(7, 15, 22, 224), new Color(78, 128, 148));
-        Text("CONDITION", new Vector2(46, 104), 12, new Color(151, 206, 210));
-
-        DrawBar(new Rectangle(46, 132, 256, 12), Fraction(vitals.Health, vitals.MaxHealth),
-            new Color(194, 66, 72), $"HEALTH  {vitals.Health:0} / {vitals.MaxHealth:0}");
-
-        DrawBar(new Rectangle(46, 158, 256, 12), Fraction(vitals.Prana, vitals.MaxPrana),
-            new Color(70, 130, 212), $"PRANA  {vitals.Prana:0} / {vitals.MaxPrana:0}");
-
-        DrawBar(new Rectangle(46, 184, 256, 12), Fraction(vitals.Stamina, vitals.MaxStamina),
-            new Color(96, 168, 104), $"STAMINA  {vitals.Stamina:0} / {vitals.MaxStamina:0}");
+        // Drawn twice: a dark pass one pixel out, then the light pass. A single-colour
+        // crosshair disappears whenever the scenery happens to match it.
+        foreach (var (colour, grow) in new[] { (shadow, 1), (ink, 0) })
+        {
+            Fill(new Rectangle(cx - 10 - grow, cy - grow, 7 + grow * 2, 2 + grow * 2), colour);
+            Fill(new Rectangle(cx + 3 - grow, cy - grow, 7 + grow * 2, 2 + grow * 2), colour);
+            Fill(new Rectangle(cx - grow, cy - 10 - grow, 2 + grow * 2, 7 + grow * 2), colour);
+            Fill(new Rectangle(cx - grow, cy + 3 - grow, 2 + grow * 2, 7 + grow * 2), colour);
+        }
     }
 
-    private static float Fraction(float value, float max) =>
-        max <= 0f ? 0f : MathHelper.Clamp(value / max, 0f, 1f);
+    /// <summary>Where you are. Top-centre, out of the way of everything you look at.</summary>
+    private void DrawLocationBanner()
+    {
+        TextCentred("NORTHWATCH OUTSKIRTS", LogicalWidth / 2f, 24f, 15, new Color(196, 214, 214));
+    }
 
     /// <summary>
     /// The objective, with a live compass bearing generated from where the player actually
@@ -564,34 +724,127 @@ public sealed class Game1 : Game
     {
         if (_session?.Player.Objective is not { HasObjective: true } objective) return;
 
-        DrawPanel(new Rectangle(24, 232, 300, 116), new Color(7, 15, 22, 224), new Color(182, 137, 71));
-        Text("CURRENT OBJECTIVE", new Vector2(46, 248), 12, new Color(239, 196, 111));
-        TextFit(objective.Title!, new Vector2(46, 272), 256f, 18, Color.White);
-        TextFit(objective.Directions ?? string.Empty, new Vector2(46, 300), 256f, 13,
-            new Color(202, 216, 207));
+        var panel = new Rectangle(24, 24, 360, 116);
+        DrawPanel(panel, new Color(7, 15, 22, 226), new Color(182, 137, 71));
+
+        Text("OBJECTIVE", new Vector2(panel.X + 18, panel.Y + 14), 13, new Color(239, 196, 111));
+        TextFit(objective.Title!, new Vector2(panel.X + 18, panel.Y + 36), 324f, 20, Color.White);
+        TextFit(objective.Directions ?? string.Empty, new Vector2(panel.X + 18, panel.Y + 64),
+            324f, 15, new Color(206, 220, 212));
 
         var bearing = objective.BearingLine(_session.Position);
         if (bearing.Length > 0)
-            TextFit(bearing, new Vector2(46, 322), 256f, 13, new Color(224, 184, 101));
+            TextFit(bearing, new Vector2(panel.X + 18, panel.Y + 88), 324f, 15,
+                new Color(232, 194, 116));
     }
 
-    /// <summary>Domain events, rendered. Newest at the bottom, fading as they expire.</summary>
+    /// <summary>
+    /// The player's real numbers, bottom-left where a HUD belongs.
+    ///
+    /// Labels sit *on* their bar rather than underneath it: the previous layout put an 11 px
+    /// caption in the gap between two bars, which read as belonging to the wrong one.
+    /// </summary>
+    private void DrawVitals()
+    {
+        if (_session is null) return;
+
+        var vitals = _session.Player.Vitals;
+        var panel = new Rectangle(24, LogicalHeight - 164, 344, 140);
+        DrawPanel(panel, new Color(6, 13, 20, 232), new Color(78, 128, 148));
+
+        var barX = panel.X + 18;
+        var barWidth = panel.Width - 36;
+
+        DrawVitalBar(new Rectangle(barX, panel.Y + 20, barWidth, 26), "HEALTH",
+            vitals.Health, vitals.MaxHealth, new Color(198, 68, 74));
+
+        DrawVitalBar(new Rectangle(barX, panel.Y + 58, barWidth, 26), "PRANA",
+            vitals.Prana, vitals.MaxPrana, new Color(74, 134, 216));
+
+        DrawVitalBar(new Rectangle(barX, panel.Y + 96, barWidth, 26), "STAMINA",
+            vitals.Stamina, vitals.MaxStamina, new Color(98, 172, 106));
+    }
+
+    /// <summary>One labelled bar. The label and the value live inside it, vertically centred.</summary>
+    private void DrawVitalBar(Rectangle bounds, string label, float value, float max, Color colour)
+    {
+        var fraction = max <= 0f ? 0f : MathHelper.Clamp(value / max, 0f, 1f);
+
+        Fill(bounds, new Color(20, 27, 33));
+        Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * fraction), bounds.Height), colour);
+        Border(bounds, new Color(0, 0, 0, 110));
+
+        // A dark scrim behind the text keeps it legible over both the filled and empty halves.
+        Text(label, new Vector2(bounds.X + 10, bounds.Y + 5), 14, Color.White);
+        TextRight($"{value:0} / {max:0}", bounds.Right - 10, bounds.Y + 5, 14, Color.White);
+    }
+
+    /// <summary>Domain events, rendered above the vitals. Newest last, fading as they expire.</summary>
     private void DrawToasts()
     {
         if (_session is null || _session.Toasts.Count == 0) return;
 
-        var y = 500f - _session.Toasts.Count * 26f;
+        var y = LogicalHeight - 196f - _session.Toasts.Count * 28f;
         foreach (var toast in _session.Toasts)
         {
             var alpha = MathHelper.Clamp(toast.Remaining, 0f, 1f);
-            Text(toast.Message, new Vector2(360, y), 15, new Color(238, 226, 196) * alpha);
-            y += 26f;
+            TextCentred(toast.Message, LogicalWidth / 2f, y, 17, new Color(240, 230, 202) * alpha);
+            y += 28f;
+        }
+    }
+
+    /// <summary>Level, gold and the one key that opens the rest. Bottom-right, compact.</summary>
+    private void DrawStatusStrip()
+    {
+        if (_session is null) return;
+
+        var vitals = _session.Player.Vitals;
+        var panel = new Rectangle(LogicalWidth - 264, LogicalHeight - 88, 240, 64);
+        DrawPanel(panel, new Color(6, 13, 20, 226), new Color(76, 101, 116));
+
+        Text($"LEVEL {vitals.Level}", new Vector2(panel.X + 18, panel.Y + 12), 16, Color.White);
+        TextRight($"{vitals.Gold} gold", panel.Right - 18, panel.Y + 12, 16, new Color(228, 197, 122));
+        Text("F1  controls", new Vector2(panel.X + 18, panel.Y + 38), 13, new Color(146, 174, 178));
+    }
+
+    /// <summary>
+    /// The control list, on demand. It used to be a permanent full-width bar across the
+    /// bottom of the screen, which is developer scaffolding rather than a HUD.
+    /// </summary>
+    private void DrawHelpOverlay()
+    {
+        Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 200));
+
+        var panel = new Rectangle(340, 130, 600, 460);
+        DrawPanel(panel, new Color(7, 14, 21, 244), new Color(91, 146, 159));
+        TextCentred("CONTROLS", panel.X + panel.Width / 2f, panel.Y + 26, 24, Color.White);
+
+        (string Key, string Action)[] rows =
+        {
+            ("W A S D", "move"),
+            ("Mouse", "look"),
+            ("Arrow keys", "look (keyboard)"),
+            ("Shift", "sprint — spends stamina"),
+            ("Space / Ctrl", "rise / descend"),
+            ("F5 / F9", "save / load"),
+            ("F1", "close this"),
+            ("F11", "windowed / fullscreen"),
+            ("Tab", "release the mouse"),
+            ("M / Esc", "back to the menu")
+        };
+
+        var y = panel.Y + 76f;
+        foreach (var (key, action) in rows)
+        {
+            Text(key, new Vector2(panel.X + 44, y), 17, new Color(232, 194, 116));
+            Text(action, new Vector2(panel.X + 250, y), 17, new Color(214, 226, 222));
+            y += 36f;
         }
     }
 
     private void DrawGallery()
     {
-        DrawWorldBase(new Color(32, 52, 67), new Color(18, 31, 38));
+        DrawWorldBase(new Color(56, 82, 100), new Color(52, 64, 70));
 
         DrawModel("tree", new Vector3(-5f, 0f, -2f), 1.8f, 0.15f);
         DrawModel("rock", new Vector3(-2.3f, 0f, -1.8f), 1.4f, 0.4f);
@@ -615,11 +868,11 @@ public sealed class Game1 : Game
 
     private void DrawPhotoScene(bool drawStudyOverlay)
     {
-        DrawWorldBase(new Color(82, 105, 118), new Color(23, 31, 36));
+        DrawWorldBase(new Color(96, 121, 136), new Color(58, 70, 74));
 
-        DrawCube(new Vector3(0f, -0.35f, 0f), new Vector3(24f, 0.4f, 24f), new Color(54, 61, 57), 0f);
-        DrawCube(new Vector3(0f, 3.5f, -9f), new Vector3(22f, 7f, 0.3f), new Color(63, 75, 79), 0f);
-        DrawCube(new Vector3(-9f, 2.8f, 0f), new Vector3(0.3f, 5.6f, 18f), new Color(45, 59, 58), 0f);
+        DrawCube(new Vector3(0f, -0.35f, 0f), new Vector3(24f, 0.4f, 24f), new Color(104, 112, 96), 0f);
+        DrawCube(new Vector3(0f, 3.5f, -9f), new Vector3(22f, 7f, 0.3f), new Color(96, 110, 116), 0f);
+        DrawCube(new Vector3(-9f, 2.8f, 0f), new Vector3(0.3f, 5.6f, 18f), new Color(82, 98, 96), 0f);
 
         DrawModel("ground", new Vector3(-1f, 0f, -1f), 2.8f, 0f);
         DrawModel("tree", new Vector3(-5.8f, 0f, -2.4f), 2.1f, 0.2f);
@@ -679,7 +932,7 @@ public sealed class Game1 : Game
                     basic.Projection = _projection;
                     basic.EnableDefaultLighting();
                     basic.PreferPerPixelLighting = true;
-                    basic.AmbientLightColor = new Vector3(0.32f, 0.36f, 0.4f);
+                    basic.AmbientLightColor = new Vector3(0.54f, 0.57f, 0.62f);
                     basic.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-0.45f, -1f, -0.2f));
                     basic.DirectionalLight0.DiffuseColor = new Vector3(1f, 0.84f, 0.68f);
                     basic.DirectionalLight0.SpecularColor = new Vector3(0.24f);
@@ -971,6 +1224,13 @@ public sealed class Game1 : Game
         DrawString(font, value, position, drawScale, color);
     }
 
+    private void TextCentred(string value, float centreX, float y, float scale, Color color)
+    {
+        var (font, drawScale) = SelectFont(scale);
+        var width = font.MeasureString(value).X * drawScale;
+        DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
+    }
+
     private void TextRight(string value, float right, float y, float scale, Color color)
     {
         var (font, drawScale) = SelectFont(scale);
@@ -978,16 +1238,33 @@ public sealed class Game1 : Game
         DrawString(font, value, new Vector2(right - width, y), drawScale, color);
     }
 
+    /// <summary>
+    /// Pick a font rasterized at the size it will actually occupy on the display.
+    ///
+    /// The previous version kept three fixed atlases (18/24/32 px) and scaled them to fit,
+    /// so a 12 px label was an 18 px atlas squeezed to 0.67 and then stretched again by the
+    /// canvas transform. Two resamples is why the HUD was soft and thin. Rasterizing at the
+    /// device size and drawing at 1/scale lands every glyph 1:1 on the panel.
+    /// </summary>
     private (SpriteFontBase Font, float Scale) SelectFont(float requestedSize)
     {
-        if (requestedSize <= 12f)
-            return (_smallFont, requestedSize / 18f);
+        var heading = requestedSize >= HeadingThreshold;
+        var cache = heading ? _headingFonts : _bodyFonts;
 
-        if (requestedSize >= 19f)
-            return (_headingFont, requestedSize / 32f);
+        // Clamped so an extreme display cannot ask for a 4 px or a 900 px atlas.
+        var devicePixels = Math.Clamp((int)MathF.Round(requestedSize * _uiScale), 8, 384);
 
-        return (_font, requestedSize / 24f);
+        if (!cache.TryGetValue(devicePixels, out var font))
+        {
+            font = (heading ? _headingFontSystem : _fontSystem).GetFont(devicePixels);
+            cache[devicePixels] = font;
+        }
+
+        return (font, requestedSize / devicePixels);
     }
+
+    /// <summary>At and above this logical size, text is set in Cinzel rather than Noto Sans.</summary>
+    private const float HeadingThreshold = 20f;
 
     private void DrawString(SpriteFontBase font, string value, Vector2 position, float scale, Color color)
     {
