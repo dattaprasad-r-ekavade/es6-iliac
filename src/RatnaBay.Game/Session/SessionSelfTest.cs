@@ -136,6 +136,17 @@ public static class SessionSelfTest
         Check(failures, "it is now in reach and focused by the crosshair",
             ReferenceEquals(encounter.Focused, enemy));
         Check(failures, "it fought back", player.Vitals.Health < player.Vitals.MaxHealth);
+
+        // Animation must never move a hitbox. The drawn position is allowed to lunge and
+        // recoil; the domain position it is targeted at is not.
+        var domainPosition = enemy.Position;
+        var drawn = encounter.DrawPositionOf(enemy);
+        Check(failures, "animation offsets the drawn position without moving the enemy",
+            Math.Abs(enemy.Position.X - domainPosition.X) < 0.0001f
+            && Math.Abs(enemy.Position.Z - domainPosition.Z) < 0.0001f);
+
+        Check(failures, $"the drawn position is animated away from it ({drawn.Y:0.00} m up)",
+            drawn.Y >= domainPosition.Y);
         Check(failures, "being attacked started a fight", player.Combat.InCombat);
 
         // Swinging at nothing must not train the weapon.
@@ -162,6 +173,9 @@ public static class SessionSelfTest
             // Keep the player standing so the fight can be seen through to the end.
             if (player.Vitals.Health < 30f) player.Vitals.Heal(60f);
         }
+
+        Check(failures, "a struck enemy recoils and its height dips",
+            encounter.DrawHeightOf(enemy) <= Encounter.FigureHeight * 1.001f);
 
         Check(failures, $"the bandit can be killed (took {swings} landed hits)", !enemy.IsAlive);
         Check(failures, "a dead enemy is no longer a valid target",

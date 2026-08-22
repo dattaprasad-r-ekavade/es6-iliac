@@ -29,6 +29,10 @@ and watch Blade go up.
 - [ ] Cast Rime (5 then Q) and confirm the target visibly slows and tints cold.
 - [ ] Cast Arc (6 then Q) into two bandits and confirm the jump.
 - [ ] Save mid-fight, reload, confirm the dead stay dead.
+- [ ] Confirm the held weapon changes when you equip the greatsword or unequip entirely.
+- [ ] Swing while standing still and while walking; the sway should only move when you do.
+- [ ] Hold guard and confirm the blade lifts across the body.
+- [ ] Watch for "striking" above an enemy and try to guard in time.
 
 ### Done
 
@@ -38,6 +42,9 @@ and watch Blade go up.
 - [x] **Iteration 6:** Attack, guard, hit flash, damage vignette, enemy health bar.
 - [x] **Iteration 6:** Spells bound to keys, with Arc's chain target resolved by targeting.
 - [x] **Iteration 6:** A whole fight asserted headlessly in `--selftest`.
+- [x] **Iteration 6:** First-person weapon sprite, drawn in code per weapon and tier.
+- [x] **Iteration 6:** Swing arc, walking sway and guard pose on the held weapon.
+- [x] **Iteration 6:** Enemy walk bob, attack lunge and hit recoil.
 - [x] **Iteration 5:** `PlayerCharacter` ticked from the game loop.
 - [x] **Iteration 5:** Live health/prana/stamina HUD reading domain values.
 - [x] **Iteration 5:** Domain events surfaced as on-screen toasts.

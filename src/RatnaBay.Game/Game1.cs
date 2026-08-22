@@ -79,6 +79,9 @@ public sealed class Game1 : Game
 
     private BillboardRenderer _billboards = null!;
 
+    /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
+    private readonly WeaponView _weaponView = new();
+
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
 
@@ -88,6 +91,12 @@ public sealed class Game1 : Game
 
     /// <summary>Frames to render before --screenshot captures. Raise it to measure the rate.</summary>
     private int _warmupFrames = 4;
+
+    /// <summary>
+    /// Seconds into a swing to freeze at for --screenshot. Frames are uncapped during a
+    /// capture, so the pose is driven directly rather than hoping to catch one mid-flight.
+    /// </summary>
+    private float? _captureSwing;
 
     /// <summary>
     /// Wall-clock frame rate. Deliberately not derived from GameTime: under a fixed
@@ -141,6 +150,7 @@ public sealed class Game1 : Game
         // Deterministic camera for screenshots, so a change to look or movement can be
         // compared frame against frame instead of described.
         if (int.TryParse(ParseOption(args, "--warmup"), out var warmup)) _warmupFrames = warmup;
+        if (float.TryParse(ParseOption(args, "--swing"), out var swing)) _captureSwing = swing;
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
         if (_screenshotPath is not null)
@@ -284,6 +294,7 @@ public sealed class Game1 : Game
         _primitiveEffect.Dispose();
         _billboards.Dispose();
         CharacterSprites.Clear();
+        WeaponSprites.Clear();
         base.UnloadContent();
     }
 
@@ -581,7 +592,9 @@ public sealed class Game1 : Game
     {
         if (_session is null || _encounter is null) return;
 
-        _encounter.Update(StepSeconds(gameTime), _cameraPosition, _cameraYaw);
+        var step = StepSeconds(gameTime);
+        _encounter.Update(step, _cameraPosition, _cameraYaw);
+        _weaponView.Update(step, IsMoving(keyboard), _session.Player.Combat.IsBlocking);
 
         // Only while the pointer is captured, so a click that is reclaiming the mouse does
         // not also swing the sword.
@@ -590,8 +603,22 @@ public sealed class Game1 : Game
         var mouse = Mouse.GetState();
         _session.Player.Combat.SetBlocking(mouse.RightButton == ButtonState.Pressed);
 
-        if (Clicked(mouse)) ReportAttack(_encounter.PlayerAttack());
-        if (Pressed(keyboard, Keys.Q)) ReportCast(_encounter.PlayerCast(_cameraPosition, _cameraYaw));
+        if (Clicked(mouse))
+        {
+            var outcome = _encounter.PlayerAttack();
+
+            // The arm moves whenever the swing actually happened — a hit and a miss look the
+            // same from behind the weapon, which is what makes missing feel like missing
+            // rather than like the button not working.
+            if (outcome.Swung) _weaponView.Swing(_session.Player.Combat.ActiveWeapon);
+            ReportAttack(outcome);
+        }
+        if (Pressed(keyboard, Keys.Q))
+        {
+            var cast = _encounter.PlayerCast(_cameraPosition, _cameraYaw);
+            if (cast.WasCast) _weaponView.Swing(_session.Player.Combat.ActiveWeapon);
+            ReportCast(cast);
+        }
 
         // Number keys pick the bound spell.
         if (Pressed(keyboard, Keys.D4)) SelectSpell(SpellCatalog.FireId);
@@ -882,6 +909,7 @@ public sealed class Game1 : Game
 
         BeginUi();
 
+        DrawWeapon();
         DrawDamageFlash();
         DrawCrosshair();
         DrawLocationBanner();
@@ -913,13 +941,13 @@ public sealed class Game1 : Game
 
         foreach (var enemy in sorted)
         {
-            var feet = new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z);
+            var feet = _encounter.DrawPositionOf(enemy);
             var tint = _encounter.TintOf(enemy);
 
             // A chilled bandit is visibly cold, so frost reads as more than a slower walk.
             if (enemy.IsChilled) tint = new Color(tint.R / 2 + 90, tint.G / 2 + 110, tint.B);
 
-            _billboards.Draw(texture, feet, Encounter.FigureHeight, _cameraYaw, tint);
+            _billboards.Draw(texture, feet, _encounter.DrawHeightOf(enemy), _cameraYaw, tint);
         }
 
         // The billboard pass leaves its own render state behind; the UI expects the default.
@@ -930,6 +958,44 @@ public sealed class Game1 : Game
     private float DistanceToCamera(Enemy enemy) =>
         Vector3.DistanceSquared(_cameraPosition,
             new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z));
+
+    /// <summary>
+    /// The weapon in the player's hand.
+    ///
+    /// Drawn in the UI pass rather than the 3D one, which is how Daggerfall did it: the
+    /// weapon is a sprite at the edge of the screen, not a modelled object in the world, so
+    /// it never clips through a wall and never needs a rig.
+    /// </summary>
+    private void DrawWeapon()
+    {
+        if (_session is null) return;
+
+        var weapon = _session.Player.Combat.ActiveWeapon;
+
+        if (_captureSwing is { } progress)
+        {
+            _weaponView.Swing(weapon);
+            _weaponView.Update(progress, moving: false, guarding: false);
+        }
+
+        var texture = WeaponSprites.Get(GraphicsDevice, weapon);
+        var pose = _weaponView.Pose();
+
+        // The grip, not the corner: rotating about the hand is what makes it swing rather
+        // than spin.
+        var origin = new Vector2(texture.Width / 2f, texture.Height);
+
+        _spriteBatch.Draw(
+            texture,
+            pose.Position,
+            null,
+            Color.White,
+            pose.Rotation,
+            origin,
+            pose.Scale,
+            SpriteEffects.None,
+            0f);
+    }
 
     /// <summary>A red vignette while the player is being hurt.</summary>
     private void DrawDamageFlash()
@@ -965,6 +1031,9 @@ public sealed class Game1 : Game
         Text(enemy.DisplayName, new Vector2(bar.X + 10, bar.Y + 4), 14, Color.White);
         TextRight($"{enemy.Health:0} / {enemy.MaxHealth:0}", bar.Right - 10, bar.Y + 4, 14,
             Color.White);
+
+        if (_encounter.IsLunging(enemy))
+            TextCentred("striking", LogicalWidth / 2f, bar.Y - 26f, 15, new Color(236, 148, 122));
 
         var status = enemy.IsStaggered ? "staggered"
             : enemy.IsBurning ? "burning"
@@ -1089,12 +1158,8 @@ public sealed class Game1 : Game
         Text($"LEVEL {vitals.Level}", new Vector2(panel.X + 18, panel.Y + 12), 16, Color.White);
         TextRight($"{vitals.Gold} gold", panel.Right - 18, panel.Y + 12, 16, new Color(228, 197, 122));
         var combat = _session.Player.Combat;
-        var readied = combat.IsBlocking ? "guarding"
-            : combat.InCombat ? "in combat"
-            : combat.ActiveWeapon.DisplayName;
-
-        Text(readied, new Vector2(panel.X + 18, panel.Y + 38), 13,
-            combat.IsBlocking ? new Color(232, 194, 116) : new Color(146, 174, 178));
+        Text(combat.ActiveWeapon.DisplayName, new Vector2(panel.X + 18, panel.Y + 38), 13,
+            combat.IsBlocking ? new Color(232, 194, 116) : new Color(203, 216, 214));
         TextRight($"{_framesPerSecond:0} fps", panel.Right - 18, panel.Y + 38, 13,
             _framesPerSecond < 50f ? new Color(228, 128, 118) : new Color(146, 174, 178));
     }
