@@ -4,17 +4,17 @@ This is the lightweight working board for the solo Agile process. Keep only the 
 
 ## Current iteration
 
-**Iteration:** 5 — Wire the shell
+**Iteration:** 6 — First fight
 
-**Primary outcome:** The tested domain drives the running game. Live vitals on screen, and a
-save that round-trips through a real file on disk.
+**Primary outcome:** A bandit notices you, closes, and fights. You swing, block, kill it,
+and watch Blade go up.
 **Status:** Complete — ready for playtest
-**Target build command:** `.uild.ps1 -Configuration Release`
+**Target build command:** `.\publish.ps1 -Run`
 **Plan of record:** [`PRODUCTION_PLAN.md`](PRODUCTION_PLAN.md)
 
 ### Ready
 
-- [ ] Iteration 6 — First fight. See the production plan.
+- [ ] Iteration 7 — First room. See the production plan.
 
 ### In Progress
 
@@ -22,13 +22,22 @@ save that round-trips through a real file on disk.
 
 ### Review / Playtest
 
-- [ ] Start New Game, walk, watch stamina drain while sprinting and recover at rest.
-- [ ] F5 saves; the toast confirms it.
-- [ ] Quit, relaunch, choose Continue, and arrive back at the same spot with the same vitals.
-- [ ] Continue does not appear on the menu when no save exists.
+- [ ] Walk toward the camp and let a bandit notice you.
+- [ ] Kill one with the sword; confirm Blade rises only on landed hits.
+- [ ] Hold right click and confirm incoming damage drops.
+- [ ] Equip nothing and let three of them kill you; confirm recovery is not a dead end.
+- [ ] Cast Rime (5 then Q) and confirm the target visibly slows and tints cold.
+- [ ] Cast Arc (6 then Q) into two bandits and confirm the jump.
+- [ ] Save mid-fight, reload, confirm the dead stay dead.
 
 ### Done
 
+- [x] **Iteration 6:** Billboard sprite renderer with code-drawn, palette-locked characters.
+- [x] **Iteration 6:** Cone targeting in the domain, replacing a physics sphere cast.
+- [x] **Iteration 6:** Enemy chase, leashing, separation and attack cooldowns.
+- [x] **Iteration 6:** Attack, guard, hit flash, damage vignette, enemy health bar.
+- [x] **Iteration 6:** Spells bound to keys, with Arc's chain target resolved by targeting.
+- [x] **Iteration 6:** A whole fight asserted headlessly in `--selftest`.
 - [x] **Iteration 5:** `PlayerCharacter` ticked from the game loop.
 - [x] **Iteration 5:** Live health/prana/stamina HUD reading domain values.
 - [x] **Iteration 5:** Domain events surfaced as on-screen toasts.

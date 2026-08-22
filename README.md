@@ -47,7 +47,8 @@ Direct release builds can be launched in a specific state:
 Menu: click or hover to choose, or Up/Down and Enter. **Continue** appears once a save
 exists.
 
-In the scene, the mouse looks and WASD moves at 6 m/s (11 sprinting). Click the world to take the pointer, Tab to
+In the scene, the mouse looks and WASD moves at 6 m/s (11 sprinting). Left click attacks,
+right click guards (one-handed weapons only), Q casts the readied spell and 4-8 choose it. Click the world to take the pointer, Tab to
 give it back. Shift sprints and spends stamina, F5 saves, F9 loads, **F1 lists every
 control**, and M or Escape returns to the menu.
 

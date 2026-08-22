@@ -39,13 +39,14 @@ architectural decision until the slice ships.
 
 ## 2. Where the project actually is
 
-**Iteration 5 is complete.** The domain drives the running game.
+**Iterations 5 and 6 are complete.** The domain drives the running game, and there is a
+fight in it.
 
 | | Lines | State |
 |---|---:|---|
-| `RatnaBay.Domain` | 2,900 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | 3,000 | 247 tests, ~140 ms |
-| `RatnaBay.Game` | ~1,200 | Menu, camera, live HUD, session, save/load |
+| `RatnaBay.Domain` | 3,100 | Tested game rules, engine-free |
+| `RatnaBay.Domain.Tests` | 3,300 | 273 tests, ~140 ms |
+| `RatnaBay.Game` | ~1,900 | Menu, camera, HUD, session, saves, sprites, combat |
 | `RatnaBay.Tools` | ~150 | `doctor`, `asset-info` |
 
 `.\publish.ps1 -Run` produces a self-contained `build\RatnaBay.exe` that runs on a machine
@@ -98,7 +99,7 @@ being stored).
 
 ---
 
-### Iteration 6 — First fight (2–3 weeks)
+### Iteration 6 — First fight — **DONE**
 
 **Risk retired:** is the combat loop legible and does it feel like anything?
 
@@ -114,6 +115,12 @@ being stored).
 Blade go up.
 
 **Done when:** the fight is winnable and losable, and Blade rises only on landed hits.
+
+**Delivered.** All three are asserted headlessly by `--selftest`, which plays a whole fight
+with no window: the bandit closes from 12 m, both sides trade blows, a swing away from it
+trains nothing, four landed hits kill it, and an unarmed player against three of them dies.
+Targeting moved into the domain as a cone test rather than a physics sphere cast, so its
+edges are asserted rather than felt out in the running game.
 
 ---
 

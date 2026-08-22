@@ -22,14 +22,28 @@ public sealed class EnemyArchetype
     public bool DropsLoot { get; init; } = true;
 }
 
+/// <summary>What an enemy wants to do this frame.</summary>
+public enum EnemyIntent
+{
+    /// <summary>Out of range, staggered, or dead. Stand still.</summary>
+    Idle,
+
+    /// <summary>Close the distance. The game layer owns the actual movement.</summary>
+    Chase,
+
+    /// <summary>In reach and off cooldown.</summary>
+    Attack
+}
+
 /// <summary>
-/// One enemy's fight state: health, elemental status, and the attack cooldown.
+/// One enemy: where it stands, what it wants, and what is true about it.
 ///
-/// Chasing, line of sight and leashing stay in the game layer — this owns what is true about
-/// the enemy, not where it is standing. <see cref="WantsToAttack"/> is the decision the game
-/// layer asks for once it knows the enemy is in range and can see the player.
+/// The decision is here and the movement is not. <see cref="Decide"/> answers "chase, swing,
+/// or stand" from positions alone, which runs headlessly and can be asserted; the game layer
+/// then slides the body and draws it. Line of sight stays in the game layer, because that
+/// needs the level geometry.
 /// </summary>
-public sealed class Enemy : IEnemy
+public sealed class Enemy : IEnemy, ITargetable
 {
     /// <summary>A chill can never take more than 90% off a target's speed.</summary>
     private const float SlowestChill = 0.1f;
@@ -49,6 +63,12 @@ public sealed class Enemy : IEnemy
     }
 
     public EnemyArchetype Archetype { get; }
+
+    /// <summary>Where the body is. The game layer moves it; the domain decides whether to.</summary>
+    public WorldPoint Position { get; set; }
+
+    /// <summary>Where it started, so it can be kept from being led across the map.</summary>
+    public WorldPoint Home { get; set; }
 
     /// <summary>Stable id so a save can remember this one stayed dead.</summary>
     public string SpawnId { get; }
@@ -110,6 +130,34 @@ public sealed class Enemy : IEnemy
         TakeDamage(_burnDamagePerSecond * deltaSeconds);
         if (_burnRemaining <= 0f) _burnDamagePerSecond = 0f;
     }
+
+    /// <summary>
+    /// Chase, swing, or stand.
+    /// </summary>
+    /// <param name="playerPosition">Where the player is now.</param>
+    /// <param name="canSeePlayer">
+    /// False when the level geometry is in the way. Without this, enemies attack the player
+    /// through the wall of the building they are guarding.
+    /// </param>
+    public EnemyIntent Decide(WorldPoint playerPosition, bool canSeePlayer = true)
+    {
+        // A staggered enemy neither closes nor swings — that is what makes shock a control
+        // element rather than a third damage number.
+        if (!IsAlive || IsStaggered || !canSeePlayer) return EnemyIntent.Idle;
+
+        var distance = Position.FlatDistanceTo(playerPosition);
+        if (distance > Archetype.AggroRange) return EnemyIntent.Idle;
+
+        // Leashing: an enemy led far enough from home gives up rather than following the
+        // player across the world.
+        if (Home.FlatDistanceTo(Position) > Archetype.AggroRange * LeashFactor) return EnemyIntent.Idle;
+
+        if (distance > Archetype.AttackRange) return EnemyIntent.Chase;
+        return _attackCooldown <= 0f ? EnemyIntent.Attack : EnemyIntent.Idle;
+    }
+
+    /// <summary>How far past its aggro range an enemy will follow before giving up.</summary>
+    private const float LeashFactor = 2.8f;
 
     /// <summary>
     /// Commit to a swing. The game layer calls this once it knows the player is in range and

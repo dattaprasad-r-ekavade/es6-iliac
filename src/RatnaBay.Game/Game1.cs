@@ -74,6 +74,11 @@ public sealed class Game1 : Game
     /// <summary>The live character. Null until a game is started or loaded.</summary>
     private GameSession? _session;
 
+    /// <summary>The enemies in the scene and the fight with them.</summary>
+    private Encounter? _encounter;
+
+    private BillboardRenderer _billboards = null!;
+
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
 
@@ -213,7 +218,7 @@ public sealed class Game1 : Game
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character, or the HUD has nothing to show.
-        if (_screen == GameScreen.WorldScene) _session = GameSession.NewGame();
+        if (_screen == GameScreen.WorldScene) StartSession(GameSession.NewGame());
 
         if (_startYaw is { } forcedYaw) _cameraYaw = forcedYaw;
         if (_startPitch is { } forcedPitch) _cameraPitch = forcedPitch;
@@ -224,6 +229,7 @@ public sealed class Game1 : Game
     protected override void LoadContent()
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
+        _billboards = new BillboardRenderer(GraphicsDevice);
         var fontsDirectory = Path.Combine(
             AppContext.BaseDirectory,
             "Content",
@@ -276,6 +282,8 @@ public sealed class Game1 : Game
         _headingFontSystem.Dispose();
         _white.Dispose();
         _primitiveEffect.Dispose();
+        _billboards.Dispose();
+        CharacterSprites.Clear();
         base.UnloadContent();
     }
 
@@ -503,8 +511,8 @@ public sealed class Game1 : Game
                 break;
             case "Start New Game":
                 ResetCamera();
-                _session = GameSession.NewGame();
-                _session.ShowToast("You wake on the Northwatch road.");
+                StartSession(GameSession.NewGame());
+                _session!.ShowToast("You wake on the Northwatch road.");
                 _screen = GameScreen.WorldScene;
                 SetMouseLook(true);
                 break;
@@ -561,19 +569,104 @@ public sealed class Game1 : Game
 
         if (Pressed(keyboard, Keys.F5)) _session.ShowToast(_session.Save());
         if (Pressed(keyboard, Keys.F9)) LoadSession();
+
+        UpdateCombat(gameTime, keyboard);
+    }
+
+    /// <summary>
+    /// The fight: enemies act, then the player does. Blocking is held rather than pressed,
+    /// and attacking drops the guard, so the two cannot be used at once.
+    /// </summary>
+    private void UpdateCombat(GameTime gameTime, KeyboardState keyboard)
+    {
+        if (_session is null || _encounter is null) return;
+
+        _encounter.Update(StepSeconds(gameTime), _cameraPosition, _cameraYaw);
+
+        // Only while the pointer is captured, so a click that is reclaiming the mouse does
+        // not also swing the sword.
+        if (!_mouseLook || _showHelp) return;
+
+        var mouse = Mouse.GetState();
+        _session.Player.Combat.SetBlocking(mouse.RightButton == ButtonState.Pressed);
+
+        if (Clicked(mouse)) ReportAttack(_encounter.PlayerAttack());
+        if (Pressed(keyboard, Keys.Q)) ReportCast(_encounter.PlayerCast(_cameraPosition, _cameraYaw));
+
+        // Number keys pick the bound spell.
+        if (Pressed(keyboard, Keys.D4)) SelectSpell(SpellCatalog.FireId);
+        if (Pressed(keyboard, Keys.D5)) SelectSpell(SpellCatalog.FrostId);
+        if (Pressed(keyboard, Keys.D6)) SelectSpell(SpellCatalog.ShockId);
+        if (Pressed(keyboard, Keys.D7)) SelectSpell(SpellCatalog.HealId);
+        if (Pressed(keyboard, Keys.D8)) SelectSpell(SpellCatalog.LightId);
+    }
+
+    private void SelectSpell(string spellId)
+    {
+        if (_session is null) return;
+        _session.Player.Spells.SelectSpell(spellId);
+        _session.ShowToast($"{SpellCatalog.Get(spellId)!.DisplayName} readied.");
+    }
+
+    /// <summary>Only the outcomes the player cannot see for themselves are worth saying.</summary>
+    private void ReportAttack(AttackOutcome outcome)
+    {
+        if (outcome.Result == AttackResult.Exhausted) _session?.ShowToast("Too exhausted.");
+    }
+
+    private void ReportCast(CastOutcome outcome)
+    {
+        if (_session is null) return;
+
+        switch (outcome.Result)
+        {
+            case CastResult.NoCharge:
+                _session.ShowToast("No prana, and no jiva stone to draw on.");
+                break;
+            case CastResult.Landed when outcome.Spell?.Effect == SpellEffect.Heal:
+                _session.ShowToast($"{outcome.Spell.DisplayName} — restored.");
+                break;
+            case CastResult.Landed when outcome.Spell?.Effect == SpellEffect.Light:
+                _session.ShowToast($"{outcome.Spell.DisplayName} — the dark pulls back.");
+                break;
+        }
     }
 
     private static bool IsMoving(KeyboardState keyboard) =>
         keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.A)
         || keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.D);
 
+    /// <summary>
+    /// Begin a session and populate the world around it. The camp is spawned here rather
+    /// than by the session, because where a bandit stands is a scene fact, not a save fact —
+    /// the save only remembers which ones are already dead.
+    /// </summary>
+    private void StartSession(GameSession session)
+    {
+        _session = session;
+        _encounter = new Encounter(session);
+        _encounter.SpawnDefaultCamp();
+
+        session.Player.Vitals.Died += () =>
+        {
+            session.ShowToast("You were defeated — returned to safe ground.");
+            session.Player.Vitals.FullRestore();
+            session.Player.Combat.ClearCombat();
+            ResetCamera();
+        };
+    }
+
     private void LoadSession()
     {
-        _session ??= GameSession.NewGame();
+        if (_session is null) StartSession(GameSession.NewGame());
 
-        var message = _session.Load();
+        var message = _session!.Load();
         _cameraPosition = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
         _cameraYaw = _session.Yaw;
+
+        _encounter = new Encounter(_session);
+        _encounter.SpawnDefaultCamp();
+
         _session.ShowToast(message);
     }
 
@@ -785,11 +878,14 @@ public sealed class Game1 : Game
     private void DrawWorldScene()
     {
         DrawPhotoScene(false);
+        DrawEnemies();
 
         BeginUi();
 
+        DrawDamageFlash();
         DrawCrosshair();
         DrawLocationBanner();
+        DrawEnemyHealth();
         DrawObjective();
         DrawVitals();
         DrawToasts();
@@ -797,6 +893,86 @@ public sealed class Game1 : Game
         if (_showHelp) DrawHelpOverlay();
 
         EndUi();
+    }
+
+    /// <summary>
+    /// The enemies, as camera-facing sprites.
+    ///
+    /// Drawn far to near so the alpha-tested cutouts never punch a hole in something behind
+    /// them that has not been drawn yet.
+    /// </summary>
+    private void DrawEnemies()
+    {
+        if (_encounter is null || _encounter.Enemies.Count == 0) return;
+
+        var texture = CharacterSprites.Get(GraphicsDevice, "bandit", CharacterPalette.Bandit);
+        _billboards.Begin(_view, _projection);
+
+        var sorted = new List<Enemy>(_encounter.Enemies);
+        sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
+
+        foreach (var enemy in sorted)
+        {
+            var feet = new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z);
+            var tint = _encounter.TintOf(enemy);
+
+            // A chilled bandit is visibly cold, so frost reads as more than a slower walk.
+            if (enemy.IsChilled) tint = new Color(tint.R / 2 + 90, tint.G / 2 + 110, tint.B);
+
+            _billboards.Draw(texture, feet, Encounter.FigureHeight, _cameraYaw, tint);
+        }
+
+        // The billboard pass leaves its own render state behind; the UI expects the default.
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+    }
+
+    private float DistanceToCamera(Enemy enemy) =>
+        Vector3.DistanceSquared(_cameraPosition,
+            new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z));
+
+    /// <summary>A red vignette while the player is being hurt.</summary>
+    private void DrawDamageFlash()
+    {
+        if (_encounter is null || _encounter.DamageFlash <= 0f) return;
+
+        var strength = _encounter.DamageFlash / Encounter.DamageFlashSeconds;
+        var tint = new Color(150, 24, 28) * (strength * 0.45f);
+        const int band = 90;
+
+        Fill(new Rectangle(0, 0, LogicalWidth, band), tint);
+        Fill(new Rectangle(0, LogicalHeight - band, LogicalWidth, band), tint);
+        Fill(new Rectangle(0, 0, band, LogicalHeight), tint);
+        Fill(new Rectangle(LogicalWidth - band, 0, band, LogicalHeight), tint);
+    }
+
+    /// <summary>
+    /// The health of whatever the crosshair is over. Shown only while something is actually
+    /// in reach, so it doubles as the answer to "will this swing connect?".
+    /// </summary>
+    private void DrawEnemyHealth()
+    {
+        if (_encounter?.Focused is not { } enemy) return;
+
+        var bar = new Rectangle(LogicalWidth / 2 - 150, 96, 300, 24);
+        var fraction = MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f);
+
+        Fill(bar, new Color(16, 20, 24, 226));
+        Fill(new Rectangle(bar.X, bar.Y, (int)(bar.Width * fraction), bar.Height),
+            new Color(178, 62, 66));
+        Border(bar, new Color(0, 0, 0, 140));
+
+        Text(enemy.DisplayName, new Vector2(bar.X + 10, bar.Y + 4), 14, Color.White);
+        TextRight($"{enemy.Health:0} / {enemy.MaxHealth:0}", bar.Right - 10, bar.Y + 4, 14,
+            Color.White);
+
+        var status = enemy.IsStaggered ? "staggered"
+            : enemy.IsBurning ? "burning"
+            : enemy.IsChilled ? "chilled"
+            : string.Empty;
+
+        if (status.Length > 0)
+            TextCentred(status, LogicalWidth / 2f, bar.Bottom + 6, 13, new Color(232, 194, 116));
     }
 
     /// <summary>Where a swing or a spell will go. Small, and always centred.</summary>
@@ -912,8 +1088,14 @@ public sealed class Game1 : Game
 
         Text($"LEVEL {vitals.Level}", new Vector2(panel.X + 18, panel.Y + 12), 16, Color.White);
         TextRight($"{vitals.Gold} gold", panel.Right - 18, panel.Y + 12, 16, new Color(228, 197, 122));
-        Text("F1  controls", new Vector2(panel.X + 18, panel.Y + 38), 13, new Color(146, 174, 178));
-        TextRight($"{_framesPerSecond:0} fps  {_lastFrameMs:0.0} ms", panel.Right - 18, panel.Y + 38, 13,
+        var combat = _session.Player.Combat;
+        var readied = combat.IsBlocking ? "guarding"
+            : combat.InCombat ? "in combat"
+            : combat.ActiveWeapon.DisplayName;
+
+        Text(readied, new Vector2(panel.X + 18, panel.Y + 38), 13,
+            combat.IsBlocking ? new Color(232, 194, 116) : new Color(146, 174, 178));
+        TextRight($"{_framesPerSecond:0} fps", panel.Right - 18, panel.Y + 38, 13,
             _framesPerSecond < 50f ? new Color(228, 128, 118) : new Color(146, 174, 178));
     }
 
@@ -925,7 +1107,7 @@ public sealed class Game1 : Game
     {
         Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 200));
 
-        var panel = new Rectangle(340, 130, 600, 460);
+        var panel = new Rectangle(320, 58, 640, 604);
         DrawPanel(panel, new Color(7, 14, 21, 244), new Color(91, 146, 159));
         TextCentred("CONTROLS", panel.X + panel.Width / 2f, panel.Y + 26, 24, Color.White);
 
@@ -933,6 +1115,10 @@ public sealed class Game1 : Game
         {
             ("W A S D", "move"),
             ("Mouse", "look"),
+            ("Left click", "attack"),
+            ("Right click", "guard — one-handed only"),
+            ("Q", "cast the readied spell"),
+            ("4 5 6 7 8", "flame, rime, arc, mend, emberlight"),
             ("Arrow keys", "look (keyboard)"),
             ("Shift", "sprint — spends stamina"),
             ("Space / Ctrl", "rise / descend"),
@@ -948,7 +1134,7 @@ public sealed class Game1 : Game
         {
             Text(key, new Vector2(panel.X + 44, y), 17, new Color(232, 194, 116));
             Text(action, new Vector2(panel.X + 250, y), 17, new Color(214, 226, 222));
-            y += 36f;
+            y += 34f;
         }
     }
 

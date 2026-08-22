@@ -1,3 +1,4 @@
+using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
@@ -70,6 +71,8 @@ public static class SessionSelfTest
             var bearing = reloaded.Player.Objective.BearingLine(reloaded.Position);
             Check(failures, $"objective bearing regenerates from the restored position: {bearing}",
                 bearing.Contains("north") && bearing.Contains("paces"));
+
+            RunFightChecks(failures);
         }
         finally
         {
@@ -86,6 +89,117 @@ public static class SessionSelfTest
         Console.WriteLine($"Session self-test FAILED with {failures.Count} problem(s):");
         foreach (var failure in failures) Console.WriteLine($"  - {failure}");
         return 1;
+    }
+
+    /// <summary>
+    /// A whole fight, with no window: the bandit closes, both sides trade blows, and the
+    /// player wins. This is the iteration 6 gate — winnable, losable, and Blade rising only
+    /// on landed hits — checked without anyone having to play it.
+    /// </summary>
+    private static void RunFightChecks(List<string> failures)
+    {
+        Console.WriteLine();
+
+        var session = GameSession.NewGame();
+        var player = session.Player;
+        var encounter = new Encounter(session);
+
+        var bandit = new EnemyArchetype
+        {
+            Id = "bandit", DisplayName = "Bandit", MaxHealth = 55f, MoveSpeed = 4.4f,
+            AggroRange = 16f, AttackRange = 2.2f, AttackDamage = 7f,
+            AttackCooldown = 1.4f, XpReward = 20
+        };
+
+        var playerPosition = new Vector3(0f, 0f, 0f);
+        encounter.Spawn(bandit, new Vector3(0f, 0f, -12f), "bandit.test.01");
+        Check(failures, "a bandit spawned", encounter.Enemies.Count == 1);
+
+        var enemy = encounter.Enemies[0];
+        var startDistance = enemy.Position.Z;
+
+        // Facing it: yaw zero looks down -Z, which is where it is standing.
+        const float facing = 0f;
+        const float step = 1f / 60f;
+
+        // It should close the distance on its own. The session is ticked too: cooldowns and
+        // stamina live on the player, and a loop that only ticks the enemies deadlocks the
+        // moment it waits on a swing that can never come off cooldown.
+        for (var frame = 0; frame < 240; frame++)
+        {
+            session.Tick(step);
+            encounter.Update(step, playerPosition, facing);
+        }
+
+        Check(failures, $"the bandit closed from {startDistance:0.0} m to {enemy.Position.Z:0.0} m",
+            enemy.Position.Z > startDistance + 5f);
+        Check(failures, "it is now in reach and focused by the crosshair",
+            ReferenceEquals(encounter.Focused, enemy));
+        Check(failures, "it fought back", player.Vitals.Health < player.Vitals.MaxHealth);
+        Check(failures, "being attacked started a fight", player.Combat.InCombat);
+
+        // Swinging at nothing must not train the weapon.
+        var facingAway = MathF.PI;
+        player.Combat.Tick(2f);
+        var missed = player.Combat.TryAttack(
+            Targeting.Find(default, facingAway, player.Combat.ActiveWeapon.Range, encounter.Enemies));
+
+        Check(failures, "swinging away from it misses", missed.Result == AttackResult.Missed);
+        Check(failures, "a miss trains nothing", player.Skills.LevelOf(Skills.Blade) == 0f);
+
+        // Now land blows until it drops.
+        var swings = 0;
+        var frames = 0;
+
+        // Bounded rather than "until it dies": this runs inside the publish gate, so a
+        // regression has to fail the build rather than hang it.
+        while (enemy.IsAlive && frames++ < 20_000)
+        {
+            session.Tick(step);
+            encounter.Update(step, playerPosition, facing);
+            if (encounter.PlayerAttack().Result == AttackResult.Hit) swings++;
+
+            // Keep the player standing so the fight can be seen through to the end.
+            if (player.Vitals.Health < 30f) player.Vitals.Heal(60f);
+        }
+
+        Check(failures, $"the bandit can be killed (took {swings} landed hits)", !enemy.IsAlive);
+        Check(failures, "a dead enemy is no longer a valid target",
+            Targeting.Find(default, facing, 3f, encounter.Enemies) is null);
+        Check(failures, "landed hits trained Blade", player.Skills.LevelOf(Skills.Blade) > 0f);
+        Check(failures, "the kill paid experience", player.Vitals.Xp > 0);
+        Check(failures, "the kill dropped loot", player.Inventory.CountOf("bandit_loot") > 0);
+        // Corpses clear on the following frame: removing an enemy from inside the loop that
+        // is walking the list would mutate it mid-iteration.
+        encounter.Update(step, playerPosition, facing);
+        Check(failures, "the corpse clears on the next frame", encounter.Enemies.Count == 0);
+        Check(failures, "the world remembers it stayed dead",
+            player.World.IsKilled("bandit.test.01"));
+
+        // A reload must not resurrect it.
+        var saved = SaveGame.Capture(player, default);
+        var reloaded = GameSession.NewGame();
+        SaveGame.Restore(reloaded.Player, saved);
+        var freshEncounter = new Encounter(reloaded);
+        freshEncounter.Spawn(bandit, new Vector3(0f, 0f, -12f), "bandit.test.01");
+
+        Check(failures, "a reload does not bring it back", freshEncounter.Enemies.Count == 0);
+
+        // Losable: an unarmed, unhealed player against three of them.
+        var doomed = GameSession.NewGame();
+        doomed.Player.Equipment.UnequipWeapon();
+        var ambush = new Encounter(doomed);
+        ambush.Spawn(bandit, new Vector3(1f, 0f, -3f), "ambush.01");
+        ambush.Spawn(bandit, new Vector3(-1f, 0f, -3f), "ambush.02");
+        ambush.Spawn(bandit, new Vector3(0f, 0f, -4f), "ambush.03");
+
+        for (var frame = 0; frame < 6000 && doomed.Player.Vitals.IsAlive; frame++)
+        {
+            doomed.Tick(step);
+            ambush.Update(step, Vector3.Zero, facing);
+        }
+
+        Check(failures, "the fight is losable", !doomed.Player.Vitals.IsAlive);
     }
 
     /// <summary>Everything that must be identical after a save and a reload.</summary>
