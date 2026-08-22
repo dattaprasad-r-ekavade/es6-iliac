@@ -1,0 +1,84 @@
+
+#----------------------------- Global Properties ----------------------------#
+
+/outputDir:bin/$(Platform)
+/intermediateDir:obj/$(Platform)
+/platform:Windows
+/config:
+/profile:Reach
+/compress:False
+
+#-------------------------------- References --------------------------------#
+
+
+#---------------------------------- Content ---------------------------------#
+
+#-------------------------------- Feasibility -------------------------------#
+
+#begin Feasibility/Fonts/FeasibilityUI.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/build:Feasibility/Fonts/FeasibilityUI.spritefont
+
+#begin Feasibility/Fonts/FeasibilityUISmall.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/build:Feasibility/Fonts/FeasibilityUISmall.spritefont
+
+#begin Feasibility/Fonts/FeasibilityUIHeading.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/build:Feasibility/Fonts/FeasibilityUIHeading.spritefont
+
+#begin Feasibility/Models/Kenney/bridge_wood.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:GenerateMipmaps=True
+/build:Feasibility/Models/Kenney/bridge_wood.fbx
+
+#begin Feasibility/Models/Kenney/campfire_stones.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:GenerateMipmaps=True
+/build:Feasibility/Models/Kenney/campfire_stones.fbx
+
+#begin Feasibility/Models/Kenney/ground_grass.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:GenerateMipmaps=True
+/build:Feasibility/Models/Kenney/ground_grass.fbx
+
+#begin Feasibility/Models/Kenney/plant_bushLarge.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:GenerateMipmaps=True
+/build:Feasibility/Models/Kenney/plant_bushLarge.fbx
+
+#begin Feasibility/Models/Kenney/rock_largeA.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:GenerateMipmaps=True
+/build:Feasibility/Models/Kenney/rock_largeA.fbx
+
+#begin Feasibility/Models/Kenney/tent_detailedOpen.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:GenerateMipmaps=True
+/build:Feasibility/Models/Kenney/tent_detailedOpen.fbx
+
+#begin Feasibility/Models/Kenney/tree_pineRoundA.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:GenerateMipmaps=True
+/build:Feasibility/Models/Kenney/tree_pineRoundA.fbx
+
+#begin Feasibility/Models/PolyHavenCheeseBox/CheeseBox_01_1k.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:GenerateMipmaps=True
+/build:Feasibility/Models/PolyHavenCheeseBox/CheeseBox_01_1k.fbx
+
+
