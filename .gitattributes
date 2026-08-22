@@ -1,0 +1,35 @@
+# Normalise line endings so a file committed on one machine does not come back
+# as a whole-file diff on another. Without this every C# file churns between
+# CRLF and LF and the git output is unreadable.
+* text=auto
+
+# Source and docs: always LF in the repository, native in the working tree.
+*.cs        text diff=csharp
+*.csproj    text
+*.sln       text eol=crlf
+*.md        text
+*.json      text
+*.ps1       text eol=crlf
+*.mgcb      text
+*.spritefont text
+*.manifest  text
+*.txt       text
+
+# Binaries: never touched, never diffed, never line-ending converted.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.ttf       binary
+*.otf       binary
+*.fbx       binary
+*.glb       binary
+*.gltf      binary
+*.wav       binary
+*.ogg       binary
+*.mp3       binary
+*.xnb       binary
+*.dll       binary
+*.exe       binary
+*.pdb       binary
