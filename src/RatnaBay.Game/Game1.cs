@@ -43,7 +43,18 @@ public sealed class Game1 : Game
     private bool _showHelp;
 
     /// <summary>Radians of rotation per pixel of mouse travel.</summary>
-    private const float MouseSensitivity = 0.0026f;
+    private const float MouseSensitivity = 0.0032f;
+
+    /// <summary>Radians per second while an arrow key is held.</summary>
+    private const float KeyboardTurnSpeed = 2.2f;
+
+    /// <summary>How far up or down the view can tip, short of straight up.</summary>
+    private const float PitchLimit = 1.4f;
+
+    /// <summary>Metres per second. Walking was 3.5, which read as wading.</summary>
+    private const float WalkSpeed = 6f;
+
+    private const float SprintSpeed = 11f;
     private GameScreen _screen = GameScreen.MainMenu;
     private int _menuSelection;
     private Vector3 _cameraPosition = new(0f, 2.4f, 8.5f);
@@ -59,6 +70,10 @@ public sealed class Game1 : Game
 
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
+
+    /// <summary>Camera angles forced by --yaw / --pitch, for reproducible captures.</summary>
+    private float? _startYaw;
+    private float? _startPitch;
     private int _framesDrawn;
 
     /// <summary>
@@ -90,6 +105,11 @@ public sealed class Game1 : Game
 
         _screen = ParseMode(args);
         _screenshotPath = ParseOption(args, "--screenshot");
+
+        // Deterministic camera for screenshots, so a change to look or movement can be
+        // compared frame against frame instead of described.
+        if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
+        if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
         if (_screenshotPath is not null)
         {
             // Deterministic capture: a fixed window, no vsync wait, and quit when done.
@@ -166,6 +186,9 @@ public sealed class Game1 : Game
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character, or the HUD has nothing to show.
         if (_screen == GameScreen.WorldScene) _session = GameSession.NewGame();
+
+        if (_startYaw is { } forcedYaw) _cameraYaw = forcedYaw;
+        if (_startPitch is { } forcedPitch) _cameraPitch = forcedPitch;
 
         base.Initialize();
     }
@@ -571,17 +594,18 @@ public sealed class Game1 : Game
     private void UpdateCamera(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         var seconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        var speed = keyboard.IsKeyDown(Keys.LeftShift) ? 7f : 3.5f;
+        var speed = keyboard.IsKeyDown(Keys.LeftShift) ? SprintSpeed : WalkSpeed;
         var yawInput = 0f;
         var pitchInput = 0f;
 
         if (keyboard.IsKeyDown(Keys.Left)) yawInput -= 1f;
         if (keyboard.IsKeyDown(Keys.Right)) yawInput += 1f;
-        if (keyboard.IsKeyDown(Keys.Up)) pitchInput -= 1f;
-        if (keyboard.IsKeyDown(Keys.Down)) pitchInput += 1f;
+        if (keyboard.IsKeyDown(Keys.Up)) pitchInput += 1f;
+        if (keyboard.IsKeyDown(Keys.Down)) pitchInput -= 1f;
 
-        _cameraYaw += yawInput * seconds * 1.5f;
-        _cameraPitch = MathHelper.Clamp(_cameraPitch + pitchInput * seconds, -1.2f, 1.2f);
+        _cameraYaw += yawInput * seconds * KeyboardTurnSpeed;
+        _cameraPitch = MathHelper.Clamp(
+            _cameraPitch + pitchInput * seconds * KeyboardTurnSpeed, -PitchLimit, PitchLimit);
 
         // Mouse look is framerate-independent by construction: it is pixels moved, not a
         // rate held over time, so it must not be multiplied by the frame duration.
@@ -590,7 +614,7 @@ public sealed class Game1 : Game
         {
             _cameraYaw += lookDelta.X * MouseSensitivity;
             _cameraPitch = MathHelper.Clamp(
-                _cameraPitch - lookDelta.Y * MouseSensitivity, -1.35f, 1.35f);
+                _cameraPitch - lookDelta.Y * MouseSensitivity, -PitchLimit, PitchLimit);
         }
 
         var forward = Forward;
@@ -619,9 +643,17 @@ public sealed class Game1 : Game
         _view = Matrix.CreateLookAt(_cameraPosition, _cameraPosition + Forward, Vector3.Up);
     }
 
+    /// <summary>
+    /// Where the camera is pointing.
+    ///
+    /// Yaw is negated because CreateRotationY turns anticlockwise: without this a rising
+    /// yaw swung the view left while D strafed right, so both the mouse and the arrow keys
+    /// were inverted horizontally. Yaw now increases clockwise (right) and pitch increases
+    /// upward, matching the movement axes and every other first-person game.
+    /// </summary>
     private Vector3 Forward => Vector3.Transform(
         Vector3.Forward,
-        Matrix.CreateRotationX(_cameraPitch) * Matrix.CreateRotationY(_cameraYaw));
+        Matrix.CreateRotationX(_cameraPitch) * Matrix.CreateRotationY(-_cameraYaw));
 
     private void ResetCamera()
     {
