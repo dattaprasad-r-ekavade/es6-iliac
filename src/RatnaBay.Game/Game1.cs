@@ -27,6 +27,12 @@ public sealed class Game1 : Game
     private readonly Dictionary<string, Model> _models = new();
     private readonly Dictionary<string, float> _modelNormalizers = new();
     private readonly Dictionary<string, Vector3> _modelCenters = new();
+
+    /// <summary>
+    /// Bone transforms, resolved once at load. Nothing here is animated, so recomputing them
+    /// into a freshly allocated array every model every frame was pure waste.
+    /// </summary>
+    private readonly Dictionary<string, Matrix[]> _modelBones = new();
     private readonly List<string> _assetErrors = new();
     private SpriteBatch _spriteBatch = null!;
     private FontSystem _fontSystem = null!;
@@ -74,6 +80,21 @@ public sealed class Game1 : Game
     /// <summary>Camera angles forced by --yaw / --pitch, for reproducible captures.</summary>
     private float? _startYaw;
     private float? _startPitch;
+
+    /// <summary>Frames to render before --screenshot captures. Raise it to measure the rate.</summary>
+    private int _warmupFrames = 4;
+
+    /// <summary>
+    /// Wall-clock frame rate. Deliberately not derived from GameTime: under a fixed
+    /// timestep ElapsedGameTime is always 1/60 no matter how slowly the game is really
+    /// running, which is exactly the failure this number exists to expose.
+    /// </summary>
+    private float _framesPerSecond;
+    private int _fpsFrames;
+    private readonly System.Diagnostics.Stopwatch _fpsClock = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>Real seconds the last frame took, for spotting a stall.</summary>
+    private float _lastFrameMs;
     private int _framesDrawn;
 
     /// <summary>
@@ -100,6 +121,12 @@ public sealed class Game1 : Game
 
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
+
+        // MonoGame defaults to a fixed timestep, where ElapsedGameTime is always 1/60 no
+        // matter how long the frame really took. At 43 fps that advanced game time at 72%
+        // of real time, so walking was a quarter slower than its own speed constant said.
+        // A variable timestep makes elapsed time mean elapsed time.
+        IsFixedTimeStep = false;
         Window.Title = "Ratna Bay - Development Shell";
         Window.IsBorderless = true;
 
@@ -108,6 +135,7 @@ public sealed class Game1 : Game
 
         // Deterministic camera for screenshots, so a change to look or movement can be
         // compared frame against frame instead of described.
+        if (int.TryParse(ParseOption(args, "--warmup"), out var warmup)) _warmupFrames = warmup;
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
         if (_screenshotPath is not null)
@@ -251,6 +279,15 @@ public sealed class Game1 : Game
         base.UnloadContent();
     }
 
+    /// <summary>
+    /// Longest step any system is given. Without this a stall, a dragged window or a
+    /// breakpoint resumes with one enormous frame and the player arrives somewhere else.
+    /// </summary>
+    private const float MaxFrameSeconds = 0.1f;
+
+    private static float StepSeconds(GameTime gameTime) =>
+        MathF.Min((float)gameTime.ElapsedGameTime.TotalSeconds, MaxFrameSeconds);
+
     protected override void Update(GameTime gameTime)
     {
         var keyboard = Keyboard.GetState();
@@ -336,6 +373,16 @@ public sealed class Game1 : Game
 
     protected override void Draw(GameTime gameTime)
     {
+        _fpsFrames++;
+        var elapsed = _fpsClock.Elapsed.TotalSeconds;
+        if (elapsed >= 0.5)
+        {
+            _framesPerSecond = (float)(_fpsFrames / elapsed);
+            _lastFrameMs = (float)(elapsed * 1000.0 / _fpsFrames);
+            _fpsFrames = 0;
+            _fpsClock.Restart();
+        }
+
         GraphicsDevice.Clear(new Color(9, 15, 25));
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
@@ -379,8 +426,7 @@ public sealed class Game1 : Game
     /// </summary>
     private void CaptureAndExit()
     {
-        const int warmupFrames = 4;
-        if (++_framesDrawn <= warmupFrames) return;
+        if (++_framesDrawn <= _warmupFrames) return;
 
         var viewport = GraphicsDevice.Viewport;
         var pixels = new Color[viewport.Width * viewport.Height];
@@ -506,12 +552,12 @@ public sealed class Game1 : Game
         _session.Yaw = _cameraYaw;
         _session.Pitch = _cameraPitch;
 
-        _session.Tick((float)gameTime.ElapsedGameTime.TotalSeconds);
+        _session.Tick(StepSeconds(gameTime));
 
         // Sprinting is the only thing that spends stamina yet, so it is what proves the
         // vitals on screen are the domain's numbers rather than painted ones.
         if (keyboard.IsKeyDown(Keys.LeftShift) && IsMoving(keyboard))
-            _session.Player.Vitals.SpendStamina(18f * (float)gameTime.ElapsedGameTime.TotalSeconds);
+            _session.Player.Vitals.SpendStamina(18f * StepSeconds(gameTime));
 
         if (Pressed(keyboard, Keys.F5)) _session.ShowToast(_session.Save());
         if (Pressed(keyboard, Keys.F9)) LoadSession();
@@ -584,6 +630,12 @@ public sealed class Game1 : Game
             var (center, extent) = MeasureModel(model);
             _modelCenters[key] = center;
             _modelNormalizers[key] = 1f / extent;
+
+            var bones = new Matrix[model.Bones.Count];
+            if (bones.Length > 0) model.CopyAbsoluteBoneTransformsTo(bones);
+            _modelBones[key] = bones;
+
+            ConfigureModelLighting(model);
         }
         catch (Exception exception)
         {
@@ -591,9 +643,33 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>
+    /// Lighting, fog and material settings that never change. Applied once per loaded model
+    /// rather than per mesh per frame.
+    /// </summary>
+    private static void ConfigureModelLighting(Model model)
+    {
+        foreach (var mesh in model.Meshes)
+        foreach (var effect in mesh.Effects)
+        {
+            if (effect is not BasicEffect basic) continue;
+
+            basic.EnableDefaultLighting();
+            basic.PreferPerPixelLighting = true;
+            basic.AmbientLightColor = new Vector3(0.54f, 0.57f, 0.62f);
+            basic.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-0.45f, -1f, -0.2f));
+            basic.DirectionalLight0.DiffuseColor = new Vector3(1f, 0.84f, 0.68f);
+            basic.DirectionalLight0.SpecularColor = new Vector3(0.24f);
+            basic.FogEnabled = true;
+            basic.FogStart = 18f;
+            basic.FogEnd = 45f;
+            basic.FogColor = new Color(70, 88, 91).ToVector3();
+        }
+    }
+
     private void UpdateCamera(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
-        var seconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        var seconds = StepSeconds(gameTime);
         var speed = keyboard.IsKeyDown(Keys.LeftShift) ? SprintSpeed : WalkSpeed;
         var yawInput = 0f;
         var pitchInput = 0f;
@@ -837,6 +913,8 @@ public sealed class Game1 : Game
         Text($"LEVEL {vitals.Level}", new Vector2(panel.X + 18, panel.Y + 12), 16, Color.White);
         TextRight($"{vitals.Gold} gold", panel.Right - 18, panel.Y + 12, 16, new Color(228, 197, 122));
         Text("F1  controls", new Vector2(panel.X + 18, panel.Y + 38), 13, new Color(146, 174, 178));
+        TextRight($"{_framesPerSecond:0} fps  {_lastFrameMs:0.0} ms", panel.Right - 18, panel.Y + 38, 13,
+            _framesPerSecond < 50f ? new Color(228, 128, 118) : new Color(146, 174, 178));
     }
 
     /// <summary>
@@ -945,9 +1023,9 @@ public sealed class Game1 : Game
             * Matrix.CreateRotationY(rotation)
             * Matrix.CreateTranslation(position);
 
-        var boneTransforms = new Matrix[model.Bones.Count];
-        if (boneTransforms.Length > 0)
-            model.CopyAbsoluteBoneTransformsTo(boneTransforms);
+        var boneTransforms = _modelBones.TryGetValue(key, out var cachedBones)
+            ? cachedBones
+            : Array.Empty<Matrix>();
 
         foreach (var mesh in model.Meshes)
         {
@@ -957,21 +1035,14 @@ public sealed class Game1 : Game
 
             foreach (var effect in mesh.Effects)
             {
+                // Only what actually changes per frame. Lighting and fog are set once, at
+                // load: EnableDefaultLighting rewrites every light and reselects a shader
+                // permutation, and it was running for every mesh of every model every frame.
                 if (effect is BasicEffect basic)
                 {
                     basic.World = meshTransform * world;
                     basic.View = _view;
                     basic.Projection = _projection;
-                    basic.EnableDefaultLighting();
-                    basic.PreferPerPixelLighting = true;
-                    basic.AmbientLightColor = new Vector3(0.54f, 0.57f, 0.62f);
-                    basic.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-0.45f, -1f, -0.2f));
-                    basic.DirectionalLight0.DiffuseColor = new Vector3(1f, 0.84f, 0.68f);
-                    basic.DirectionalLight0.SpecularColor = new Vector3(0.24f);
-                    basic.FogEnabled = true;
-                    basic.FogStart = 18f;
-                    basic.FogEnd = 45f;
-                    basic.FogColor = new Color(70, 88, 91).ToVector3();
                 }
             }
 
