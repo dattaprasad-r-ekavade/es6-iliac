@@ -563,9 +563,11 @@ public sealed class Game1 : Game
     /// Continue only appears when a save actually exists, so the menu never offers a door
     /// that opens onto nothing.
     /// </summary>
+    private const string DescendItem = "Descend into a Mine";
+
     private static string[] MenuItems => GameSession.HasSaveFile
-        ? new[] { "Continue", "Start New Game", "Settings", "Exit" }
-        : new[] { "Start New Game", "Settings", "Exit" };
+        ? new[] { "Continue", DescendItem, "Start New Game", "Settings", "Exit" }
+        : new[] { DescendItem, "Start New Game", "Settings", "Exit" };
 
     private void UpdateMenu(KeyboardState keyboard, MouseState mouse)
     {
@@ -636,6 +638,31 @@ public sealed class Game1 : Game
     /// </summary>
     private static Rectangle MenuItemBounds(int index) => new(120, 286 + index * 56, 368, 42);
 
+    /// <summary>
+    /// Drop into a world, generated or authored.
+    ///
+    /// Both paths go through here because the world has to be discarded and rebuilt when the
+    /// kind of world changes. Leaving the old one in place is how "Start New Game" after a
+    /// descent used to hand back the mine you had just left.
+    /// </summary>
+    private void EnterWorld(int? mineSeed)
+    {
+        _mineSeed = mineSeed;
+        _mineRooms = 6;
+        _mineDepth = 1;
+
+        _world = null;
+        _run = null;
+        _runSummary = null;
+
+        StartSession(GameSession.NewGame());
+        ResetCamera();
+
+        _menuStatus = string.Empty;
+        _screen = GameScreen.WorldScene;
+        SetMouseLook(true);
+    }
+
     private void ActivateMenuItem()
     {
         switch (MenuItems[_menuSelection])
@@ -648,13 +675,15 @@ public sealed class Game1 : Game
                     SetMouseLook(true);
                 }
                 break;
+            case DescendItem:
+                // A fresh mine every time. The seed is shown on the HUD so a good one can be
+                // asked for again with --mine.
+                EnterWorld(Environment.TickCount);
+                _session!.ShowToast("The shaft closes above you.");
+                break;
             case "Start New Game":
-                ResetCamera();
-                StartSession(GameSession.NewGame());
+                EnterWorld(null);
                 _session!.ShowToast("You wake on the Northwatch road.");
-                _menuStatus = string.Empty;
-                _screen = GameScreen.WorldScene;
-                SetMouseLook(true);
                 break;
             case "Settings":
                 _showSettings = true;
@@ -1557,7 +1586,9 @@ public sealed class Game1 : Game
 
     /// <summary>Where the player currently is, for the banner across the top of the HUD.</summary>
     private string LocationCaption() => _mineSeed is { } seed
-        ? $"MINE {unchecked((uint)seed):X4}  ·  DEPTH {_mineDepth}"
+        // The decimal seed, because that is what --mine takes: a mine worth replaying or
+        // reporting can be asked for again exactly.
+        ? $"MINE {seed}  ·  DEPTH {_mineDepth}"
         : "NORTHWATCH OUTSKIRTS";
 
     private void ResetCamera()
@@ -1923,15 +1954,39 @@ public sealed class Game1 : Game
         }
 
         DrawPanel(new Rectangle(560, 222, 592, 390), new Color(8, 16, 24, 226), new Color(65, 105, 119));
-        Text("NORTHWATCH OUTSKIRTS", new Vector2(592, 246), 14, new Color(151, 206, 210));
-        Text("A NORTHWATCH BEGINNING", new Vector2(592, 280), 24, Color.White);
-        TextFit("Meet the people at the gate and find your footing.", new Vector2(592, 326), 500f, 15, new Color(190, 203, 200));
-        TextFit("Talk, trade, explore the old road, and face the bandits.", new Vector2(592, 350), 500f, 15, new Color(190, 203, 200));
-        TextFit("Your choices and discoveries persist in your save.", new Vector2(592, 374), 500f, 15, new Color(190, 203, 200));
+
+        var descending = menuItems[_menuSelection] == DescendItem;
+        Text(descending ? "BELOW RATNA BAY" : "NORTHWATCH OUTSKIRTS",
+            new Vector2(592, 246), 14, new Color(151, 206, 210));
+        Text(descending ? "A DESCENT" : "A NORTHWATCH BEGINNING",
+            new Vector2(592, 280), 24, Color.White);
+
+        var blurb = descending
+            ? new[]
+            {
+                "A mine that has never been walked before.",
+                "Clear a room and it pays. Clear the next and it pays more.",
+                "Camp at a door to bank it, or open the door and risk the lot."
+            }
+            : new[]
+            {
+                "Meet the people at the gate and find your footing.",
+                "Talk, trade, explore the old road, and face the bandits.",
+                "Your choices and discoveries persist in your save."
+            };
+
+        for (var line = 0; line < blurb.Length; line++)
+            TextFit(blurb[line], new Vector2(592, 326 + line * 24), 500f, 15,
+                new Color(190, 203, 200));
+
         Text("WHAT YOU CAN DO", new Vector2(592, 414), 12, new Color(214, 183, 108));
-        Text("Explore Northwatch", new Vector2(592, 442), 14, new Color(190, 215, 208));
-        Text("Talk and trade with locals", new Vector2(592, 468), 14, new Color(190, 215, 208));
-        Text("Fight, sneak, and save", new Vector2(592, 494), 14, new Color(190, 215, 208));
+
+        var doing = descending
+            ? new[] { "Fight through generated rooms", "Bank your stones, or press on", "Die and lose the lot" }
+            : new[] { "Explore Northwatch", "Talk and trade with locals", "Fight, sneak, and save" };
+
+        for (var line = 0; line < doing.Length; line++)
+            Text(doing[line], new Vector2(592, 442 + line * 26), 14, new Color(190, 215, 208));
 
         Text("Click or hover to choose      Up / Down select      Enter confirm      Esc safe",
             new Vector2(98, 610), 14, new Color(163, 191, 194));
