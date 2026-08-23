@@ -131,12 +131,85 @@ receives the thesis.
 
 ---
 
+## Aesthetic
+
+**Neither pixel art nor realism. What the game already is.**
+
+The trailer must show what a buyer will actually get. A pre-rendered or realistic opening on a
+game made of flat-pigment sprites is the most common indie trailer mistake and it is paid for
+twice — in reviews that call it a bait and switch, and in refunds from people who wishlisted the
+shot rather than the game. **Everything is filmed in engine.**
+
+The art direction is already locked, and it is neither of the two options:
+
+> *Flat pigment with a drawn contour is the locked art direction.*
+> `BloomIntensity = 0f, // flat pigment does not bloom`
+
+Low-poly geometry, flat-shaded colour, billboard sprites with hard outlines. The Delver and
+Lunacid family. That is a look people seek out, not a compromise.
+
+### The Stambha: low-poly geometry, high-resolution carving
+
+The pillar is as low-poly as everything else — a plinth, a tapering shaft, a capital. The
+**carving is the one high-resolution element in the frame**, and that is deliberate on two
+counts.
+
+First, necessity: Devanagari conjuncts turn to mush below roughly 128 pixels a line, and a
+carving that does not read *as writing* defeats the shot. A stranger has six seconds to register
+"that is a script, and it is not Latin."
+
+Second, composition: in a world of flat pigment, **the one sharp thing owns the eye.** The
+carving becomes the focal point without anything being composed around it.
+
+### The carving is generated, not painted
+
+`StambhaCarving` renders the verse from **Noto Sans Devanagari** (SIL OFL, bundled beside the
+existing Noto Sans and Cinzel) and then weathers it in code: grooves cut dark, a lighter lip on
+the upper edge where a raking light catches, chips, tonal banding as though cut from bedded
+rock, and mineral staining running downward out of the cuts because water runs downward.
+
+The point is the same as with the character sprites — **the text is data.** Changing the verse,
+the stone colour or the weathering costs no artist time, and the deeper pillar carrying a
+different line is a different string rather than a new asset.
+
+### Lighting is the whole trick
+
+One warm light, raking upward from where the jiva stone sits, ambient dropped hard, and the far
+side of the pillar allowed to fall into black. The stone itself is drawn **unlit with an
+emissive colour**, or the light source becomes the darkest object in its own shot.
+
+**Flat pigment with one hard source is a look. Flat pigment under even light is a placeholder.**
+
+The trailer also gets a three-act colour arc for free: cold cave, warm lamplit fort, cold cave.
+
+### What not to do
+
+Film grain, letterboxing, motion blur, lens flare, fake depth of field. They read as insecurity
+about the art and they convince nobody. Delver's trailer does not do it. Lunacid's does not.
+
+### The one exception: capsule art
+
+Steam capsule art is illustration by convention. An illustrated, painterly capsule on a low-poly
+game is completely standard and misleads no one — it is the poster, not the film. **That is
+where the commissioned art budget belongs**, and it may be considerably more rendered than the
+game. The same composition works: pillar, stone, and a figure rising.
+
+**Trailer in engine. Capsule illustrated.**
+
+### Verified
+
+`RatnaBay.exe --stambha` frames the opening shot in engine. As of this writing it renders the
+pillar, the legible carving, and the stone lighting it — which is what settles the question
+above with a picture rather than an argument.
+
+---
+
 ## What this demands of the slice
 
 Ranked by what does not yet exist:
 
-1. **The Stambha with carved text** (shots 1, 11) — a pillar prop and a texture. The single most
-   important asset in the trailer, and the cheapest of the five.
+1. ~~**The Stambha with carved text**~~ — **done.** `StambhaCarving` generates the verse from a
+   bundled Devanagari font and weathers it; `--stambha` frames the shot in engine.
 2. **Preta rising from a stone** (shot 2) — enemies currently just appear. Needs the stone to dim
    and the figure to rise.
 3. **One fort room with a conversation** (shot 6) — dialogue already works; it needs a warm room

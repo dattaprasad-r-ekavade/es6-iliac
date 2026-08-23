@@ -137,6 +137,9 @@ public sealed class Game1 : Game
     private float? _captureCast;
     private bool _captureApplied;
 
+    /// <summary>--stambha: frame the carved pillar as the trailer's opening shot.</summary>
+    private bool _stambhaPreview;
+
     /// <summary>Screen to force open for --screenshot: inventory, journal, shop or help.</summary>
     private string? _captureScreen;
 
@@ -202,6 +205,7 @@ public sealed class Game1 : Game
         // Opens a screen for a capture, so an interface change can be looked at rather than
         // described. Screenshot mode only.
         _captureScreen = ParseOption(args, "--show");
+        _stambhaPreview = HasArgument(args, "--stambha");
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
         if (_screenshotPath is not null)
@@ -309,6 +313,9 @@ public sealed class Game1 : Game
         _headingFontSystem.UseKernings = true;
         _headingFontSystem.AddFont(File.ReadAllBytes(Path.Combine(fontsDirectory, "Cinzel", "Cinzel-wght.ttf")));
 
+        // Devanagari for the carved verses. Absent, the pillar simply stands blank.
+        StambhaCarving.Load(fontsDirectory);
+
         _white = new Texture2D(GraphicsDevice, 1, 1);
         _white.SetData(new[] { Color.White });
 
@@ -354,6 +361,7 @@ public sealed class Game1 : Game
         CharacterSprites.Clear();
         WeaponSprites.Clear();
         BoltSprites.Clear();
+        StambhaCarving.Clear();
         base.UnloadContent();
     }
 
@@ -1813,6 +1821,18 @@ public sealed class Game1 : Game
 
     private void DrawWorldScene()
     {
+        if (_stambhaPreview)
+        {
+            // Framed as the trailer's opening: close on the pillar, the stone low and left.
+            _cameraPosition = new Vector3(0f, 0.75f, 2.1f);
+            _cameraPitch = -0.02f;
+            _cameraYaw = 0f;
+            UpdateCameraMatrices();
+
+            DrawStambhaPreview();
+            return;
+        }
+
         DrawAuthoredWorld();
         DrawSpeakingActors();
         DrawWatchers();
@@ -2291,6 +2311,88 @@ public sealed class Game1 : Game
 
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+    }
+
+    /// <summary>
+    /// The trailer's opening shot, in engine.
+    ///
+    /// A dark cave, one jiva stone glowing, and its light raking across a carved Stambha. Flat
+    /// pigment with a single hard light source is a look; flat pigment with even lighting is a
+    /// placeholder, which is the whole reason the scene is lit this way.
+    /// </summary>
+    private void DrawStambhaPreview()
+    {
+        GraphicsDevice.Clear(new Color(14, 13, 16));
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+
+        // The stone is the light. BasicEffect has no point lights, so it is faked with a warm
+        // directional raking up from where the stone sits, the key light killed, and the
+        // ambient dropped hard. Flat pigment with one hard source is a look; flat pigment
+        // under even light is a placeholder.
+        var ambient = _primitiveEffect.AmbientLightColor;
+        var keyDirection = _primitiveEffect.DirectionalLight0.Direction;
+        var keyColour = _primitiveEffect.DirectionalLight0.DiffuseColor;
+        var fillEnabled = _primitiveEffect.DirectionalLight1.Enabled;
+
+        _primitiveEffect.AmbientLightColor = new Vector3(0.17f, 0.15f, 0.17f);
+        _primitiveEffect.DirectionalLight0.Direction =
+            Vector3.Normalize(new Vector3(0.62f, 0.66f, -0.42f));
+        _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(1.45f, 0.94f, 0.48f);
+        _primitiveEffect.DirectionalLight1.Enabled = true;
+        _primitiveEffect.DirectionalLight1.Direction =
+            Vector3.Normalize(new Vector3(-0.3f, -0.5f, -1f));
+        _primitiveEffect.DirectionalLight1.DiffuseColor = new Vector3(0.10f, 0.13f, 0.20f);
+
+        // Cave floor and back wall, as low-poly and as flat as everything else.
+        DrawCube(new Vector3(0f, -1.4f, 0f), new Vector3(14f, 0.4f, 14f), new Color(58, 52, 46), 0f);
+        DrawCube(new Vector3(0f, 2.2f, -5.0f), new Vector3(11f, 7f, 0.4f), new Color(38, 35, 34), 0f);
+        DrawCube(new Vector3(-4.2f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 6f), new Color(33, 31, 30), 0f);
+        DrawCube(new Vector3(4.2f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 6f), new Color(33, 31, 30), 0f);
+
+        // The pillar: a tapering column, a dozen faces at most.
+        DrawCube(new Vector3(0f, -1.15f, -3.4f), new Vector3(3.3f, 0.4f, 1.7f), new Color(78, 72, 64), 0f);
+        DrawCube(new Vector3(0f, 0.8f, -3.4f), new Vector3(2.7f, 3.7f, 1.2f), new Color(104, 97, 87), 0f);
+        DrawCube(new Vector3(0f, 2.9f, -3.4f), new Vector3(3.0f, 0.34f, 1.45f), new Color(78, 72, 64), 0f);
+
+        // The carved face, standing just proud of the shaft.
+        var carving = StambhaCarving.Get(GraphicsDevice, StambhaCarving.SurfaceVerse);
+        if (carving is not null)
+        {
+            _billboards.Begin(_view, _projection);
+            _billboards.Draw(carving, new Vector3(0f, 0.5f, -2.78f), 1.14f, 0f,
+                new Color(255, 226, 190));
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+            GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+        }
+
+        // The jiva stone, low and to the left, so the light rakes up across the cuts.
+        // The stone emits rather than reflects, so it is drawn unlit — otherwise the light
+        // source is the darkest object in its own shot.
+        _primitiveEffect.EmissiveColor = new Vector3(0.95f, 0.62f, 0.30f);
+        DrawCube(new Vector3(-1.35f, -1.02f, -2.1f), new Vector3(0.34f, 0.34f, 0.34f),
+            new Color(255, 206, 132), 0.6f);
+
+        _primitiveEffect.EmissiveColor = new Vector3(1f, 0.94f, 0.82f);
+        DrawCube(new Vector3(-1.35f, -1.0f, -2.1f), new Vector3(0.2f, 0.2f, 0.2f),
+            new Color(255, 250, 236), 0.6f);
+
+        _primitiveEffect.EmissiveColor = Vector3.Zero;
+
+        _primitiveEffect.AmbientLightColor = ambient;
+        _primitiveEffect.DirectionalLight0.Direction = keyDirection;
+        _primitiveEffect.DirectionalLight0.DiffuseColor = keyColour;
+        _primitiveEffect.DirectionalLight1.Enabled = fillEnabled;
+
+        BeginUi();
+        if (carving is null)
+            TextCentred("Devanagari font not loaded", LogicalWidth / 2f, 300f, 20,
+                new Color(228, 128, 118));
+
+        TextCentred("\"Covet not \u2014 for whose is wealth?\"",
+            LogicalWidth / 2f, 596f, 20, new Color(214, 206, 190));
+        TextCentred("Isha Upanishad 1", LogicalWidth / 2f, 630f, 14, new Color(140, 132, 120));
+        EndUi();
     }
 
     /// <summary>A red vignette while the player is being hurt.</summary>
