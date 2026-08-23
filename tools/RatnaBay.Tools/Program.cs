@@ -294,6 +294,10 @@ static int RunReview(string[] arguments)
         Console.WriteLine($"  {run.Seconds / 60f:0.0} min, {run.RoomsCleared} rooms, "
             + $"{run.EnemiesKilled} kills, {run.DamageTaken:0} damage taken");
 
+        var refused = run.CastsRefused > 0 ? $", {run.CastsRefused} refused for want of prana" : "";
+        Console.WriteLine($"  {run.MeleeSwings} swings ({run.MeleeLanded} landed), "
+            + $"{run.SpellsCast} spells{refused}");
+
         if (run.RoomSeconds.Count > 0)
             Console.WriteLine($"  per room: "
                 + string.Join(", ", run.RoomSeconds.Select(seconds => $"{seconds:0}s")));

@@ -751,7 +751,7 @@ public sealed class Game1 : Game
                 _recorder.Record(PlayEventKind.DecisionOffered,
                     $"after {decision.Run.RoomsCleared} rooms",
                     decision.Run.Pending, decision.Run.NextRoomPays,
-                    _session.Player.Vitals.Health);
+                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
             }
 
             if (Pressed(keyboard, Keys.C))
@@ -1042,6 +1042,13 @@ public sealed class Game1 : Game
 
             var outcome = _encounter.PlayerAttack();
 
+            // Melee was invisible to the recorder, so a session fought with the sword read
+            // back as one where no melee happened at all.
+            _recorder.Record(PlayEventKind.MeleeSwing,
+                _session.Player.Combat.ActiveWeapon.DisplayName,
+                outcome.Damage, outcome.Result == AttackResult.Hit ? 1f : 0f,
+                _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+
             // The arm moves whenever the swing actually happened — a hit and a miss look the
             // same from behind the weapon, which is what makes missing feel like missing
             // rather than like the button not working.
@@ -1055,7 +1062,16 @@ public sealed class Game1 : Game
             {
                 _weaponView.Cast();
                 _recorder.Record(PlayEventKind.SpellCast, cast.Spell?.DisplayName ?? "spell",
-                    cast.Spell?.Power ?? 0f, 0f, _session.Player.Vitals.Health);
+                    cast.Spell?.Power ?? 0f, 0f,
+                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+            }
+            else
+            {
+                // A spell that would not go off is the moment the economy bites, and it is
+                // usually the reason a mage picks the sword back up.
+                _recorder.Record(PlayEventKind.CastFailed, cast.Spell?.DisplayName ?? "spell",
+                    cast.Spell?.BaseCost ?? 0f, 0f,
+                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
             }
             ReportCast(cast);
         }
@@ -1440,13 +1456,15 @@ public sealed class Game1 : Game
             _session?.Player.Vitals.Health ?? 0f);
 
         _run.RoomEntered += room => _recorder.Record(PlayEventKind.RoomEntered,
-            $"room {room}", room, 0f, _session?.Player.Vitals.Health ?? 0f);
+            $"room {room}", room, 0f, _session?.Player.Vitals.Health ?? 0f,
+            _session?.Player.Vitals.Prana ?? 0f);
 
         _run.RoomCleared += paid =>
         {
             _session?.ShowToast($"Room clear.  +{paid} stones held  ({_run.Run.Pending} at risk)");
             _recorder.Record(PlayEventKind.RoomCleared, $"room {_run.CurrentRoom}", paid,
-                _run.Run.Pending, _session?.Player.Vitals.Health ?? 0f);
+                _run.Run.Pending, _session?.Player.Vitals.Health ?? 0f,
+                _session?.Player.Vitals.Prana ?? 0f);
         };
     }
 

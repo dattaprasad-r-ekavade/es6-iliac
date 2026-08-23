@@ -48,7 +48,7 @@ public sealed class PlayRecorder
     }
 
     public void Record(string kind, string detail = "", float value = 0f, float extra = 0f,
-        float health = 0f)
+        float health = 0f, float prana = 0f)
     {
         if (_broken) return;
 
@@ -59,7 +59,8 @@ public sealed class PlayRecorder
             Detail = detail ?? string.Empty,
             Value = value,
             Extra = extra,
-            Health = health
+            Health = health,
+            Prana = prana
         });
 
         if (++_sinceFlush < FlushEvery) return;

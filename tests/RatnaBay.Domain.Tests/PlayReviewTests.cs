@@ -362,6 +362,34 @@ public class PlayReviewTests
     }
 
     [Test]
+    public void HowTheFightWasFoughtIsCounted()
+    {
+        // The gap this closes: a session fought entirely with the sword was read back as one
+        // where no melee happened, because nothing recorded melee and silence was mistaken
+        // for absence. A miss counts as a swing; only a landing counts as landed.
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine", 1, 1)
+            .At(PlayEventKind.MeleeSwing, "Iron Sword", 9f, 1f)
+            .At(PlayEventKind.MeleeSwing, "Iron Sword", 0f, 0f)
+            .At(PlayEventKind.MeleeSwing, "Iron Sword", 9f, 1f)
+            .At(PlayEventKind.SpellCast, "Flame", 22f)
+            .At(PlayEventKind.CastFailed, "Flame", 22f)
+            .At(PlayEventKind.CastFailed, "Flame", 22f)
+            .Done();
+
+        var run = PlayReview.Runs(recording)[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.MeleeSwings, Is.EqualTo(3));
+            Assert.That(run.MeleeLanded, Is.EqualTo(2), "a miss is still a swing");
+            Assert.That(run.SpellsCast, Is.EqualTo(1));
+            Assert.That(run.CastsRefused, Is.EqualTo(2),
+                "running dry is why a mage picks the sword back up");
+        });
+    }
+
+    [Test]
     public void DamageTakenAccumulatesAcrossTheDescent()
     {
         var recording = new Tape()

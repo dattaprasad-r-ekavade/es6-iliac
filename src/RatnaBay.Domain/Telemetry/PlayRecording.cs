@@ -19,6 +19,18 @@ public static class PlayEventKind
     public const string PressedOn = "decision.pressed";
 
     public const string EnemyKilled = "enemy.killed";
+
+    /// <summary>
+    /// A swing of the equipped weapon, landed or missed.
+    ///
+    /// Added after a session was read back as "no melee happened" when the player had in fact
+    /// fought the last room entirely with the sword. Nothing recorded melee, and silence was
+    /// mistaken for absence — which is the most dangerous failure a log can have.
+    /// </summary>
+    public const string MeleeSwing = "melee.swing";
+
+    /// <summary>A spell that would not go off, almost always for want of prana.</summary>
+    public const string CastFailed = "spell.failed";
     public const string PlayerHurt = "player.hurt";
     public const string SpellCast = "spell.cast";
     public const string ItemUsed = "item.used";
@@ -49,6 +61,9 @@ public sealed class PlayEvent
 
     /// <summary>Health at the moment, because most questions turn out to be about pressure.</summary>
     public float Health { get; set; }
+
+    /// <summary>Prana at the moment. Running dry is what forces a change of weapon.</summary>
+    public float Prana { get; set; }
 }
 
 /// <summary>
@@ -116,6 +131,10 @@ public sealed record RunReview(
     bool Survived,
     float DamageTaken,
     int EnemiesKilled,
+    int MeleeSwings,
+    int MeleeLanded,
+    int SpellsCast,
+    int CastsRefused,
     IReadOnlyList<DecisionReview> Decisions,
     IReadOnlyList<float> RoomSeconds)
 {
@@ -198,6 +217,10 @@ public static class PlayReview
         var survived = false;
         var damage = 0f;
         var kills = 0;
+        var swings = 0;
+        var landed = 0;
+        var casts = 0;
+        var refused = 0;
         var endedAt = start.At;
 
         float? offeredAt = null;
@@ -268,6 +291,20 @@ public static class PlayReview
                     kills++;
                     break;
 
+                case PlayEventKind.MeleeSwing:
+                    swings++;
+                    // Extra carries whether it connected; a miss is still a swing.
+                    if (item.Extra > 0f) landed++;
+                    break;
+
+                case PlayEventKind.SpellCast:
+                    casts++;
+                    break;
+
+                case PlayEventKind.CastFailed:
+                    refused++;
+                    break;
+
                 case PlayEventKind.PlayerHurt:
                     damage += item.Value;
                     break;
@@ -286,7 +323,7 @@ public static class PlayReview
         return Build();
 
         RunReview Build() => new(seed, tier, start.At, endedAt, roomsCleared, banked, lost,
-            survived, damage, kills, decisions, roomSeconds);
+            survived, damage, kills, swings, landed, casts, refused, decisions, roomSeconds);
     }
 
     /// <summary>Every decision across every run, for the only question that matters yet.</summary>
