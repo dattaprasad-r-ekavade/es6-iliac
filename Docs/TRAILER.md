@@ -1,26 +1,31 @@
 # Ratna Bay — Trailer Script and Scope Contract
 
-**Purpose:** two jobs at once. It is the 45 seconds that sell the game, and it is the list of
+**Purpose:** two jobs at once. It is the fifty seconds that sell the game, and it is the list of
 things the vertical slice must be able to show. Anything not in this document does not need to
 exist for launch.
 
 **Constraints, from Steam's own guidance:**
 
 - 30–60 seconds. Drop-off is steep past 90 for an unknown indie.
-- The **first three seconds** must be the game's visual identity. No logo, no title card, no
-  black screen with text.
+- The **first three seconds** must be the game's visual identity. Not a logo, not a title card,
+  and **not a black screen with text**.
 - Steam auto-generates a **six-second microtrailer** from the opening of this video, shown
-  before anyone clicks through. The first six seconds therefore do double duty and must read
-  with no context and no sound.
+  before anyone clicks through. The first six seconds must read with no sound and no context.
 - The custom thumbnail must be an actual frame from the video, 1920×1080.
 
 ---
 
-## The one sentence
+## The thesis
 
-> *A mining town digs up stones that raise the dead. You are hired to go down and clear them.*
+> *The quest for power corrupts, and what it corrupts does not stay dead.*
 
-Every shot below serves that sentence or the loop it implies. If a shot does neither, it is cut.
+This is not a dressing on the game — it **is** the game. Prana is the mana bar, the town's
+economy, and a moral question at the same time. Lawful stones take from the released; unlawful
+ones drip-feed the living. The Stambha measures what has been drawn.
+
+The trailer's job is to make a stranger feel that in the first ten seconds, before a single
+sword is swung. **A roguelike trailer that opens on combat is every roguelike trailer.** This one
+opens on the reason the combat exists.
 
 ---
 
@@ -28,60 +33,88 @@ Every shot below serves that sentence or the loop it implies. If a shot does nei
 
 | # | Time | Shot | Sound | Status |
 |---|---|---|---|---|
-| 1 | 0:00–0:03 | Close on a jiva stone half-buried in lava-cave rock, glowing. Prana bleeds out of it and a **preta rises** from the floor in front of the camera | A low tone, one hit | **Build: rise animation** |
-| 2 | 0:03–0:06 | Pull back: three preta in an orange-lit cave, the player's sword rising into frame | Ambient cave | Have |
-| 3 | 0:06–0:12 | Melee: two swings, a guard that visibly absorbs a blow, a kill with the gold marker | Impacts | Have |
-| 4 | 0:12–0:18 | Turn, cast **Rime** — bolt crosses the room in pale blue, target flashes cold and visibly slows | Cast whoosh | Have |
-| 5 | 0:18–0:22 | Cut to a **water cave** — blue shading, different preta. Cast **Arc**, gold bolt, it chains to a second target | Crackle | **Build: themes** |
-| 6 | 0:22–0:30 | The camp decision. Banked count on screen. Camera looks at the camp, then at the unopened door. **Beat.** The door opens | Silence, then one door sound | **Build: camp UI** |
-| 7 | 0:30–0:35 | It goes wrong. Damage arc from behind, health dropping, the screen edge red. The player dies | Muffled, dropping out | Have |
-| 8 | 0:35–0:41 | Quiet. A **new Deepankar** walks into the same cave and picks up the fallen one's cache. Amulets carry over on screen | A single held note | **Build: succession** |
-| 9 | 0:41–0:45 | Cut to the fort. A door that was shut is open. Someone inside turns to look. Title: **RATNA BAY** | Music resolves | **Build: fort** |
+| 1 | 0:00–0:05 | Darkness. A **jiva stone** glows in the rock. Its light falls across **Devanagari carved into a Stambha** behind it — a weathered stone pillar. Camera pushes slowly in. Translation in small type at the lower third | One low sustained tone | **Build: Stambha, carved text** |
+| 2 | 0:05–0:09 | The stone **cracks and leaks**. Prana bleeds into the rock. A **preta rises** in front of the pillar — the carved verse still faintly lit behind it | The tone bends, then a hit | **Build: rise animation** |
+| 3 | 0:09–0:11 | Over the rising figure: **"The stones remember who they were."** | Held | Text card |
+| 4 | 0:11–0:18 | Combat. Two sword swings, a guard absorbing a blow, then a **Rime bolt** crossing the cave in pale blue and the target visibly slowing | Impacts, cast | Have |
+| 5 | 0:18–0:20 | **"The town burns them to keep its lamps lit."** | — | Text card |
+| 6 | 0:20–0:27 | **Cut to the fort.** Lamplight, warm after the cave. A Deepankar in conversation — the dialogue panel, a real answer on screen. A shut door **opens** and someone inside turns to look | Room tone, low voices | **Build: fort, one room** |
+| 7 | 0:27–0:33 | Back down, a **different cave** — water-blue, different preta. **Arc** fires gold and chains to a second target | Crackle | **Build: themes** |
+| 8 | 0:33–0:39 | The camp decision. Banked stones on screen. The camera looks at the camp, then at the unopened door. **Beat.** The door opens | Silence, then one door | **Build: camp UI** |
+| 9 | 0:39–0:43 | It goes wrong. Damage arc from behind, health falling, red at the edges. The player dies | Muffled, dropping out | Have |
+| 10 | 0:43–0:45 | **"When one falls, another takes the lamp."** | A single held note | Text card |
+| 11 | 0:45–0:50 | A **new Deepankar** walks into the same cave, lamp raised, and lifts the fallen one's cache. Cut to the Stambha, the verse lit. Title: **RATNA BAY** | Music resolves | **Build: succession** |
 
-**Total: 45 seconds.**
+**Total: 50 seconds.**
 
 ---
 
-## Why this order
+## Why this structure
 
-**Shots 1–2 are the microtrailer.** They have to carry the whole premise with no sound and no
-context: a stone, a dead thing rising out of it, a sword. Someone who sees only these six seconds
-should be able to repeat the pitch.
+**Shots 1–2 are the microtrailer, and they are the whole differentiation.** Six seconds of
+Devanagari lit by a glowing stone, and a corpse standing up in front of it. Someone who sees only
+that, muted, in a Steam grid, knows this is not another dungeon crawler. Combat in the first six
+seconds would have thrown that away.
 
-**Shots 3–5 answer "what do I do".** Melee, then magic, then a second cave that visibly plays
-differently. Five exists to prove the game is not one room recoloured — it is the replayability
-argument, made visually.
+**The verse is carved, never on black.** That satisfies Steam's rule, keeps the frame alive, and
+puts the writing *in the world* rather than over it. It is also cheaper: a texture on a pillar,
+not a motion-graphics job.
 
-**Shot 6 is the game.** Eight seconds on a decision with no action in it is a deliberate risk: it
-is the only part of the trailer that shows the loop rather than the combat, and it is what
-separates this from every other sprite dungeon crawler. If it is dull on screen it is probably
-dull to play, and that is worth learning here.
+**Three text cards, no more, each about two seconds, always over moving image.** They escalate
+rather than repeat — what the stones are, what the town does with them, what happens to you. The
+last one lands *before* the succession shot so the player understands what they are watching
+instead of being confused by it.
 
-**Shots 7–8 are the differentiator.** Dying is common. Being *replaced*, and walking back to
-collect your predecessor's body, is not. This gets six seconds — more than the combat — because
-it is the thing no competitor in this niche has.
+**Shot 6 is the structural move.** Cutting to lamplight and a conversation halfway through breaks
+the cave rhythm and says *there is a place to come back to, and people in it*. Every competitor
+in this niche is dungeon-only. Seven seconds of warm light is the cheapest possible way to say
+this one is not.
 
-**Shot 9 is the reason to buy.** The town opens. There is something behind that.
+**Shots 9–11 get eight seconds — more than the melee.** Everyone has combat. Nobody in this niche
+has being **replaced**, walking back down, and lifting your predecessor's body. That is the shot
+that earns the wishlist.
+
+---
+
+## Open questions on the verse
+
+Two decisions that are yours, not mine.
+
+**Where the words come from.** An **invented in-world verse**, carved on the Stambha and
+attributed to the order, gives complete control over the meaning and avoids a real risk: quoting
+actual Hindu scripture in a game whose central mechanic is drawing life force from the dying may
+read badly to some players, and a store page is not the place to discover that. An invented text
+can also say precisely what the game needs, which a real one never quite does.
+
+**Whether Devanagari or a constructed script.** Devanagari is instantly recognisable and grounds
+the setting truthfully. A constructed script is safer and less specific. Devanagari is the
+stronger choice and the one that makes the trailer distinctive; it just has to be *right*, so
+it needs a translator rather than a machine.
+
+Either way: **the English translation sits in small type in the lower third**, so a viewer who
+cannot read the carving still gets the thesis.
 
 ---
 
 ## What this demands of the slice
 
-Everything the trailer shows must exist and be filmable. Ranked by what is not yet built:
+Ranked by what does not yet exist:
 
-1. **Preta rising from a stone** (shot 1) — the single most important asset in the trailer, and
-   currently enemies simply appear. Needs a spawn animation: the stone dims, the figure rises.
-2. **Cave themes** (shot 5) — at minimum lava and water, with visible colour shading and
-   different preta. Two themes will film; five ship.
-3. **The camp decision UI** (shot 6) — banked count, the camp, the door, and a readable choice.
-4. **Succession** (shot 8) — death, a successor, and the recoverable cache made visible.
-5. **The fort** (shot 9) — one room opening is enough to film. Ten ship.
+1. **The Stambha with carved text** (shots 1, 11) — a pillar prop and a texture. The single most
+   important asset in the trailer, and the cheapest of the five.
+2. **Preta rising from a stone** (shot 2) — enemies currently just appear. Needs the stone to dim
+   and the figure to rise.
+3. **One fort room with a conversation** (shot 6) — dialogue already works; it needs a warm room
+   and a door that opens.
+4. **The camp decision UI** (shot 8) — banked count, the camp, the door, a readable choice.
+5. **Succession and the cache** (shot 11) — death, a successor, the pickup made visible.
+6. **Two cave themes** (shots 2, 7) — lava and water is enough to film.
 
 Already filmable: melee with guard and hit markers, elemental bolts with chaining, the damage
-arc and death, the weapon in hand, sprite enemies, the HUD.
+arc and death, the weapon in hand, sprite enemies, the dialogue panel, the HUD.
 
-**Scope contract:** the trailer needs *two* cave themes and *one* fort room opening. Five themes
-and ten rooms are for the release, not for the film. Do not build ten rooms to shoot one.
+**Scope contract:** the trailer needs **two** cave themes and **one** fort room. Five themes and
+ten rooms are for the release, not for the film. Do not build ten rooms to shoot one.
 
 ---
 
@@ -89,25 +122,26 @@ and ten rooms are for the release, not for the film. Do not build ten rooms to s
 
 **Shoot it deterministically.** The game already takes reproducible captures — `--screenshot`,
 `--yaw`, `--pitch`, `--swing`, `--cast`, `--show`. Extend that with a scripted camera path and
-fixed seeds so a shot can be re-filmed identically after the game changes. Trailers get recut
+fixed seeds so any shot can be re-filmed identically after the game changes. Trailers get recut
 many times; without this, every recut is a day of replaying runs hoping for a good one.
 
-**Record over the top with OBS.** Capture at 1920×1080, 60fps.
+**Record over the top with OBS**, 1920×1080 at 60fps.
 
-**The thumbnail** must be a frame from the video. Shot 1 or shot 5 — a preta lit by a stone.
+**The thumbnail** is a frame from shot 1 or shot 2 — the carved verse lit by a stone, or the
+preta rising in front of it. Both carry the premise as a still.
 
 **Capsule art is a separate commission and matters as much as the trailer**, because it earns
-the click that leads to it.
+the click that leads to it. The same image works: pillar, stone, and a figure rising.
 
 ---
 
 ## Sequence
 
 1. **Now** — this script. Free, and it has already produced a build list.
-2. **Iterations 13–14** — generated mines and the run loop. Shot 6 comes out of this.
-3. **Then the trailer shots** — rise animation, two themes, succession, one fort room.
-4. **itch.io** — free, reversible. Put it in front of strangers and watch whether they push one
-   room too far.
+2. **Iterations 13–14** — generated mines and the run loop. Shot 8 falls out of this.
+3. **Then the trailer shots** — the Stambha, the rise, one fort room, succession, two themes.
+4. **itch.io** — free and reversible. Put it in front of strangers and watch whether they push
+   one room too far.
 5. **Fix what they find.**
 6. **Steam page and trailer.** One first impression; spend it on a loop that has been validated
    rather than one that is hoped for.

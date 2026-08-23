@@ -216,9 +216,9 @@ One board. Work in progress limit: **one**.
 ### Next
 
 - Iteration 13 — room-graph generator emitting a `WorldManifest`.
-- Trailer build list, from [`TRAILER.md`](TRAILER.md): preta rise animation, two cave themes,
-  the camp decision UI, succession, one fort room. Two themes and one room film the trailer;
-  five and ten ship the game.
+- Trailer build list, from [`TRAILER.md`](TRAILER.md): the Stambha and its carved verse, the
+  preta rise animation, one fort room with a conversation, the camp decision UI, succession,
+  and two cave themes. Two themes and one room film the trailer; five and ten ship the game.
 
 ### Ready
 
