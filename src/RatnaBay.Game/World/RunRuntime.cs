@@ -48,6 +48,15 @@ public sealed class RunRuntime
     /// <summary>Raised when a room is cleared, carrying what it paid.</summary>
     public event Action<int>? RoomCleared;
 
+    /// <summary>
+    /// Raised when the player walks into a new room, carrying its index.
+    ///
+    /// Recorded here rather than at the camp panel because the first room is not entered
+    /// through that panel — there is nothing banked yet, so it is opened by the ordinary door
+    /// prompt, and a recorder hooked to the panel misses it every single run.
+    /// </summary>
+    public event Action<int>? RoomEntered;
+
     public bool HasRooms => _rooms.Count > 1;
 
     public void Update(WorldRuntime world, Vector3 playerPosition, Encounter encounter)
@@ -70,8 +79,10 @@ public sealed class RunRuntime
         if (room is null || room.Index == CurrentRoom) return;
 
         // Only ever forward. Walking back into a cleared room is not a new fight.
-        if (room.Index > CurrentRoom) Run.EnterRoom();
+        var deeper = room.Index > CurrentRoom;
+        if (deeper) Run.EnterRoom();
         CurrentRoom = room.Index;
+        if (deeper) RoomEntered?.Invoke(room.Index);
     }
 
     private void TrackClearance(Encounter encounter)

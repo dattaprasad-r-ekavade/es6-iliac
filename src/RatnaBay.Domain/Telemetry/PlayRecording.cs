@@ -135,7 +135,17 @@ public sealed record DecisionReview(
     int NextPays,
     float Health,
     float Hesitation,
-    bool PressedOn);
+    bool PressedOn)
+{
+    /// <summary>
+    /// The mine had nothing deeper, so camping was the only thing left to do.
+    ///
+    /// This matters more than it looks. Counting a forced camp as a choice to bank makes a
+    /// player who pressed on at every real door look balanced, which is the exact opposite of
+    /// what they did — and it would hide the finding the recorder exists to surface.
+    /// </summary>
+    public bool Forced => NextPays <= 0;
+}
 
 /// <summary>
 /// Turns a recording into the handful of numbers worth arguing about.
@@ -194,6 +204,12 @@ public static class PlayReview
         PlayEvent? offered = null;
         float? roomStartedAt = null;
 
+        // The room count of the last decision actually answered. A second offer at the same
+        // count is the same door being re-advertised, not a new question — the panel can stay
+        // up for a frame after the answer, and counting that would restart the clock at zero
+        // and report a long deliberation as an instant one.
+        var lastAnswered = -1;
+
         for (index++; index < events.Count; index++)
         {
             var item = events[index];
@@ -216,7 +232,7 @@ public static class PlayReview
                 case PlayEventKind.DecisionOffered:
                     // Only the first offer counts. Walking away from the door and back is
                     // still one decision, and re-arming the clock would flatter the number.
-                    if (offeredAt is null)
+                    if (offeredAt is null && roomsCleared != lastAnswered)
                     {
                         offeredAt = item.At;
                         offered = item;
@@ -239,6 +255,7 @@ public static class PlayReview
 
                     offeredAt = null;
                     offered = null;
+                    lastAnswered = roomsCleared;
                     if (item.Kind == PlayEventKind.Camped)
                     {
                         banked = (int)item.Value;
@@ -282,24 +299,33 @@ public static class PlayReview
     /// A player who always presses on is being paid too well; one who always camps is being
     /// asked to risk too much; one who answers inside a reflex never read the panel at all.
     /// </summary>
-    public static string Verdict(IReadOnlyList<DecisionReview> decisions)
+    public static string Verdict(IReadOnlyList<DecisionReview> all)
     {
-        if (decisions.Count == 0) return "No decisions were reached. Nobody got to a door.";
+        // Only doors with something behind them. Camping because the mine ran out is not a
+        // decision, and letting it count as one flatters the loop.
+        var decisions = all.Where(decision => !decision.Forced).ToList();
+
+        if (decisions.Count == 0)
+            return all.Count == 0
+                ? "No decisions were reached. Nobody got to a door."
+                : "No real decisions: every door reached was the last one. The mine is too short.";
 
         var pressed = decisions.Count(decision => decision.PressedOn);
         var reflex = decisions.Count(decision => decision.Hesitation < ReflexSeconds);
         var deliberate = decisions.Count(decision => decision.Hesitation >= DeliberateSeconds);
 
-        if (reflex > decisions.Count / 2)
-            return "Answered on reflex. The panel is not being read — it is a door, not a decision.";
-
         if (pressed == decisions.Count)
-            return "Always pressed on. The payout is too generous, or the risk is not felt.";
+            return decisions.Count == 1
+                ? "The one real door was pressed through. Not enough to judge the curve."
+                : "Always pressed on. The payout is too generous, or the risk is not felt.";
 
         if (pressed == 0)
             return "Never pressed on. The pot is too precious to stake, or the fights are too costly.";
 
-        if (deliberate >= decisions.Count / 3)
+        if (reflex > decisions.Count / 2)
+            return "Answered on reflex. The panel is not being read — it is a door, not a decision.";
+
+        if (deliberate > decisions.Count / 2)
             return "Genuinely weighed. The decision is working; build on it.";
 
         return "Mixed, but quick. The choice is being made but not agonised over.";

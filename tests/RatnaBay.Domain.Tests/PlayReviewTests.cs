@@ -190,6 +190,42 @@ public class PlayReviewTests
     }
 
     [Test]
+    public void ThePanelLingeringAfterTheAnswerIsNotASecondDecision()
+    {
+        // Found in the first real recording. The camp panel stayed up for a frame after the
+        // player pressed on, which logged a second offer with the old numbers — and the reader
+        // then timed the *next* decision from that stale offer, reporting a one-second answer
+        // as an eleven-second deliberation. The rule is that the same room count cannot be
+        // asked about twice.
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine", 1, 1)
+            .At(PlayEventKind.RoomCleared, "room 1", 1)
+            .At(PlayEventKind.DecisionOffered, "after 1 rooms", 1, 2)
+            .Wait(2.5f)
+            .At(PlayEventKind.PressedOn, "into room 2", 1, 2)
+            .Wait(0.01f)
+            .At(PlayEventKind.DecisionOffered, "after 1 rooms", 1, 2)
+            .Wait(10.9f)
+            .At(PlayEventKind.RoomCleared, "room 2", 2)
+            .Wait(2.2f)
+            .At(PlayEventKind.DecisionOffered, "after 2 rooms", 3, 3)
+            .Wait(0.9f)
+            .At(PlayEventKind.Camped, "after 2 rooms", 3)
+            .Done();
+
+        var decisions = PlayReview.AllDecisions(recording);
+
+        Assert.That(decisions, Has.Count.EqualTo(2));
+        Assert.Multiple(() =>
+        {
+            Assert.That(decisions[0].Hesitation, Is.EqualTo(2.5f).Within(0.05f));
+            Assert.That(decisions[1].Hesitation, Is.EqualTo(0.9f).Within(0.05f),
+                "the second decision must be timed from its own offer, not from the stale one");
+            Assert.That(decisions[1].Pending, Is.EqualTo(3));
+        });
+    }
+
+    [Test]
     public void ADecisionNeverAnsweredIsNotCounted()
     {
         var recording = new Tape()
@@ -258,6 +294,53 @@ public class PlayReviewTests
 
         Assert.That(PlayReview.Verdict(PlayReview.AllDecisions(recording.Done())),
             Does.Contain("Genuinely weighed"));
+    }
+
+    [Test]
+    public void CampingBecauseTheMineRanOutIsNotAChoice()
+    {
+        // Found in the first real recording: a player pressed on at all four real doors and
+        // camped at the fifth only because there was nothing deeper. Counting that camp as a
+        // decision to bank made "always pressed on" look like a balanced 4-to-1 split, and
+        // hid the only finding the session actually produced.
+        var recording = new Tape().At(PlayEventKind.RunStarted, "mine", 1, 1);
+        for (var room = 1; room <= 4; room++)
+        {
+            recording.At(PlayEventKind.RoomCleared, "", room)
+                .At(PlayEventKind.DecisionOffered, "", room, room + 1)
+                .Wait(1f)
+                .At(PlayEventKind.PressedOn, "", room, room + 1);
+        }
+
+        recording.At(PlayEventKind.RoomCleared, "", 5)
+            .At(PlayEventKind.DecisionOffered, "", 15, 0)
+            .Wait(3f)
+            .At(PlayEventKind.Camped, "", 15);
+
+        var decisions = PlayReview.AllDecisions(recording.Done());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(decisions, Has.Count.EqualTo(5), "the forced camp is still reported");
+            Assert.That(decisions[^1].Forced, Is.True);
+            Assert.That(decisions.Take(4).Any(decision => decision.Forced), Is.False);
+            Assert.That(PlayReview.Verdict(decisions), Does.Contain("too generous"));
+        });
+    }
+
+    [Test]
+    public void AMineThatOnlyEverOffersItsLastDoorIsSaidToBeTooShort()
+    {
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine", 1, 1)
+            .At(PlayEventKind.RoomCleared, "", 1)
+            .At(PlayEventKind.DecisionOffered, "", 1, 0)
+            .Wait(1f)
+            .At(PlayEventKind.Camped, "", 1)
+            .Done();
+
+        Assert.That(PlayReview.Verdict(PlayReview.AllDecisions(recording)),
+            Does.Contain("too short"));
     }
 
     [Test]

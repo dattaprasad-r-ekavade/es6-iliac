@@ -772,10 +772,6 @@ public sealed class Game1 : Game
 
                 decision.PressOn(_world!, _session.Player);
                 _session.ShowToast("The door swings in. No going back.");
-                _decisionRecorded = false;
-                _recorder.Record(PlayEventKind.RoomEntered,
-                    $"room {decision.Run.RoomsCleared + 1}", decision.Run.RoomsCleared + 1,
-                    0f, _session.Player.Vitals.Health);
                 return;
             }
         }
@@ -1442,6 +1438,9 @@ public sealed class Game1 : Game
 
         _recorder.Record(PlayEventKind.RunStarted, _world.Manifest.Id, seed, _mineDepth,
             _session?.Player.Vitals.Health ?? 0f);
+
+        _run.RoomEntered += room => _recorder.Record(PlayEventKind.RoomEntered,
+            $"room {room}", room, 0f, _session?.Player.Vitals.Health ?? 0f);
 
         _run.RoomCleared += paid =>
         {

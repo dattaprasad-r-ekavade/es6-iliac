@@ -300,7 +300,8 @@ static int RunReview(string[] arguments)
 
         foreach (var decision in run.Decisions)
         {
-            var verdict = decision.Hesitation < PlayReview.ReflexSeconds ? "reflex"
+            var verdict = decision.Forced ? "forced — nothing deeper"
+                : decision.Hesitation < PlayReview.ReflexSeconds ? "reflex"
                 : decision.Hesitation >= PlayReview.DeliberateSeconds ? "WEIGHED"
                 : "quick";
 
@@ -315,15 +316,17 @@ static int RunReview(string[] arguments)
     }
 
     var decisions = PlayReview.AllDecisions(recording);
-    Console.WriteLine("---");
-    Console.WriteLine($"Decisions reached: {decisions.Count}");
+    var real = decisions.Where(item => !item.Forced).ToList();
 
-    if (decisions.Count > 0)
+    Console.WriteLine("---");
+    Console.WriteLine($"Doors reached: {decisions.Count}"
+        + $"  ({real.Count} with something behind them)");
+
+    if (real.Count > 0)
     {
-        Console.WriteLine($"  pressed on: {decisions.Count(item => item.PressedOn)}"
-            + $" / camped: {decisions.Count(item => !item.PressedOn)}");
-        Console.WriteLine($"  median hesitation: {Median(decisions.Select(item => item.Hesitation))
-            :0.0}s");
+        Console.WriteLine($"  pressed on: {real.Count(item => item.PressedOn)}"
+            + $" / banked: {real.Count(item => !item.PressedOn)}");
+        Console.WriteLine($"  median hesitation: {Median(real.Select(item => item.Hesitation)):0.0}s");
     }
 
     Console.WriteLine($"Verdict: {PlayReview.Verdict(decisions)}");
