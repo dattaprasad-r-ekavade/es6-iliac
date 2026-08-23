@@ -209,6 +209,23 @@ public sealed class Encounter
         var chain = target is null ? null : Targeting.FindNearestOther(target, _enemies, 6f);
         var outcome = _session.Player.Spells.Cast(target, chain);
 
+        // Say what happened, every time: cast and hit, cast and missed, or never paid for.
+        if (outcome.Spell is { } cast)
+        {
+            var colour = ElementColour(cast.Effect);
+            var line = outcome.Result switch
+            {
+                CastResult.Landed when target is not null => $"struck {target.DisplayName}",
+                CastResult.Landed => "cast",
+                CastResult.Missed => "found no target",
+                CastResult.NoCharge => "no prana, and no stone to draw",
+                _ => "failed"
+            };
+
+            Feedback.Cast(cast.DisplayName, line,
+                outcome.Result == CastResult.NoCharge ? new Color(200, 128, 122) : colour);
+        }
+
         if (target is not null && outcome.Result == CastResult.Landed)
         {
             Struck(target);
@@ -217,16 +234,16 @@ public sealed class Encounter
             // than a damage number with a different colour.
             Feedback.PlayerHit(target.Position, spell?.Power ?? 0f, !target.IsAlive);
 
-            var effect = spell?.Effect switch
+            var status = spell?.Effect switch
             {
-                SpellEffect.Fire => ("burning", new Color(240, 150, 96)),
-                SpellEffect.Frost => ("chilled", new Color(150, 208, 240)),
-                SpellEffect.Shock => ("staggered", new Color(232, 214, 130)),
-                _ => (string.Empty, Color.White)
+                SpellEffect.Fire => "burning",
+                SpellEffect.Frost => "chilled",
+                SpellEffect.Shock => "staggered",
+                _ => string.Empty
             };
 
-            if (effect.Item1.Length > 0)
-                Feedback.PlayerEffect(target.Position, effect.Item1, effect.Item2);
+            if (status.Length > 0)
+                Feedback.PlayerEffect(target.Position, status, ElementColour(spell!.Effect));
 
             if (chain is not null && spell?.Effect == SpellEffect.Shock)
                 Feedback.PlayerEffect(chain.Position, "arced", new Color(232, 214, 130));
@@ -253,6 +270,16 @@ public sealed class Encounter
                 distance);
         }
     }
+
+    /// <summary>One colour per element, shared by the banner, the tint and the status word.</summary>
+    private static Color ElementColour(SpellEffect effect) => effect switch
+    {
+        SpellEffect.Fire => new Color(240, 150, 96),
+        SpellEffect.Frost => new Color(150, 208, 240),
+        SpellEffect.Shock => new Color(232, 214, 130),
+        SpellEffect.Heal => new Color(140, 216, 156),
+        _ => new Color(226, 206, 150)
+    };
 
     /// <summary>Flash and shove an enemy that has just been hit.</summary>
     private void Struck(Enemy enemy)

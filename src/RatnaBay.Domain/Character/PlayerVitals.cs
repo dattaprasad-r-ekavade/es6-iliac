@@ -14,6 +14,16 @@ public sealed class PlayerVitals
     /// <summary>Stamina regained per second out of combat.</summary>
     public const float RestStaminaRegen = 12f;
 
+    /// <summary>
+    /// Prana recovered per second while out of a fight.
+    ///
+    /// Deliberately slow, and deliberately never during combat. At this rate a full reserve
+    /// takes a hundred seconds of walking, so a jiva stone is still the only way to pay for
+    /// a spell in the middle of a fight — the scarcity the setting rests on survives, while
+    /// a player who has run dry is no longer stuck with an unusable school forever.
+    /// </summary>
+    public const float RestPranaRegen = 0.8f;
+
     private const float HealthPerLevel = 12f;
     private const float PranaPerLevel = 8f;
     private const float StaminaPerLevel = 8f;
@@ -47,17 +57,25 @@ public sealed class PlayerVitals
     public event Action? CrystalDrawn;
     public event Action? Died;
 
-    /// <summary>Stamina recovers over time; prana deliberately does not.</summary>
+    /// <summary>
+    /// Stamina recovers in and out of a fight; prana only recovers out of one, and slowly.
+    /// </summary>
     public void Tick(float deltaSeconds, bool inCombat)
     {
         if (deltaSeconds <= 0f || !IsAlive) return;
 
+        var beforeStamina = Stamina;
+        var beforePrana = Prana;
+
         // Combat regen used to be zero, which gave twelve swings and then six seconds of
         // standing there unable to attack. Reduced, not absent.
-        var regen = inCombat ? CombatStaminaRegen : RestStaminaRegen;
-        var before = Stamina;
-        Stamina = MathF.Min(MaxStamina, Stamina + regen * deltaSeconds);
-        if (Stamina != before) Changed?.Invoke();
+        var staminaRegen = inCombat ? CombatStaminaRegen : RestStaminaRegen;
+        Stamina = MathF.Min(MaxStamina, Stamina + staminaRegen * deltaSeconds);
+
+        if (!inCombat)
+            Prana = MathF.Min(MaxPrana, Prana + RestPranaRegen * deltaSeconds);
+
+        if (Stamina != beforeStamina || Prana != beforePrana) Changed?.Invoke();
     }
 
     public void AddXp(int amount)

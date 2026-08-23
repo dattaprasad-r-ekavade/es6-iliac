@@ -67,6 +67,22 @@ Fixed in this pass:
 - The frame-rate readout shows nothing until its first window closes rather than a
   misleading opening figure.
 
+### Owner playtest round three — 2026-08-23
+
+- Tab was documented as the way to free the mouse while every panel said Esc. Tab still
+  works, but it is no longer advertised: Esc closes whatever is open, and the camera comes
+  back on its own.
+- Prana now recovers slowly out of combat (0.8/s, never during a fight). This is a
+  deliberate change to a previously absolute rule. A jiva stone is still the only way to pay
+  for a spell mid-fight, so the scarcity the setting rests on survives, but a player who has
+  run dry is no longer locked out of a whole school for the rest of the session.
+- A cast now says what it was and what it found — "Flame — struck Bandit", "Rime — found no
+  target", "Arc — no prana, and no stone to draw" — with a brief tint in the element's
+  colour at the moment of casting.
+- The conversation panel shrank from 836x500 to 576x420 and its type grew. Long answers now
+  wrap over several lines instead of being scaled down to fit one, which is what made them
+  hard to read.
+
 Use this short script for each tester:
 
 1. Start a new game and confirm the first room is empty and combat does not begin.
@@ -81,6 +97,7 @@ Use this short script for each tester:
 
 | Tester | Result | Notes |
 |---|---|---|
+| Owner pass three | Findings fixed | Mouse handed back after panels, cast reporting, prana trickle, tighter conversation panel. |
 | Owner pass two | Findings fixed | Pointer, hit feedback, spell bar, threat markers, usable inventory, and the key-in-pocket route through the watchpost door. |
 | Owner manual pass | Findings fixed | Safe empty spawn, trader-only second room, and two-bandit third room are now enforced by the release self-test. Full live input pass still recommended. |
 | External 1 | Pending | |

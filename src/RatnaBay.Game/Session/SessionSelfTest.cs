@@ -50,8 +50,17 @@ public static class SessionSelfTest
 
             Check(failures, "stamina recovers over time",
                 player.Vitals.Stamina > player.Vitals.MaxStamina - 40f);
-            Check(failures, "prana does not regenerate",
-                Math.Abs(player.Vitals.Prana - (player.Vitals.MaxPrana - 30f)) < 0.01f);
+            // The hit above put the player in a fight, and prana does not move during one.
+            var pranaFloor = player.Vitals.MaxPrana - 30f;
+            Check(failures, $"prana holds still during a fight ({player.Vitals.Prana:0.0})",
+                Math.Abs(player.Vitals.Prana - pranaFloor) < 0.01f);
+
+            // Once the fight goes quiet it creeps back — present, but nowhere near a refill.
+            player.Combat.ClearCombat();
+            for (var frame = 0; frame < 120; frame++) session.Tick(1f / 60f);
+
+            Check(failures, $"prana creeps back out of combat ({player.Vitals.Prana:0.0})",
+                player.Vitals.Prana > pranaFloor && player.Vitals.Prana < pranaFloor + 4f);
 
             var expected = Snapshot(session);
 

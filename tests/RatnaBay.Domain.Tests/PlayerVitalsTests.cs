@@ -55,15 +55,48 @@ public class PlayerVitalsTests
     }
 
     [Test]
-    public void PranaNeverRegenerates()
+    public void PranaRecoversSlowlyOutOfCombat()
     {
         _vitals.SpendPrana(40f);
         var spent = _vitals.Prana;
 
-        _vitals.Tick(60f, inCombat: false);
+        _vitals.Tick(10f, inCombat: false);
+
+        Assert.That(_vitals.Prana, Is.EqualTo(spent + PlayerVitals.RestPranaRegen * 10f).Within(0.01f));
+    }
+
+    [Test]
+    public void PranaNeverRecoversDuringAFight()
+    {
+        _vitals.SpendPrana(40f);
+        var spent = _vitals.Prana;
+
+        _vitals.Tick(30f, inCombat: true);
 
         Assert.That(_vitals.Prana, Is.EqualTo(spent),
-            "the setting's scarcity is not real if the player's own bar refills for free");
+            "a jiva stone must stay the only way to pay for a spell mid-fight");
+    }
+
+    [Test]
+    public void PranaRecoversFarSlowerThanStamina()
+    {
+        _vitals.SpendPrana(40f);
+        _vitals.SpendStamina(40f);
+
+        _vitals.Tick(1f, inCombat: false);
+
+        var pranaGained = _vitals.Prana - (_vitals.MaxPrana - 40f);
+        var staminaGained = _vitals.Stamina - (_vitals.MaxStamina - 40f);
+
+        Assert.That(pranaGained * 4f, Is.LessThan(staminaGained),
+            "scarcity is not real if the bar refills at a useful speed");
+    }
+
+    [Test]
+    public void PranaNeverExceedsItsCeiling()
+    {
+        _vitals.Tick(1000f, inCombat: false);
+        Assert.That(_vitals.Prana, Is.EqualTo(_vitals.MaxPrana));
     }
 
     [Test]

@@ -44,6 +44,9 @@ public sealed class CombatFeedback
     /// <summary>Cap so a crowded fight cannot bury the screen in numbers.</summary>
     private const int MaxNumbers = 14;
 
+    /// <summary>How long the cast banner stays up.</summary>
+    private const float CastSeconds = 1.6f;
+
     private readonly List<FloatingNumber> _numbers = new();
     private readonly List<DamageDirection> _directions = new();
     private float _hitMarker;
@@ -52,6 +55,19 @@ public sealed class CombatFeedback
     private int _driftStep;
 
     public IReadOnlyList<FloatingNumber> Numbers => _numbers;
+
+    /// <summary>What the last cast was and what it did. Empty when nothing is showing.</summary>
+    public string CastLine { get; private set; } = string.Empty;
+
+    public Color CastColour { get; private set; } = Color.White;
+
+    /// <summary>0 to 1 while the cast banner is showing.</summary>
+    public float CastBanner => _castRemaining <= 0f ? 0f : _castRemaining / CastSeconds;
+
+    /// <summary>Element colour for the screen tint on a cast. Transparent when idle.</summary>
+    public Color CastTint { get; private set; } = Color.Transparent;
+
+    private float _castRemaining;
     public IReadOnlyList<DamageDirection> Directions => _directions;
 
     /// <summary>0 to 1 while the crosshair marker is showing.</summary>
@@ -65,6 +81,8 @@ public sealed class CombatFeedback
         if (deltaSeconds <= 0f) return;
 
         _hitMarker = MathF.Max(0f, _hitMarker - deltaSeconds);
+        _castRemaining = MathF.Max(0f, _castRemaining - deltaSeconds);
+        if (_castRemaining <= 0f) CastLine = string.Empty;
         _killMarker = MathF.Max(0f, _killMarker - deltaSeconds);
         _blockedMarker = MathF.Max(0f, _blockedMarker - deltaSeconds);
 
@@ -140,6 +158,20 @@ public sealed class CombatFeedback
         });
     }
 
+    /// <summary>
+    /// A spell was cast: what it was, and what it found.
+    ///
+    /// Testers could see the arm move but could not tell whether anything had been cast,
+    /// what it was, or whether it had hit. This is the sentence that answers all three.
+    /// </summary>
+    public void Cast(string spellName, string outcome, Color colour)
+    {
+        CastLine = $"{spellName} — {outcome}";
+        CastColour = colour;
+        CastTint = colour;
+        _castRemaining = CastSeconds;
+    }
+
     /// <summary>True for numbers that belong over the player rather than over a target.</summary>
     public static bool IsSelfInflicted(FloatingNumber number) => number.Origin == default;
 
@@ -150,6 +182,8 @@ public sealed class CombatFeedback
         _hitMarker = 0f;
         _killMarker = 0f;
         _blockedMarker = 0f;
+        _castRemaining = 0f;
+        CastLine = string.Empty;
     }
 
     private void Add(FloatingNumber number)

@@ -135,6 +135,7 @@ public sealed class Game1 : Game
     /// </summary>
     private float? _captureSwing;
     private float? _captureCast;
+    private bool _captureApplied;
 
     /// <summary>Screen to force open for --screenshot: inventory, journal, shop or help.</summary>
     private string? _captureScreen;
@@ -280,13 +281,6 @@ public sealed class Game1 : Game
             LoadWorldManifest();
             ResetCamera();
             StartSession(GameSession.NewGame());
-        }
-
-        switch (_captureScreen?.ToLowerInvariant())
-        {
-            case "inventory" or "character": _showCharacter = true; break;
-            case "journal": _showJournal = true; break;
-            case "help": _showHelp = true; break;
         }
 
         if (_startYaw is { } forcedYaw) _cameraYaw = forcedYaw;
@@ -503,6 +497,8 @@ public sealed class Game1 : Game
 
     protected override void Draw(GameTime gameTime)
     {
+        ApplyCaptureScreen();
+
         _fpsFrames++;
         var elapsed = _fpsClock.Elapsed.TotalSeconds;
         if (elapsed >= 0.5)
@@ -929,8 +925,17 @@ public sealed class Game1 : Game
         SetMouseLook(false);
     }
 
+    /// <summary>
+    /// Narrower and shorter than it was, with larger type. The old panel was 836x500 of
+    /// mostly empty space set in 13-15 px text, which testers read as a wall.
+    /// </summary>
+    private static Rectangle DialoguePanelBounds => new(352, 150, 576, 420);
+
+    /// <summary>Topic rows the panel shows before it stops listing.</summary>
+    private const int DialogueRows = 6;
+
     private static Rectangle DialogueTopicBounds(int index) =>
-        new(246, 308 + index * 30, 788, 26);
+        new(376, 300 + index * 34, 528, 30);
 
     private static Rectangle ShopItemBounds(int index) =>
         new(274, 232 + index * 52, 732, 42);
@@ -1821,6 +1826,7 @@ public sealed class Game1 : Game
             DrawHitMarker();
             DrawDamageDirections();
             DrawSpellBar();
+            DrawCastBanner();
             DrawDoorPrompt();
             DrawLocationBanner();
             DrawAwareness();
@@ -1956,35 +1962,38 @@ public sealed class Game1 : Game
         if (_conversationActor is null) return;
 
         var topics = _conversationActor.AvailableTopics();
-        var panel = new Rectangle(222, 110, 836, 500);
-        DrawPanel(panel, new Color(5, 11, 18, 246), new Color(151, 206, 210));
-        Text("CONVERSATION", new Vector2(panel.X + 28, panel.Y + 24), 13,
-            new Color(214, 183, 108));
-        Text(_conversationActor.DisplayName, new Vector2(panel.X + 28, panel.Y + 54), 28, Color.White);
-        TextFit(_dialogueResponse, new Vector2(panel.X + 28, panel.Y + 104), 780f, 17,
-            new Color(212, 224, 219));
+        var panel = DialoguePanelBounds;
+        DrawPanel(panel, new Color(5, 11, 18, 248), new Color(151, 206, 210));
 
-        Text("TOPICS", new Vector2(panel.X + 28, panel.Y + 174), 13,
-            new Color(151, 206, 210));
+        Text(_conversationActor.DisplayName, new Vector2(panel.X + 24, panel.Y + 20), 26, Color.White);
+        TextWrapped(_dialogueResponse, new Vector2(panel.X + 24, panel.Y + 62),
+            panel.Width - 48, 18, new Color(216, 228, 223), maxLines: 4);
+
         if (topics.Count == 0)
         {
-            Text("No known topics receive an answer here.", new Vector2(panel.X + 28, panel.Y + 208), 16,
+            Text("Nothing you know to ask reaches them.",
+                new Vector2(panel.X + 24, DialogueTopicBounds(0).Y + 6), 17,
                 new Color(174, 188, 186));
         }
         else
         {
-            for (var index = 0; index < topics.Count && index < 9; index++)
+            for (var index = 0; index < topics.Count && index < DialogueRows; index++)
             {
                 var selected = index == _dialogueSelection;
                 var row = DialogueTopicBounds(index);
-                Fill(row, selected ? new Color(74, 67, 43, 235) : new Color(17, 27, 35, 180));
-                Text($"{index + 1}. {topics[index]}", new Vector2(row.X + 10, row.Y + 3), 15,
-                    selected ? new Color(245, 209, 124) : new Color(203, 216, 214));
+                Fill(row, selected ? new Color(74, 67, 43, 240) : new Color(17, 27, 35, 190));
+                Text($"{index + 1}. {topics[index]}", new Vector2(row.X + 12, row.Y + 6), 17,
+                    selected ? new Color(245, 209, 124) : new Color(206, 219, 217));
             }
+
+            if (topics.Count > DialogueRows)
+                Text($"+{topics.Count - DialogueRows} more",
+                    new Vector2(panel.X + 24, DialogueTopicBounds(DialogueRows).Y + 4), 14,
+                    new Color(142, 157, 157));
         }
 
-        Text("Click a topic / Up / Down select   Enter ask   Esc close", new Vector2(panel.X + 28, panel.Bottom - 34),
-            13, new Color(163, 191, 194));
+        Text("Enter ask      Esc close", new Vector2(panel.X + 24, panel.Bottom - 30), 15,
+            new Color(170, 197, 200));
     }
 
     private void DrawJournal()
@@ -2565,6 +2574,63 @@ public sealed class Game1 : Game
     }
 
     /// <summary>
+    /// Open a screen for a capture, once, on the first drawn frame. Content manifests load
+    /// after Initialize, so a dialogue capture done any earlier has nobody to talk to.
+    /// </summary>
+    private void ApplyCaptureScreen()
+    {
+        if (_captureScreen is null || _captureApplied) return;
+        _captureApplied = true;
+
+        switch (_captureScreen?.ToLowerInvariant())
+        {
+            case "inventory" or "character": _showCharacter = true; break;
+            case "journal": _showJournal = true; break;
+            case "help": _showHelp = true; break;
+            case "dialogue":
+                _conversationActor = _dialogue?.Actors.FirstOrDefault();
+                _dialogueOpen = _conversationActor is not null;
+                _dialogueResponse =
+                    "Northwatch is a border camp built around an older stone watchpost. Keep "
+                    + "your eyes open on the road north, and do not travel it after dark "
+                    + "unless you have a reason worth the risk.";
+                break;
+        }
+
+    }
+
+    /// <summary>
+    /// What was just cast, and what it did.
+    ///
+    /// A brief tint in the element's colour makes the cast itself unmissable, and the line
+    /// underneath names the spell and its result, so a cast that found nothing is clearly a
+    /// miss rather than a spell that silently failed to fire.
+    /// </summary>
+    private void DrawCastBanner()
+    {
+        if (_encounter is null) return;
+
+        var strength = _encounter.Feedback.CastBanner;
+        if (strength <= 0f) return;
+
+        // The tint fades faster than the words, so it reads as the moment of casting.
+        var tintStrength = MathF.Max(0f, strength - 0.55f) / 0.45f;
+        if (tintStrength > 0f)
+        {
+            var tint = _encounter.Feedback.CastTint * (tintStrength * 0.2f);
+            const int band = 72;
+            Fill(new Rectangle(0, 0, LogicalWidth, band), tint);
+            Fill(new Rectangle(0, LogicalHeight - band, LogicalWidth, band), tint);
+            Fill(new Rectangle(0, 0, band, LogicalHeight), tint);
+            Fill(new Rectangle(LogicalWidth - band, 0, band, LogicalHeight), tint);
+        }
+
+        var fade = MathHelper.Clamp(strength * 1.6f, 0f, 1f);
+        TextCentred(_encounter.Feedback.CastLine, LogicalWidth / 2f, LogicalHeight / 2f + 118f,
+            19, _encounter.Feedback.CastColour * fade);
+    }
+
+    /// <summary>
     /// World position to logical UI pixels. False when the point is behind the camera, which
     /// would otherwise project to a mirrored position in front of it.
     /// </summary>
@@ -2758,7 +2824,6 @@ public sealed class Game1 : Game
             ("E", "talk, open, take"),
             ("P", "pick a pocket"),
             ("B", "trade with a merchant"),
-            ("Tab", "free the mouse"),
             ("4 5 6 7 8", "flame, rime, arc, mend, emberlight"),
             ("Arrow keys", "look (keyboard)"),
             ("Shift", "sprint — spends stamina"),
@@ -2771,8 +2836,8 @@ public sealed class Game1 : Game
             ("F5 / F9", "save / load"),
             ("F1", "close this"),
             ("F11", "windowed / fullscreen"),
-            ("Tab", "release the mouse"),
-            ("M / Esc", "back to the menu")
+            ("Esc", "close what is open, then back to the menu"),
+            ("M", "back to the menu")
         };
 
         var y = panel.Y + 72f;
@@ -3262,6 +3327,55 @@ public sealed class Game1 : Game
         var (font, drawScale) = SelectFont(scale);
         var width = font.MeasureString(value).X * drawScale;
         DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
+    }
+
+    /// <summary>
+    /// Text laid out over several lines at a fixed size.
+    ///
+    /// TextFit shrinks to fit one line, so a long dialogue answer was rendered microscopic
+    /// rather than wrapped. Reading a paragraph is the whole point of a conversation, so it
+    /// wraps at word boundaries and keeps the size it was asked for.
+    /// </summary>
+    /// <returns>The height used, so a caller can lay out beneath it.</returns>
+    private float TextWrapped(string value, Vector2 position, float maxWidth, float scale,
+        Color color, int maxLines = 6)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return 0f;
+
+        var (font, drawScale) = SelectFont(scale);
+        var lineHeight = scale * 1.34f;
+        var words = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        var line = string.Empty;
+        var lines = 0;
+        var y = position.Y;
+
+        foreach (var word in words)
+        {
+            var candidate = line.Length == 0 ? word : $"{line} {word}";
+            if (font.MeasureString(candidate).X * drawScale <= maxWidth)
+            {
+                line = candidate;
+                continue;
+            }
+
+            if (line.Length > 0)
+            {
+                DrawString(font, line, new Vector2(position.X, y), drawScale, color);
+                y += lineHeight;
+                if (++lines >= maxLines) return y - position.Y;
+            }
+
+            line = word;
+        }
+
+        if (line.Length > 0)
+        {
+            DrawString(font, line, new Vector2(position.X, y), drawScale, color);
+            y += lineHeight;
+        }
+
+        return y - position.Y;
     }
 
     private void TextRight(string value, float right, float y, float scale, Color color)
