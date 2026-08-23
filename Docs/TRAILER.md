@@ -33,7 +33,7 @@ opens on the reason the combat exists.
 
 | # | Time | Shot | Sound | Status |
 |---|---|---|---|---|
-| 1 | 0:00–0:05 | Darkness. A **jiva stone** glows in the rock. Its light falls across **Devanagari carved into a Stambha** behind it — a weathered stone pillar. Camera pushes slowly in. Translation in small type at the lower third | One low sustained tone | **Build: Stambha, carved text** |
+| 1 | 0:00–0:05 | Darkness. A **jiva stone** glows in the rock. Its light falls across the **Stambha** behind it, carved with **मा गृधः कस्य स्विद्धनम्**. Camera pushes slowly in. "Covet not — for whose is wealth?" in small type at the lower third | One low sustained tone | **Build: Stambha, carved text** |
 | 2 | 0:05–0:09 | The stone **cracks and leaks**. Prana bleeds into the rock. A **preta rises** in front of the pillar — the carved verse still faintly lit behind it | The tone bends, then a hit | **Build: rise animation** |
 | 3 | 0:09–0:11 | Over the rising figure: **"The stones remember who they were."** | Held | Text card |
 | 4 | 0:11–0:18 | Combat. Two sword swings, a guard absorbing a blow, then a **Rime bolt** crossing the cave in pale blue and the target visibly slowing | Impacts, cast | Have |
@@ -76,23 +76,58 @@ that earns the wishlist.
 
 ---
 
-## Open questions on the verse
+## The verse
 
-Two decisions that are yours, not mine.
+**Isha Upanishad, verse 1** (Shukla Yajurveda, 1st millennium BCE).
 
-**Where the words come from.** An **invented in-world verse**, carved on the Stambha and
-attributed to the order, gives complete control over the meaning and avoids a real risk: quoting
-actual Hindu scripture in a game whose central mechanic is drawing life force from the dying may
-read badly to some players, and a store page is not the place to discover that. An invented text
-can also say precisely what the game needs, which a real one never quite does.
+> ईशावास्यमिदं सर्वं यत्किञ्च जगत्यां जगत् ।
+> तेन त्यक्तेन भुञ्जीथा मा गृधः कस्य स्विद्धनम् ॥
+>
+> *īśāvāsyam idaṃ sarvaṃ yatkiñca jagatyāṃ jagat |*
+> *tena tyaktena bhuñjīthā mā gṛdhaḥ kasya sviddhanam ||*
 
-**Whether Devanagari or a constructed script.** Devanagari is instantly recognisable and grounds
-the setting truthfully. A constructed script is safer and less specific. Devanagari is the
-stronger choice and the one that makes the trailer distinctive; it just has to be *right*, so
-it needs a translator rather than a machine.
+**Carve the second line.** For a tighter framing, the last four words carry it alone:
 
-Either way: **the English translation sits in small type in the lower third**, so a viewer who
-cannot read the carving still gets the thesis.
+> **मा गृधः कस्य स्विद्धनम्**
+> *mā gṛdhaḥ kasya sviddhanam*
+> **"Covet not — for whose is wealth?"**
+
+The game is a town extracting wealth from the dead. *Whose is wealth?* is not an echo of the
+premise; it is the question the premise asks, written down three thousand years ago. `mā gṛdhaḥ`
+— do not covet — carved above a mine where men dig up other men to burn for light.
+
+### The deeper Stambha
+
+**Bhagavad Gita 2.63**, final phrase:
+
+> **बुद्धिनाशात्प्रणश्यति**
+> *buddhināśāt praṇaśyati*
+> **"From the ruin of judgement, he perishes."**
+
+It closes the chain — attachment, desire, anger, delusion, lost memory, ruined judgement, and
+then he perishes. Which is what a preta is: someone who followed that chain to its end and is
+still here.
+
+**Two pillars, and the carving darkens as you descend.** Cheap design for a game whose only axis
+is depth: the surface warns you, the deep tells you what happened to the last one.
+
+### Why quoting this is sound
+
+The game agrees with the text. It is a warning against greed used as a warning against greed, in
+a story whose moral spine is that harvesting prana corrupts. The objectionable case would be
+scripture decorating something it condemns, or inverted for shock. Neither applies here.
+
+### Two practical constraints
+
+- **The Sanskrit is public domain. Modern English translations may not be.** Write the rendering
+  in-house, or use a verifiably public-domain one — Griffith (1899) is safe.
+- **Have a Sanskrit reader check the Devanagari before it is baked into a texture.** The text
+  above is cross-checked against several sources, but a carving is expensive to correct and a
+  mis-set conjunct would be spotted instantly by precisely the audience worth impressing.
+
+**Presentation:** carved into the Stambha, lit by the stone — never set on black. The English
+translation sits in small type in the lower third, so a viewer who cannot read the carving still
+receives the thesis.
 
 ---
 
