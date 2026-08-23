@@ -1,7 +1,8 @@
 # Ratna Bay — Design Pivot
 
-**Status:** Loop, run length, classes, progression, balance and the content budget are decided
-and implemented. Three smaller questions remain — see §9.
+**Status:** The design is decided. Balance is implemented and asserted; the systems in §8 are
+built and tested. What remains is a production plan and the building of mine generation, run
+state, slots, amulets and succession.
 **Supersedes:** the vertical-slice product definition in `PRODUCTION_PLAN.md`. The engineering
 decisions in that document (engine, sprites, domain separation, publish gates) still stand.
 
@@ -71,8 +72,9 @@ stones. So the two layers do different jobs:
 
 A run ends when you **camp** or when you **die**.
 
-Camp is available at the end of every cleared room. Camping banks what you have and ends the
-run there. Pushing on is worth more — **the Nth room pays N stones**, not one.
+Camp is available **at the exit of a cleared room, and nowhere else** — there is no camping
+mid-fight. Camping banks what you have and ends the run there. Pushing on is worth more: **the
+Nth room of a tier-T mine pays `N x T` stones**, not one.
 
 | Rooms cleared | Banked if you camp | Next room pays | You are risking |
 |---:|---:|---:|---|
@@ -84,7 +86,8 @@ The escalation is the point. A flat one-stone-per-room reward makes banking imme
 correct play at every step, because the pot grows while the prize does not. Rising payouts keep
 "one more room?" an open question all the way down.
 
-**Dying costs** all banked stones, half your gear, and some experience.
+**Dying costs** all banked stones, half your gear, and any unspent progress toward your next
+level. Levels already earned are kept.
 
 **But the body can be recovered.** Your successor's next descent into that mine finds the fallen
 Deepankar's cache, once. This keeps the loss real without creating an unrecoverable state —
@@ -222,13 +225,12 @@ succession-on-death rule.
 
 ---
 
-## 9. Balance notes and open questions
+## 9. Balance and decisions
 
-### Decided
+### Decided above
 
 Run length, how a run ends, the banking curve, body recovery, cave themes, the fort, the class
-multipliers, where stones are found, character levelling, and the content budget are all settled
-above.
+multipliers, where stones are found, character levelling, and the content budget.
 
 ### Done: the spell-damage pass
 
@@ -264,14 +266,37 @@ of stamina, and the trader is worst at both. All of it is asserted rather than a
 | Boss encounters | 6–7 | **Budget 3 distinct behaviours**, dressed per theme. The art is cheap; the fight patterns are not, and a boss without its own pattern is only a large preta |
 | Fort rooms | 10 | Opened by wins and gold. Occupants stay silent until a rank or a sum is reached |
 
-### Still open
+### Settled
 
-1. **How is a room's stone payout affected by its theme or depth?** The N-per-room curve is the
-   floor; deeper mines presumably pay better per room as well.
-2. **What is "some experience" on death?** A flat level, a fraction, or progress within the
-   current level.
-3. **Can you camp anywhere, or only at authored exits?** Camping mid-room would let a player
-   bank the instant a fight turns.
+**Payout scales with depth, never with theme.** The Nth room of a tier-T mine pays `N x T`
+stones.
+
+| Rooms cleared | Tier 1 | Tier 2 | Tier 3 |
+|---:|---:|---:|---:|
+| 3 | 6 | 12 | 18 |
+| 5 | 15 | 30 | 45 |
+| 8 | 36 | 72 | 108 |
+
+One variable per axis: **depth decides reward, theme decides tactics.** A cave whose element
+you are poorly equipped for is already harder — it survives you for less time — so it does not
+need a payout modifier on top, and giving it one would push players toward whichever theme paid
+best rather than whichever they could handle.
+
+This also sets what a mine can cost to open. A tier-3 mine can ask around 25 stones and still be
+worth descending into.
+
+**Death clears unspent progress toward the next level, not the level itself.** Levels already
+earned and points already spent are kept.
+
+The successor is a new person, trained to the standard the order has reached but not yet
+promoted. It is the gentlest of the three options and the only one that cannot produce a wall: a
+player who dies repeatedly stops advancing, but never goes backwards past a rank they have held.
+
+**Camp only at a cleared room's exit.** There is no camping mid-fight.
+
+If a player could bank the instant a fight turned, there would be no risk left to press — the
+whole mechanic would collapse into "always bank when losing". Committing at the door is the
+decision: once it opens you are in that room until it is clear or you are not.
 
 ## 10. Reference points
 
