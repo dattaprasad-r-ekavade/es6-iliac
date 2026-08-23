@@ -39,13 +39,13 @@ architectural decision until the slice ships.
 
 ## 2. Where the project actually is
 
-**Iterations 5 and 6 are complete.** The domain drives the running game, and there is a
-fight in it.
+**Iterations 5 through 12 are implemented.** The current remaining gate is three independent
+external playthroughs of the self-contained slice.
 
 | | Lines | State |
 |---|---:|---|
 | `RatnaBay.Domain` | 3,100 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | 3,300 | 273 tests, ~140 ms |
+| `RatnaBay.Domain.Tests` | 3,300 | 296 tests, ~160 ms |
 | `RatnaBay.Game` | ~1,900 | Menu, camera, HUD, session, saves, sprites, combat |
 | `RatnaBay.Tools` | ~150 | `doctor`, `asset-info` |
 
@@ -170,7 +170,7 @@ edges are asserted rather than felt out in the running game.
 - Quest acceptance through dialogue.
 - Reward payout, and quest state in the save.
 
-**Playable:** take a quest from an NPC, follow written directions, kill three bandits, return
+**Playable:** take a quest from a trader, follow written directions, kill two bandits, return
 and get paid.
 
 **Done when:** someone else can play it without you in the room. **This is the first external
@@ -229,6 +229,9 @@ it is the single most useful figure for planning the full game.
 - Three external playtests, with notes.
 
 **Playable:** the complete loop — start, quest, dungeon, reward, save, quit, reload.
+
+The loop includes completion-aware trader dialogue: returning after the reward must acknowledge
+the cleared road rather than offer the finished quest again.
 
 **Done when:** three people finish it without your help.
 

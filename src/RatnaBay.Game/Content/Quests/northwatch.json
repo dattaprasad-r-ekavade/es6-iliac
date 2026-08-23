@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "id": "quests.northwatch",
+  "quests": [
+    {
+      "id": "quest.northwatch.bandits",
+      "title": "Clear the Northwatch Road",
+      "description": "Mara needs the two bandits beyond the trader room dealt with.",
+      "initialStageText": "Slay the two bandits at the far end of the next room",
+      "objectiveDirections": "Leave the trader room and clear the far end of the third room.",
+      "objectiveAnchorId": "anchor.old_watch_dungeon",
+      "objectivePosition": { "x": 0.0, "y": 0.0, "z": -40.25 },
+      "targetCount": 2,
+      "targetEnemy": "Bandit",
+      "xpReward": 75,
+      "goldReward": 80
+    }
+  ]
+}

@@ -73,6 +73,28 @@ public static class Targeting
     }
 
     /// <summary>
+    /// Where something is relative to the way the player is facing, in radians.
+    ///
+    /// Zero is dead ahead, positive is to the right, and the result is wrapped to [-pi, pi]
+    /// so a target slightly to the left reads as a small negative angle rather than nearly a
+    /// full turn. This is what an on-screen direction indicator points along.
+    /// </summary>
+    public static float RelativeBearing(WorldPoint origin, float yaw, WorldPoint target)
+    {
+        var dx = target.X - origin.X;
+        var dz = target.Z - origin.Z;
+        if (MathF.Abs(dx) < 0.0001f && MathF.Abs(dz) < 0.0001f) return 0f;
+
+        // Matches FlatForward: yaw zero looks down -Z and increases clockwise.
+        var absolute = MathF.Atan2(dx, -dz);
+        var relative = absolute - yaw;
+
+        while (relative > MathF.PI) relative -= MathF.Tau;
+        while (relative < -MathF.PI) relative += MathF.Tau;
+        return relative;
+    }
+
+    /// <summary>
     /// The nearest other living candidate to <paramref name="source"/>, for Arc's one jump.
     /// </summary>
     public static T? FindNearestOther<T>(T source, IEnumerable<T> candidates, float radius)

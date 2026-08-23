@@ -84,6 +84,23 @@ public class PlayerVitalsTests
     }
 
     [Test]
+    public void NonPositiveResourceSpendsAreRejected()
+    {
+        var stamina = _vitals.Stamina;
+        var prana = _vitals.Prana;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_vitals.SpendStamina(0f), Is.False);
+            Assert.That(_vitals.SpendStamina(-10f), Is.False);
+            Assert.That(_vitals.SpendPrana(0f), Is.False);
+            Assert.That(_vitals.SpendPrana(-10f), Is.False);
+            Assert.That(_vitals.Stamina, Is.EqualTo(stamina));
+            Assert.That(_vitals.Prana, Is.EqualTo(prana));
+        });
+    }
+
+    [Test]
     public void LevellingRaisesTheCeilingsAndRefillsHealth()
     {
         var maxHealth = _vitals.MaxHealth;
@@ -209,11 +226,48 @@ public class PlayerVitalsTests
     }
 
     [Test]
-    public void DrawingAStoneNeverOverfillsTheReserve()
+    public void AnUnaffordablePranaSpendDoesNotBurnPartialStones()
+    {
+        _vitals.SpendPrana(_vitals.MaxPrana);
+        _inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 1, SoulCrystals.ItemKind);
+
+        Assert.That(_vitals.SpendPrana(SoulCrystals.LesserCharge * 2f), Is.False);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_vitals.Prana, Is.Zero);
+            Assert.That(_inventory.CountOf(SoulCrystals.LesserId), Is.EqualTo(1));
+            Assert.That(_vitals.Channeled, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void APranaSpendAboveTheReserveIsRefusedWithoutBurningStones()
+    {
+        _vitals.SpendPrana(_vitals.MaxPrana);
+        _inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 5, SoulCrystals.ItemKind);
+
+        Assert.That(_vitals.SpendPrana(_vitals.MaxPrana + 1f), Is.False);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_vitals.Prana, Is.Zero);
+            Assert.That(_inventory.CountOf(SoulCrystals.LesserId), Is.EqualTo(5));
+            Assert.That(_vitals.Channeled, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void DrawingAStoneNeverOverfillsOrConsumesAtFullReserve()
     {
         _inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 1, SoulCrystals.ItemKind);
-        _vitals.TryDrawCrystal();
-        Assert.That(_vitals.Prana, Is.EqualTo(_vitals.MaxPrana));
+        Assert.That(_vitals.TryDrawCrystal(), Is.False);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_vitals.Prana, Is.EqualTo(_vitals.MaxPrana));
+            Assert.That(_inventory.CountOf(SoulCrystals.LesserId), Is.EqualTo(1));
+        });
     }
 
     [Test]

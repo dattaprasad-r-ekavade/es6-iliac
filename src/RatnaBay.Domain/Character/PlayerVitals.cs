@@ -107,7 +107,7 @@ public sealed class PlayerVitals
 
     public bool SpendStamina(float amount)
     {
-        if (Stamina < amount) return false;
+        if (amount <= 0f || Stamina < amount) return false;
         Stamina -= amount;
         Changed?.Invoke();
         return true;
@@ -119,7 +119,17 @@ public sealed class PlayerVitals
     /// </summary>
     public bool SpendPrana(float amount)
     {
-        if (Prana < amount && !TryDrawCrystal()) return false;
+        if (amount <= 0f || amount > MaxPrana) return false;
+
+        if (Prana < amount)
+        {
+            var stonesNeeded = (int)MathF.Ceiling((amount - Prana) / SoulCrystals.LesserCharge);
+            if (_inventory.CountOf(SoulCrystals.LesserId) < stonesNeeded) return false;
+
+            for (var stone = 0; stone < stonesNeeded; stone++)
+                if (!TryDrawCrystal()) return false;
+        }
+
         if (Prana < amount) return false;
 
         Prana -= amount;
@@ -133,6 +143,8 @@ public sealed class PlayerVitals
     /// </summary>
     public bool TryDrawCrystal()
     {
+        if (Prana >= MaxPrana) return false;
+
         if (!_inventory.Consume(SoulCrystals.LesserId)) return false;
 
         Prana = MathF.Min(MaxPrana, Prana + SoulCrystals.LesserCharge);

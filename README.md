@@ -32,30 +32,30 @@ dotnet run --project src\RatnaBay.Game -- --mode menu
 ```
 
 The default shell opens with a menu. Choose **Start New Game** to enter the first
-Northwatch scene, or use the development screens to inspect the renderer and UI.
+Northwatch scene.
 
 Direct release builds can be launched in a specific state:
 
 ```powershell
 & "src\RatnaBay.Game\bin\Release\net9.0-windows\RatnaBay.Game.exe" --mode menu
 & "src\RatnaBay.Game\bin\Release\net9.0-windows\RatnaBay.Game.exe" --mode scene
-& "src\RatnaBay.Game\bin\Release\net9.0-windows\RatnaBay.Game.exe" --mode assets
-& "src\RatnaBay.Game\bin\Release\net9.0-windows\RatnaBay.Game.exe" --mode photo
-& "src\RatnaBay.Game\bin\Release\net9.0-windows\RatnaBay.Game.exe" --mode ui
 ```
 
 Menu: click or hover to choose, or Up/Down and Enter. **Continue** appears once a save
 exists.
 
 In the scene, the mouse looks and WASD moves at 6 m/s (11 sprinting). Left click attacks,
-right click guards (one-handed weapons only), Q casts the readied spell and 4-8 choose it. Click the world to take the pointer, Tab to
-give it back. Shift sprints and spends stamina, F5 saves, F9 loads, **F1 lists every
-control**, and M or Escape returns to the menu.
+right click guards (one-handed weapons only), E talks to a facing NPC, takes a world pickup,
+or interacts with an authored door. B opens a merchant shop, P pickpockets, J opens the
+journal, I or K opens character inventory/equipment/skills, Ctrl toggles crouch, and mouse clicks select dialogue/shop options. Q casts the readied
+spell and 4-8 choose it. Space jumps. Click the world to take the pointer, Tab to give it back. Shift
+sprints and spends stamina, F2 opens settings, F5 saves, F9 loads, **F1 lists every control**,
+and M or Escape returns to the menu. Escape is intentionally harmless on the main menu; use the
+visible Exit item to close the game.
 
 The HUD reads live values from `RatnaBay.Domain` — health, prana and stamina are the
 domain's own numbers, not painted ones. Saves are written to
-`%APPDATA%\RatnaBay
-atnabay_save.json`.
+`%APPDATA%\RatnaBay\ratnabay_save.json`.
 
 Capture a screenshot of any screen without playing to it:
 
@@ -70,6 +70,17 @@ A headless check of the whole save round trip, with no window:
 ```
 
 This also runs automatically as the last gate in `publish.ps1`.
+
+World geometry, doors, dungeon rooms, patrols, and pickups are authored in
+`src/RatnaBay.Game/Content/World/northwatch.json`; NPC placements and keyword responses are
+authored in `src/RatnaBay.Game/Content/Dialogue/northwatch.json`. Quest and shop data live
+in the corresponding `Content/Quests` and `Content/Shops` folders.
+When running the scene from the project output, valid edits hot-reload; invalid edits leave
+the last valid room active. Validate the source data with:
+
+```powershell
+dotnet run --project tools\RatnaBay.Tools -- validate
+```
 
 The Steam presentation target is borderless fullscreen by default. The game authors UI
 against a 1280×720 logical canvas and fits it uniformly into the active display, preserving

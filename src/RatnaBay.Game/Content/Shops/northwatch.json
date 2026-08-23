@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "shops.northwatch",
+  "shops": [
+    {
+      "id": "shop.mara",
+      "displayName": "Mara's road pack",
+      "items": [
+        { "id": "health_potion", "name": "Health Potion", "kind": "potion", "price": 12, "count": 1 },
+        { "id": "torch_bundle", "name": "Torch Bundle", "kind": "misc", "price": 8, "count": 2 },
+        { "id": "soul_crystal_lesser", "name": "Lesser Jiva Stone", "kind": "crystal", "price": 25, "count": 1 }
+      ]
+    }
+  ]
+}

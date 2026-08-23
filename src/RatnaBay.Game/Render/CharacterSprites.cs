@@ -26,6 +26,27 @@ public readonly record struct CharacterPalette(
         Garment: new Color(96, 92, 86),
         Trim: new Color(58, 54, 50),
         Boots: new Color(40, 38, 36));
+
+    public static readonly CharacterPalette Citizen = new(
+        Skin: new Color(205, 163, 125),
+        Hair: new Color(74, 50, 36),
+        Garment: new Color(64, 108, 104),
+        Trim: new Color(56, 67, 64),
+        Boots: new Color(48, 37, 31));
+
+    public static readonly CharacterPalette Guard = new(
+        Skin: new Color(190, 145, 108),
+        Hair: new Color(38, 42, 45),
+        Garment: new Color(57, 86, 116),
+        Trim: new Color(174, 140, 68),
+        Boots: new Color(34, 38, 44));
+
+    public static readonly CharacterPalette Merchant = new(
+        Skin: new Color(218, 170, 125),
+        Hair: new Color(97, 61, 34),
+        Garment: new Color(125, 78, 112),
+        Trim: new Color(195, 152, 72),
+        Boots: new Color(59, 41, 37));
 }
 
 /// <summary>

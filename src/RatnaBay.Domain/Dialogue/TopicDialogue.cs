@@ -35,6 +35,9 @@ public sealed class DialogueTopic
 
     public required string Response { get; init; }
 
+    /// <summary>Optional quest activated when this answer is selected.</summary>
+    public string QuestId { get; init; } = string.Empty;
+
     public IReadOnlyList<DialogueCondition> Conditions { get; init; } = Array.Empty<DialogueCondition>();
 
     /// <summary>
@@ -223,6 +226,15 @@ public sealed class SpeakingActor
     public string DisplayName { get; }
     public string FactionId { get; }
     public string LocationId { get; }
+
+    /// <summary>Authored world position used by the client interaction query.</summary>
+    public WorldPoint Position { get; set; }
+
+    /// <summary>Billboard height in metres.</summary>
+    public float Height { get; set; } = 1.85f;
+
+    /// <summary>Palette key selected by the authored actor definition.</summary>
+    public string Palette { get; set; } = "citizen";
 
     /// <summary>Keywords this actor volunteers on a first meeting, teaching them to the player.</summary>
     public IReadOnlyList<string> OpensWith { get; }

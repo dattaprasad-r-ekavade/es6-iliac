@@ -3,13 +3,14 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace RatnaBay.Client;
 
 /// <summary>
 /// A headless run of the session layer.
 ///
-/// The domain has 245 tests, but none of them touch a file on disk or the wiring in
+/// The domain has 295 tests, but none of them touch a file on disk or the wiring in
 /// <see cref="GameSession"/>. This closes that gap: it plays a few seconds of game, writes a
 /// real save, reads it back into a fresh session, and checks the character came back whole.
 ///
@@ -20,12 +21,13 @@ public static class SessionSelfTest
     public static int Run()
     {
         var failures = new List<string>();
-        var savePath = GameSession.SaveFilePath;
-        var backup = BackUpExistingSave(savePath);
+        var testDirectory = Path.Combine(Path.GetTempPath(), $"ratnabay_selftest_{Guid.NewGuid():N}");
+        var savePath = Path.Combine(testDirectory, "ratnabay_save.json");
 
         try
         {
-            var session = GameSession.NewGame();
+            Directory.CreateDirectory(testDirectory);
+            var session = GameSession.NewGame(savePath);
             var player = session.Player;
 
             // Play a little: take a hit, train a skill, spend some charge, move.
@@ -58,7 +60,7 @@ public static class SessionSelfTest
             Check(failures, "a save file exists on disk", File.Exists(savePath));
 
             // A brand-new session, exactly as a relaunch would build it.
-            var reloaded = GameSession.NewGame();
+            var reloaded = GameSession.NewGame(savePath);
             var loadMessage = reloaded.Load();
             Check(failures, $"load succeeds (said: {loadMessage})", loadMessage == "Loaded.");
 
@@ -72,11 +74,33 @@ public static class SessionSelfTest
             Check(failures, $"objective bearing regenerates from the restored position: {bearing}",
                 bearing.Contains("north") && bearing.Contains("paces"));
 
+            // A second save creates a last-known-good backup. If the live file is damaged,
+            // loading must recover that backup instead of entering a half-restored game.
+            session.Player.Vitals.AddGold(1);
+            Check(failures, "a replacement save succeeds", session.Save() == "Saved.");
+            File.WriteAllText(savePath, "{ damaged save");
+            var recovered = GameSession.NewGame(savePath);
+            var recoveredOk = recovered.TryLoad(out var recoveryMessage);
+            Check(failures, $"a corrupt latest save recovers its backup (said: {recoveryMessage})",
+                recoveredOk && recoveryMessage.Contains("backup", StringComparison.OrdinalIgnoreCase)
+                && recovered.Player.Vitals.Gold == reloaded.Player.Vitals.Gold);
+
             RunFightChecks(failures);
+            RunWeaponChecks(failures);
+            RunWorldChecks(failures);
+            RunDialogueChecks(failures);
+            RunQuestChecks(failures);
+            RunStealthChecks(failures);
+            RunShopChecks(failures);
         }
         finally
         {
-            RestoreSave(savePath, backup);
+            DeleteTestFile(savePath + ".tmp");
+            DeleteTestFile(savePath + ".bak");
+            DeleteTestFile(savePath);
+            try { if (Directory.Exists(testDirectory)) Directory.Delete(testDirectory); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
 
         Console.WriteLine();
@@ -99,6 +123,25 @@ public static class SessionSelfTest
     private static void RunFightChecks(List<string> failures)
     {
         Console.WriteLine();
+
+        var stagedSession = GameSession.NewGame();
+        var stagedEncounter = new Encounter(stagedSession);
+        stagedEncounter.SpawnDefaultCamp();
+        var stagedStarts = stagedEncounter.Enemies.Select(enemy => enemy.Position.Z).ToArray();
+        var safeSpawn = new Vector3(0f, 2.4f, 14.5f);
+        for (var frame = 0; frame < 180; frame++)
+        {
+            stagedSession.Tick(1f / 60f);
+            stagedEncounter.Update(1f / 60f, safeSpawn, 0f);
+        }
+
+        Check(failures, "the authored encounter has two bandits at the far end of room three",
+            stagedEncounter.Enemies.Count == 2
+            && stagedEncounter.Enemies.All(enemy => enemy.Position.Z <= -40f));
+        Check(failures, "the empty starting room does not trigger combat",
+            stagedSession.Player.Vitals.Health == stagedSession.Player.Vitals.MaxHealth
+            && stagedEncounter.Enemies.Select((enemy, index) =>
+                Math.Abs(enemy.Position.Z - stagedStarts[index]) < 0.001f).All(still => still));
 
         var session = GameSession.NewGame();
         var player = session.Player;
@@ -216,6 +259,311 @@ public static class SessionSelfTest
         Check(failures, "the fight is losable", !doomed.Player.Vitals.IsAlive);
     }
 
+    /// <summary>The first authored room is loadable, blocks the closed door, and opens via Security.</summary>
+    private static void RunWorldChecks(List<string> failures)
+    {
+        Console.WriteLine();
+
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "World", "northwatch.json");
+        var loaded = WorldRuntime.TryLoad(path, out var world, out var error);
+        Check(failures, $"the authored room loads (said: {error})", loaded && world is not null);
+        if (world is null) return;
+
+        Check(failures, "the authored world has three enterable thresholds",
+            world.Manifest.Doors.Count == 3);
+        Check(failures, "the starting and trader rooms contain no props, patrols or pickups",
+            world.Manifest.Watchers.Count == 0
+            && world.Manifest.Props.All(prop => prop.Position.Z < -44f)
+            && world.Manifest.Pickups.All(pickup => pickup.Position.Z < -44f));
+        Check(failures, "the later dungeon keeps one recoverable cache",
+            world.Manifest.Pickups.Count == 1
+            && world.Manifest.Pickups[0].ItemId == "health_potion");
+
+        var reloadPath = Path.Combine(Path.GetTempPath(), $"ratnabay_world_{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(reloadPath, WorldManifest.Serialize(world.Manifest));
+            File.SetLastWriteTimeUtc(reloadPath, DateTime.UtcNow.AddSeconds(-2));
+            Check(failures, "a hot-reload fixture loads",
+                WorldRuntime.TryLoad(reloadPath, out var reloadWorld, out _)
+                && reloadWorld is not null);
+
+            if (WorldRuntime.TryLoad(reloadPath, out var hotWorld, out _) && hotWorld is not null)
+            {
+                var edited = new WorldManifest
+                {
+                    Version = world.Manifest.Version,
+                    Id = "scene.northwatch.edited",
+                    PlayerSpawn = world.Manifest.PlayerSpawn,
+                    Geometry = world.Manifest.Geometry,
+                    Props = world.Manifest.Props,
+                    Lights = world.Manifest.Lights,
+                    Doors = world.Manifest.Doors,
+                    Watchers = world.Manifest.Watchers,
+                    Pickups = world.Manifest.Pickups
+                };
+                File.WriteAllText(reloadPath, WorldManifest.Serialize(edited));
+                File.SetLastWriteTimeUtc(reloadPath, DateTime.UtcNow.AddSeconds(2));
+                Check(failures, "a valid world edit hot-reloads",
+                    hotWorld.TryReloadIfChanged(out _)
+                    && hotWorld.Manifest.Id == "scene.northwatch.edited");
+
+                File.WriteAllText(reloadPath, "{ not valid json");
+                File.SetLastWriteTimeUtc(reloadPath, DateTime.UtcNow.AddSeconds(4));
+                Check(failures, "an invalid world edit leaves the room active",
+                    !hotWorld.TryReloadIfChanged(out var reloadError)
+                    && reloadError.Contains("Invalid world manifest JSON", StringComparison.Ordinal));
+            }
+        }
+        finally
+        {
+            try { if (File.Exists(reloadPath)) File.Delete(reloadPath); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
+        var outside = world.Manifest.PlayerSpawn.Position.ToWorldPoint();
+        var blocked = world.Move(outside, new WorldPoint(0f, 0f, -30f), 0.38f);
+        Check(failures, "the closed doorway blocks a long move",
+            blocked.Z > -9.6f);
+
+        var session = GameSession.NewGame();
+        var atDoor = new WorldPoint(0f, 2.4f, -8f);
+        var result = world.TryOpenDoor(atDoor, 0f, session.Player, out var door);
+        Check(failures, "Security can open the authored door",
+            result == LockResult.Opened && door is not null && door.Lock.IsOpen);
+
+        var through = world.Move(atDoor, new WorldPoint(0f, 0f, -8f), 0.38f);
+        Check(failures, "the opened doorway allows entry",
+            through.Z < -15f);
+
+        var atSupplyDoor = new WorldPoint(0f, 2.4f, -22f);
+        var supplyResult = world.TryOpenDoor(atSupplyDoor, 0f, session.Player, out var supplyDoor);
+        Check(failures, "the second authored door opens",
+            supplyResult == LockResult.Opened && supplyDoor is not null && supplyDoor.Lock.IsOpen);
+        var intoSupply = world.Move(atSupplyDoor, new WorldPoint(0f, 0f, -10f), 0.38f);
+        Check(failures, "the second room is reachable through JSON-authored geometry",
+            intoSupply.Z < -30f);
+
+        var saved = SaveGame.Capture(session.Player, atDoor);
+        var restoredPlayer = PlayerCharacter.NewGame();
+        SaveGame.Restore(restoredPlayer, saved);
+        var restoredWorldLoaded = WorldRuntime.TryLoad(path, out var restoredWorld, out _);
+        if (restoredWorldLoaded && restoredWorld is not null)
+            restoredWorld.RestoreOpenedDoors(restoredPlayer.Story.State.OpenedLocks);
+        Check(failures, "an opened door is written to story save state",
+            restoredPlayer.Story.State.OpenedLocks.Contains("northwatch.entry.door")
+            && restoredPlayer.Story.State.OpenedLocks.Contains("northwatch.supply.door"));
+        Check(failures, "a restored opened door remains passable",
+            restoredWorld is not null
+            && restoredWorld.FindDoor(atDoor, 0f) is null
+            && restoredWorld.FindDoor(atSupplyDoor, 0f) is null
+            && restoredWorld.Move(atSupplyDoor, new WorldPoint(0f, 0f, -10f), 0.38f).Z < -30f);
+    }
+
+    /// <summary>
+    /// The weapon is a UI sprite whose origin is the player's grip. A swing must rotate the
+    /// blade around that origin; translating the whole texture makes the hilt leave the hand.
+    /// </summary>
+    private static void RunWeaponChecks(List<string> failures)
+    {
+        var weapon = EquipmentCatalog.GetWeapon("iron_sword");
+        var view = new WeaponView();
+        var rest = view.Pose();
+
+        view.Swing(weapon);
+        view.Update(0.18f, moving: false, guarding: false);
+        var swing = view.Pose();
+
+        Check(failures, "the sword swing keeps its grip anchored",
+            Math.Abs(swing.Position.X - rest.Position.X) < 0.001f
+            && Math.Abs(swing.Position.Y - rest.Position.Y) < 0.001f);
+        Check(failures, "the sword blade rotates around the grip",
+            Math.Abs(swing.Rotation - rest.Rotation) > 0.01f);
+        Check(failures, "the sword strike sweeps toward the target",
+            swing.Rotation < rest.Rotation);
+
+        var idle = new WeaponView();
+        var idleBefore = idle.Pose();
+        idle.Update(0.25f, moving: false, guarding: false);
+        var idleAfter = idle.Pose();
+        Check(failures, "standing still does not sway the weapon",
+            idleBefore == idleAfter);
+
+        idle.Update(0.25f, moving: true, guarding: false);
+        Check(failures, "walking produces weapon sway",
+            idle.Pose() != idleAfter);
+    }
+
+    /// <summary>The authored trader room: two merchants, learned keywords and conditioned answers.</summary>
+    private static void RunDialogueChecks(List<string> failures)
+    {
+        Console.WriteLine();
+
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Dialogue", "northwatch.json");
+        var session = GameSession.NewGame();
+        var loaded = DialogueRuntime.TryLoad(path, session.Player.Dialogue, out var dialogue, out var error);
+
+        Check(failures, $"the authored dialogue loads (said: {error})",
+            loaded && dialogue is not null);
+        if (dialogue is null) return;
+
+        Check(failures, "the dialogue manifest has two traders in room two",
+            dialogue.Actors.Count == 2
+            && dialogue.Actors.All(actor => actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase))
+            && dialogue.Actors.All(actor => actor.Position.Z < -10f && actor.Position.Z > -24f));
+        // Counted rather than pinned: an exact total fails every time a line is authored,
+        // which trains people to edit the test instead of reading it.
+        Check(failures, $"the dialogue manifest carries a body of topics ({dialogue.Manifest.Topics.Count})",
+            dialogue.Manifest.Topics.Count >= 14);
+
+        Check(failures, "the watchpost key has somewhere to be learned about",
+            dialogue.Manifest.Topics.Any(topic =>
+                topic.Keyword.Equals("watchpost", StringComparison.OrdinalIgnoreCase)));
+
+        var mara = dialogue.Actors.Single(actor => actor.ActorId == "actor.mara");
+        var vesa = dialogue.Actors.Single(actor => actor.ActorId == "actor.vesa");
+        var maraTopics = mara.Talk();
+        Check(failures, "Mara teaches the road and two-bandit quest topics",
+            maraTopics.Contains("northwatch") && maraTopics.Contains("road")
+            && maraTopics.Contains("bandits") && !maraTopics.Contains("door"));
+        Check(failures, "Mara gives an actor-specific Northwatch answer",
+            mara.Ask("northwatch")?.Contains("lamp oil", StringComparison.OrdinalIgnoreCase) == true);
+
+        session.Player.Story.SelectRoute(StoryDirector.RouteTrade);
+        Check(failures, "a route condition changes Mara's road answer",
+            mara.Ask("road")?.Contains("two bandits", StringComparison.OrdinalIgnoreCase) == true);
+
+        session.Player.Story.AddChanneled(1f);
+        vesa.Talk();
+        Check(failures, "a story condition changes Vesa's jiva answer",
+            vesa.Ask("jiva stones")?.Contains("drawn", StringComparison.OrdinalIgnoreCase) == true);
+
+        session.Player.Story.SetFlag("flag.opened.northwatch.entry.door");
+        mara.Talk();
+        Check(failures, "an opened-door flag unlocks the authored follow-up topic",
+            mara.AvailableTopics().Contains("door"));
+    }
+
+    /// <summary>Quest definitions stay dormant until the dialogue answer accepts one.</summary>
+    private static void RunQuestChecks(List<string> failures)
+    {
+        Console.WriteLine();
+
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Quests", "northwatch.json");
+        var session = GameSession.NewGame();
+        var loaded = QuestManifest.TryLoad(path, out var manifest, out var error);
+        Check(failures, $"the authored quest manifest loads (said: {error})",
+            loaded && manifest is not null);
+        if (manifest is null) return;
+
+        session.Player.Quests.RegisterRange(manifest.ToDefinitions());
+        var quest = session.Player.Quests.Find("quest.northwatch.bandits");
+        Check(failures, "the bandit quest starts dormant before acceptance",
+            quest is not null && !quest.IsActive);
+
+        session.Player.Quests.Activate("quest.northwatch.bandits");
+        for (var index = 0; index < 2; index++) session.Player.Quests.NotifyEnemyKilled("Bandit");
+        Check(failures, "the accepted quest pays out after two bandits",
+            quest is not null && quest.IsCompleted && session.Player.Vitals.Gold == 80);
+
+        var dialoguePath = Path.Combine(AppContext.BaseDirectory, "Content", "Dialogue", "northwatch.json");
+        var dialogueLoaded = DialogueRuntime.TryLoad(dialoguePath, session.Player.Dialogue,
+            out var dialogue, out _);
+        var mara = dialogue?.Actors.Single(actor => actor.ActorId == "actor.mara");
+        mara?.Talk();
+        Check(failures, "Mara acknowledges the completed quest instead of offering it again",
+            dialogueLoaded && mara?.Ask("bandits")?.Contains("road is safe",
+                StringComparison.OrdinalIgnoreCase) == true);
+
+        var saved = SaveGame.Capture(session.Player, default);
+        var restored = PlayerCharacter.NewGame();
+        restored.Quests.RegisterRange(manifest.ToDefinitions());
+        SaveGame.Restore(restored, saved);
+        Check(failures, "quest completion survives save and reload",
+            restored.Quests.Find("quest.northwatch.bandits")?.IsCompleted == true
+            && restored.Story.HasFlag(PlayerCharacter.QuestCompletedFlag("quest.northwatch.bandits")));
+    }
+
+    /// <summary>View-cone sight, a blocker ray and recoverable pickpocketing.</summary>
+    private static void RunStealthChecks(List<string> failures)
+    {
+        Console.WriteLine();
+
+        var manifest = new WorldManifest
+        {
+            Version = 1,
+            Id = "scene.stealth.test",
+            Watchers = new List<WorldWatcher>
+            {
+                new()
+                {
+                    Id = "watcher.test",
+                    Position = new WorldVector(0f, 0f, 4f),
+                    Yaw = 0f,
+                    Speed = 0f,
+                    ViewRange = 10f,
+                    ViewConeDegrees = 120f
+                }
+            }
+        };
+        var collision = new StaticCollisionIndex();
+        collision.Rebuild(Array.Empty<CollisionBox>());
+        var session = GameSession.NewGame();
+        var runtime = new WatcherRuntime(manifest, collision, session.Player.Detection);
+        var player = new WorldPoint(0f, 2.4f, 0f);
+        runtime.Update(0.1f, player);
+        session.Player.Detection.Tick(1f);
+        Check(failures, "a guard's facing cone raises suspicion",
+            session.Player.Detection.Suspicion > 0f);
+
+        session.Player.Detection.Clear();
+        collision.Rebuild(new[] { new CollisionBox("sight.wall", -1f, 0f, 1f, 1f, 3f, 3f) });
+        runtime.Update(0.1f, player);
+        session.Player.Detection.Tick(1f);
+        Check(failures, "a solid between guard and player blocks sight",
+            session.Player.Detection.Suspicion == 0f);
+
+        runtime.Reload(manifest);
+        Check(failures, "reloading patrol data does not duplicate watchers",
+            runtime.Watchers.Count == 1);
+
+        session.Player.Detection.Clear();
+        session.Player.Detection.AddSuspicion(0.5f);
+        var pocket = new PickpocketTarget(0f,
+            new ItemStack { Id = "test.purse", Name = "Test purse", Kind = "loot", Count = 1 });
+        var outcome = Pickpocketing.TryTake(pocket, session.Player.Skills,
+            session.Player.Inventory, session.Player.Detection);
+        Check(failures, "a witnessed pickpocket keeps the item but raises a caught result",
+            outcome.Result == PickpocketResult.Caught
+            && session.Player.Inventory.CountOf("test.purse") == 1);
+    }
+
+    /// <summary>The authored merchant stock spends gold and uses the canonical item ids.</summary>
+    private static void RunShopChecks(List<string> failures)
+    {
+        Console.WriteLine();
+
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Shops", "northwatch.json");
+        var loaded = ShopManifest.TryLoad(path, out var manifest, out var error);
+        Check(failures, $"the authored shop manifest loads (said: {error})",
+            loaded && manifest is not null);
+        if (manifest is null) return;
+
+        var definition = manifest.ToDefinitions().Single();
+        var shop = new Shop(definition);
+        var session = GameSession.NewGame();
+        session.Player.Vitals.AddGold(100);
+        var result = shop.Buy(2, session.Player.Vitals, session.Player.Inventory, out _);
+
+        Check(failures, "the shop sells the canonical lesser jiva stone",
+            result == ShopPurchaseResult.Bought
+            && session.Player.Inventory.CountOf(SoulCrystals.LesserId) == 4
+            && session.Player.Vitals.Gold == 75);
+        Check(failures, "purchased stock becomes sold out",
+            shop.IsSoldOut(SoulCrystals.LesserId));
+    }
+
     /// <summary>Everything that must be identical after a save and a reload.</summary>
     private static Dictionary<string, string> Snapshot(GameSession session)
     {
@@ -247,24 +595,10 @@ public static class SessionSelfTest
         if (!passed) failures.Add(what);
     }
 
-    /// <summary>Never clobber a real save while testing.</summary>
-    private static string? BackUpExistingSave(string savePath)
+    private static void DeleteTestFile(string path)
     {
-        if (!File.Exists(savePath)) return null;
-        var backup = savePath + ".selftest-backup";
-        File.Copy(savePath, backup, overwrite: true);
-        return backup;
-    }
-
-    private static void RestoreSave(string savePath, string? backup)
-    {
-        if (backup is null)
-        {
-            if (File.Exists(savePath)) File.Delete(savePath);
-            return;
-        }
-
-        File.Copy(backup, savePath, overwrite: true);
-        File.Delete(backup);
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 }

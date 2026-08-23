@@ -10,7 +10,9 @@ public sealed class SaveData
     /// Bump when the shape of this changes; older files are rejected rather than silently
     /// loading garbage into the player's stats.
     /// </summary>
-    public int Version { get; set; } = SaveGame.CurrentVersion;
+    // Capture writes the current version explicitly. Zero means a hand-written or truncated
+    // object omitted the version and must not be mistaken for a valid current save.
+    public int Version { get; set; }
 
     public float PlayerX { get; set; }
     public float PlayerY { get; set; }
@@ -99,6 +101,11 @@ public static class SaveGame
     /// </summary>
     public static void Restore(PlayerCharacter player, SaveData data)
     {
+        ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(data);
+        if (!IsRestorable(data, out var validationError))
+            throw new ArgumentException(validationError, nameof(data));
+
         player.Skills.Restore(data.Skills);
         player.Vitals.Restore(data.Vitals);
 
@@ -111,6 +118,7 @@ public static class SaveGame
         player.Dialogue.Restore(data.KnownTopics);
         player.Story.Restore(data.Story);
         player.Quests.Restore(data.Quests);
+        player.ReconcileQuestStoryFlags();
         player.Objective.Restore(data.Objective);
     }
 
@@ -148,6 +156,8 @@ public static class SaveGame
             return false;
         }
 
+        if (!IsRestorable(parsed, out error)) return false;
+
         if (parsed.Version > CurrentVersion)
         {
             error = $"This save is from a newer version ({parsed.Version}); this build reads {CurrentVersion}.";
@@ -163,6 +173,46 @@ public static class SaveGame
         if (parsed.Version < CurrentVersion) Migrate(parsed);
 
         data = parsed;
+        return true;
+    }
+
+    private static bool IsRestorable(SaveData data, out string error)
+    {
+        error = string.Empty;
+
+        if (data.Vitals is null || data.Skills is null || data.Items is null
+            || data.Quests is null || data.KilledEnemies is null || data.KnownTopics is null
+            || data.Story is null)
+        {
+            error = "The save file is missing required data.";
+            return false;
+        }
+
+        if (data.Skills.Any(skill => skill is null || string.IsNullOrWhiteSpace(skill.Id))
+            || data.Items.Any(item => item is null || string.IsNullOrWhiteSpace(item.Id)
+                || string.IsNullOrWhiteSpace(item.Name) || string.IsNullOrWhiteSpace(item.Kind))
+            || data.Quests.Any(quest => quest is null || string.IsNullOrWhiteSpace(quest.Id)))
+        {
+            error = "The save file contains an invalid inventory, skill, or quest entry.";
+            return false;
+        }
+
+        if (data.Story.Profile is null || data.Story.Flags is null
+            || data.Story.Evidence is null || data.Story.Evidence.Any(evidence => evidence is null)
+            || data.Story.DialogueChoices is null || data.Story.Companion is null
+            || data.Story.OpenedLocks is null || data.Story.LootedObjects is null
+            || data.Story.SkippedCinematics is null || data.Story.KnownTopics is null)
+        {
+            error = "The save file contains invalid story data.";
+            return false;
+        }
+
+        if (data.Objective is not null && string.IsNullOrWhiteSpace(data.Objective.Title))
+        {
+            error = "The save file contains an invalid objective.";
+            return false;
+        }
+
         return true;
     }
 

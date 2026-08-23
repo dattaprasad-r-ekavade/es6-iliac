@@ -76,6 +76,11 @@ try {
         dotnet test $testProject --configuration $Configuration --nologo `
             --logger 'console;verbosity=minimal'
         Assert-LastExitCode 'dotnet test'
+
+        Write-Step 'Running the deterministic playthrough simulation'
+        dotnet run --project 'tools\RatnaBay.Tools\RatnaBay.Tools.csproj' `
+            --configuration $Configuration --no-restore -- sim
+        Assert-LastExitCode 'playthrough simulation'
     }
 
     Write-Step "Publishing to .\build ($Configuration, $(if ($Framework) { 'framework-dependent' } else { 'self-contained' }))"
@@ -95,7 +100,11 @@ try {
     Write-Step 'Verifying the published folder'
     $checks = @(
         @{ Name = 'compiled content'; Path = Join-Path $buildDir 'Content\Feasibility' },
-        @{ Name = 'bundled fonts'; Path = Join-Path $buildDir 'Content\Feasibility\Fonts\Cinzel\Cinzel-wght.ttf' }
+        @{ Name = 'bundled fonts'; Path = Join-Path $buildDir 'Content\Feasibility\Fonts\Cinzel\Cinzel-wght.ttf' },
+        @{ Name = 'world manifest'; Path = Join-Path $buildDir 'Content\World\northwatch.json' },
+        @{ Name = 'dialogue manifest'; Path = Join-Path $buildDir 'Content\Dialogue\northwatch.json' },
+        @{ Name = 'quest manifest'; Path = Join-Path $buildDir 'Content\Quests\northwatch.json' },
+        @{ Name = 'shop manifest'; Path = Join-Path $buildDir 'Content\Shops\northwatch.json' }
     )
     foreach ($check in $checks) {
         if (-not (Test-Path $check.Path)) { throw "The build is missing $($check.Name): $($check.Path)" }

@@ -87,6 +87,17 @@ public class SaveGameTests
     }
 
     [Test]
+    public void AnOpenedLockSurvivesSaveAndReload()
+    {
+        _player.Story.MarkOpened("northwatch.entry.door");
+
+        var loaded = Reload(SaveGame.Capture(_player, default));
+
+        Assert.That(loaded.Story.State.OpenedLocks,
+            Is.EqualTo(new[] { "northwatch.entry.door" }));
+    }
+
+    [Test]
     public void TheCurrentObjectiveSurvivesButItsBearingIsRegenerated()
     {
         _player.Objective.Set("Reach the old watch road", "Follow the lanterns.",
@@ -179,6 +190,42 @@ public class SaveGameTests
         Assert.Multiple(() =>
         {
             Assert.That(SaveGame.TryRead("{ this is not json", out var data, out var error), Is.False);
+            Assert.That(data, Is.Null);
+            Assert.That(error, Is.Not.Empty);
+        });
+    }
+
+    [Test]
+    public void ReloadingACompletedQuestRepairsItsDialogueFlag()
+    {
+        for (var i = 0; i < 3; i++) _player.Quests.NotifyEnemyKilled("Bandit");
+        var data = SaveGame.Capture(_player, default);
+        data.Story.Flags.Remove(PlayerCharacter.QuestCompletedFlag("quest.bandits"));
+
+        var loaded = Reload(data);
+
+        Assert.That(loaded.Story.HasFlag(
+            PlayerCharacter.QuestCompletedFlag("quest.bandits")), Is.True);
+    }
+
+    [Test]
+    public void ASaveMissingItsVersionIsRejected()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(SaveGame.TryRead("{}", out var data, out var error), Is.False);
+            Assert.That(data, Is.Null);
+            Assert.That(error, Is.Not.Empty);
+        });
+    }
+
+    [Test]
+    public void ASaveWithNullRequiredDataIsRejectedRatherThanCrashingRestore()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(SaveGame.TryRead("{\"Version\":4,\"Vitals\":null}", out var data,
+                out var error), Is.False);
             Assert.That(data, Is.Null);
             Assert.That(error, Is.Not.Empty);
         });

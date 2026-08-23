@@ -32,11 +32,18 @@ public sealed class WeaponView
 
     private const float RestRotation = -0.34f;
 
-    /// <summary>How far the sprite travels across the screen during a swing.</summary>
-    private static readonly Vector2 SwingTravel = new(-286f, -214f);
+    /// <summary>
+    /// A swing rotates around the grip. Translating the whole sprite makes the hilt leave the
+    /// player's hand and makes the motion read like a flying sword rather than a hand swing.
+    /// </summary>
+    private static readonly Vector2 SwingTravel = Vector2.Zero;
 
-    /// <summary>Radians the blade rotates through as it comes down.</summary>
-    private const float SwingArc = 1.72f;
+    /// <summary>
+    /// Radians the blade rotates through toward the centered target. The negative sign matches
+    /// the sprite's top-to-bottom blade orientation; a positive arc sweeps the tip away from
+    /// the target even though the grip remains correctly anchored.
+    /// </summary>
+    private const float SwingArc = -0.92f;
 
     /// <summary>Guarding lifts the weapon across the body.</summary>
     private static readonly Vector2 GuardOffset = new(-150f, -78f);
@@ -103,6 +110,8 @@ public sealed class WeaponView
             ? EaseOut(t / 0.35f)
             : 1f - EaseIn((t - 0.35f) / 0.65f);
 
+        // The grip is the SpriteBatch origin, so keeping the position fixed makes the blade
+        // sweep around the hand while the hilt stays planted.
         position += SwingTravel * strike;
         rotation += SwingArc * strike;
 

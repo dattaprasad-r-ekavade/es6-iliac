@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "id": "dialogue.northwatch",
+  "actors": [
+    {
+      "id": "actor.mara",
+      "displayName": "Mara the Trader",
+      "factionId": "faction.traders",
+      "locationId": "scene.northwatch",
+      "position": {
+        "x": -2.8,
+        "y": 0.0,
+        "z": -18.0
+      },
+      "height": 1.85,
+      "palette": "merchant",
+      "opensWith": [
+        "trade",
+        "northwatch",
+        "road",
+        "bandits",
+        "door",
+        "watchpost"
+      ],
+      "pocket": {
+        "difficulty": 0.0,
+        "items": [
+          {
+            "id": "purse.actor.mara",
+            "name": "Mara's purse",
+            "kind": "loot",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "actor.vesa",
+      "displayName": "Vesa the Trader",
+      "factionId": "faction.traders",
+      "locationId": "scene.northwatch",
+      "position": {
+        "x": 2.8,
+        "y": 0.0,
+        "z": -18.0
+      },
+      "height": 1.85,
+      "palette": "merchant",
+      "opensWith": [
+        "camp",
+        "trade",
+        "jiva stones",
+        "old watch road",
+        "watchpost"
+      ],
+      "pocket": {
+        "difficulty": 0.0,
+        "items": [
+          {
+            "id": "key.northwatch.dungeon",
+            "name": "Watchpost Key",
+            "kind": "key",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "topics": [
+    {
+      "id": "topic.northwatch.general",
+      "keyword": "northwatch",
+      "response": "Northwatch is a border camp built around an older stone watchpost. Keep your eyes on the road."
+    },
+    {
+      "id": "topic.northwatch.mara",
+      "keyword": "northwatch",
+      "actorId": "actor.mara",
+      "response": "Northwatch buys more lamp oil every week. Trade follows safety, and safety follows information."
+    },
+    {
+      "id": "topic.road.general",
+      "keyword": "road",
+      "response": "The old road runs north through the trees. Follow the lantern markers when the mist comes down."
+    },
+    {
+      "id": "topic.jiva.general",
+      "keyword": "jiva stones",
+      "response": "Jiva stones hold a little borrowed light. Spend one only when the alternative is a dark grave."
+    },
+    {
+      "id": "topic.trade.general",
+      "keyword": "trade",
+      "response": "Trade is simple here: clean water, dry wood, and news are worth more than bright trinkets."
+    },
+    {
+      "id": "topic.trade.mara",
+      "keyword": "trade",
+      "actorId": "actor.mara",
+      "response": "I can trade you supplies, but the best bargain is a safe route. Tell me what you learn beyond the old road."
+    },
+    {
+      "id": "topic.camp.general",
+      "keyword": "camp",
+      "response": "The campfire is the heart of the place. Leave a little room for strangers; tomorrow you may be one."
+    },
+    {
+      "id": "topic.camp.vesa",
+      "keyword": "camp",
+      "actorId": "actor.vesa",
+      "response": "We keep the trader room stocked and quiet. Beyond the next door, quiet becomes dangerous."
+    },
+    {
+      "id": "topic.oldroad.general",
+      "keyword": "old watch road",
+      "response": "The old watch road is beyond the second room. Its stones remember more travellers than the camp does."
+    },
+    {
+      "id": "topic.road.trade_route",
+      "keyword": "road",
+      "actorId": "actor.mara",
+      "conditions": [
+        {
+          "key": "route",
+          "operator": "equals",
+          "value": "route.trade"
+        }
+      ],
+      "response": "A trader's route? Then watch the lantern marks. The two bandits are waiting at the far end of the next room."
+    },
+    {
+      "id": "topic.jiva.channeled",
+      "keyword": "jiva stones",
+      "actorId": "actor.vesa",
+      "conditions": [
+        {
+          "key": "player.channeled",
+          "operator": "min",
+          "value": "1"
+        }
+      ],
+      "response": "You have drawn on one already. I can see it in the way the dark has started to recognise you."
+    },
+    {
+      "id": "topic.door.opened",
+      "keyword": "door",
+      "actorId": "actor.mara",
+      "conditions": [
+        {
+          "key": "flag.opened.northwatch.entry.door",
+          "operator": "equals",
+          "value": "true"
+        }
+      ],
+      "response": "The inner door is open now. Go on, then, but do not mistake an unlocked room for a safe one."
+    },
+    {
+      "id": "topic.bandits.quest",
+      "keyword": "bandits",
+      "actorId": "actor.mara",
+      "questId": "quest.northwatch.bandits",
+      "response": "Two bandits are waiting at the far end of the next room. Clear them out and I will pay you here."
+    },
+    {
+      "id": "topic.bandits.completed",
+      "keyword": "bandits",
+      "actorId": "actor.mara",
+      "conditions": [
+        {
+          "key": "flag.quest.completed.quest.northwatch.bandits",
+          "operator": "equals",
+          "value": "true"
+        }
+      ],
+      "response": "You cleared them out. The road is safe again, and your 80 gold reward has already been paid."
+    },
+    {
+      "id": "topic.watchpost.general",
+      "keyword": "watchpost",
+      "response": "The old watchpost down the road is locked. Vesa keeps the key on him, and he is not in a lending mood."
+    },
+    {
+      "id": "topic.watchpost.vesa",
+      "keyword": "watchpost",
+      "actorId": "actor.vesa",
+      "response": "The watchpost? Locked, and the key stays with me. Nothing in there but damp and old supplies."
+    },
+    {
+      "id": "topic.key.general",
+      "keyword": "key",
+      "response": "Vesa carries the watchpost key in his coat. Ask him nicely, or do not ask."
+    }
+  ]
+}

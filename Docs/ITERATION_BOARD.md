@@ -4,24 +4,32 @@ This is the lightweight working board for the solo Agile process. Keep only the 
 
 ## Current iteration
 
-**Iteration:** 6 — First fight
+**Iteration:** 12 — Slice lock
 
-**Primary outcome:** A bandit notices you, closes, and fights. You swing, block, kill it,
-and watch Blade go up.
-**Status:** Complete — ready for playtest
-**Target build command:** `.\publish.ps1 -Run`
+**Primary outcome:** The player can start, talk, quest, fight, explore the dungeon, recover,
+save, quit, and reload from a self-contained build.
+**Status:** Implementation complete; external playtest sign-off pending
+**Target build command:** `.\publish.ps1`
 **Plan of record:** [`PRODUCTION_PLAN.md`](PRODUCTION_PLAN.md)
-
-### Ready
-
-- [ ] Iteration 7 — First room. See the production plan.
 
 ### In Progress
 
-- [ ] None.
+- [ ] Run three independent external playthroughs and record completion/blockers in
+      [PLAYTEST_NOTES.md](PLAYTEST_NOTES.md).
 
 ### Review / Playtest
 
+- [x] Published scene captured from build\RatnaBay.exe; see
+      [artifacts/iteration12_packaged_scene.png](../artifacts/iteration12_packaged_scene.png).
+- [ ] Physical keyboard pass: talk, accept the quest, enter the dungeon, take loot, buy stock,
+      crouch/pickpocket, open the I/K character screen, die/recover, save/reload.
+- [ ] On the main menu, press Escape and confirm the game stays open; use Exit to close it.
+
+- [ ] Edit `src/RatnaBay.Game/Content/World/northwatch.json` while the scene is running;
+      confirm a valid change reloads and an invalid change leaves the old room playable.
+- [ ] Walk diagonally into the northwatch walls; confirm movement slides without tunnelling.
+- [ ] Face the door, press E, and confirm the Security lock opens and the doorway becomes passable.
+- [ ] Relaunch from the published build and confirm `Content/World/northwatch.json` is bundled.
 - [ ] Walk toward the camp and let a bandit notice you.
 - [ ] Kill one with the sword; confirm Blade rises only on landed hits.
 - [ ] Hold right click and confirm incoming damage drops.
@@ -45,6 +53,29 @@ and watch Blade go up.
 - [x] **Iteration 6:** First-person weapon sprite, drawn in code per weapon and tier.
 - [x] **Iteration 6:** Swing arc, walking sway and guard pose on the held weapon.
 - [x] **Iteration 6:** Enemy walk bob, attack lunge and hit recoil.
+- [x] **Iteration 7:** Static BVH with swept horizontal collision, sliding and vertical overlap.
+- [x] **Iteration 7:** JSON world manifest for geometry, props, lights, spawn and door data.
+- [x] **Iteration 7:** Runtime manifest hot reload with invalid-edit fallback.
+- [x] **Iteration 7:** `content validate` checks world manifests in `RatnaBay.Tools`.
+- [x] **Iteration 7:** First authored northwatch room with a Security-wired door.
+- [x] **Iteration 7:** Second room fixture added entirely in `northwatch.json`.
+- [x] **Iteration 7:** Opened door state persists through save/load and rebuilds collision.
+- [x] **Iteration 7:** Published executable launched, entered a new session, rendered the authored room, and exited cleanly.
+- [x] **Iteration 8:** Dialogue manifest validates with two room-two traders and fourteen topics.
+- [x] **Iteration 8:** Runtime NPC billboards, facing interaction, topic menu, responses,
+      conditioned answers, quest-linked dialogue, and hot reload are wired.
+- [x] **Iteration 9:** Quest definitions, journal, live objective bearing, dialogue acceptance,
+      rewards, and quest save/reload are wired.
+- [x] **Iteration 10:** Watcher view cones, sight blockers, crouch visibility, patrols, awareness
+      decay, and pickpocket interaction are wired.
+- [x] **Iteration 11:** Northwatch now has three enterable thresholds, two traders, a gold shop,
+      persistent world pickups, and a generated ambient audio bed.
+- [x] **Iteration 12:** Dungeon geometry, loot, death/recovery, settings, `RatnaBay.Tools sim`,
+      self-contained publishing, and release self-test are complete.
+- [x] **Iteration 12:** Save self-tests use an isolated slot; saves validate before replacement,
+      retain a recovery backup, and failed Continue attempts remain safely on the menu.
+- [x] **Iteration 12:** I/K character screen exposes inventory, equipment, vitals and all skills;
+      completed trader quests receive completion-aware dialogue after reload.
 - [x] **Iteration 5:** `PlayerCharacter` ticked from the game loop.
 - [x] **Iteration 5:** Live health/prana/stamina HUD reading domain values.
 - [x] **Iteration 5:** Domain events surfaced as on-screen toasts.
@@ -52,7 +83,7 @@ and watch Blade go up.
 - [x] **Iteration 5:** Continue on the main menu, shown only when a save exists.
 - [x] **Iteration 5:** `--selftest` headless save round-trip harness.
 - [x] **Iteration 5:** Objective persisted; its bearing regenerated rather than stored.
-- [x] Port the Unity gameplay rules into `RatnaBay.Domain` (247 tests).
+- [x] Port the Unity gameplay rules into `RatnaBay.Domain` (296 tests).
 - [x] Establish the MonoGame solution and projects.
 - [x] Install and restore MonoGame content tools.
 - [x] Add the release build, doctor check, and domain test pipeline.
@@ -111,8 +142,8 @@ and watch Blade go up.
 - [ ] Quest stages and objectives.
 - [ ] Quest role binding.
 - [ ] Journal UI.
-- [ ] Versioned save/load.
-- [ ] One enemy and one combat loop.
+- [x] Versioned save/load.
+- [x] One enemy and one combat loop.
 
 ### Vertical slice
 

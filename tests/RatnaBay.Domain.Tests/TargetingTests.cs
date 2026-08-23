@@ -245,3 +245,72 @@ public class EnemyIntentTests
         });
     }
 }
+
+public class RelativeBearingTests
+{
+    private static WorldPoint At(float x, float z) => new(x, 0f, z);
+
+    [Test]
+    public void SomethingDeadAheadReadsAsZero()
+    {
+        Assert.That(Targeting.RelativeBearing(default, 0f, At(0f, -10f)),
+            Is.EqualTo(0f).Within(0.001f));
+    }
+
+    [Test]
+    public void SomethingToTheRightReadsPositive()
+    {
+        Assert.That(Targeting.RelativeBearing(default, 0f, At(10f, 0f)),
+            Is.EqualTo(MathF.PI / 2f).Within(0.001f));
+    }
+
+    [Test]
+    public void SomethingToTheLeftReadsNegative()
+    {
+        Assert.That(Targeting.RelativeBearing(default, 0f, At(-10f, 0f)),
+            Is.EqualTo(-MathF.PI / 2f).Within(0.001f));
+    }
+
+    [Test]
+    public void SomethingSlightlyLeftIsASmallNegativeAngleNotNearlyAFullTurn()
+    {
+        var bearing = Targeting.RelativeBearing(default, 0f, At(-1f, -10f));
+        Assert.That(bearing, Is.LessThan(0f).And.GreaterThan(-0.5f));
+    }
+
+    [Test]
+    public void TurningToFaceSomethingBringsItsBearingToZero()
+    {
+        var target = At(10f, -10f);
+        var bearing = Targeting.RelativeBearing(default, 0f, target);
+
+        Assert.That(Targeting.RelativeBearing(default, bearing, target),
+            Is.EqualTo(0f).Within(0.001f));
+    }
+
+    [Test]
+    public void SomethingDirectlyBehindIsAtTheWrapPoint()
+    {
+        var bearing = Targeting.RelativeBearing(default, 0f, At(0f, 10f));
+        Assert.That(MathF.Abs(bearing), Is.EqualTo(MathF.PI).Within(0.001f));
+    }
+
+    [Test]
+    public void StandingOnTheTargetIsNotADivideByZero()
+    {
+        Assert.That(Targeting.RelativeBearing(default, 0f, default), Is.Zero);
+    }
+
+    [Test]
+    public void TheBearingAgreesWithTheDirectionForwardActuallyPoints()
+    {
+        // If the bearing says a target is dead ahead, walking along FlatForward must close on it.
+        foreach (var yaw in new[] { 0f, 0.7f, -1.4f, 2.9f })
+        {
+            var forward = Targeting.FlatForward(yaw);
+            var ahead = At(forward.X * 12f, forward.Z * 12f);
+            Assert.That(Targeting.RelativeBearing(default, yaw, ahead),
+                Is.EqualTo(0f).Within(0.001f), $"yaw {yaw}");
+        }
+    }
+}

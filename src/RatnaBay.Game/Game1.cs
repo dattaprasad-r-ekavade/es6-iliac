@@ -6,6 +6,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace RatnaBay.Client;
 
@@ -17,10 +18,7 @@ public sealed class Game1 : Game
     private enum GameScreen
     {
         MainMenu,
-        WorldScene,
-        AssetGallery,
-        PhotoScene,
-        UiStress
+        WorldScene
     }
 
     private readonly GraphicsDeviceManager _graphics;
@@ -47,6 +45,7 @@ public sealed class Game1 : Game
     /// <summary>True while the pointer is captured for looking. Tab releases it.</summary>
     private bool _mouseLook;
     private bool _showHelp;
+    private bool _ignoreMouseDeltaThisFrame;
 
     /// <summary>Radians of rotation per pixel of mouse travel.</summary>
     private const float MouseSensitivity = 0.0032f;
@@ -61,8 +60,14 @@ public sealed class Game1 : Game
     private const float WalkSpeed = 6f;
 
     private const float SprintSpeed = 11f;
+    private const float PlayerCollisionRadius = 0.38f;
+    private const float Gravity = 24f;
+    private const float JumpSpeed = 8f;
+    private const float CrouchDrop = 0.9f;
+    private const float CrouchLerpSpeed = 12f;
     private GameScreen _screen = GameScreen.MainMenu;
     private int _menuSelection;
+    private string _menuStatus = string.Empty;
     private Vector3 _cameraPosition = new(0f, 2.4f, 8.5f);
     private float _cameraYaw;
     private float _cameraPitch = -0.12f;
@@ -70,12 +75,38 @@ public sealed class Game1 : Game
     private Matrix _projection;
     private Matrix _uiTransform = Matrix.Identity;
     private bool _borderlessFullscreen = true;
+    private float _standingEyeY = 2.4f;
+    private float _verticalOffset;
+    private float _verticalVelocity;
+    private bool _grounded = true;
+    private bool _crouching;
+    private bool _crouchToggled;
+    private bool _forceCrouch;
 
     /// <summary>The live character. Null until a game is started or loaded.</summary>
     private GameSession? _session;
 
     /// <summary>The enemies in the scene and the fight with them.</summary>
     private Encounter? _encounter;
+    private WorldRuntime? _world;
+    private DialogueRuntime? _dialogue;
+    private SpeakingActor? _conversationActor;
+    private int _dialogueSelection;
+    private string _dialogueResponse = string.Empty;
+    private bool _dialogueOpen;
+    private bool _showJournal;
+
+    /// <summary>Which inventory row is selected on the character screen.</summary>
+    private int _inventorySelection;
+    private bool _showCharacter;
+    private string _questObjectiveId = string.Empty;
+    private WatcherRuntime? _watchers;
+    private readonly Dictionary<string, PickpocketTarget> _pockets = new(StringComparer.Ordinal);
+    private Shop? _shop;
+    private bool _showShop;
+    private int _shopSelection;
+    private readonly List<WorldPickup> _pickups = new();
+    private AmbientAudio? _ambientAudio;
 
     private BillboardRenderer _billboards = null!;
 
@@ -98,6 +129,9 @@ public sealed class Game1 : Game
     /// </summary>
     private float? _captureSwing;
 
+    /// <summary>Screen to force open for --screenshot: inventory, journal, shop or help.</summary>
+    private string? _captureScreen;
+
     /// <summary>
     /// Wall-clock frame rate. Deliberately not derived from GameTime: under a fixed
     /// timestep ElapsedGameTime is always 1/60 no matter how slowly the game is really
@@ -116,6 +150,9 @@ public sealed class Game1 : Game
     /// pixel so glyphs land 1:1 on the display instead of being resampled.
     /// </summary>
     private float _uiScale = 1f;
+    private float _uiScalePreference = 1f;
+    private bool _showSettings;
+    private int _settingsSelection;
 
     /// <summary>Fonts rasterized per device-pixel size. Scaling a fixed atlas blurs text.</summary>
     private readonly Dictionary<int, DynamicSpriteFont> _bodyFonts = new();
@@ -134,23 +171,28 @@ public sealed class Game1 : Game
         };
 
         Content.RootDirectory = "Content";
-        IsMouseVisible = true;
+        IsMouseVisible = false;
 
         // MonoGame defaults to a fixed timestep, where ElapsedGameTime is always 1/60 no
         // matter how long the frame really took. At 43 fps that advanced game time at 72%
         // of real time, so walking was a quarter slower than its own speed constant said.
         // A variable timestep makes elapsed time mean elapsed time.
         IsFixedTimeStep = false;
-        Window.Title = "Ratna Bay - Development Shell";
+        Window.Title = "Ratna Bay";
         Window.IsBorderless = true;
 
         _screen = ParseMode(args);
         _screenshotPath = ParseOption(args, "--screenshot");
+        _forceCrouch = HasArgument(args, "--sneak");
 
         // Deterministic camera for screenshots, so a change to look or movement can be
         // compared frame against frame instead of described.
         if (int.TryParse(ParseOption(args, "--warmup"), out var warmup)) _warmupFrames = warmup;
         if (float.TryParse(ParseOption(args, "--swing"), out var swing)) _captureSwing = swing;
+
+        // Opens a screen for a capture, so an interface change can be looked at rather than
+        // described. Screenshot mode only.
+        _captureScreen = ParseOption(args, "--show");
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
         if (_screenshotPath is not null)
@@ -206,9 +248,6 @@ public sealed class Game1 : Game
             {
                 "menu" or "title" => GameScreen.MainMenu,
                 "scene" or "game" or "world" => GameScreen.WorldScene,
-                "assets" or "asset" or "gallery" => GameScreen.AssetGallery,
-                "photo" or "photorealism" => GameScreen.PhotoScene,
-                "ui" or "stress" => GameScreen.UiStress,
                 _ => GameScreen.MainMenu
             };
         }
@@ -227,8 +266,20 @@ public sealed class Game1 : Game
         CreatePrimitiveCube();
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
-        // character, or the HUD has nothing to show.
-        if (_screen == GameScreen.WorldScene) StartSession(GameSession.NewGame());
+        // character and a data-authored room, or the HUD has nothing to show.
+        if (_screen == GameScreen.WorldScene)
+        {
+            LoadWorldManifest();
+            ResetCamera();
+            StartSession(GameSession.NewGame());
+        }
+
+        switch (_captureScreen?.ToLowerInvariant())
+        {
+            case "inventory" or "character": _showCharacter = true; break;
+            case "journal": _showJournal = true; break;
+            case "help": _showHelp = true; break;
+        }
 
         if (_startYaw is { } forcedYaw) _cameraYaw = forcedYaw;
         if (_startPitch is { } forcedPitch) _cameraPitch = forcedPitch;
@@ -258,6 +309,10 @@ public sealed class Game1 : Game
 
         _white = new Texture2D(GraphicsDevice, 1, 1);
         _white.SetData(new[] { Color.White });
+
+        if (!AmbientAudio.TryStart(out _ambientAudio, out var ambientError)
+            && !string.IsNullOrWhiteSpace(ambientError))
+            _assetErrors.Add(ambientError);
 
         _primitiveEffect = new BasicEffect(GraphicsDevice)
         {
@@ -293,6 +348,7 @@ public sealed class Game1 : Game
         _white.Dispose();
         _primitiveEffect.Dispose();
         _billboards.Dispose();
+        _ambientAudio?.Dispose();
         CharacterSprites.Clear();
         WeaponSprites.Clear();
         base.UnloadContent();
@@ -319,7 +375,7 @@ public sealed class Game1 : Game
         {
             if (_screen == GameScreen.MainMenu)
             {
-                Exit();
+                if (_showSettings) _showSettings = false;
             }
             else if (_showHelp)
             {
@@ -328,7 +384,32 @@ public sealed class Game1 : Game
             else
             {
                 SetMouseLook(false);
-                _screen = GameScreen.MainMenu;
+                if (_showSettings)
+                {
+                    _showSettings = false;
+                }
+                else if (_dialogueOpen)
+                {
+                    _dialogueOpen = false;
+                    _conversationActor = null;
+                    _dialogueResponse = string.Empty;
+                }
+                else if (_showJournal)
+                {
+                    _showJournal = false;
+                }
+                else if (_showCharacter)
+                {
+                    _showCharacter = false;
+                }
+                else if (_showShop)
+                {
+                    _showShop = false;
+                }
+                else
+                {
+                    _screen = GameScreen.MainMenu;
+                }
             }
         }
 
@@ -353,8 +434,20 @@ public sealed class Game1 : Game
         if (_screenshotPath is not null) enabled = false;
 
         _mouseLook = enabled;
-        IsMouseVisible = !enabled;
-        if (enabled) CentreMouse();
+        // The system cursor stays hidden in every state; DrawPointer draws ours instead.
+        IsMouseVisible = false;
+        if (enabled)
+        {
+            // The MouseState passed through this Update was sampled before the cursor was
+            // recentered. Ignore that stale position or clicking off-centre causes a camera
+            // jump on the same frame that capture begins.
+            _ignoreMouseDeltaThisFrame = true;
+            CentreMouse();
+        }
+        else
+        {
+            _ignoreMouseDeltaThisFrame = false;
+        }
     }
 
     private void CentreMouse()
@@ -367,6 +460,13 @@ public sealed class Game1 : Game
     private Vector2 ReadMouseDelta(MouseState mouse)
     {
         if (!_mouseLook || !IsActive) return Vector2.Zero;
+
+        if (_ignoreMouseDeltaThisFrame)
+        {
+            _ignoreMouseDeltaThisFrame = false;
+            CentreMouse();
+            return Vector2.Zero;
+        }
 
         var viewport = GraphicsDevice.Viewport;
         var centre = new Point(viewport.Width / 2, viewport.Height / 2);
@@ -417,19 +517,6 @@ public sealed class Game1 : Game
             case GameScreen.WorldScene:
                 DrawWorldScene();
                 break;
-            case GameScreen.AssetGallery:
-                DrawGallery();
-                DrawModeHeader("3D ASSET IMPORT", "Kenney CC0 + Poly Haven CC0 | FBX -> MGCB -> Model");
-                break;
-            case GameScreen.PhotoScene:
-                DrawPhotoScene(true);
-                DrawModeHeader("PHOTOREALISM FEASIBILITY", "Textured FBX prop + authored lighting + fog + scene composition");
-                break;
-            case GameScreen.UiStress:
-                DrawPhotoScene(false);
-                DrawModeHeader("UI STRESS", "Layered RPG interface over the 3D scene");
-                DrawComplexUi();
-                break;
         }
 
         base.Draw(gameTime);
@@ -469,18 +556,30 @@ public sealed class Game1 : Game
     /// that opens onto nothing.
     /// </summary>
     private static string[] MenuItems => GameSession.HasSaveFile
-        ? new[] { "Continue", "Start New Game", "Renderer Lab", "UI Stress Test", "Exit" }
-        : new[] { "Start New Game", "Renderer Lab", "UI Stress Test", "Exit" };
+        ? new[] { "Continue", "Start New Game", "Settings", "Exit" }
+        : new[] { "Start New Game", "Settings", "Exit" };
 
     private void UpdateMenu(KeyboardState keyboard, MouseState mouse)
     {
+        if (_showSettings)
+        {
+            UpdateSettings(keyboard);
+            return;
+        }
+
         var menuItemCount = MenuItems.Length;
         _menuSelection = Math.Clamp(_menuSelection, 0, menuItemCount - 1);
 
         if (Pressed(keyboard, Keys.Up))
+        {
             _menuSelection = (_menuSelection + menuItemCount - 1) % menuItemCount;
+            _menuStatus = string.Empty;
+        }
         if (Pressed(keyboard, Keys.Down))
+        {
             _menuSelection = (_menuSelection + 1) % menuItemCount;
+            _menuStatus = string.Empty;
+        }
 
         // Hovering moves the selection, so the keyboard and the mouse never disagree about
         // which item is about to be chosen.
@@ -504,6 +603,25 @@ public sealed class Game1 : Game
             ActivateMenuItem();
     }
 
+    private void UpdateSettings(KeyboardState keyboard)
+    {
+        const int optionCount = 3;
+        if (Pressed(keyboard, Keys.Up))
+            _settingsSelection = (_settingsSelection + optionCount - 1) % optionCount;
+        if (Pressed(keyboard, Keys.Down))
+            _settingsSelection = (_settingsSelection + 1) % optionCount;
+
+        if (_settingsSelection == 0 && Pressed(keyboard, Keys.Enter))
+            SetBorderlessFullscreen(!_borderlessFullscreen);
+
+        if (_settingsSelection == 1 && (Pressed(keyboard, Keys.Left) || Pressed(keyboard, Keys.Right)))
+        {
+            var direction = keyboard.IsKeyDown(Keys.Right) ? 0.1f : -0.1f;
+            _uiScalePreference = MathHelper.Clamp(_uiScalePreference + direction, 0.8f, 1.2f);
+            UpdateUiTransform();
+        }
+    }
+
     /// <summary>
     /// One menu row. Drawing and hit testing both read this, so a clickable row is always
     /// exactly the row the player can see.
@@ -516,22 +634,24 @@ public sealed class Game1 : Game
         {
             case "Continue":
                 ResetCamera();
-                LoadSession();
-                _screen = GameScreen.WorldScene;
-                SetMouseLook(true);
+                if (LoadSession())
+                {
+                    _screen = GameScreen.WorldScene;
+                    SetMouseLook(true);
+                }
                 break;
             case "Start New Game":
                 ResetCamera();
                 StartSession(GameSession.NewGame());
                 _session!.ShowToast("You wake on the Northwatch road.");
+                _menuStatus = string.Empty;
                 _screen = GameScreen.WorldScene;
                 SetMouseLook(true);
                 break;
-            case "Renderer Lab":
-                _screen = GameScreen.AssetGallery;
-                break;
-            case "UI Stress Test":
-                _screen = GameScreen.UiStress;
+            case "Settings":
+                _showSettings = true;
+                _settingsSelection = 0;
+                SetMouseLook(false);
                 break;
             case "Exit":
                 Exit();
@@ -541,28 +661,78 @@ public sealed class Game1 : Game
 
     private void UpdateGameScreen(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
-        if (Pressed(keyboard, Keys.D1)) _screen = GameScreen.AssetGallery;
-        if (Pressed(keyboard, Keys.D2)) _screen = GameScreen.PhotoScene;
-        if (Pressed(keyboard, Keys.D3)) _screen = GameScreen.UiStress;
         if (Pressed(keyboard, Keys.M)) { SetMouseLook(false); _screen = GameScreen.MainMenu; }
         if (Pressed(keyboard, Keys.F1)) { _showHelp = !_showHelp; if (_showHelp) SetMouseLook(false); }
         if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
+        if (Pressed(keyboard, Keys.J))
+        {
+            _showJournal = !_showJournal;
+            if (_showJournal) { _showCharacter = false; SetMouseLook(false); }
+        }
+        if (Pressed(keyboard, Keys.I) || Pressed(keyboard, Keys.K))
+        {
+            _showCharacter = !_showCharacter;
+            if (_showCharacter) { _showJournal = false; _inventorySelection = 0; SetMouseLook(false); }
+        }
 
-        // Clicking the world takes the pointer back; Tab or Escape gives it up. Nothing
-        // grabs the mouse without the player asking for it.
-        if (!_mouseLook && !_showHelp && Clicked(mouse) && IsActive) SetMouseLook(true);
+        if (_showCharacter)
+        {
+            UpdateInventory(keyboard);
+            return;
+        }
+        if (Pressed(keyboard, Keys.F2)) { _showSettings = !_showSettings; if (_showSettings) SetMouseLook(false); }
 
-        UpdateCamera(gameTime, keyboard, mouse);
+        if (_showSettings)
+        {
+            UpdateSettings(keyboard);
+            return;
+        }
 
         if (_screen == GameScreen.WorldScene)
-            UpdateSession(gameTime, keyboard);
+            UpdateCrouchToggle(keyboard);
+
+        // A released pointer can click the active talk/shop/pickup prompt. A click anywhere
+        // else returns to mouse-look; this prevents a UI click from becoming an attack.
+        if (!_mouseLook && !_showHelp && !_dialogueOpen && !_showShop && !_showCharacter
+            && Clicked(mouse) && IsActive
+            && !TryActivateWorldPrompt(mouse))
+            SetMouseLook(true);
+
+        if (_screen == GameScreen.WorldScene && _world is not null)
+        {
+            if (_world.TryReloadIfChanged(out var reloadMessage))
+            {
+                LoadWatchers();
+                LoadPickups();
+                _session?.ShowToast(reloadMessage);
+            }
+            else if (!string.IsNullOrWhiteSpace(reloadMessage))
+                _session?.ShowToast($"World reload failed: {reloadMessage}");
+        }
+
+        if (_screen == GameScreen.WorldScene && _dialogue is not null)
+        {
+            if (_dialogue.TryReloadIfChanged(out var reloadMessage))
+            {
+                LoadPockets();
+                _session?.ShowToast(reloadMessage);
+            }
+            else if (!string.IsNullOrWhiteSpace(reloadMessage))
+                _session?.ShowToast($"Dialogue reload failed: {reloadMessage}");
+        }
+
+        if (!_dialogueOpen && !_showJournal && !_showCharacter && !_showShop)
+            UpdateCamera(gameTime, keyboard, mouse);
+
+        if (_screen == GameScreen.WorldScene)
+            UpdateSession(gameTime, keyboard, mouse);
     }
 
     /// <summary>
     /// Drive the domain from the running game: advance its clock, feed it the player's
     /// position, and honour the save keys.
     /// </summary>
-    private void UpdateSession(GameTime gameTime, KeyboardState keyboard)
+    private void UpdateSession(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         if (_session is null) return;
 
@@ -571,7 +741,27 @@ public sealed class Game1 : Game
         _session.Yaw = _cameraYaw;
         _session.Pitch = _cameraPitch;
 
-        _session.Tick(StepSeconds(gameTime));
+        var step = StepSeconds(gameTime);
+        _session.Player.Detection.SetCrouching(_crouching);
+        _watchers?.Update(step, _session.Position);
+        _session.Tick(step);
+
+        if (_showJournal || _showCharacter)
+        {
+            return;
+        }
+
+        if (_showShop)
+        {
+            UpdateShopInput(keyboard, mouse);
+            return;
+        }
+
+        if (_dialogueOpen)
+        {
+            UpdateDialogueInput(keyboard, mouse);
+            return;
+        }
 
         // Sprinting is the only thing that spends stamina yet, so it is what proves the
         // vitals on screen are the domain's numbers rather than painted ones.
@@ -580,6 +770,56 @@ public sealed class Game1 : Game
 
         if (Pressed(keyboard, Keys.F5)) _session.ShowToast(_session.Save());
         if (Pressed(keyboard, Keys.F9)) LoadSession();
+
+        if (Pressed(keyboard, Keys.P))
+        {
+            var actor = _dialogue?.FindActor(_session.Position, _cameraYaw);
+            if (actor is not null) TryPickpocket(actor);
+        }
+
+        if (Pressed(keyboard, Keys.B))
+        {
+            var actor = _dialogue?.FindActor(_session.Position, _cameraYaw);
+            if (actor is not null && actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
+                && _shop is not null)
+            {
+                _showShop = true;
+                _shopSelection = 0;
+                SetMouseLook(false);
+            }
+        }
+
+        if (Pressed(keyboard, Keys.E))
+        {
+            var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+            var actor = _dialogue?.FindActor(player, _cameraYaw);
+            if (actor is not null)
+            {
+                OpenDialogue(actor);
+            }
+            else if (_world is not null)
+            {
+                var pickup = FindPickup(player, _cameraYaw);
+                if (pickup is not null)
+                {
+                    TakePickup(pickup);
+                }
+                else
+                {
+                    var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
+                    if (door is not null)
+                    {
+                        _session.ShowToast(result switch
+                        {
+                            LockResult.Opened => $"{door.Definition.Id} opened.",
+                            LockResult.Unlocked => "The key turns. The door opens.",
+                            LockResult.Failed => $"The lock resists. Security {door.Definition.Difficulty:0} required.",
+                            _ => "The door is already open."
+                        });
+                    }
+                }
+            }
+        }
 
         UpdateCombat(gameTime, keyboard);
     }
@@ -605,6 +845,24 @@ public sealed class Game1 : Game
 
         if (Clicked(mouse))
         {
+            var actor = _dialogue?.FindActor(
+                new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z), _cameraYaw);
+            if (actor is not null)
+            {
+                if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
+                    && _shop is not null)
+                {
+                    _showShop = true;
+                    _shopSelection = 0;
+                    SetMouseLook(false);
+                }
+                else
+                {
+                    OpenDialogue(actor);
+                }
+                return;
+            }
+
             var outcome = _encounter.PlayerAttack();
 
             // The arm moves whenever the swing actually happened — a hit and a miss look the
@@ -626,6 +884,143 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.D6)) SelectSpell(SpellCatalog.ShockId);
         if (Pressed(keyboard, Keys.D7)) SelectSpell(SpellCatalog.HealId);
         if (Pressed(keyboard, Keys.D8)) SelectSpell(SpellCatalog.LightId);
+    }
+
+    private void OpenDialogue(SpeakingActor actor)
+    {
+        _conversationActor = actor;
+        _dialogueOpen = true;
+        _dialogueSelection = 0;
+        var topics = actor.Talk();
+        _dialogueResponse = topics.Count == 0
+            ? $"{actor.DisplayName} has nothing to discuss."
+            : $"{actor.DisplayName} looks your way. What do you want to know?";
+        SetMouseLook(false);
+    }
+
+    private static Rectangle DialogueTopicBounds(int index) =>
+        new(246, 308 + index * 30, 788, 26);
+
+    private static Rectangle ShopItemBounds(int index) =>
+        new(274, 232 + index * 52, 732, 42);
+
+    private static Rectangle TalkPromptBounds() => new(388, 596, 248, 42);
+    private static Rectangle SecondaryPromptBounds() => new(644, 596, 248, 42);
+    private static Rectangle SinglePromptBounds() => new(388, 596, 504, 42);
+
+    /// <summary>Activate the prompt under a released mouse pointer instead of recapturing it.</summary>
+    private bool TryActivateWorldPrompt(MouseState mouse)
+    {
+        if (_session is null || !Clicked(mouse)) return false;
+
+        var pointer = LogicalMouse(mouse);
+        var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+        var actor = _dialogue?.FindActor(player, _cameraYaw);
+        if (actor is not null)
+        {
+            if (TalkPromptBounds().Contains((int)pointer.X, (int)pointer.Y))
+            {
+                OpenDialogue(actor);
+                return true;
+            }
+
+            if (SecondaryPromptBounds().Contains((int)pointer.X, (int)pointer.Y))
+            {
+                if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
+                    && _shop is not null)
+                {
+                    _showShop = true;
+                    _shopSelection = 0;
+                    SetMouseLook(false);
+                    return true;
+                }
+
+                if (actor.Palette.Equals("guard", StringComparison.OrdinalIgnoreCase))
+                {
+                    TryPickpocket(actor);
+                    return true;
+                }
+            }
+        }
+
+        if (!SinglePromptBounds().Contains((int)pointer.X, (int)pointer.Y)) return false;
+
+        var pickup = FindPickup(player, _cameraYaw);
+        if (pickup is not null)
+        {
+            TakePickup(pickup);
+            return true;
+        }
+
+        if (_world is null) return false;
+        var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
+        if (door is null) return false;
+
+        _session.ShowToast(result switch
+        {
+            LockResult.Opened => $"{door.Definition.Id} opened.",
+            LockResult.Unlocked => "The key turns. The door opens.",
+            LockResult.Failed => $"The lock resists. Security {door.Definition.Difficulty:0} required.",
+            _ => "The door is already open."
+        });
+        return true;
+    }
+
+    private void UpdateDialogueInput(KeyboardState keyboard, MouseState mouse)
+    {
+        if (_conversationActor is null)
+        {
+            _dialogueOpen = false;
+            return;
+        }
+
+        var topics = _conversationActor.AvailableTopics();
+        if (Pressed(keyboard, Keys.Escape))
+        {
+            _dialogueOpen = false;
+            _conversationActor = null;
+            _dialogueResponse = string.Empty;
+            return;
+        }
+
+        if (topics.Count == 0) return;
+
+        if (Pressed(keyboard, Keys.Up))
+            _dialogueSelection = (_dialogueSelection + topics.Count - 1) % topics.Count;
+        if (Pressed(keyboard, Keys.Down))
+            _dialogueSelection = (_dialogueSelection + 1) % topics.Count;
+
+        var numberKeys = new[]
+        {
+            Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5,
+            Keys.D6, Keys.D7, Keys.D8, Keys.D9
+        };
+        for (var index = 0; index < numberKeys.Length && index < topics.Count; index++)
+            if (Pressed(keyboard, numberKeys[index])) _dialogueSelection = index;
+
+        var pointer = LogicalMouse(mouse);
+        for (var index = 0; index < topics.Count && index < 9; index++)
+        {
+            var row = DialogueTopicBounds(index);
+            if (!row.Contains((int)pointer.X, (int)pointer.Y)) continue;
+
+            _dialogueSelection = index;
+            if (Clicked(mouse)) AskDialogueTopic(topics[index]);
+            return;
+        }
+
+        if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
+            AskDialogueTopic(topics[_dialogueSelection]);
+    }
+
+    private void AskDialogueTopic(string keyword)
+    {
+        if (_conversationActor is null) return;
+
+        var topic = _session?.Player.Dialogue.Resolve(keyword, _conversationActor.Context);
+        _dialogueResponse = _conversationActor.Ask(keyword)
+            ?? "That topic does not lead anywhere here.";
+        if (!string.IsNullOrWhiteSpace(topic?.QuestId)) AcceptQuest(topic.QuestId);
     }
 
     private void SelectSpell(string spellId)
@@ -659,9 +1054,83 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>
+    /// Choosing and using an item.
+    ///
+    /// Testers found the inventory unintuitive because it was a list that did nothing: you
+    /// could read your possessions but not drink, equip or wear any of them. Selection is
+    /// driven from both the keyboard and the pointer so neither is the only way in.
+    /// </summary>
+    private void UpdateInventory(KeyboardState keyboard)
+    {
+        if (_session is null) return;
+
+        var items = _session.Player.Inventory.Items;
+        if (items.Count == 0)
+        {
+            _inventorySelection = 0;
+            return;
+        }
+
+        _inventorySelection = Math.Clamp(_inventorySelection, 0, items.Count - 1);
+
+        if (Pressed(keyboard, Keys.Up) || Pressed(keyboard, Keys.W))
+            _inventorySelection = (_inventorySelection + items.Count - 1) % items.Count;
+        if (Pressed(keyboard, Keys.Down) || Pressed(keyboard, Keys.S))
+            _inventorySelection = (_inventorySelection + 1) % items.Count;
+
+        var mouse = Mouse.GetState();
+        var pointer = LogicalMouse(mouse);
+        var hovered = -1;
+        for (var index = 0; index < items.Count && index < InventoryRows; index++)
+            if (InventoryRowBounds(index).Contains((int)pointer.X, (int)pointer.Y))
+                hovered = index;
+
+        if (hovered >= 0) _inventorySelection = hovered;
+
+        var activate = Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space)
+            || (hovered >= 0 && Clicked(mouse));
+        if (!activate) return;
+
+        var item = items[_inventorySelection];
+        var name = item.Name;
+        var result = ItemUse.Use(item.Id, _session.Player);
+
+        _session.ShowToast(result switch
+        {
+            ItemUseResult.Used => $"Used {name}.",
+            ItemUseResult.Equipped => $"Equipped {name}.",
+            ItemUseResult.NoEffect => $"{name} would do nothing right now.",
+            ItemUseResult.NotUsable => $"{name} is not something you can use.",
+            _ => $"You are not carrying {name}."
+        });
+
+        // Consuming the last of a stack shortens the list under the selection.
+        _inventorySelection = Math.Clamp(_inventorySelection, 0,
+            Math.Max(0, _session.Player.Inventory.Items.Count - 1));
+    }
+
+    /// <summary>Rows the character screen can show before it stops listing.</summary>
+    private const int InventoryRows = 10;
+
+    /// <summary>
+    /// One inventory row. Drawing and hit testing share it, so a clickable row is always
+    /// exactly the row on screen.
+    /// </summary>
+    private static Rectangle InventoryRowBounds(int index) => new(480, 214 + index * 34, 356, 32);
+
     private static bool IsMoving(KeyboardState keyboard) =>
         keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.A)
         || keyboard.IsKeyDown(Keys.S) || keyboard.IsKeyDown(Keys.D);
+
+    private void UpdateCrouchToggle(KeyboardState keyboard)
+    {
+        if (!_forceCrouch
+            && (Pressed(keyboard, Keys.LeftControl) || Pressed(keyboard, Keys.RightControl)))
+            _crouchToggled = !_crouchToggled;
+
+        _crouching = _forceCrouch || _crouchToggled;
+    }
 
     /// <summary>
     /// Begin a session and populate the world around it. The camp is spawned here rather
@@ -670,7 +1139,21 @@ public sealed class Game1 : Game
     /// </summary>
     private void StartSession(GameSession session)
     {
+        LoadWorldManifest();
         _session = session;
+        LoadQuestManifest();
+        LoadDialogueManifest();
+        LoadWatchers();
+        LoadPockets();
+        LoadPickups();
+        LoadShop();
+        _session.Player.Quests.Changed += RefreshQuestObjective;
+        _dialogueOpen = false;
+        _showJournal = false;
+        _showCharacter = false;
+        _showShop = false;
+        _questObjectiveId = string.Empty;
+        _world?.RestoreOpenedDoors(session.Player.Story.State.OpenedLocks);
         _encounter = new Encounter(session);
         _encounter.SpawnDefaultCamp();
 
@@ -683,18 +1166,31 @@ public sealed class Game1 : Game
         };
     }
 
-    private void LoadSession()
+    private bool LoadSession()
     {
         if (_session is null) StartSession(GameSession.NewGame());
 
-        var message = _session!.Load();
+        if (!_session!.TryLoad(out var message))
+        {
+            if (_screen == GameScreen.MainMenu) _menuStatus = message;
+            else _session.ShowToast(message);
+            return false;
+        }
+
         _cameraPosition = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
         _cameraYaw = _session.Yaw;
+        _world?.RestoreOpenedDoors(_session.Player.Story.State.OpenedLocks);
+        LoadPockets();
+        LoadPickups();
+        LoadShop();
+        RefreshQuestObjective();
 
         _encounter = new Encounter(_session);
         _encounter.SpawnDefaultCamp();
 
         _session.ShowToast(message);
+        _menuStatus = string.Empty;
+        return true;
     }
 
     private void SetBorderlessFullscreen(bool enabled)
@@ -728,7 +1224,8 @@ public sealed class Game1 : Game
         if (viewport.Width <= 0 || viewport.Height <= 0)
             return;
 
-        var scale = MathF.Min(viewport.Width / (float)LogicalWidth, viewport.Height / (float)LogicalHeight);
+        var scale = MathF.Min(viewport.Width / (float)LogicalWidth, viewport.Height / (float)LogicalHeight)
+            * _uiScalePreference;
         var offsetX = (viewport.Width - LogicalWidth * scale) * 0.5f;
         var offsetY = (viewport.Height - LogicalHeight * scale) * 0.5f;
         _uiTransform = Matrix.CreateScale(scale) * Matrix.CreateTranslation(offsetX, offsetY, 0f);
@@ -747,12 +1244,11 @@ public sealed class Game1 : Game
             var model = Content.Load<Model>(contentPath);
             _models[key] = model;
 
-            var (center, extent) = MeasureModel(model);
-            _modelCenters[key] = center;
-            _modelNormalizers[key] = 1f / extent;
-
             var bones = new Matrix[model.Bones.Count];
             if (bones.Length > 0) model.CopyAbsoluteBoneTransformsTo(bones);
+            var (center, extent) = MeasureModel(model, bones);
+            _modelCenters[key] = center;
+            _modelNormalizers[key] = 1f / extent;
             _modelBones[key] = bones;
 
             ConfigureModelLighting(model);
@@ -824,13 +1320,49 @@ public sealed class Game1 : Game
         if (keyboard.IsKeyDown(Keys.S)) movement -= flatForward;
         if (keyboard.IsKeyDown(Keys.A)) movement -= right;
         if (keyboard.IsKeyDown(Keys.D)) movement += right;
-        if (keyboard.IsKeyDown(Keys.Space)) movement += Vector3.Up;
-        if (keyboard.IsKeyDown(Keys.LeftControl)) movement -= Vector3.Up;
+
+        // Space is a jump, not a vertical free-flight throttle. Keeping a small explicit
+        // vertical state also makes a held key produce one jump instead of levitation.
+        if (Pressed(keyboard, Keys.Space) && _grounded)
+        {
+            _verticalVelocity = JumpSpeed;
+            _grounded = false;
+        }
+
+        _verticalVelocity -= Gravity * seconds;
+        _verticalOffset = MathF.Max(0f, _verticalOffset + _verticalVelocity * seconds);
+        if (_verticalOffset <= 0.0001f)
+        {
+            _verticalOffset = 0f;
+            _verticalVelocity = 0f;
+            _grounded = true;
+        }
+
+        var targetEyeY = _standingEyeY - (_crouching ? CrouchDrop : 0f);
+        var currentEyeY = _cameraPosition.Y - _verticalOffset;
+        var crouchBlend = 1f - MathF.Exp(-CrouchLerpSpeed * seconds);
+        var nextEyeY = MathHelper.Lerp(currentEyeY, targetEyeY, crouchBlend);
 
         if (movement.LengthSquared() > 0.001f)
         {
             movement.Normalize();
-            _cameraPosition += movement * speed * seconds;
+            var delta = movement * speed * seconds;
+            if (_screen == GameScreen.WorldScene && _world is not null)
+            {
+                var current = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+                var resolved = _world.Move(current,
+                    new WorldPoint(delta.X, 0f, delta.Z), PlayerCollisionRadius);
+                _cameraPosition = new Vector3(resolved.X, nextEyeY + _verticalOffset, resolved.Z);
+            }
+            else
+            {
+                _cameraPosition = new Vector3(_cameraPosition.X + delta.X,
+                    nextEyeY + _verticalOffset, _cameraPosition.Z + delta.Z);
+            }
+        }
+        else
+        {
+            _cameraPosition.Y = nextEyeY + _verticalOffset;
         }
     }
 
@@ -853,24 +1385,318 @@ public sealed class Game1 : Game
 
     private void ResetCamera()
     {
-        _cameraPosition = new Vector3(0f, 2.4f, 8.5f);
-        _cameraYaw = 0f;
+        var spawn = _world?.Manifest.PlayerSpawn;
+        if (spawn is not null)
+        {
+            _standingEyeY = spawn.Position.Y;
+            _cameraPosition = new Vector3(spawn.Position.X, spawn.Position.Y, spawn.Position.Z);
+            _cameraYaw = spawn.Yaw;
+        }
+        else
+        {
+            _standingEyeY = 2.4f;
+            _cameraPosition = new Vector3(0f, 2.4f, 8.5f);
+            _cameraYaw = 0f;
+        }
+        _verticalOffset = 0f;
+        _verticalVelocity = 0f;
+        _grounded = true;
+        _crouching = false;
+        _crouchToggled = false;
         _cameraPitch = -0.12f;
+    }
+
+    private void LoadWorldManifest()
+    {
+        if (_world is not null) return;
+
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "World", "northwatch.json");
+        if (!WorldRuntime.TryLoad(path, out var world, out var error))
+        {
+            _assetErrors.Add(error);
+            return;
+        }
+
+        _world = world;
+    }
+
+    private void LoadDialogueManifest()
+    {
+        if (_session is null) return;
+
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Dialogue", "northwatch.json");
+        if (!DialogueRuntime.TryLoad(path, _session.Player.Dialogue, out var dialogue, out var error))
+        {
+            _assetErrors.Add(error);
+            _dialogue = null;
+            return;
+        }
+
+        _dialogue = dialogue;
+    }
+
+    private void LoadWatchers()
+    {
+        if (_session is null || _world is null) return;
+        if (_watchers is null)
+            _watchers = new WatcherRuntime(_world.Manifest, _world.Collision,
+                _session.Player.Detection);
+        else
+            _watchers.Reload(_world.Manifest);
+    }
+
+    private void LoadPockets()
+    {
+        _pockets.Clear();
+        if (_session is null || _dialogue is null) return;
+
+        foreach (var actor in _dialogue.Actors)
+        {
+            var pocket = _dialogue.PocketOf(actor.ActorId);
+            var alreadyLifted = _session.Player.Story.State.LootedObjects.Contains(
+                $"pickpocket.{actor.ActorId}", StringComparer.Ordinal);
+
+            // Contents come from the manifest so a pocket can hold something that matters —
+            // the watchpost key rather than a nameless purse.
+            var contents = alreadyLifted || pocket is null
+                ? Array.Empty<ItemStack>()
+                : pocket.Items.Select(item => new ItemStack
+                {
+                    Id = item.Id, Name = item.Name, Kind = item.Kind, Count = item.Count
+                }).ToArray();
+
+            _pockets[actor.ActorId] = new PickpocketTarget(pocket?.Difficulty ?? 0f, contents);
+        }
+    }
+
+    private void LoadPickups()
+    {
+        _pickups.Clear();
+        if (_session is null || _world is null) return;
+
+        foreach (var pickup in _world.Manifest.Pickups ?? new List<WorldPickup>())
+        {
+            if (_session.Player.Story.State.LootedObjects.Contains(
+                    $"pickup.{pickup.Id}", StringComparer.Ordinal))
+                continue;
+
+            _pickups.Add(pickup);
+        }
+    }
+
+    private void LoadShop()
+    {
+        if (_session is null) return;
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Shops", "northwatch.json");
+        if (!ShopManifest.TryLoad(path, out var manifest, out var error))
+        {
+            _assetErrors.Add(error);
+            _shop = null;
+            return;
+        }
+
+        var definition = manifest!.ToDefinitions().FirstOrDefault();
+        if (definition is null)
+        {
+            _shop = null;
+            return;
+        }
+
+        _shop = new Shop(definition);
+        foreach (var item in definition.Items)
+            if (_session.Player.Story.State.LootedObjects.Contains(
+                    $"shop.{definition.Id}.{item.Id}", StringComparer.Ordinal))
+                _shop.MarkSoldOut(item.Id);
+    }
+
+    private void TryPickpocket(SpeakingActor actor)
+    {
+        if (_session is null || !_pockets.TryGetValue(actor.ActorId, out var target)) return;
+
+        var outcome = Pickpocketing.TryTake(target, _session.Player.Skills,
+            _session.Player.Inventory, _session.Player.Detection);
+        if (outcome.TookSomething)
+            _session.Player.Story.MarkLooted($"pickpocket.{actor.ActorId}");
+
+        _session.ShowToast(outcome.Result switch
+        {
+            PickpocketResult.Taken => $"You lifted {outcome.Item!.Name}.",
+            PickpocketResult.Caught => "A watcher noticed your hand.",
+            PickpocketResult.TooDifficult => "The pocket is beyond your Security skill.",
+            _ => "There is nothing left to take."
+        });
+    }
+
+    private WorldPickup? FindPickup(WorldPoint player, float yaw, float range = 3.2f)
+    {
+        var forward = Targeting.FlatForward(yaw);
+        WorldPickup? best = null;
+        var bestDistance = float.MaxValue;
+
+        foreach (var pickup in _pickups)
+        {
+            var distance = player.FlatDistanceTo(pickup.Position.ToWorldPoint());
+            if (distance > range || distance >= bestDistance) continue;
+
+            var dx = pickup.Position.X - player.X;
+            var dz = pickup.Position.Z - player.Z;
+            if (distance > 0.001f && (dx * forward.X + dz * forward.Z) / distance < 0.35f)
+                continue;
+
+            best = pickup;
+            bestDistance = distance;
+        }
+
+        return best;
+    }
+
+    private void TakePickup(WorldPickup pickup)
+    {
+        if (_session is null) return;
+
+        _session.Player.Inventory.Add(pickup.ItemId, pickup.Name, pickup.Count, pickup.Kind);
+        _session.Player.Story.MarkLooted($"pickup.{pickup.Id}");
+        _pickups.Remove(pickup);
+        _session.ShowToast($"Taken: {pickup.Name} x{pickup.Count}.");
+    }
+
+    private void UpdateShopInput(KeyboardState keyboard, MouseState mouse)
+    {
+        if (_shop is null) return;
+
+        var items = _shop.Definition.Items;
+        if (Pressed(keyboard, Keys.Escape) || Pressed(keyboard, Keys.B))
+        {
+            _showShop = false;
+            return;
+        }
+        if (items.Count == 0) return;
+
+        if (Pressed(keyboard, Keys.Up))
+            _shopSelection = (_shopSelection + items.Count - 1) % items.Count;
+        if (Pressed(keyboard, Keys.Down))
+            _shopSelection = (_shopSelection + 1) % items.Count;
+
+        var pointer = LogicalMouse(mouse);
+        for (var index = 0; index < items.Count; index++)
+        {
+            var row = ShopItemBounds(index);
+            if (!row.Contains((int)pointer.X, (int)pointer.Y)) continue;
+
+            _shopSelection = index;
+            if (Clicked(mouse)) BuySelectedShopItem();
+            return;
+        }
+
+        if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
+            BuySelectedShopItem();
+    }
+
+    private void BuySelectedShopItem()
+    {
+        if (_shop is null || _session is null) return;
+
+        var result = _shop.Buy(_shopSelection, _session.Player.Vitals,
+            _session.Player.Inventory, out var item);
+        if (result == ShopPurchaseResult.Bought && item is not null)
+        {
+            _session.Player.Story.MarkLooted($"shop.{_shop.Definition.Id}.{item.Id}");
+            _session.ShowToast($"Bought {item.Name}.");
+        }
+        else
+        {
+            _session.ShowToast(result switch
+            {
+                ShopPurchaseResult.TooExpensive => "Not enough gold.",
+                ShopPurchaseResult.SoldOut => "That stock is gone.",
+                _ => "That item is not available."
+            });
+        }
+    }
+
+    private void LoadQuestManifest()
+    {
+        if (_session is null) return;
+
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Quests", "northwatch.json");
+        if (!QuestManifest.TryLoad(path, out var manifest, out var error))
+        {
+            _assetErrors.Add(error);
+            return;
+        }
+
+        _session.Player.Quests.RegisterRange(manifest!.ToDefinitions());
+    }
+
+    private void AcceptQuest(string questId)
+    {
+        if (_session is null) return;
+
+        var quest = _session.Player.Quests.Activate(questId);
+        if (quest is null)
+        {
+            _session.ShowToast($"Unknown quest: {questId}.");
+            return;
+        }
+
+        if (quest.IsCompleted)
+        {
+            _session.ShowToast("That work is already complete.");
+            return;
+        }
+
+        _session.Player.Story.SetFlag($"flag.quest.{quest.Id}.accepted");
+        _session.ShowToast($"Quest accepted: {quest.Title}.");
+        RefreshQuestObjective();
+    }
+
+    private void RefreshQuestObjective()
+    {
+        if (_session is null) return;
+
+        var quest = _session.Player.Quests.Active.FirstOrDefault();
+        if (quest is null)
+        {
+            if (_questObjectiveId.Length > 0)
+            {
+                _session.Player.Objective.Clear();
+                _questObjectiveId = string.Empty;
+            }
+            return;
+        }
+
+        var definition = quest.Definition;
+        var progress = definition.TargetCount > 0
+            ? $" ({quest.Progress}/{definition.TargetCount})"
+            : string.Empty;
+        var title = quest.Title + progress;
+        var directions = string.IsNullOrWhiteSpace(definition.ObjectiveDirections)
+            ? quest.StageText
+            : definition.ObjectiveDirections;
+
+        if (_questObjectiveId == quest.Id
+            && _session.Player.Objective.Title == title
+            && _session.Player.Objective.Directions == directions)
+            return;
+
+        _session.Player.Objective.Set(title, directions, definition.ObjectiveAnchorId,
+            definition.ObjectivePosition);
+        _questObjectiveId = quest.Id;
     }
 
     private void DrawMenu()
     {
-        DrawPhotoScene(false);
+        GraphicsDevice.Clear(new Color(40, 58, 68));
 
         BeginUi();
         Fill(new Rectangle(0, 0, 1280, 720), new Color(3, 7, 12, 178));
         DrawPanel(new Rectangle(64, 62, 1152, 596), new Color(5, 11, 18, 232), new Color(91, 146, 159));
 
         Text("RATNA BAY", new Vector2(98, 96), 38, Color.White);
-        Text("DEVELOPMENT BUILD", new Vector2(101, 153), 13, new Color(161, 211, 218));
-        TextFit("A code-first fantasy RPG prototype", new Vector2(101, 181), 420f, 15, new Color(184, 197, 196));
+        Text("NORTHWATCH SLICE", new Vector2(101, 153), 13, new Color(161, 211, 218));
+        TextFit("Explore, talk, trade, and survive", new Vector2(101, 181), 420f, 15, new Color(184, 197, 196));
 
-        DrawPanel(new Rectangle(96, 222, 416, 322), new Color(8, 16, 24, 238), new Color(65, 105, 119));
+        DrawPanel(new Rectangle(96, 222, 416, 390), new Color(8, 16, 24, 238), new Color(65, 105, 119));
         Text("MAIN MENU", new Vector2(124, 246), 14, new Color(214, 183, 108));
 
         var menuItems = MenuItems;
@@ -886,41 +1712,413 @@ public sealed class Game1 : Game
             Text(menuItems[index], new Vector2(itemBounds.X + 62, itemBounds.Y + 7), 18, selected ? Color.White : new Color(192, 207, 205));
         }
 
-        DrawPanel(new Rectangle(560, 222, 592, 322), new Color(8, 16, 24, 226), new Color(65, 105, 119));
+        DrawPanel(new Rectangle(560, 222, 592, 390), new Color(8, 16, 24, 226), new Color(65, 105, 119));
         Text("NORTHWATCH OUTSKIRTS", new Vector2(592, 246), 14, new Color(151, 206, 210));
-        Text("A small world to build on", new Vector2(592, 280), 24, Color.White);
-        TextFit("The first scene establishes the basic loop:", new Vector2(592, 326), 500f, 15, new Color(190, 203, 200));
-        TextFit("enter the world, move through a handcrafted space,", new Vector2(592, 350), 500f, 15, new Color(190, 203, 200));
-        TextFit("and inspect the renderer as it grows.", new Vector2(592, 374), 500f, 15, new Color(190, 203, 200));
-        Text("CURRENT FOUNDATION", new Vector2(592, 414), 12, new Color(214, 183, 108));
-        Text("3D asset loading", new Vector2(592, 442), 14, new Color(190, 215, 208));
-        Text("Code-drawn interface", new Vector2(592, 468), 14, new Color(190, 215, 208));
-        Text("Keyboard-driven iteration", new Vector2(592, 494), 14, new Color(190, 215, 208));
+        Text("A NORTHWATCH BEGINNING", new Vector2(592, 280), 24, Color.White);
+        TextFit("Meet the people at the gate and find your footing.", new Vector2(592, 326), 500f, 15, new Color(190, 203, 200));
+        TextFit("Talk, trade, explore the old road, and face the bandits.", new Vector2(592, 350), 500f, 15, new Color(190, 203, 200));
+        TextFit("Your choices and discoveries persist in your save.", new Vector2(592, 374), 500f, 15, new Color(190, 203, 200));
+        Text("WHAT YOU CAN DO", new Vector2(592, 414), 12, new Color(214, 183, 108));
+        Text("Explore Northwatch", new Vector2(592, 442), 14, new Color(190, 215, 208));
+        Text("Talk and trade with locals", new Vector2(592, 468), 14, new Color(190, 215, 208));
+        Text("Fight, sneak, and save", new Vector2(592, 494), 14, new Color(190, 215, 208));
 
-        Text("Click or hover to choose      Up / Down select      Enter confirm      Esc exit",
+        Text("Click or hover to choose      Up / Down select      Enter confirm      Esc safe",
             new Vector2(98, 610), 14, new Color(163, 191, 194));
+        if (!string.IsNullOrWhiteSpace(_menuStatus))
+            TextFit(_menuStatus, new Vector2(592, 542), 520f, 14, new Color(228, 128, 118));
+        if (_showSettings) DrawSettings();
         EndUi();
+    }
+
+    private void DrawSettings()
+    {
+        Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 214));
+        var panel = new Rectangle(260, 92, 760, 536);
+        DrawPanel(panel, new Color(7, 14, 21, 248), new Color(91, 146, 159));
+        Text("SETTINGS", new Vector2(panel.X + 32, panel.Y + 28), 28, Color.White);
+        Text("Display, interface and current bindings", new Vector2(panel.X + 34, panel.Y + 70), 15,
+            new Color(163, 191, 194));
+
+        var options = new[]
+        {
+            $"Display mode     {(_borderlessFullscreen ? "Borderless fullscreen" : "Windowed 1280x720")}",
+            $"UI scale          {_uiScalePreference:0.0}x",
+            "Bindings          WASD move | E interact | J journal | I character"
+        };
+        for (var index = 0; index < options.Length; index++)
+        {
+            var selected = index == _settingsSelection;
+            var row = new Rectangle(panel.X + 24, panel.Y + 122 + index * 56, panel.Width - 48, 42);
+            DrawPanel(row, selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
+            TextFit(options[index], new Vector2(row.X + 16, row.Y + 10), row.Width - 32, 16,
+                selected ? Color.White : new Color(203, 216, 214));
+        }
+
+        Text("Up / Down select   Left / Right change UI scale   Enter toggle display   Esc close",
+            new Vector2(panel.X + 32, panel.Bottom - 38), 13, new Color(163, 191, 194));
     }
 
     private void DrawWorldScene()
     {
-        DrawPhotoScene(false);
+        DrawAuthoredWorld();
+        DrawSpeakingActors();
+        DrawWatchers();
         DrawEnemies();
 
         BeginUi();
 
-        DrawWeapon();
-        DrawDamageFlash();
-        DrawCrosshair();
-        DrawLocationBanner();
-        DrawEnemyHealth();
-        DrawObjective();
-        DrawVitals();
+        // A full-screen panel owns the screen. Leaving the combat HUD drawing underneath it
+        // was most of why testers called the inventory cluttered.
+        var panelOpen = _showHelp || _showJournal || _showCharacter || _showShop;
+
+        if (!panelOpen)
+        {
+            DrawWeapon();
+            DrawDamageFlash();
+            DrawSneakOverlay();
+            DrawThreatArrows();
+            DrawFloatingNumbers();
+            DrawCrosshair();
+            DrawHitMarker();
+            DrawDamageDirections();
+            DrawSpellBar();
+            DrawDoorPrompt();
+            DrawLocationBanner();
+            DrawAwareness();
+            DrawEnemyHealth();
+            DrawObjective();
+            DrawVitals();
+            DrawStatusStrip();
+        }
+
         DrawToasts();
-        DrawStatusStrip();
+        DrawContentErrors();
+
         if (_showHelp) DrawHelpOverlay();
+        if (_dialogueOpen) DrawDialogue();
+        if (_showJournal) DrawJournal();
+        if (_showCharacter) DrawCharacterSheet();
+        if (_showShop) DrawShop();
+        DrawPointer();
 
         EndUi();
+    }
+
+    private void DrawDoorPrompt()
+    {
+        if (_session is null) return;
+
+        var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+        var actor = _dialogue?.FindActor(player, _cameraYaw);
+        if (actor is not null)
+        {
+            var talk = TalkPromptBounds();
+            var secondary = SecondaryPromptBounds();
+            DrawPanel(talk, new Color(5, 11, 18, 225), new Color(151, 206, 210));
+            TextFit($"Click / E  Talk to {actor.DisplayName}",
+                new Vector2(talk.X + 16, talk.Y + 12), talk.Width - 32, 14, Color.White);
+
+            if (actor.Palette.Equals("guard", StringComparison.OrdinalIgnoreCase)
+                || actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase))
+            {
+                DrawPanel(secondary, new Color(5, 11, 18, 225), new Color(205, 157, 98));
+                var action = actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
+                    ? "Click / B  Shop"
+                    : "Click / P  Pickpocket";
+                Text(action, new Vector2(secondary.X + 16, secondary.Y + 12), 14, Color.White);
+            }
+            return;
+        }
+
+        var pickup = FindPickup(player, _cameraYaw);
+        if (pickup is not null)
+        {
+            DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225),
+                new Color(151, 206, 210));
+            TextFit($"Click / E  Take {pickup.Name} x{pickup.Count}",
+                new Vector2(404, 608), 472f, 15, Color.White);
+            return;
+        }
+
+        if (_world is null) return;
+        var door = _world.FindDoor(player, _cameraYaw);
+        if (door is null) return;
+
+        var text = door.Lock.IsLocked
+            ? $"Click / E  Pick lock  |  Security {door.Definition.Difficulty:0}"
+            : "Click / E  Open door";
+        DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225), new Color(205, 157, 98));
+        Text(text, new Vector2(404, 608), 15, Color.White);
+    }
+
+    private void DrawSpeakingActors()
+    {
+        if (_dialogue is null || _dialogue.Actors.Count == 0) return;
+
+        _billboards.Begin(_view, _projection);
+        var sorted = new List<SpeakingActor>(_dialogue.Actors);
+        sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
+
+        foreach (var actor in sorted)
+        {
+            var texture = CharacterSprites.Get(GraphicsDevice, $"dialogue.{actor.ActorId}",
+                PaletteFor(actor.Palette));
+            var feet = new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z);
+            _billboards.Draw(texture, feet, actor.Height, _cameraYaw, Color.White);
+        }
+
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+    }
+
+    private void DrawWatchers()
+    {
+        if (_watchers is null || _watchers.Watchers.Count == 0) return;
+
+        _billboards.Begin(_view, _projection);
+        foreach (var watcher in _watchers.Watchers)
+        {
+            var texture = CharacterSprites.Get(GraphicsDevice, $"watcher.{watcher.Definition.Id}",
+                CharacterPalette.Guard);
+            var feet = new Vector3(watcher.Position.X, watcher.Position.Y, watcher.Position.Z);
+            var tint = watcher.LastSeen ? new Color(255, 168, 148) : Color.White;
+            _billboards.Draw(texture, feet, 1.85f, _cameraYaw, tint);
+        }
+
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+    }
+
+    private float DistanceToCamera(SpeakingActor actor) =>
+        Vector3.DistanceSquared(_cameraPosition,
+            new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z));
+
+    private static CharacterPalette PaletteFor(string? palette) => palette?.ToLowerInvariant() switch
+    {
+        "guard" => CharacterPalette.Guard,
+        "merchant" => CharacterPalette.Merchant,
+        "bandit" => CharacterPalette.Bandit,
+        "wolf" => CharacterPalette.Wolf,
+        _ => CharacterPalette.Citizen
+    };
+
+    private void DrawDialogue()
+    {
+        if (_conversationActor is null) return;
+
+        var topics = _conversationActor.AvailableTopics();
+        var panel = new Rectangle(222, 110, 836, 500);
+        DrawPanel(panel, new Color(5, 11, 18, 246), new Color(151, 206, 210));
+        Text("CONVERSATION", new Vector2(panel.X + 28, panel.Y + 24), 13,
+            new Color(214, 183, 108));
+        Text(_conversationActor.DisplayName, new Vector2(panel.X + 28, panel.Y + 54), 28, Color.White);
+        TextFit(_dialogueResponse, new Vector2(panel.X + 28, panel.Y + 104), 780f, 17,
+            new Color(212, 224, 219));
+
+        Text("TOPICS", new Vector2(panel.X + 28, panel.Y + 174), 13,
+            new Color(151, 206, 210));
+        if (topics.Count == 0)
+        {
+            Text("No known topics receive an answer here.", new Vector2(panel.X + 28, panel.Y + 208), 16,
+                new Color(174, 188, 186));
+        }
+        else
+        {
+            for (var index = 0; index < topics.Count && index < 9; index++)
+            {
+                var selected = index == _dialogueSelection;
+                var row = DialogueTopicBounds(index);
+                Fill(row, selected ? new Color(74, 67, 43, 235) : new Color(17, 27, 35, 180));
+                Text($"{index + 1}. {topics[index]}", new Vector2(row.X + 10, row.Y + 3), 15,
+                    selected ? new Color(245, 209, 124) : new Color(203, 216, 214));
+            }
+        }
+
+        Text("Click a topic / Up / Down select   Enter ask   Esc close", new Vector2(panel.X + 28, panel.Bottom - 34),
+            13, new Color(163, 191, 194));
+    }
+
+    private void DrawJournal()
+    {
+        if (_session is null) return;
+
+        var panel = new Rectangle(200, 82, 880, 556);
+        DrawPanel(panel, new Color(5, 11, 18, 246), new Color(182, 137, 71));
+        Text("JOURNAL", new Vector2(panel.X + 30, panel.Y + 24), 13,
+            new Color(214, 183, 108));
+        Text("Current work", new Vector2(panel.X + 30, panel.Y + 56), 28, Color.White);
+
+        var quests = _session.Player.Quests.Quests;
+        if (quests.Count == 0)
+        {
+            Text("No quests have been recorded.", new Vector2(panel.X + 30, panel.Y + 112), 17,
+                new Color(174, 188, 186));
+        }
+        else
+        {
+            var y = panel.Y + 108;
+            foreach (var quest in quests)
+            {
+                var colour = quest.IsCompleted ? new Color(143, 180, 142)
+                    : quest.IsActive ? Color.White : new Color(142, 157, 157);
+                TextFit(quest.Title, new Vector2(panel.X + 30, y), 440f, 19, colour);
+                var state = quest.IsCompleted ? "COMPLETE"
+                    : quest.IsActive ? quest.StageText : "Not accepted";
+                TextFit(state, new Vector2(panel.X + 54, y + 30), 760f, 15,
+                    quest.IsCompleted ? new Color(143, 180, 142) : new Color(203, 216, 214));
+                y += 76;
+                if (y > panel.Bottom - 70) break;
+            }
+        }
+
+        Text("J / Esc close", new Vector2(panel.X + 30, panel.Bottom - 34), 13,
+            new Color(163, 191, 194));
+    }
+
+    private void DrawCharacterSheet()
+    {
+        if (_session is null) return;
+
+        var player = _session.Player;
+        var vitals = player.Vitals;
+        var panel = new Rectangle(90, 70, 1100, 580);
+        DrawPanel(panel, new Color(5, 11, 18, 248), new Color(117, 153, 166));
+        Text("CHARACTER", new Vector2(panel.X + 30, panel.Y + 22), 13,
+            new Color(214, 183, 108));
+
+        var name = string.IsNullOrWhiteSpace(player.Story.State.Profile.Name)
+            ? "Northwatch Wanderer"
+            : player.Story.State.Profile.Name;
+        TextFit(name, new Vector2(panel.X + 30, panel.Y + 52), 440f, 28, Color.White);
+        TextRight($"{vitals.Gold} gold", panel.Right - 30, panel.Y + 60, 17,
+            new Color(228, 197, 122));
+
+        var leftX = panel.X + 30;
+        var inventoryX = panel.X + 390;
+        var skillsX = panel.X + 750;
+        var top = panel.Y + 112;
+
+        Text("VITALS & EQUIPMENT", new Vector2(leftX, top), 13, new Color(151, 206, 210));
+        Text($"Level {vitals.Level}   XP {vitals.Xp} / {vitals.XpToLevel}",
+            new Vector2(leftX, top + 34), 17, Color.White);
+        Text($"Health     {vitals.Health:0} / {vitals.MaxHealth:0}",
+            new Vector2(leftX, top + 70), 16, new Color(224, 116, 105));
+        Text($"Prana       {vitals.Prana:0} / {vitals.MaxPrana:0}",
+            new Vector2(leftX, top + 100), 16, new Color(112, 174, 225));
+        Text($"Stamina   {vitals.Stamina:0} / {vitals.MaxStamina:0}",
+            new Vector2(leftX, top + 130), 16, new Color(117, 194, 137));
+        TextFit($"Weapon: {player.Equipment.Weapon.DisplayName}",
+            new Vector2(leftX, top + 182), 320f, 16, new Color(203, 216, 214));
+        TextFit($"Armour: {player.Equipment.Armour?.DisplayName ?? "None"}",
+            new Vector2(leftX, top + 212), 320f, 16, new Color(203, 216, 214));
+        Text($"Armour value: {player.Equipment.ArmourValue:0}",
+            new Vector2(leftX, top + 242), 15, new Color(174, 188, 186));
+        Text($"Jiva stones drawn: {vitals.Channeled}",
+            new Vector2(leftX, top + 286), 15, new Color(174, 188, 186));
+
+        Text("INVENTORY", new Vector2(inventoryX, top), 13, new Color(151, 206, 210));
+        var items = player.Inventory.Items;
+
+        if (items.Count == 0)
+        {
+            Text("Empty", new Vector2(inventoryX, top + 34), 16, new Color(142, 157, 157));
+        }
+        else
+        {
+            var selection = Math.Clamp(_inventorySelection, 0, items.Count - 1);
+
+            for (var index = 0; index < items.Count && index < InventoryRows; index++)
+            {
+                var item = items[index];
+                var row = InventoryRowBounds(index);
+                var selected = index == selection;
+                var equipped = string.Equals(item.Id, player.Equipment.WeaponId, StringComparison.Ordinal)
+                    || string.Equals(item.Id, player.Equipment.ArmourId, StringComparison.Ordinal);
+
+                if (selected)
+                    DrawPanel(row, new Color(74, 67, 43, 235), new Color(224, 181, 88));
+
+                TextFit(item.Name, new Vector2(row.X + 12, row.Y + 7), 214f, 16,
+                    selected ? Color.White : new Color(203, 216, 214));
+
+                if (equipped)
+                    Text("worn", new Vector2(row.X + 236, row.Y + 8), 13, new Color(150, 200, 158));
+
+                TextRight($"x{item.Count}", row.Right - 12, row.Y + 7, 15,
+                    new Color(228, 197, 122));
+            }
+
+            if (items.Count > InventoryRows)
+                Text($"+{items.Count - InventoryRows} more",
+                    new Vector2(inventoryX, InventoryRowBounds(InventoryRows).Y + 6), 13,
+                    new Color(142, 157, 157));
+
+            // What the selected item is and what pressing Enter will do to it. Without this
+            // the list is a set of names with no consequences attached.
+            var chosen = items[selection];
+            var detail = new Rectangle(480, 214 + InventoryRows * 34 + 16, 356, 74);
+            DrawPanel(detail, new Color(8, 16, 24, 232), new Color(72, 104, 118));
+            TextFit(ItemUse.Describe(chosen.Id, chosen.Kind),
+                new Vector2(detail.X + 12, detail.Y + 12), 330f, 14, new Color(196, 212, 210));
+
+            var verb = ItemUse.DescribeAction(chosen.Id, chosen.Kind);
+            TextFit(verb == "—" ? "Nothing happens when you use this." : $"Enter or click to {verb.ToLowerInvariant()}",
+                new Vector2(detail.X + 12, detail.Y + 44), 330f, 14,
+                verb == "—" ? new Color(142, 157, 157) : new Color(232, 194, 116));
+        }
+
+        Text("SKILLS", new Vector2(skillsX, top), 13, new Color(151, 206, 210));
+        var skillY = top + 34;
+        foreach (var skillId in Skills.All)
+        {
+            TextFit(Skills.Label(skillId), new Vector2(skillsX, skillY), 205f, 16,
+                new Color(203, 216, 214));
+            TextRight(player.Skills.LevelOf(skillId).ToString("0.0"), panel.Right - 34,
+                skillY, 16, Color.White);
+            skillY += 37;
+        }
+
+        Text("Up / Down or hover to choose      Enter to use      I / K / Esc close",
+            new Vector2(panel.X + 30, panel.Bottom - 34), 13, new Color(163, 191, 194));
+    }
+
+    private void DrawShop()
+    {
+        if (_session is null || _shop is null) return;
+
+        var panel = new Rectangle(250, 112, 780, 468);
+        DrawPanel(panel, new Color(5, 11, 18, 248), new Color(205, 157, 98));
+        Text("SHOP", new Vector2(panel.X + 30, panel.Y + 26), 13,
+            new Color(214, 183, 108));
+        TextFit(_shop.Definition.DisplayName, new Vector2(panel.X + 30, panel.Y + 54), 520f, 27,
+            Color.White);
+        TextRight($"{_session.Player.Vitals.Gold} gold", panel.Right - 30, panel.Y + 62, 17,
+            new Color(228, 197, 122));
+
+        var items = _shop.Definition.Items;
+        if (items.Count == 0)
+            Text("No stock.", new Vector2(panel.X + 30, panel.Y + 126), 17, new Color(174, 188, 186));
+        else
+        {
+            for (var index = 0; index < items.Count; index++)
+            {
+                var item = items[index];
+                var selected = index == _shopSelection;
+                var row = ShopItemBounds(index);
+                DrawPanel(row, selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+                    selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
+                var state = _shop.IsSoldOut(item.Id) ? "SOLD OUT" : $"{item.Price} gold";
+                TextFit($"{index + 1}. {item.Name} x{item.Count}", new Vector2(row.X + 14, row.Y + 10),
+                    500f, 16, selected ? Color.White : new Color(203, 216, 214));
+                TextRight(state, row.Right - 14, row.Y + 10, 15,
+                    _shop.IsSoldOut(item.Id) ? new Color(142, 157, 157) : new Color(228, 197, 122));
+            }
+        }
+
+        Text("Click an item to buy   Up / Down select   B / Esc close", new Vector2(panel.X + 30, panel.Bottom - 34),
+            13, new Color(163, 191, 194));
     }
 
     /// <summary>
@@ -1013,6 +2211,33 @@ public sealed class Game1 : Game
     }
 
     /// <summary>
+    /// Skyrim-style stealth feedback: the eye replaces the ordinary crosshair and a quiet
+    /// vignette makes the stance readable without taking the player's eyes off the world.
+    /// The awareness panel still supplies the exact state and suspicion amount.
+    /// </summary>
+    private void DrawSneakOverlay()
+    {
+        if (_session?.Player.Detection.IsCrouching != true) return;
+
+        var awareness = _session.Player.Detection.Awareness;
+        var edge = awareness switch
+        {
+            AwarenessLevel.Alerted => new Color(108, 30, 28),
+            AwarenessLevel.Suspicious => new Color(104, 76, 31),
+            _ => new Color(13, 25, 32)
+        };
+
+        // Two bands approximate a soft vignette using the existing 1x1 UI texture. The
+        // centre remains clear so sneaking never hides the thing being tested.
+        Fill(new Rectangle(0, 0, LogicalWidth, 30), edge * 0.66f);
+        Fill(new Rectangle(0, LogicalHeight - 30, LogicalWidth, 30), edge * 0.66f);
+        Fill(new Rectangle(0, 0, 42, LogicalHeight), edge * 0.54f);
+        Fill(new Rectangle(LogicalWidth - 42, 0, 42, LogicalHeight), edge * 0.54f);
+        Fill(new Rectangle(0, 30, 16, LogicalHeight - 60), edge * 0.28f);
+        Fill(new Rectangle(LogicalWidth - 16, 30, 16, LogicalHeight - 60), edge * 0.28f);
+    }
+
+    /// <summary>
     /// The health of whatever the crosshair is over. Shown only while something is actually
     /// in reach, so it doubles as the answer to "will this swing connect?".
     /// </summary>
@@ -1045,10 +2270,59 @@ public sealed class Game1 : Game
     }
 
     /// <summary>Where a swing or a spell will go. Small, and always centred.</summary>
+    /// <summary>
+    /// Our own mouse pointer.
+    ///
+    /// Drawn whenever the pointer is free rather than driving the camera, in every screen,
+    /// so it never blinks in and out with the system cursor as menus open and close.
+    /// </summary>
+    private void DrawPointer()
+    {
+        if (_mouseLook) return;
+
+        var pointer = LogicalMouse(Mouse.GetState());
+        if (pointer.X < -8f || pointer.Y < -8f
+            || pointer.X > LogicalWidth + 8f || pointer.Y > LogicalHeight + 8f) return;
+
+        var x = (int)pointer.X;
+        var y = (int)pointer.Y;
+
+        // An arrow drawn as a stack of rows, with a dark skirt so it survives any background.
+        for (var row = 0; row < 15; row++)
+        {
+            var width = row < 11 ? row + 1 : 15 - row + 2;
+            if (width <= 0) continue;
+
+            Fill(new Rectangle(x - 1, y + row - 1, width + 2, 3), new Color(12, 14, 18, 220));
+        }
+
+        for (var row = 0; row < 15; row++)
+        {
+            var width = row < 11 ? row + 1 : 15 - row + 2;
+            if (width <= 0) continue;
+
+            Fill(new Rectangle(x, y + row, width, 1), Color.White);
+        }
+    }
+
     private void DrawCrosshair()
     {
         const int cx = LogicalWidth / 2;
         const int cy = LogicalHeight / 2;
+
+        if (_session?.Player.Detection.IsCrouching == true)
+        {
+            var colour = _session.Player.Detection.Awareness switch
+            {
+                AwarenessLevel.Alerted => new Color(238, 91, 78, 240),
+                AwarenessLevel.Suspicious => new Color(239, 190, 91, 240),
+                _ => new Color(220, 235, 226, 240)
+            };
+            DrawSneakEye(cx, cy, colour);
+            TextCentred("SNEAK", cx, cy + 22, 11, colour);
+            return;
+        }
+
         var shadow = new Color(0, 0, 0, 165);
         var ink = new Color(244, 248, 246, 225);
 
@@ -1064,9 +2338,247 @@ public sealed class Game1 : Game
     }
 
     /// <summary>Where you are. Top-centre, out of the way of everything you look at.</summary>
+    /// <summary>
+    /// A tick on the crosshair the instant a blow lands.
+    ///
+    /// Playtesters could not tell a hit from a miss. This is the smallest possible answer:
+    /// four strokes that only appear when the domain says something was struck.
+    /// </summary>
+    private void DrawHitMarker()
+    {
+        if (_encounter is null) return;
+
+        var strength = MathF.Max(_encounter.Feedback.HitMarker, _encounter.Feedback.KillMarker);
+        if (strength <= 0f) return;
+
+        const int cx = LogicalWidth / 2;
+        const int cy = LogicalHeight / 2;
+
+        // A kill reads gold; an ordinary hit reads white.
+        var colour = (_encounter.Feedback.KillMarker > 0f
+            ? new Color(255, 214, 122)
+            : new Color(255, 252, 246)) * strength;
+
+        // Spread outward as it fades, so the marker feels like an impact.
+        var spread = (int)(6f + (1f - strength) * 7f);
+        var length = 7;
+
+        for (var i = 0; i < 4; i++)
+        {
+            var dx = i < 2 ? (i == 0 ? -1 : 1) : 0;
+            var dz = i < 2 ? 0 : (i == 2 ? -1 : 1);
+
+            for (var step = 0; step < length; step++)
+            {
+                var x = cx + dx * (spread + step);
+                var y = cy + dz * (spread + step);
+                Fill(new Rectangle(x - 1, y - 1, 2, 2), colour);
+            }
+        }
+    }
+
+    /// <summary>Damage and status, floating up from where it happened.</summary>
+    private void DrawFloatingNumbers()
+    {
+        if (_encounter is null) return;
+
+        foreach (var number in _encounter.Feedback.Numbers)
+        {
+            var fade = 1f - number.Age;
+            var rise = number.Age * 46f;
+            Vector2 position;
+
+            if (CombatFeedback.IsSelfInflicted(number))
+            {
+                // Damage taken belongs on the player, not out in the world.
+                position = new Vector2(LogicalWidth / 2f, LogicalHeight / 2f + 78f - rise);
+            }
+            else
+            {
+                if (!TryProjectToScreen(
+                        new Vector3(number.Origin.X, number.Origin.Y + 1.9f, number.Origin.Z),
+                        out position))
+                    continue;
+
+                position.X += number.Drift;
+                position.Y -= rise;
+            }
+
+            TextCentred(number.Text, position.X, position.Y, 19, number.Colour * fade);
+        }
+    }
+
+    /// <summary>
+    /// An arc pointing at whatever just hit the player.
+    ///
+    /// Being hit from behind was previously indistinguishable from being hit from in front:
+    /// the screen reddened and that was all.
+    /// </summary>
+    private void DrawDamageDirections()
+    {
+        if (_encounter is null) return;
+
+        const float centreX = LogicalWidth / 2f;
+        const float centreY = LogicalHeight / 2f;
+        const float radius = 132f;
+
+        foreach (var direction in _encounter.Feedback.Directions)
+        {
+            var fade = direction.Duration <= 0f ? 0f : direction.Remaining / direction.Duration;
+            var colour = new Color(232, 96, 88) * (fade * 0.9f);
+
+            // Screen space: bearing zero is up, positive is clockwise.
+            for (var offset = -0.34f; offset <= 0.34f; offset += 0.02f)
+            {
+                var angle = direction.Bearing + offset;
+                var thickness = 5f - MathF.Abs(offset) * 8f;
+                var x = centreX + MathF.Sin(angle) * radius;
+                var y = centreY - MathF.Cos(angle) * radius;
+
+                Fill(new Rectangle((int)x - 2, (int)y - 2, (int)MathF.Max(2f, thickness),
+                    (int)MathF.Max(2f, thickness)), colour);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Small markers around the crosshair for living enemies nearby.
+    ///
+    /// Testers lost track of bandits the moment they left the view. The marker fades with
+    /// distance so it reads as "something is over there", not as a wallhack.
+    /// </summary>
+    private void DrawThreatArrows()
+    {
+        if (_encounter is null) return;
+
+        const float centreX = LogicalWidth / 2f;
+        const float centreY = LogicalHeight / 2f;
+        const float radius = 172f;
+
+        foreach (var (enemy, bearing, distance) in _encounter.NearbyThreats())
+        {
+            // Anything comfortably in front is already visible; do not clutter the view.
+            if (MathF.Abs(bearing) < 0.42f) continue;
+
+            var nearness = MathHelper.Clamp(1f - distance / 26f, 0.25f, 1f);
+            var colour = new Color(226, 168, 96) * (0.5f + nearness * 0.45f);
+
+            var x = centreX + MathF.Sin(bearing) * radius;
+            var y = centreY - MathF.Cos(bearing) * radius;
+
+            // A small triangle pointing outward along the bearing.
+            for (var step = 0; step < 8; step++)
+            {
+                var width = 8 - step;
+                var px = x + MathF.Sin(bearing) * step;
+                var py = y - MathF.Cos(bearing) * step;
+                Fill(new Rectangle((int)px - width / 2, (int)py - 1, Math.Max(1, width), 2), colour);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The readied spell, its cost, and whether it can be paid for.
+    ///
+    /// Spells were bound to keys but never shown, so testers reported them as unimplemented.
+    /// </summary>
+    private void DrawSpellBar()
+    {
+        if (_session is null) return;
+
+        var caster = _session.Player.Spells;
+        var spell = SpellCatalog.Get(caster.SelectedSpellId);
+        if (spell is null) return;
+
+        var panel = new Rectangle(LogicalWidth / 2 - 150, LogicalHeight - 96, 300, 60);
+        DrawPanel(panel, new Color(6, 13, 20, 214), new Color(74, 106, 132));
+
+        var cost = caster.CostOf(spell);
+        var affordable = _session.Player.Vitals.Prana >= cost
+            || _session.Player.Inventory.Has(SoulCrystals.LesserId);
+
+        Text("READIED", new Vector2(panel.X + 14, panel.Y + 9), 12, new Color(146, 174, 178));
+        TextFit(spell.DisplayName, new Vector2(panel.X + 14, panel.Y + 28), 176f, 19,
+            affordable ? Color.White : new Color(198, 132, 126));
+
+        TextRight($"{cost:0} prana", panel.Right - 14, panel.Y + 9, 13,
+            affordable ? new Color(150, 190, 232) : new Color(216, 128, 120));
+        TextRight(affordable ? "Q to cast" : "no charge", panel.Right - 14, panel.Y + 30, 13,
+            new Color(146, 174, 178));
+
+        if (caster.LightActive)
+            TextCentred($"Emberlight {caster.LightRemaining:0}s",
+                LogicalWidth / 2f, panel.Y - 24f, 13, new Color(232, 194, 116));
+    }
+
+    /// <summary>
+    /// World position to logical UI pixels. False when the point is behind the camera, which
+    /// would otherwise project to a mirrored position in front of it.
+    /// </summary>
+    private bool TryProjectToScreen(Vector3 world, out Vector2 screen)
+    {
+        screen = Vector2.Zero;
+
+        var viewport = GraphicsDevice.Viewport;
+        var projected = viewport.Project(world, _projection, _view, Matrix.Identity);
+        if (projected.Z is < 0f or > 1f) return false;
+
+        if (_uiScale <= 0f) return false;
+        var offsetX = (viewport.Width - LogicalWidth * _uiScale) * 0.5f;
+        var offsetY = (viewport.Height - LogicalHeight * _uiScale) * 0.5f;
+
+        screen = new Vector2((projected.X - offsetX) / _uiScale, (projected.Y - offsetY) / _uiScale);
+        return true;
+    }
+
+    /// <summary>
+    /// Content that failed to load, said out loud.
+    ///
+    /// These were only ever shown on the Renderer Lab screen, so a damaged install dropped
+    /// the player into an empty void with a working HUD and no explanation. Saves already
+    /// follow the rule that a half-load must fail loudly; content now does too.
+    /// </summary>
+    private void DrawContentErrors()
+    {
+        if (_assetErrors.Count == 0) return;
+
+        var panel = new Rectangle(300, 84, 680, 44 + _assetErrors.Count * 22);
+        DrawPanel(panel, new Color(38, 12, 12, 238), new Color(198, 96, 88));
+        Text("CONTENT FAILED TO LOAD", new Vector2(panel.X + 16, panel.Y + 12), 14,
+            new Color(255, 196, 186));
+
+        var y = panel.Y + 36f;
+        foreach (var error in _assetErrors)
+        {
+            TextFit(error, new Vector2(panel.X + 16, y), 648f, 13, new Color(240, 208, 202));
+            y += 22f;
+        }
+    }
+
     private void DrawLocationBanner()
     {
         TextCentred("NORTHWATCH OUTSKIRTS", LogicalWidth / 2f, 24f, 15, new Color(196, 214, 214));
+    }
+
+    private void DrawAwareness()
+    {
+        if (_session is null) return;
+
+        var detection = _session.Player.Detection;
+        var panel = new Rectangle(LogicalWidth - 264, 24, 240, 48);
+        var colour = detection.Awareness switch
+        {
+            AwarenessLevel.Alerted => new Color(188, 65, 68),
+            AwarenessLevel.Suspicious => new Color(205, 157, 98),
+            _ => new Color(76, 101, 116)
+        };
+        DrawPanel(panel, new Color(6, 13, 20, 226), colour);
+        Text("AWARENESS", new Vector2(panel.X + 14, panel.Y + 8), 12, Color.White);
+        TextRight(detection.Awareness.ToString().ToUpperInvariant(), panel.Right - 14,
+            panel.Y + 8, 12, colour == new Color(76, 101, 116) ? new Color(180, 196, 194) : colour);
+        Fill(new Rectangle(panel.X + 14, panel.Y + 29, panel.Width - 28, 7), new Color(20, 27, 33));
+        Fill(new Rectangle(panel.X + 14, panel.Y + 29,
+            (int)((panel.Width - 28) * MathHelper.Clamp(detection.Suspicion, 0f, 1f)), 7), colour);
     }
 
     /// <summary>
@@ -1160,8 +2672,14 @@ public sealed class Game1 : Game
         var combat = _session.Player.Combat;
         Text(combat.ActiveWeapon.DisplayName, new Vector2(panel.X + 18, panel.Y + 38), 13,
             combat.IsBlocking ? new Color(232, 194, 116) : new Color(203, 216, 214));
-        TextRight($"{_framesPerSecond:0} fps", panel.Right - 18, panel.Y + 38, 13,
-            _framesPerSecond < 50f ? new Color(228, 128, 118) : new Color(146, 174, 178));
+        // Blank until the first averaging window closes: the counter used to show whatever
+        // the opening, texture-generating window computed, so a build running at 700 fps
+        // could report 4. A misleading diagnostic is worse than none.
+        TextRight(_framesPerSecond > 0f ? $"{_framesPerSecond:0} fps" : "— fps",
+            panel.Right - 18, panel.Y + 38, 13,
+            _framesPerSecond is > 0f and < 50f
+                ? new Color(228, 128, 118)
+                : new Color(146, 174, 178));
     }
 
     /// <summary>
@@ -1172,7 +2690,7 @@ public sealed class Game1 : Game
     {
         Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 200));
 
-        var panel = new Rectangle(320, 58, 640, 604);
+        var panel = new Rectangle(300, 30, 680, 660);
         DrawPanel(panel, new Color(7, 14, 21, 244), new Color(91, 146, 159));
         TextCentred("CONTROLS", panel.X + panel.Width / 2f, panel.Y + 26, 24, Color.White);
 
@@ -1180,13 +2698,20 @@ public sealed class Game1 : Game
         {
             ("W A S D", "move"),
             ("Mouse", "look"),
-            ("Left click", "attack"),
+            ("Left click", "attack / talk / shop"),
             ("Right click", "guard — one-handed only"),
             ("Q", "cast the readied spell"),
+            ("I", "character and inventory — Enter to use an item"),
+            ("E", "talk, open, take"),
             ("4 5 6 7 8", "flame, rime, arc, mend, emberlight"),
             ("Arrow keys", "look (keyboard)"),
             ("Shift", "sprint — spends stamina"),
-            ("Space / Ctrl", "rise / descend"),
+            ("Space", "jump"),
+            ("Ctrl", "toggle crouch — reduces visibility"),
+            ("E", "talk / open / interact"),
+            ("P", "pickpocket a facing NPC"),
+            ("J", "open the journal"),
+            ("I / K", "open inventory, equipment and skills"),
             ("F5 / F9", "save / load"),
             ("F1", "close this"),
             ("F11", "windowed / fullscreen"),
@@ -1194,12 +2719,12 @@ public sealed class Game1 : Game
             ("M / Esc", "back to the menu")
         };
 
-        var y = panel.Y + 76f;
+        var y = panel.Y + 72f;
         foreach (var (key, action) in rows)
         {
             Text(key, new Vector2(panel.X + 44, y), 17, new Color(232, 194, 116));
             Text(action, new Vector2(panel.X + 250, y), 17, new Color(214, 226, 222));
-            y += 34f;
+            y += 31f;
         }
     }
 
@@ -1256,6 +2781,83 @@ public sealed class Game1 : Game
         }
     }
 
+    private void DrawAuthoredWorld()
+    {
+        if (_world is null)
+        {
+            GraphicsDevice.Clear(new Color(40, 58, 68));
+            return;
+        }
+
+        GraphicsDevice.Clear(new Color(96, 121, 136));
+        foreach (var geometry in _world.Manifest.Geometry ?? new List<WorldGeometry>())
+        {
+            if (!geometry.Visible) continue;
+            DrawWorldBox(geometry.Min, geometry.Max, ToXnaColor(geometry.Color));
+        }
+
+        foreach (var door in _world.Doors)
+        {
+            if (door.Lock.IsOpen) continue;
+            DrawWorldBox(door.Definition.Min, door.Definition.Max,
+                ToXnaColor(door.Definition.Color));
+        }
+
+        foreach (var prop in _world.Manifest.Props ?? new List<WorldProp>())
+        {
+            if (!prop.Visible) continue;
+            var position = prop.Position.ToWorldPoint();
+            DrawModel(prop.Model, new Vector3(position.X, position.Y, position.Z),
+                prop.Scale, prop.Rotation);
+        }
+
+        foreach (var pickup in _pickups)
+        {
+            var position = pickup.Position.ToWorldPoint();
+            DrawModel(pickup.Model, new Vector3(position.X, position.Y, position.Z),
+                pickup.Scale, 0f);
+        }
+    }
+
+    private void DrawSneakEye(int cx, int cy, Color colour)
+    {
+        var shadow = new Color(0, 0, 0, 190);
+
+        // Block-built eye: it remains crisp at every supported UI scale and is legible over
+        // both the bright ground and the dark dungeon walls.
+        Fill(new Rectangle(cx - 17, cy - 9, 34, 3), shadow);
+        Fill(new Rectangle(cx - 17, cy + 6, 34, 3), shadow);
+        Fill(new Rectangle(cx - 13, cy - 6, 6, 3), shadow);
+        Fill(new Rectangle(cx + 7, cy - 6, 6, 3), shadow);
+        Fill(new Rectangle(cx - 13, cy + 3, 6, 3), shadow);
+        Fill(new Rectangle(cx + 7, cy + 3, 6, 3), shadow);
+
+        Fill(new Rectangle(cx - 14, cy - 7, 28, 2), colour);
+        Fill(new Rectangle(cx - 14, cy + 5, 28, 2), colour);
+        Fill(new Rectangle(cx - 10, cy - 5, 5, 2), colour);
+        Fill(new Rectangle(cx + 5, cy - 5, 5, 2), colour);
+        Fill(new Rectangle(cx - 10, cy + 3, 5, 2), colour);
+        Fill(new Rectangle(cx + 5, cy + 3, 5, 2), colour);
+        Fill(new Rectangle(cx - 4, cy - 4, 8, 8), colour);
+        Fill(new Rectangle(cx - 1, cy - 1, 2, 2), new Color(20, 26, 27));
+    }
+
+    private void DrawWorldBox(WorldVector min, WorldVector max, Color color)
+    {
+        var centre = new Vector3(
+            (min.X + max.X) * 0.5f,
+            (min.Y + max.Y) * 0.5f,
+            (min.Z + max.Z) * 0.5f);
+        var scale = new Vector3(max.X - min.X, max.Y - min.Y, max.Z - min.Z);
+        DrawCube(centre, scale, color, 0f);
+    }
+
+    private static Color ToXnaColor(WorldColor color) => new(
+        (byte)Math.Clamp(color.R, 0, 255),
+        (byte)Math.Clamp(color.G, 0, 255),
+        (byte)Math.Clamp(color.B, 0, 255),
+        (byte)Math.Clamp(color.A, 0, 255));
+
     private void DrawWorldBase(Color sky, Color horizon)
     {
         GraphicsDevice.Clear(sky);
@@ -1301,7 +2903,7 @@ public sealed class Game1 : Game
         }
     }
 
-    private static (Vector3 Center, float Extent) MeasureModel(Model model)
+    private static (Vector3 Center, float Extent) MeasureModel(Model model, Matrix[] boneTransforms)
     {
         if (model.Meshes.Count == 0)
             return (Vector3.Zero, 1f);
@@ -1310,9 +2912,19 @@ public sealed class Game1 : Game
         var maximum = new Vector3(float.MinValue);
         foreach (var mesh in model.Meshes)
         {
-            var radius = new Vector3(mesh.BoundingSphere.Radius);
-            minimum = Vector3.Min(minimum, mesh.BoundingSphere.Center - radius);
-            maximum = Vector3.Max(maximum, mesh.BoundingSphere.Center + radius);
+            var transform = boneTransforms.Length > mesh.ParentBone.Index
+                ? boneTransforms[mesh.ParentBone.Index]
+                : Matrix.Identity;
+            var sphere = mesh.BoundingSphere;
+            var centre = Vector3.Transform(sphere.Center, transform);
+            var scale = MathF.Max(
+                Vector3.TransformNormal(Vector3.Right, transform).Length(),
+                MathF.Max(
+                    Vector3.TransformNormal(Vector3.Up, transform).Length(),
+                    Vector3.TransformNormal(Vector3.Forward, transform).Length()));
+            var radius = new Vector3(sphere.Radius * scale);
+            minimum = Vector3.Min(minimum, centre - radius);
+            maximum = Vector3.Max(maximum, centre + radius);
         }
 
         var center = (minimum + maximum) * 0.5f;

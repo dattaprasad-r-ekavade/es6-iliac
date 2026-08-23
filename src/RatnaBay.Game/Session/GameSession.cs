@@ -28,10 +28,12 @@ public sealed class GameSession
     private const int MaxToasts = 5;
 
     private readonly List<Toast> _toasts = new();
+    private readonly string _saveFilePath;
 
-    private GameSession(PlayerCharacter player)
+    private GameSession(PlayerCharacter player, string saveFilePath)
     {
         Player = player;
+        _saveFilePath = saveFilePath;
         Subscribe();
     }
 
@@ -50,9 +52,14 @@ public sealed class GameSession
 
     public static string SaveFilePath => Path.Combine(SaveDirectory, "ratnabay_save.json");
 
-    public static bool HasSaveFile => File.Exists(SaveFilePath);
+    public static bool HasSaveFile => File.Exists(SaveFilePath) || File.Exists(SaveFilePath + ".bak");
 
-    public static GameSession NewGame() => new(PlayerCharacter.NewGame());
+    /// <summary>
+    /// A custom path keeps automated checks completely separate from the player's real slot.
+    /// Normal callers omit it and use the AppData save.
+    /// </summary>
+    public static GameSession NewGame(string? saveFilePath = null) =>
+        new(PlayerCharacter.NewGame(), saveFilePath ?? SaveFilePath);
 
     /// <summary>
     /// Advance the whole session. The domain owns what changes; this owns the clock and the
@@ -76,39 +83,118 @@ public sealed class GameSession
     /// </summary>
     public string Save()
     {
+        var temporaryPath = _saveFilePath + ".tmp";
+        var backupPath = _saveFilePath + ".bak";
         try
         {
-            Directory.CreateDirectory(SaveDirectory);
+            var directory = Path.GetDirectoryName(_saveFilePath);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+
             var data = SaveGame.Capture(Player, Position, Yaw, sceneId: "scene.northwatch");
-            File.WriteAllText(SaveFilePath, SaveGame.Serialize(data));
+            var json = SaveGame.Serialize(data);
+            if (!SaveGame.TryRead(json, out _, out var validationError))
+                return $"Could not save: {validationError}";
+
+            File.WriteAllText(temporaryPath, json);
+            if (!SaveGame.TryRead(File.ReadAllText(temporaryPath), out _, out validationError))
+                return $"Could not save: validation failed after writing ({validationError})";
+
+            // Replace the live file only after the complete JSON is on disk. A crashed write
+            // must leave the previous evening loadable rather than leaving a zero-byte slot.
+            if (File.Exists(_saveFilePath))
+                File.Replace(temporaryPath, _saveFilePath, backupPath,
+                    ignoreMetadataErrors: true);
+            else
+                File.Move(temporaryPath, _saveFilePath);
+
             return "Saved.";
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return $"Could not save: {exception.Message}";
         }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                try { File.Delete(temporaryPath); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+        }
     }
 
-    /// <summary>Read the save into this session. The message is fit to put on screen.</summary>
+    /// <summary>
+    /// Read the save into this session. A damaged primary slot falls back to the last
+    /// successfully replaced file, and callers can keep the current game running on failure.
+    /// </summary>
+    public bool TryLoad(out string message)
+    {
+        var primaryExists = File.Exists(_saveFilePath);
+        if (TryReadSave(_saveFilePath, out var data, out var primaryError))
+        {
+            return TryRestore(data!, "Loaded.", out message);
+        }
+
+        var backupPath = _saveFilePath + ".bak";
+        if (TryReadSave(backupPath, out data, out var backupError))
+        {
+            return TryRestore(data!, "Loaded the previous backup; the latest save was unreadable.",
+                out message);
+        }
+
+        message = !primaryExists && !File.Exists(backupPath)
+            ? "There is no save to load."
+            : $"Could not load the save: {primaryError} Backup: {backupError}";
+        return false;
+    }
+
+    /// <summary>Compatibility wrapper for the headless checks and simple callers.</summary>
     public string Load()
     {
+        TryLoad(out var message);
+        return message;
+    }
+
+    private bool TryRestore(SaveData data, string successMessage, out string message)
+    {
+        try
+        {
+            SaveGame.Restore(Player, data);
+        }
+        catch (ArgumentException exception)
+        {
+            message = exception.Message;
+            return false;
+        }
+
+        Position = new WorldPoint(data.PlayerX, data.PlayerY, data.PlayerZ);
+        Yaw = data.PlayerYaw;
+        message = successMessage;
+        return true;
+    }
+
+    private static bool TryReadSave(string path, out SaveData? data, out string error)
+    {
+        data = null;
+        if (!File.Exists(path))
+        {
+            error = "File not found.";
+            return false;
+        }
+
         string json;
         try
         {
-            if (!HasSaveFile) return "There is no save to load.";
-            json = File.ReadAllText(SaveFilePath);
+            json = File.ReadAllText(path);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return $"Could not read the save: {exception.Message}";
+            error = exception.Message;
+            return false;
         }
 
-        if (!SaveGame.TryRead(json, out var data, out var error)) return error;
-
-        SaveGame.Restore(Player, data!);
-        Position = new WorldPoint(data!.PlayerX, data.PlayerY, data.PlayerZ);
-        Yaw = data.PlayerYaw;
-        return "Loaded.";
+        return SaveGame.TryRead(json, out data, out error);
     }
 
     private void Subscribe()

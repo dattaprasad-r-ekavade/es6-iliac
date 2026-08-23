@@ -98,4 +98,11 @@ public sealed class Lockable
         IsLocked = true;
         IsOpen = false;
     }
+
+    /// <summary>Restore a lock already opened in a save without replaying a skill check.</summary>
+    public void RestoreOpened()
+    {
+        IsLocked = false;
+        IsOpen = true;
+    }
 }

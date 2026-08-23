@@ -13,6 +13,9 @@ public sealed class QuestDefinition
     public required string Title { get; init; }
     public string Description { get; init; } = string.Empty;
     public string InitialStageText { get; init; } = string.Empty;
+    public string ObjectiveDirections { get; init; } = string.Empty;
+    public string ObjectiveAnchorId { get; init; } = string.Empty;
+    public WorldPoint? ObjectivePosition { get; init; }
 
     /// <summary>How many kills are needed. Zero means this is not a kill quest.</summary>
     public int TargetCount { get; init; }
@@ -33,10 +36,11 @@ public sealed class QuestDefinition
 /// <summary>One quest's live state.</summary>
 public sealed class Quest
 {
-    public Quest(QuestDefinition definition)
+    public Quest(QuestDefinition definition, bool active = true)
     {
         Definition = definition;
         StageText = definition.InitialStageText;
+        IsActive = active;
     }
 
     public QuestDefinition Definition { get; }
@@ -88,6 +92,19 @@ public sealed class QuestSystem
         Changed?.Invoke();
     }
 
+    /// <summary>Register authored data without offering the quest until dialogue accepts it.</summary>
+    public void Register(QuestDefinition definition)
+    {
+        if (Find(definition.Id) is not null) return;
+        _quests.Add(new Quest(definition, active: false));
+        Changed?.Invoke();
+    }
+
+    public void RegisterRange(IEnumerable<QuestDefinition> definitions)
+    {
+        foreach (var definition in definitions) Register(definition);
+    }
+
     public void AddRange(IEnumerable<QuestDefinition> definitions)
     {
         foreach (var definition in definitions) Add(definition);
@@ -95,6 +112,19 @@ public sealed class QuestSystem
 
     public Quest? Find(string? id) =>
         string.IsNullOrEmpty(id) ? null : _quests.Find(q => string.Equals(q.Id, id, StringComparison.Ordinal));
+
+    public Quest? Activate(string? id)
+    {
+        var quest = Find(id);
+        if (quest is null || quest.IsCompleted) return quest;
+        if (!quest.IsActive)
+        {
+            quest.IsActive = true;
+            Changed?.Invoke();
+        }
+
+        return quest;
+    }
 
     /// <summary>An enemy died. Advances every kill quest that named it.</summary>
     public void NotifyEnemyKilled(string? enemyName)

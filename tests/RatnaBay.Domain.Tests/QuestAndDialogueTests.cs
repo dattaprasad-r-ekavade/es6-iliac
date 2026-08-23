@@ -57,7 +57,12 @@ public class QuestSystemTests
     public void EnoughKillsCompleteTheQuest()
     {
         for (var i = 0; i < 3; i++) _player.Quests.NotifyEnemyKilled("Bandit");
-        Assert.That(_player.Quests.Find("quest.bandits")!.IsCompleted, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_player.Quests.Find("quest.bandits")!.IsCompleted, Is.True);
+            Assert.That(_player.Story.HasFlag(
+                PlayerCharacter.QuestCompletedFlag("quest.bandits")), Is.True);
+        });
     }
 
     [Test]
@@ -146,6 +151,38 @@ public class QuestSystemTests
         {
             new SavedQuest { Id = "quest.from_a_future_patch", IsCompleted = true }
         }));
+    }
+
+    [Test]
+    public void RegisteredQuestWaitsForAcceptance()
+    {
+        var definition = new QuestDefinition
+        {
+            Id = "quest.registered", Title = "Registered", InitialStageText = "Do it"
+        };
+        _player.Quests.Register(definition);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_player.Quests.Find(definition.Id)!.IsActive, Is.False);
+            Assert.That(_player.Quests.Active,
+                Does.Not.Contain(_player.Quests.Find(definition.Id)));
+        });
+    }
+
+    [Test]
+    public void ActivatingARegisteredQuestMakesItProgressable()
+    {
+        var definition = new QuestDefinition
+        {
+            Id = "quest.registered", Title = "Registered", InitialStageText = "Do it"
+        };
+        _player.Quests.Register(definition);
+
+        var activated = _player.Quests.Activate(definition.Id);
+
+        Assert.That(activated!.CanProgress, Is.True);
+        Assert.That(_player.Quests.Active.Single(q => q.Id == definition.Id), Is.SameAs(activated));
     }
 }
 

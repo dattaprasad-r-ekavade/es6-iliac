@@ -1,0 +1,487 @@
+{
+  "version": 1,
+  "id": "scene.northwatch",
+  "playerSpawn": {
+    "position": {
+      "x": 0.0,
+      "y": 2.4,
+      "z": 14.5
+    },
+    "yaw": 0.0
+  },
+  "geometry": [
+    {
+      "id": "northwatch.ground",
+      "min": {
+        "x": -16.0,
+        "y": -0.6,
+        "z": -64.0
+      },
+      "max": {
+        "x": 16.0,
+        "y": -0.2,
+        "z": 18.0
+      },
+      "color": {
+        "r": 104,
+        "g": 112,
+        "b": 96,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.west_wall",
+      "min": {
+        "x": -16.0,
+        "y": 0.0,
+        "z": -10.5
+      },
+      "max": {
+        "x": -15.5,
+        "y": 6.0,
+        "z": 18.0
+      },
+      "color": {
+        "r": 92,
+        "g": 112,
+        "b": 108,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.east_wall",
+      "min": {
+        "x": 15.5,
+        "y": 0.0,
+        "z": -10.5
+      },
+      "max": {
+        "x": 16.0,
+        "y": 6.0,
+        "z": 18.0
+      },
+      "color": {
+        "r": 92,
+        "g": 112,
+        "b": 108,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.entry.west",
+      "min": {
+        "x": -16.0,
+        "y": 0.0,
+        "z": -10.5
+      },
+      "max": {
+        "x": -6.0,
+        "y": 6.0,
+        "z": -10.0
+      },
+      "color": {
+        "r": 106,
+        "g": 126,
+        "b": 132,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.entry.east",
+      "min": {
+        "x": 6.0,
+        "y": 0.0,
+        "z": -10.5
+      },
+      "max": {
+        "x": 16.0,
+        "y": 6.0,
+        "z": -10.0
+      },
+      "color": {
+        "r": 106,
+        "g": 126,
+        "b": 132,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.entry.lintel",
+      "min": {
+        "x": -6.0,
+        "y": 4.6,
+        "z": -10.5
+      },
+      "max": {
+        "x": 6.0,
+        "y": 6.0,
+        "z": -10.0
+      },
+      "color": {
+        "r": 106,
+        "g": 126,
+        "b": 132,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.room.west_wall",
+      "min": {
+        "x": -6.0,
+        "y": 0.0,
+        "z": -24.0
+      },
+      "max": {
+        "x": -5.5,
+        "y": 5.0,
+        "z": -10.0
+      },
+      "color": {
+        "r": 73,
+        "g": 81,
+        "b": 82,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.room.east_wall",
+      "min": {
+        "x": 5.5,
+        "y": 0.0,
+        "z": -24.0
+      },
+      "max": {
+        "x": 6.0,
+        "y": 5.0,
+        "z": -10.0
+      },
+      "color": {
+        "r": 73,
+        "g": 81,
+        "b": 82,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.room.back.west",
+      "min": {
+        "x": -6.0,
+        "y": 0.0,
+        "z": -24.0
+      },
+      "max": {
+        "x": -2.0,
+        "y": 5.0,
+        "z": -23.5
+      },
+      "color": {
+        "r": 73,
+        "g": 81,
+        "b": 82,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.room.back.east",
+      "min": {
+        "x": 2.0,
+        "y": 0.0,
+        "z": -24.0
+      },
+      "max": {
+        "x": 6.0,
+        "y": 5.0,
+        "z": -23.5
+      },
+      "color": {
+        "r": 73,
+        "g": 81,
+        "b": 82,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.supply.west_wall",
+      "min": {
+        "x": -6.0,
+        "y": 0.0,
+        "z": -44.0
+      },
+      "max": {
+        "x": -5.5,
+        "y": 5.0,
+        "z": -24.0
+      },
+      "color": {
+        "r": 67,
+        "g": 75,
+        "b": 76,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.supply.east_wall",
+      "min": {
+        "x": 5.5,
+        "y": 0.0,
+        "z": -44.0
+      },
+      "max": {
+        "x": 6.0,
+        "y": 5.0,
+        "z": -24.0
+      },
+      "color": {
+        "r": 67,
+        "g": 75,
+        "b": 76,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.supply.back.west",
+      "min": {
+        "x": -6.0,
+        "y": 0.0,
+        "z": -44.0
+      },
+      "max": {
+        "x": -2.0,
+        "y": 5.0,
+        "z": -43.5
+      },
+      "color": {
+        "r": 67,
+        "g": 75,
+        "b": 76,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.supply.back.east",
+      "min": {
+        "x": 2.0,
+        "y": 0.0,
+        "z": -44.0
+      },
+      "max": {
+        "x": 6.0,
+        "y": 5.0,
+        "z": -43.5
+      },
+      "color": {
+        "r": 67,
+        "g": 75,
+        "b": 76,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.dungeon.west_wall",
+      "min": {
+        "x": -6.0,
+        "y": 0.0,
+        "z": -64.0
+      },
+      "max": {
+        "x": -5.5,
+        "y": 5.4,
+        "z": -44.0
+      },
+      "color": {
+        "r": 51,
+        "g": 57,
+        "b": 61,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.dungeon.east_wall",
+      "min": {
+        "x": 5.5,
+        "y": 0.0,
+        "z": -64.0
+      },
+      "max": {
+        "x": 6.0,
+        "y": 5.4,
+        "z": -44.0
+      },
+      "color": {
+        "r": 51,
+        "g": 57,
+        "b": 61,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.dungeon.back.west",
+      "min": {
+        "x": -6.0,
+        "y": 0.0,
+        "z": -64.0
+      },
+      "max": {
+        "x": -2.0,
+        "y": 5.4,
+        "z": -63.5
+      },
+      "color": {
+        "r": 51,
+        "g": 57,
+        "b": 61,
+        "a": 255
+      }
+    },
+    {
+      "id": "northwatch.dungeon.back.east",
+      "min": {
+        "x": 2.0,
+        "y": 0.0,
+        "z": -64.0
+      },
+      "max": {
+        "x": 6.0,
+        "y": 5.4,
+        "z": -63.5
+      },
+      "color": {
+        "r": 51,
+        "g": 57,
+        "b": 61,
+        "a": 255
+      }
+    }
+  ],
+  "props": [
+    {
+      "id": "northwatch.dungeon.rock",
+      "model": "rock",
+      "position": {
+        "x": -3.3,
+        "y": 0.0,
+        "z": -54.0
+      },
+      "scale": 1.7,
+      "rotation": 0.2
+    },
+    {
+      "id": "northwatch.dungeon.cache",
+      "model": "cheeseBox",
+      "position": {
+        "x": 2.6,
+        "y": 0.45,
+        "z": -59.0
+      },
+      "scale": 1.1,
+      "rotation": -0.3
+    }
+  ],
+  "lights": [
+    {
+      "id": "northwatch.roomlight",
+      "position": {
+        "x": 0.0,
+        "y": 3.8,
+        "z": -17.0
+      },
+      "color": {
+        "r": 180,
+        "g": 205,
+        "b": 220,
+        "a": 255
+      },
+      "intensity": 0.7,
+      "range": 12.0
+    }
+  ],
+  "watchers": [],
+  "pickups": [
+    {
+      "id": "northwatch.dungeon.loot",
+      "itemId": "health_potion",
+      "name": "Dungeon Cache",
+      "kind": "potion",
+      "count": 2,
+      "position": {
+        "x": 2.6,
+        "y": 0.5,
+        "z": -59.0
+      },
+      "model": "cheeseBox",
+      "scale": 0.55
+    }
+  ],
+  "doors": [
+    {
+      "id": "northwatch.entry.door",
+      "min": {
+        "x": -2.0,
+        "y": 0.0,
+        "z": -10.6
+      },
+      "max": {
+        "x": 2.0,
+        "y": 4.6,
+        "z": -9.9
+      },
+      "color": {
+        "r": 134,
+        "g": 93,
+        "b": 58,
+        "a": 255
+      },
+      "locked": true,
+      "difficulty": 0.0,
+      "pickingIsCrime": true,
+      "interactDistance": 3.0
+    },
+    {
+      "id": "northwatch.supply.door",
+      "min": {
+        "x": -2.0,
+        "y": 0.0,
+        "z": -24.6
+      },
+      "max": {
+        "x": 2.0,
+        "y": 4.6,
+        "z": -23.9
+      },
+      "color": {
+        "r": 108,
+        "g": 76,
+        "b": 50,
+        "a": 255
+      },
+      "locked": true,
+      "difficulty": 0.0,
+      "pickingIsCrime": false,
+      "interactDistance": 3.0
+    },
+    {
+      "id": "northwatch.dungeon.door",
+      "min": {
+        "x": -2.0,
+        "y": 0.0,
+        "z": -44.6
+      },
+      "max": {
+        "x": 2.0,
+        "y": 4.6,
+        "z": -43.9
+      },
+      "color": {
+        "r": 74,
+        "g": 56,
+        "b": 48,
+        "a": 255
+      },
+      "locked": true,
+      "difficulty": 15.0,
+      "pickingIsCrime": false,
+      "interactDistance": 3.0,
+      "keyItemId": "key.northwatch.dungeon"
+    }
+  ]
+}

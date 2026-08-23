@@ -60,6 +60,10 @@ public sealed class Encounter
     public Enemy? Focused { get; private set; }
 
     private WorldPoint _lastPlayerPosition;
+    private float _lastPlayerYaw;
+
+    /// <summary>The visual half of the fight: markers, numbers and damage direction.</summary>
+    public CombatFeedback Feedback { get; } = new();
 
     public void Spawn(EnemyArchetype archetype, Vector3 position, string spawnId)
     {
@@ -73,7 +77,7 @@ public sealed class Encounter
         _enemies.Add(enemy);
     }
 
-    /// <summary>The default camp: three bandits, spread so they arrive one at a time.</summary>
+    /// <summary>Two bandits waiting at the far end of the third room.</summary>
     public void SpawnDefaultCamp()
     {
         var bandit = new EnemyArchetype
@@ -85,9 +89,10 @@ public sealed class Encounter
             XpReward = 20
         };
 
-        Spawn(bandit, new Vector3(3.5f, 0f, -6f), "bandit.camp.01");
-        Spawn(bandit, new Vector3(-4.5f, 0f, -9f), "bandit.camp.02");
-        Spawn(bandit, new Vector3(7.5f, 0f, -12f), "bandit.camp.03");
+        // Room one (-10..18) is a safe, empty spawn and room two (-24..-10) belongs
+        // to the traders. Combat starts only after the player enters room three.
+        Spawn(bandit, new Vector3(-2.5f, 0f, -40.0f), "bandit.camp.01");
+        Spawn(bandit, new Vector3(2.5f, 0f, -40.5f), "bandit.camp.02");
     }
 
     public void Update(float deltaSeconds, Vector3 playerPosition, float playerYaw)
@@ -98,6 +103,8 @@ public sealed class Encounter
 
         var player = new WorldPoint(playerPosition.X, playerPosition.Y, playerPosition.Z);
         _lastPlayerPosition = player;
+        _lastPlayerYaw = playerYaw;
+        Feedback.Tick(deltaSeconds);
 
         foreach (var enemy in _enemies)
         {
@@ -124,7 +131,12 @@ public sealed class Encounter
 
                     animation.Lunge = LungeSeconds;
                     animation.Facing = Direction(enemy.Position, player);
-                    _session.Player.Combat.TakeHit(damage);
+
+                    var guarded = _session.Player.Combat.IsBlocking;
+                    var landed = _session.Player.Combat.TakeHit(damage);
+                    Feedback.PlayerHurt(landed,
+                        Targeting.RelativeBearing(player, playerYaw, enemy.Position), guarded);
+
                     DamageFlash = DamageFlashSeconds;
                     break;
             }
@@ -174,7 +186,11 @@ public sealed class Encounter
         var target = Focused;
         var outcome = _session.Player.Combat.TryAttack(target);
 
-        if (outcome.Result == AttackResult.Hit && target is not null) Struck(target);
+        if (outcome.Result == AttackResult.Hit && target is not null)
+        {
+            Struck(target);
+            Feedback.PlayerHit(target.Position, outcome.Damage, !target.IsAlive);
+        }
 
         return outcome;
     }
@@ -193,9 +209,49 @@ public sealed class Encounter
         var chain = target is null ? null : Targeting.FindNearestOther(target, _enemies, 6f);
         var outcome = _session.Player.Spells.Cast(target, chain);
 
-        if (target is not null && outcome.Result == CastResult.Landed) Struck(target);
+        if (target is not null && outcome.Result == CastResult.Landed)
+        {
+            Struck(target);
+
+            // A spell reports its power and then what it did, so an element reads as more
+            // than a damage number with a different colour.
+            Feedback.PlayerHit(target.Position, spell?.Power ?? 0f, !target.IsAlive);
+
+            var effect = spell?.Effect switch
+            {
+                SpellEffect.Fire => ("burning", new Color(240, 150, 96)),
+                SpellEffect.Frost => ("chilled", new Color(150, 208, 240)),
+                SpellEffect.Shock => ("staggered", new Color(232, 214, 130)),
+                _ => (string.Empty, Color.White)
+            };
+
+            if (effect.Item1.Length > 0)
+                Feedback.PlayerEffect(target.Position, effect.Item1, effect.Item2);
+
+            if (chain is not null && spell?.Effect == SpellEffect.Shock)
+                Feedback.PlayerEffect(chain.Position, "arced", new Color(232, 214, 130));
+        }
 
         return outcome;
+    }
+
+    /// <summary>
+    /// Living enemies within <paramref name="radius"/>, with where each one is relative to
+    /// the way the player is facing. This is what the on-screen threat arrows point along.
+    /// </summary>
+    public IEnumerable<(Enemy Enemy, float Bearing, float Distance)> NearbyThreats(float radius = 26f)
+    {
+        foreach (var enemy in _enemies)
+        {
+            if (!enemy.IsAlive) continue;
+
+            var distance = _lastPlayerPosition.FlatDistanceTo(enemy.Position);
+            if (distance > radius) continue;
+
+            yield return (enemy,
+                Targeting.RelativeBearing(_lastPlayerPosition, _lastPlayerYaw, enemy.Position),
+                distance);
+        }
     }
 
     /// <summary>Flash and shove an enemy that has just been hit.</summary>
