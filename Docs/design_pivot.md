@@ -1,7 +1,7 @@
 # Ratna Bay — Design Pivot
 
-**Status:** Loop, run length, classes and progression are decided. A spell-damage pass and four
-smaller questions remain — see §9.
+**Status:** Loop, run length, classes, progression and the content budget are decided. A
+spell-damage pass and three smaller questions remain — see §9.
 **Supersedes:** the vertical-slice product definition in `PRODUCTION_PLAN.md`. The engineering
 decisions in that document (engine, sprites, domain separation, publish gates) still stand.
 
@@ -46,9 +46,9 @@ clearing.
 1. **In town.** Trade, take work, spend what you brought back, and rise in the order.
 2. **Open a mine.** Deeper mines must be cracked open with jiva stones, which cost money. You
    spend the thing you go down to collect.
-3. **Descend.** Clear each cave of preta. Early mines are simple: clear the preta, set camp at
-   the end, done. Deeper mines hold higher-tier preta and bosses.
-4. **Return or die.** Either way, the order continues — see §5.
+3. **Descend.** Clear each room of preta. Deeper mines hold higher-tier preta and bosses.
+4. **Camp or die.** Camp to bank what you have and end the run; push on for more. Either way
+   the order continues — see §5.
 5. **Each cycle unravels part of the town's story.**
 
 ---
@@ -63,9 +63,33 @@ That length has one consequence worth stating, because it decides how progressio
 **a build cannot form inside a single run.** There is not enough time to find and combine enough
 stones. So the two layers do different jobs:
 
-- **Amulets carry build identity.** They accumulate across many runs; this is where "my
-  character does X" lives.
+- **Amulets and levels carry build identity.** They accumulate across many runs; this is where
+  "my character does X" lives.
 - **Stone slots are tactical variance.** What you socket answers *this cave*, not this character.
+
+### Ending a run
+
+A run ends when you **camp** or when you **die**.
+
+Camp is available at the end of every cleared room. Camping banks what you have and ends the
+run there. Pushing on is worth more — **the Nth room pays N stones**, not one.
+
+| Rooms cleared | Banked if you camp | Next room pays | You are risking |
+|---:|---:|---:|---|
+| 3 | 6 | 4 | 1.5 : 1 |
+| 5 | 15 | 6 | 2.5 : 1 |
+| 8 | 36 | 9 | 4.0 : 1 |
+
+The escalation is the point. A flat one-stone-per-room reward makes banking immediately the
+correct play at every step, because the pot grows while the prize does not. Rising payouts keep
+"one more room?" an open question all the way down.
+
+**Dying costs** all banked stones, half your gear, and some experience.
+
+**But the body can be recovered.** Your successor's next descent into that mine finds the fallen
+Deepankar's cache, once. This keeps the loss real without creating an unrecoverable state —
+stones are also what opens mines, so a total wipe could otherwise leave a player unable to
+descend at all. It is also simply what an order like this would do for its own.
 
 ### Caves
 
@@ -136,9 +160,21 @@ Three layers, deliberately separate.
 
 ### Within a run — stone slots
 
-Armour and weapons have **stone slots**. Socketed jiva stones add buffs and powers. This is where
-run-to-run variety lives: what you find decides what you can do this run, not how large your
-numbers are.
+Armour and weapons have **stone slots**. Socketed jiva stones add buffs and powers, and the
+stones are **found below, not carried down**. You descend with your gear and its empty sockets;
+what the mine gives you decides how this run plays.
+
+### Between runs — character level
+
+Levels come from experience earned on runs. Each level grants points to spend on skills.
+
+This changes an existing rule and the change is deliberate: character level currently *derives
+from* total skill progress, so making levels grant skill points would be circular. Level moves
+onto the experience track, and the skills → level path is retired.
+
+What is kept: skills still grow by use, and the five anti-grind rules still hold — gains come
+from landed effect, scale with threat, diminish within an encounter, and magic stays
+self-limiting because casting costs stones which cost gold.
 
 ### Between runs — amulets
 
@@ -148,13 +184,13 @@ successor. This is the ratchet that makes a losing run still worth something.
 ### Access — rank and jiva stones
 
 - **Jiva stones** crack open deeper mines. Money gates depth.
-- **Deepankar rank** gates the town. The town is not a capital — it is a **fort**. Each
-  successful run and the gold it earns opens **one more room**, and every room adds to the
-  story: the history, the past, and the truth about the jiva stones.
+- **Deepankar rank** gates the town. The town is not a capital — it is a **fort** of about
+  **ten rooms**. Each successful run and the gold it earns opens **one more**, and every room
+  adds to the story: the history, the past, and the truth about the jiva stones.
 
-  A room is a bounded authoring unit, which is what keeps this from becoming the open-city
-  problem the pivot exists to escape. The design has no ceiling; the *first release* should
-  name one, so there is a shippable state.
+  Occupants will not speak to you until you have reached a certain rank or earned a certain
+  sum, so access and story open together. A room is a bounded authoring unit, which is what
+  keeps this from becoming the open-city problem the pivot exists to escape.
 
 ---
 
@@ -190,7 +226,9 @@ succession-on-death rule.
 
 ### Decided
 
-Run length, cave themes, the fort, and the class multipliers above are settled.
+Run length, how a run ends, the banking curve, body recovery, cave themes, the fort, the class
+multipliers, where stones are found, character levelling, and the content budget are all settled
+above.
 
 ### Needs a numbers pass before it will play
 
@@ -214,14 +252,23 @@ number with units, so rescaling prices — gold to copper, or an inflation pass 
 every discount. The formula is fine; the gold scale is now load-bearing and must not be
 rescaled casually.
 
+### Content budget for first release
+
+| | Target | Note |
+|---|---|---|
+| Cave themes | 5 | Colour shading, preta set, and one resisted / one feared element each |
+| Preta sprites | 5–6 per theme (~27) | Generated from palette and proportions, so cheap: realistically 5–6 body shapes across 5 palettes |
+| Boss encounters | 6–7 | **Budget 3 distinct behaviours**, dressed per theme. The art is cheap; the fight patterns are not, and a boss without its own pattern is only a large preta |
+| Fort rooms | 10 | Opened by wins and gold. Occupants stay silent until a rank or a sum is reached |
+
 ### Still open
 
-1. **What ends a run besides dying?** Setting camp is stated for early mines. Is that the exit
-   everywhere, or do deeper mines end on a boss?
-2. **What carries into a run, and what is found in it?** Are socketed stones taken down, or
-   found below?
-3. **How many rooms does the fort have at first release?**
-4. **How many cave themes at first release?** Each is cheap, but each needs sprites and a table.
+1. **How is a room's stone payout affected by its theme or depth?** The N-per-room curve is the
+   floor; deeper mines presumably pay better per room as well.
+2. **What is "some experience" on death?** A flat level, a fraction, or progress within the
+   current level.
+3. **Can you camp anywhere, or only at authored exits?** Camping mid-room would let a player
+   bank the instant a fight turns.
 
 ## 10. Reference points
 
