@@ -135,6 +135,16 @@ public sealed record RunReview(
     int MeleeLanded,
     int SpellsCast,
     int CastsRefused,
+
+    /// <summary>
+    /// Rooms that were already empty by the time the player set foot in them.
+    ///
+    /// High numbers mean the player is fighting each room from the previous doorway rather
+    /// than in it — a legitimate chokepoint tactic, but one that makes the shape of a room
+    /// irrelevant, and worth knowing before any effort goes into shaping rooms.
+    /// </summary>
+    int RoomsTakenFromTheDoorway,
+
     IReadOnlyList<DecisionReview> Decisions,
     IReadOnlyList<float> RoomSeconds)
 {
@@ -180,6 +190,9 @@ public static class PlayReview
     /// <summary>Under this and they did not read the panel.</summary>
     public const float ReflexSeconds = 0.6f;
 
+    /// <summary>Cleared this soon after walking in and it was cleared before walking in.</summary>
+    public const float FromTheDoorwaySeconds = 0.75f;
+
     public static IReadOnlyList<RunReview> Runs(PlayRecording recording)
     {
         var runs = new List<RunReview>();
@@ -221,7 +234,13 @@ public static class PlayReview
         var landed = 0;
         var casts = 0;
         var refused = 0;
+        var fromDoorway = 0;
         var endedAt = start.At;
+
+        // A room's real cost is measured from the moment the player committed to it — the
+        // door closing behind them — not from when they finally walked in. Timing it from
+        // entry reports zero for every room fought from a doorway, which is most of them.
+        var segmentStart = start.At;
 
         float? offeredAt = null;
         PlayEvent? offered = null;
@@ -248,8 +267,14 @@ public static class PlayReview
 
                 case PlayEventKind.RoomCleared:
                     roomsCleared++;
-                    if (roomStartedAt is { } began) roomSeconds.Add(item.At - began);
+                    roomSeconds.Add(item.At - segmentStart);
+
+                    // Cleared the instant they walked in means it was cleared before they did.
+                    if (roomStartedAt is { } began && item.At - began <= FromTheDoorwaySeconds)
+                        fromDoorway++;
+
                     roomStartedAt = null;
+                    segmentStart = item.At;
                     break;
 
                 case PlayEventKind.DecisionOffered:
@@ -263,7 +288,7 @@ public static class PlayReview
 
                     break;
 
-                case PlayEventKind.PressedOn:
+                case PlayEventKind.PressedOn when SetSegment(item.At):
                 case PlayEventKind.Camped:
                     if (offered is not null && offeredAt is { } shown)
                     {
@@ -323,7 +348,15 @@ public static class PlayReview
         return Build();
 
         RunReview Build() => new(seed, tier, start.At, endedAt, roomsCleared, banked, lost,
-            survived, damage, kills, swings, landed, casts, refused, decisions, roomSeconds);
+            survived, damage, kills, swings, landed, casts, refused, fromDoorway,
+            decisions, roomSeconds);
+
+        // The clock on the next room starts when the door opens, not when it is walked through.
+        bool SetSegment(float at)
+        {
+            segmentStart = at;
+            return true;
+        }
     }
 
     /// <summary>Every decision across every run, for the only question that matters yet.</summary>

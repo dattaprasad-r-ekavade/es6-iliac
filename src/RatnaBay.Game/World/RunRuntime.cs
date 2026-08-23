@@ -39,6 +39,20 @@ public sealed class RunRuntime
     /// <summary>Which room the player is standing in. Sticky: corridors keep the last answer.</summary>
     public int CurrentRoom { get; private set; }
 
+    /// <summary>
+    /// The deepest room reached, which is the one the run is actually about.
+    ///
+    /// Clearance used to be judged against wherever the player happened to be standing, and a
+    /// room was entered afresh every time they walked into it. A recorded run walked back out
+    /// of room six into cleared room five — so the "is it clear?" test looked at room five,
+    /// found it empty, and paid for room six while room six was still full. Stepping back in
+    /// then counted as entering it again and paid a second time. The player reached room eight
+    /// and was paid for nine.
+    ///
+    /// A room is entered once, and the fight it holds is the fight, wherever the body is.
+    /// </summary>
+    public int DeepestRoom { get; private set; }
+
     /// <summary>The shut door leading deeper, once the current room is clear.</summary>
     public WorldDoorRuntime? WayOnward { get; private set; }
 
@@ -76,21 +90,27 @@ public sealed class RunRuntime
     private void TrackRoom(Vector3 player)
     {
         var room = _rooms.FirstOrDefault(candidate => candidate.Contains(player.X, player.Z));
-        if (room is null || room.Index == CurrentRoom) return;
+        if (room is null) return;
 
-        // Only ever forward. Walking back into a cleared room is not a new fight.
-        var deeper = room.Index > CurrentRoom;
-        if (deeper) Run.EnterRoom();
         CurrentRoom = room.Index;
-        if (deeper) RoomEntered?.Invoke(room.Index);
+
+        // Measured against the deepest room ever reached, not the last one stood in, so
+        // retreating and coming back is not a second arrival.
+        if (room.Index <= DeepestRoom) return;
+
+        DeepestRoom = room.Index;
+        Run.EnterRoom();
+        RoomEntered?.Invoke(room.Index);
     }
 
     private void TrackClearance(Encounter encounter)
     {
-        if (CurrentRoom <= 0 || Run.RoomIsClear) return;
+        if (DeepestRoom <= 0 || Run.RoomIsClear) return;
 
+        // The fight in progress belongs to the room the run is on, not to wherever the player
+        // has wandered. Retreating into a cleared room must not clear the one behind you.
         var stillFighting = encounter.Enemies.Any(enemy =>
-            _roomOfSpawn.TryGetValue(enemy.SpawnId, out var room) && room == CurrentRoom);
+            _roomOfSpawn.TryGetValue(enemy.SpawnId, out var room) && room == DeepestRoom);
 
         if (stillFighting) return;
 

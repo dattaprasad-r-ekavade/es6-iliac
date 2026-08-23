@@ -1466,7 +1466,7 @@ public sealed class Game1 : Game
         _run.RoomCleared += paid =>
         {
             _session?.ShowToast($"Room clear.  +{paid} stones held  ({_run.Run.Pending} at risk)");
-            _recorder.Record(PlayEventKind.RoomCleared, $"room {_run.CurrentRoom}", paid,
+            _recorder.Record(PlayEventKind.RoomCleared, $"room {_run.DeepestRoom}", paid,
                 _run.Run.Pending, _session?.Player.Vitals.Health ?? 0f,
                 _session?.Player.Vitals.Prana ?? 0f);
         };

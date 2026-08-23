@@ -302,6 +302,10 @@ static int RunReview(string[] arguments)
             Console.WriteLine($"  per room: "
                 + string.Join(", ", run.RoomSeconds.Select(seconds => $"{seconds:0}s")));
 
+        if (run.RoomsTakenFromTheDoorway > 0)
+            Console.WriteLine($"  {run.RoomsTakenFromTheDoorway} of {run.RoomsCleared} rooms were "
+                + "already empty on entry — fought from the doorway, not in the room");
+
         foreach (var decision in run.Decisions)
         {
             var verdict = decision.Forced ? "forced — nothing deeper"

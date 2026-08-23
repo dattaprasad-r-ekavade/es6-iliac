@@ -737,6 +737,25 @@ public static class SessionSelfTest
         Check(failures, "the room behind the door is not yet clear", !run.Run.RoomIsClear);
         Check(failures, "and there is no banking mid-fight", !run.Run.CanCamp);
 
+        // Retreat into the cleared room behind, then come back. Neither may pay.
+        //
+        // Found in a recorded run: the player stepped back out of a room mid-fight, the
+        // clearance test looked at the cleared room they were standing in, and paid for the
+        // room they had left — then paid again when they walked back into it. They reached
+        // room eight and were paid for nine.
+        var bankedBefore = run.Run.Pending;
+        var clearedBefore = run.Run.RoomsCleared;
+
+        for (var step = 0; step < 8; step++)
+        {
+            run.Update(mine, Stand(rooms[1]), encounter);
+            run.Update(mine, Stand(rooms[2]), encounter);
+        }
+
+        Check(failures, $"retreating and returning pays nothing ({run.Run.Pending})",
+            run.Run.Pending == bankedBefore && run.Run.RoomsCleared == clearedBefore);
+        Check(failures, "and the unfinished room is still unfinished", !run.Run.RoomIsClear);
+
         // Dying now forfeits everything held.
         var died = run.Die();
         Check(failures, $"dying forfeits the pot ({died.StonesLost})",

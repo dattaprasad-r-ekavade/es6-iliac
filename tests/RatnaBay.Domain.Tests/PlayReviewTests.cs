@@ -353,12 +353,46 @@ public class PlayReviewTests
     // ---------------------------------------------------------------- pace
 
     [Test]
-    public void HowLongEachRoomTookIsRecovered()
+    public void ARoomIsTimedFromTheMomentItWasCommittedTo()
     {
+        // Not from when the player walked in. A room fought from the previous doorway is
+        // already empty on entry, and timing it from entry reports zero seconds for a fight
+        // that took half a minute.
         var rooms = PlayReview.Runs(Descent(rooms: 3, hesitation: 1f))[0].RoomSeconds;
 
         Assert.That(rooms, Has.Count.EqualTo(3));
-        Assert.That(rooms, Has.All.EqualTo(30f).Within(0.01f));
+        Assert.That(rooms[0], Is.EqualTo(30f).Within(0.01f));
+    }
+
+    [Test]
+    public void RoomsClearedBeforeTheyWereEnteredAreCounted()
+    {
+        // Reported by a real run: nine rooms, every one of them cleared in the same instant it
+        // was entered. The player was fighting each room from the doorway of the one before,
+        // which makes the shape of a room irrelevant — worth knowing before anyone spends a
+        // week shaping rooms.
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine", 1, 1)
+            .Wait(20f)
+            .At(PlayEventKind.RoomEntered, "room 1", 1)
+            .Wait(0.05f)
+            .At(PlayEventKind.RoomCleared, "room 1", 1)
+            .At(PlayEventKind.DecisionOffered, "", 1, 2)
+            .At(PlayEventKind.PressedOn, "", 1, 2)
+            .At(PlayEventKind.RoomEntered, "room 2", 2)
+            .Wait(25f)
+            .At(PlayEventKind.RoomCleared, "room 2", 2)
+            .Done();
+
+        var run = PlayReview.Runs(recording)[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.RoomsTakenFromTheDoorway, Is.EqualTo(1));
+            Assert.That(run.RoomSeconds[0], Is.EqualTo(20.05f).Within(0.1f),
+                "the first room still cost twenty seconds of the run");
+            Assert.That(run.RoomSeconds[1], Is.EqualTo(25f).Within(0.1f));
+        });
     }
 
     [Test]
