@@ -88,17 +88,34 @@ public sealed class Encounter
         _enemies.Add(enemy);
     }
 
+    /// <summary>
+    /// Every fight the level file asks for.
+    ///
+    /// Generated mines place their own enemies, so this is the path that matters now: the
+    /// manifest names an archetype and a level, and the catalogue turns that into statistics.
+    /// A spawn naming an enemy that no longer exists is skipped rather than fatal, so an old
+    /// saved mine loses one fight instead of failing to load.
+    /// </summary>
+    public int SpawnFrom(WorldManifest manifest)
+    {
+        var spawned = 0;
+        foreach (var spawn in manifest.Spawns ?? new List<WorldEnemySpawn>())
+        {
+            var archetype = EnemyCatalog.Resolve(spawn);
+            if (archetype is null) continue;
+
+            Spawn(archetype, new Vector3(spawn.Position.X, spawn.Position.Y, spawn.Position.Z),
+                spawn.Id);
+            spawned++;
+        }
+
+        return spawned;
+    }
+
     /// <summary>Two bandits waiting at the far end of the third room.</summary>
     public void SpawnDefaultCamp()
     {
-        var bandit = new EnemyArchetype
-        {
-            Id = "bandit", DisplayName = "Bandit",
-            MaxHealth = 55f, MoveSpeed = 4.4f,
-            AggroRange = 16f, AttackRange = 2.2f,
-            AttackDamage = 7f, AttackCooldown = 1.4f,
-            XpReward = 20
-        };
+        var bandit = EnemyCatalog.Find(EnemyCatalog.BanditId)!;
 
         // Room one (-10..18) is a safe, empty spawn and room two (-24..-10) belongs
         // to the traders. Combat starts only after the player enters room three.

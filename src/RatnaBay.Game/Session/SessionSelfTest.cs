@@ -101,6 +101,7 @@ public static class SessionSelfTest
             RunQuestChecks(failures);
             RunStealthChecks(failures);
             RunShopChecks(failures);
+            RunMineChecks(failures);
         }
         finally
         {
@@ -596,6 +597,69 @@ public static class SessionSelfTest
             ["beat"] = player.Story.State.BeatId,
             ["objective"] = player.Objective.Title ?? "(none)"
         };
+    }
+
+    /// <summary>
+    /// A generated mine, taken all the way through the game layer.
+    ///
+    /// The domain tests already prove the generator emits a valid manifest. What they cannot
+    /// prove is the part that matters here: that the runtime loads one off disk like any other
+    /// level and that its enemies actually arrive in the scene.
+    /// </summary>
+    private static void RunMineChecks(List<string> failures)
+    {
+        Console.WriteLine();
+
+        const int seed = 4211;
+        var manifest = MineGenerator.Generate(seed, rooms: 5, depth: 2);
+        var path = Path.Combine(Path.GetTempPath(), $"ratnabay_mine_{Guid.NewGuid():N}.json");
+
+        try
+        {
+            File.WriteAllText(path, WorldManifest.Serialize(manifest));
+
+            var loaded = WorldRuntime.TryLoad(path, out var mine, out var error);
+            Check(failures, $"a generated mine loads through the ordinary path (said: {error})",
+                loaded && mine is not null);
+            if (mine is null) return;
+
+            Check(failures, "the same seed produces the same mine",
+                WorldManifest.Serialize(MineGenerator.Generate(seed, rooms: 5, depth: 2))
+                    == WorldManifest.Serialize(manifest));
+            Check(failures, "a different seed produces a different mine",
+                WorldManifest.Serialize(MineGenerator.Generate(seed + 1, rooms: 5, depth: 2))
+                    != WorldManifest.Serialize(manifest));
+
+            Check(failures, "the mine has five rooms joined by doors",
+                mine.Manifest.Doors.Count == 5);
+
+            var session = GameSession.NewGame();
+            var encounter = new Encounter(session);
+            var spawned = encounter.SpawnFrom(mine.Manifest);
+
+            Check(failures, $"the mine spawns its own enemies ({spawned})",
+                spawned > 0 && spawned == mine.Manifest.Spawns.Count);
+            Check(failures, "and they arrive in the scene",
+                encounter.Enemies.Count == spawned);
+            Check(failures, "a depth-two enemy is tougher than the surface bandit",
+                encounter.Enemies[0].MaxHealth
+                    > EnemyCatalog.Find(EnemyCatalog.BanditId)!.MaxHealth);
+
+            var spawn = mine.Manifest.PlayerSpawn.Position;
+            var start = new WorldPoint(spawn.X, 1.7f, spawn.Z);
+            var firstRoom = new WorldPoint(
+                mine.Manifest.Lights[0].Position.X, 1.7f, mine.Manifest.Lights[0].Position.Z);
+
+            // Straight at the far wall of the entrance room, which the player must not clip.
+            var walked = mine.Move(start, new WorldPoint(0f, 0f, -60f), 0.45f);
+            Check(failures, "the player spawns inside the mine and is stopped by its walls",
+                walked.FlatDistanceTo(start) > 1f
+                && walked.FlatDistanceTo(firstRoom) < 16f);
+        }
+        finally
+        {
+            DeleteTestFile(path);
+        }
     }
 
     private static void Check(ICollection<string> failures, string what, bool passed)

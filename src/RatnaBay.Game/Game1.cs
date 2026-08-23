@@ -140,6 +140,11 @@ public sealed class Game1 : Game
     /// <summary>--stambha: frame the carved pillar as the trailer's opening shot.</summary>
     private bool _stambhaPreview;
 
+    /// <summary>--mine N: play a generated mine instead of the authored world.</summary>
+    private int? _mineSeed;
+    private int _mineRooms = 4;
+    private int _mineDepth = 1;
+
     /// <summary>Screen to force open for --screenshot: inventory, journal, shop or help.</summary>
     private string? _captureScreen;
 
@@ -206,6 +211,12 @@ public sealed class Game1 : Game
         // described. Screenshot mode only.
         _captureScreen = ParseOption(args, "--show");
         _stambhaPreview = HasArgument(args, "--stambha");
+        if (int.TryParse(ParseOption(args, "--mine"), out var mineSeed)) _mineSeed = mineSeed;
+        if (int.TryParse(ParseOption(args, "--rooms"), out var mineRooms)) _mineRooms = mineRooms;
+        if (int.TryParse(ParseOption(args, "--depth"), out var mineDepth)) _mineDepth = mineDepth;
+
+        // Asking for a mine and being shown the title screen is a papercut; --mine means play it.
+        if (_mineSeed is not null) _screen = GameScreen.WorldScene;
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
         if (_screenshotPath is not null)
@@ -1210,7 +1221,7 @@ public sealed class Game1 : Game
         _questObjectiveId = string.Empty;
         _world?.RestoreOpenedDoors(session.Player.Story.State.OpenedLocks);
         _encounter = new Encounter(session);
-        _encounter.SpawnDefaultCamp();
+        SpawnEnemies();
 
         session.Player.Vitals.Died += () =>
         {
@@ -1219,6 +1230,20 @@ public sealed class Game1 : Game
             session.Player.Combat.ClearCombat();
             ResetCamera();
         };
+    }
+
+    /// <summary>
+    /// Fill the scene from the level file, falling back to the authored camp for the hand-made
+    /// world, which predates spawns being part of the manifest.
+    /// </summary>
+    private void SpawnEnemies()
+    {
+        if (_encounter is null) return;
+
+        if (_world?.Manifest.Spawns is { Count: > 0 } && _encounter.SpawnFrom(_world.Manifest) > 0)
+            return;
+
+        _encounter.SpawnDefaultCamp();
     }
 
     private bool LoadSession()
@@ -1241,7 +1266,7 @@ public sealed class Game1 : Game
         RefreshQuestObjective();
 
         _encounter = new Encounter(_session);
-        _encounter.SpawnDefaultCamp();
+        SpawnEnemies();
 
         _session.ShowToast(message);
         _menuStatus = string.Empty;
@@ -1438,6 +1463,11 @@ public sealed class Game1 : Game
         Vector3.Forward,
         Matrix.CreateRotationX(_cameraPitch) * Matrix.CreateRotationY(-_cameraYaw));
 
+    /// <summary>Where the player currently is, for the banner across the top of the HUD.</summary>
+    private string LocationCaption() => _mineSeed is { } seed
+        ? $"MINE {unchecked((uint)seed):X4}  ·  DEPTH {_mineDepth}"
+        : "NORTHWATCH OUTSKIRTS";
+
     private void ResetCamera()
     {
         var spawn = _world?.Manifest.PlayerSpawn;
@@ -1465,7 +1495,9 @@ public sealed class Game1 : Game
     {
         if (_world is not null) return;
 
-        var path = Path.Combine(AppContext.BaseDirectory, "Content", "World", "northwatch.json");
+        var path = _mineSeed is { } seed
+            ? WriteGeneratedMine(seed)
+            : Path.Combine(AppContext.BaseDirectory, "Content", "World", "northwatch.json");
         if (!WorldRuntime.TryLoad(path, out var world, out var error))
         {
             _assetErrors.Add(error);
@@ -1473,6 +1505,33 @@ public sealed class Game1 : Game
         }
 
         _world = world;
+    }
+
+    /// <summary>
+    /// Generate a mine and put it on disk, then load it by the ordinary path.
+    ///
+    /// Writing the file rather than handing the manifest straight to the runtime is the point:
+    /// it proves the generator emits something the existing loader accepts, and it leaves the
+    /// exact mine sitting there to be inspected, validated or edited by hand when a seed turns
+    /// out to be broken.
+    /// </summary>
+    private string WriteGeneratedMine(int seed)
+    {
+        var manifest = MineGenerator.Generate(seed, _mineRooms, _mineDepth);
+        var directory = Path.Combine(AppContext.BaseDirectory, "Content", "World", "Generated");
+        var path = Path.Combine(directory, $"{manifest.Id}.json");
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(path, WorldManifest.Serialize(manifest));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            _assetErrors.Add($"Could not write generated mine: {exception.Message}");
+        }
+
+        return path;
     }
 
     private void LoadDialogueManifest()
@@ -2814,7 +2873,7 @@ public sealed class Game1 : Game
 
     private void DrawLocationBanner()
     {
-        TextCentred("NORTHWATCH OUTSKIRTS", LogicalWidth / 2f, 24f, 15, new Color(196, 214, 214));
+        TextCentred(LocationCaption(), LogicalWidth / 2f, 24f, 15, new Color(196, 214, 214));
     }
 
     private void DrawAwareness()

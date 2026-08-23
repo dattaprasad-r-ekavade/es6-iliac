@@ -19,6 +19,15 @@ public sealed class WorldManifest
     public List<WorldWatcher> Watchers { get; set; } = new();
     public List<WorldPickup> Pickups { get; set; } = new();
 
+    /// <summary>
+    /// Where enemies stand when the location is entered.
+    ///
+    /// Added so a generated mine can place its own fights. Authored worlds that omit it simply
+    /// have none, which is why this stays version 1: the field is additive and its absence is a
+    /// valid, meaningful state.
+    /// </summary>
+    public List<WorldEnemySpawn> Spawns { get; set; } = new();
+
     public static bool TryLoad(string path, out WorldManifest? manifest, out string error)
     {
         manifest = null;
@@ -151,6 +160,17 @@ public sealed class WorldManifest
                 failures.Add($"pickup '{pickup.Id}' scale must be positive.");
         }
 
+        foreach (var spawn in Spawns ?? new List<WorldEnemySpawn>())
+        {
+            ValidateId(spawn?.Id, "spawn", ids, failures);
+            if (spawn is null || string.IsNullOrWhiteSpace(spawn.ArchetypeId))
+                failures.Add($"spawn '{spawn?.Id ?? "<null>"}' needs an archetype.");
+            if (spawn?.Position is null || !spawn.Position.IsFinite())
+                failures.Add($"spawn '{spawn?.Id ?? "<null>"}' has invalid position.");
+            if (spawn is not null && spawn.Level < 1)
+                failures.Add($"spawn '{spawn.Id}' level must be at least 1.");
+        }
+
         return failures;
     }
 
@@ -252,6 +272,18 @@ public sealed class WorldPickup
     public WorldVector Position { get; set; } = new();
     public string Model { get; set; } = "cheeseBox";
     public float Scale { get; set; } = 0.45f;
+}
+
+/// <summary>
+/// One enemy, placed. The archetype is named rather than described so that a rebalance happens
+/// in one place in the domain instead of in every manifest that ever spawned that enemy.
+/// </summary>
+public sealed class WorldEnemySpawn
+{
+    public string Id { get; set; } = string.Empty;
+    public string ArchetypeId { get; set; } = string.Empty;
+    public int Level { get; set; } = 1;
+    public WorldVector Position { get; set; } = new();
 }
 
 public sealed class WorldVector

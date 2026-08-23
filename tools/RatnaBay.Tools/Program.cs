@@ -13,6 +13,7 @@ var checks = command switch
     "doctor" => RunDoctor(root),
     "validate" => RunValidate(root, args.Skip(1).ToArray()),
     "sim" => RunSimulation(root),
+    "mine" => RunMine(root, args.Skip(1).ToArray()),
     "asset-info" => RunAssetInfo(root, args.Skip(1).ToArray()),
     "help" or "--help" or "-h" => PrintHelp(),
     _ => Unknown(command)
@@ -181,6 +182,66 @@ static int RunSimulation(string root)
     return failures.Count == 0 ? 0 : 1;
 }
 
+/// <summary>
+/// Generate one mine, write it, and then validate it through exactly the same path the game
+/// uses. Generating without validating would only prove the generator can produce JSON.
+/// </summary>
+static int RunMine(string root, string[] arguments)
+{
+    var seed = ReadOption(arguments, "--seed") is { } rawSeed && int.TryParse(rawSeed, out var parsed)
+        ? parsed
+        : Environment.TickCount;
+    var rooms = ReadOption(arguments, "--rooms") is { } rawRooms && int.TryParse(rawRooms, out var r)
+        ? r
+        : 4;
+    var depth = ReadOption(arguments, "--depth") is { } rawDepth && int.TryParse(rawDepth, out var d)
+        ? d
+        : 1;
+
+    var manifest = MineGenerator.Generate(seed, rooms, depth);
+    var target = ReadOption(arguments, "--out") ?? Path.Combine(
+        root, "src", "RatnaBay.Game", "Content", "World", "Generated", $"{manifest.Id}.json");
+
+    var path = Path.GetFullPath(Path.IsPathRooted(target) ? target : Path.Combine(root, target));
+    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+    File.WriteAllText(path, WorldManifest.Serialize(manifest));
+
+    Console.WriteLine($"Generated {manifest.Id} (seed {seed}, {rooms} rooms, depth {depth})");
+    Console.WriteLine($"  {Path.GetRelativePath(root, path)}");
+    Console.WriteLine($"  {manifest.Geometry.Count} solids, {manifest.Doors.Count} doors, "
+        + $"{manifest.Lights.Count} lights, {manifest.Spawns.Count} enemies");
+
+    // Round-trip through the loader, which is the claim worth making about a generator.
+    if (!WorldManifest.TryLoad(path, out _, out var error))
+    {
+        Console.Error.WriteLine($"[FAIL] the generated mine does not load: {error}");
+        return 1;
+    }
+
+    var unknown = manifest.Spawns
+        .Where(spawn => EnemyCatalog.Find(spawn.ArchetypeId) is null)
+        .Select(spawn => spawn.ArchetypeId)
+        .Distinct(StringComparer.Ordinal)
+        .ToList();
+
+    if (unknown.Count > 0)
+    {
+        Console.Error.WriteLine($"[FAIL] unknown archetype(s): {string.Join(", ", unknown)}");
+        return 1;
+    }
+
+    Console.WriteLine("[OK] loads, validates, and every spawn names a known enemy.");
+    Console.WriteLine($"Play it with: RatnaBay.exe --mine {seed} --rooms {rooms} --depth {depth}");
+    return 0;
+}
+
+static string? ReadOption(string[] arguments, string name)
+{
+    var index = Array.FindIndex(arguments,
+        argument => string.Equals(argument, name, StringComparison.OrdinalIgnoreCase));
+    return index >= 0 && index + 1 < arguments.Length ? arguments[index + 1] : null;
+}
+
 static int RunValidate(string root, string[] arguments)
 {
     var contentRoot = Path.Combine(root, "src", "RatnaBay.Game", "Content");
@@ -282,6 +343,7 @@ static int PrintHelp()
     Console.WriteLine("  doctor     Check the repository/toolchain baseline (default)");
     Console.WriteLine("  validate   Validate JSON world, dialogue, quest and shop manifests (optionally pass a path)");
     Console.WriteLine("  sim        Run the dialogue -> quest -> combat -> reward -> save regression");
+    Console.WriteLine("  mine       Generate a mine: mine --seed N [--rooms N] [--depth N] [--out PATH]");
     Console.WriteLine("  asset-info Inspect a .gltf or .glb asset using SharpGLTF");
     Console.WriteLine("  help       Show this help");
     return 0;

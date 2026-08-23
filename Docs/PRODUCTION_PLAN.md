@@ -37,9 +37,9 @@ acting.
 | | Lines | State |
 |---|---:|---|
 | `RatnaBay.Domain` | ~4,600 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | ~4,300 | **359 tests, ~190 ms** |
+| `RatnaBay.Domain.Tests` | ~4,600 | **383 tests, ~280 ms** |
 | `RatnaBay.Game` | ~5,600 | Renderer, HUD, session, world runtime, combat |
-| `RatnaBay.Tools` | ~310 | `doctor`, `asset-info`, `sim` |
+| `RatnaBay.Tools` | ~370 | `doctor`, `validate`, `asset-info`, `sim`, `mine` |
 
 **Built and carried into the pivot:** combat with guarding and weapon classes · enemy levels and
 scaling · five spells with distinct effects, cast as travelling bolts · the prana economy · the
@@ -47,7 +47,7 @@ three life paths and their multipliers · eight use-based skills · collision, d
 stealth, watchers, pickpocketing · dialogue, quests, shops · versioned saves · the world manifest
 format, its validation and its hot reload · the publish pipeline and its gates.
 
-**Not yet built:** mine generation · run state · stone slots · amulets · succession · the fort ·
+**Not yet built:** run state · stone slots · amulets · succession · the fort ·
 bosses.
 
 ---
@@ -61,18 +61,28 @@ Estimates assume 15–20 hours a week.
 
 ---
 
-### Iteration 13 — One generated mine (2 weeks)
+### Iteration 13 — One generated mine ✅ done
 
-**Risk retired:** can generation produce the format the game already loads?
+**Risk retired:** can generation produce the format the game already loads? **Yes.**
 
 - Room-graph generator: a seed in, a `WorldManifest` out.
 - Rooms connected by the existing door system; one entrance, one exit each.
 - `RatnaBay.Tools mine --seed N` writes a manifest and validates it.
 - Enemies placed per room by the existing spawn path.
 
-**Playable:** descend into a generated three-room mine, fight through it, walk out the far end.
+**Playable:** `RatnaBay.exe --mine 4211 --rooms 5 --depth 2`. Descend into a generated mine,
+fight through it, open each door, walk out the far end.
 
-**Done when:** a new seed produces a different, valid, playable mine with no code change.
+**Done when:** a new seed produces a different, valid, playable mine with no code change. ✅
+
+**What it cost, and what it caught.** Two bugs that every other check waved through:
+
+- The walkability tests fired a ray between room centres, and passed with the doorways sealed to
+  two millimetres — an infinitely thin ray threads any gap. They now walk the route with the real
+  swept mover at the real body radius, and fail when a doorway is narrower than a body.
+- The random source was a bare xorshift, and the low bits it picked directions with were
+  correlated enough to repeat the same step several times running: **every mine came out a
+  straight corridor.** SplitMix32 fixed it, and `MinesActuallyTurnCorners` now guards it.
 
 ---
 
@@ -215,14 +225,15 @@ One board. Work in progress limit: **one**.
 
 ### Next
 
-- Iteration 13 — room-graph generator emitting a `WorldManifest`.
+- **Iteration 14 — the run.** Run state, the camp decision, the payout, the forfeit. The
+  iteration that decides whether the pivot works.
 - Trailer build list, from [`TRAILER.md`](TRAILER.md): the Stambha and its carved verse, the
   preta rise animation, one fort room with a conversation, the camp decision UI, succession,
   and two cave themes. Two themes and one room film the trailer; five and ten ship the game.
 
 ### Ready
 
-- Iteration 14 — run state and the camp decision.
+- Iteration 15 — succession.
 
 ### Playtest queue
 
@@ -234,6 +245,8 @@ One board. Work in progress limit: **one**.
   dialogue, quests, shops, stealth, the packaged build and its gates.
 - Pivot groundwork: travelling spell bolts, enemy levels, life-path multipliers, the spell
   rebalance.
+- Iteration 13: the mine generator, `WorldEnemySpawn` in the manifest, the enemy catalogue,
+  `RatnaBay.Tools mine`, and `--mine N` in the game.
 - The design, decided end to end.
 
 ---
