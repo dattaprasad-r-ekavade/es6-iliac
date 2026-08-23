@@ -44,6 +44,12 @@ public sealed class Game1 : Game
 
     /// <summary>True while the pointer is captured for looking. Tab releases it.</summary>
     private bool _mouseLook;
+
+    /// <summary>
+    /// True when the pointer was freed to operate a panel rather than by the player asking
+    /// for it. Closing that panel hands the camera back; pressing Tab does not.
+    /// </summary>
+    private bool _mouseFreedForPanel;
     private bool _showHelp;
     private bool _ignoreMouseDeltaThisFrame;
 
@@ -128,6 +134,7 @@ public sealed class Game1 : Game
     /// capture, so the pose is driven directly rather than hoping to catch one mid-flight.
     /// </summary>
     private float? _captureSwing;
+    private float? _captureCast;
 
     /// <summary>Screen to force open for --screenshot: inventory, journal, shop or help.</summary>
     private string? _captureScreen;
@@ -189,6 +196,7 @@ public sealed class Game1 : Game
         // compared frame against frame instead of described.
         if (int.TryParse(ParseOption(args, "--warmup"), out var warmup)) _warmupFrames = warmup;
         if (float.TryParse(ParseOption(args, "--swing"), out var swing)) _captureSwing = swing;
+        if (float.TryParse(ParseOption(args, "--cast"), out var cast)) _captureCast = cast;
 
         // Opens a screen for a capture, so an interface change can be looked at rather than
         // described. Screenshot mode only.
@@ -429,9 +437,12 @@ public sealed class Game1 : Game
     /// While captured the cursor is hidden and re-centred every frame, so looking around
     /// never runs out of desk and never lets a click land outside the window.
     /// </summary>
-    private void SetMouseLook(bool enabled)
+    private void SetMouseLook(bool enabled, bool forPanel = false)
     {
         if (_screenshotPath is not null) enabled = false;
+
+        if (enabled) _mouseFreedForPanel = false;
+        else if (forPanel) _mouseFreedForPanel = true;
 
         _mouseLook = enabled;
         // The system cursor stays hidden in every state; DrawPointer draws ours instead.
@@ -662,17 +673,17 @@ public sealed class Game1 : Game
     private void UpdateGameScreen(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         if (Pressed(keyboard, Keys.M)) { SetMouseLook(false); _screen = GameScreen.MainMenu; }
-        if (Pressed(keyboard, Keys.F1)) { _showHelp = !_showHelp; if (_showHelp) SetMouseLook(false); }
+        if (Pressed(keyboard, Keys.F1)) { _showHelp = !_showHelp; if (_showHelp) SetMouseLook(false, forPanel: true); }
         if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
         if (Pressed(keyboard, Keys.J))
         {
             _showJournal = !_showJournal;
-            if (_showJournal) { _showCharacter = false; SetMouseLook(false); }
+            if (_showJournal) { _showCharacter = false; SetMouseLook(false, forPanel: true); }
         }
         if (Pressed(keyboard, Keys.I) || Pressed(keyboard, Keys.K))
         {
             _showCharacter = !_showCharacter;
-            if (_showCharacter) { _showJournal = false; _inventorySelection = 0; SetMouseLook(false); }
+            if (_showCharacter) { _showJournal = false; _inventorySelection = 0; SetMouseLook(false, forPanel: true); }
         }
 
         if (_showCharacter)
@@ -680,7 +691,7 @@ public sealed class Game1 : Game
             UpdateInventory(keyboard);
             return;
         }
-        if (Pressed(keyboard, Keys.F2)) { _showSettings = !_showSettings; if (_showSettings) SetMouseLook(false); }
+        if (Pressed(keyboard, Keys.F2)) { _showSettings = !_showSettings; if (_showSettings) SetMouseLook(false, forPanel: true); }
 
         if (_showSettings)
         {
@@ -726,6 +737,26 @@ public sealed class Game1 : Game
 
         if (_screen == GameScreen.WorldScene)
             UpdateSession(gameTime, keyboard, mouse);
+
+        RestoreMouseLookAfterPanels();
+    }
+
+    /// <summary>
+    /// Hand the camera back when the last panel closes.
+    ///
+    /// Closing a conversation used to leave the pointer free and the camera locked, so the
+    /// player had to know to press Tab to carry on playing. Only pointer time that was taken
+    /// *for a panel* is given back, so Tab still means what it says.
+    /// </summary>
+    private void RestoreMouseLookAfterPanels()
+    {
+        if (!_mouseFreedForPanel || _mouseLook) return;
+        if (_screen != GameScreen.WorldScene) return;
+
+        if (_dialogueOpen || _showShop || _showJournal || _showCharacter
+            || _showHelp || _showSettings) return;
+
+        SetMouseLook(true);
     }
 
     /// <summary>
@@ -854,7 +885,7 @@ public sealed class Game1 : Game
                 {
                     _showShop = true;
                     _shopSelection = 0;
-                    SetMouseLook(false);
+                    SetMouseLook(false, forPanel: true);
                 }
                 else
                 {
@@ -874,7 +905,7 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Q))
         {
             var cast = _encounter.PlayerCast(_cameraPosition, _cameraYaw);
-            if (cast.WasCast) _weaponView.Swing(_session.Player.Combat.ActiveWeapon);
+            if (cast.WasCast) _weaponView.Cast();
             ReportCast(cast);
         }
 
@@ -904,8 +935,9 @@ public sealed class Game1 : Game
     private static Rectangle ShopItemBounds(int index) =>
         new(274, 232 + index * 52, 732, 42);
 
-    private static Rectangle TalkPromptBounds() => new(388, 596, 248, 42);
-    private static Rectangle SecondaryPromptBounds() => new(644, 596, 248, 42);
+    private static Rectangle TalkPromptBounds() => new(302, 596, 224, 42);
+    private static Rectangle SecondaryPromptBounds() => new(534, 596, 212, 42);
+    private static Rectangle PickpocketPromptBounds() => new(754, 596, 224, 42);
     private static Rectangle SinglePromptBounds() => new(388, 596, 504, 42);
 
     /// <summary>Activate the prompt under a released mouse pointer instead of recapturing it.</summary>
@@ -935,7 +967,8 @@ public sealed class Game1 : Game
                     return true;
                 }
 
-                if (actor.Palette.Equals("guard", StringComparison.OrdinalIgnoreCase))
+                if (HasPickablePocket(actor)
+                    && PickpocketPromptBounds().Contains((int)pointer.X, (int)pointer.Y))
                 {
                     TryPickpocket(actor);
                     return true;
@@ -1509,6 +1542,10 @@ public sealed class Game1 : Game
                 _shop.MarkSoldOut(item.Id);
     }
 
+    /// <summary>True when this actor is carrying something that has not been lifted yet.</summary>
+    private bool HasPickablePocket(SpeakingActor actor) =>
+        _pockets.TryGetValue(actor.ActorId, out var target) && target.RemainingItems > 0;
+
     private void TryPickpocket(SpeakingActor actor)
     {
         if (_session is null || !_pockets.TryGetValue(actor.ActorId, out var target)) return;
@@ -1801,7 +1838,6 @@ public sealed class Game1 : Game
         if (_showJournal) DrawJournal();
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
-        DrawPointer();
 
         EndUi();
     }
@@ -1820,15 +1856,23 @@ public sealed class Game1 : Game
             TextFit($"Click / E  Talk to {actor.DisplayName}",
                 new Vector2(talk.X + 16, talk.Y + 12), talk.Width - 32, 14, Color.White);
 
-            if (actor.Palette.Equals("guard", StringComparison.OrdinalIgnoreCase)
-                || actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase))
+            if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
+                && _shop is not null)
             {
                 DrawPanel(secondary, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-                var action = actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
-                    ? "Click / B  Shop"
-                    : "Click / P  Pickpocket";
-                Text(action, new Vector2(secondary.X + 16, secondary.Y + 12), 14, Color.White);
+                Text("B  Shop", new Vector2(secondary.X + 16, secondary.Y + 12), 14, Color.White);
             }
+
+            // A pocket worth picking was previously only advertised on guards, so the one
+            // pocket in the slice that matters — the trader carrying the watchpost key —
+            // had no prompt at all and testers never found it.
+            if (HasPickablePocket(actor))
+            {
+                var pocket = PickpocketPromptBounds();
+                DrawPanel(pocket, new Color(5, 11, 18, 225), new Color(190, 148, 196));
+                Text("P  Pick pocket", new Vector2(pocket.X + 16, pocket.Y + 12), 14, Color.White);
+            }
+
             return;
         }
 
@@ -1846,9 +1890,12 @@ public sealed class Game1 : Game
         var door = _world.FindDoor(player, _cameraYaw);
         if (door is null) return;
 
-        var text = door.Lock.IsLocked
-            ? $"Click / E  Pick lock  |  Security {door.Definition.Difficulty:0}"
-            : "Click / E  Open door";
+        var hasKey = !string.IsNullOrEmpty(door.Definition.KeyItemId)
+            && _session.Player.Inventory.Has(door.Definition.KeyItemId);
+
+        var text = !door.Lock.IsLocked ? "Click / E  Open door"
+            : hasKey ? "Click / E  Unlock with your key"
+            : $"Locked  |  a key, or Security {door.Definition.Difficulty:0}";
         DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225), new Color(205, 157, 98));
         Text(text, new Vector2(404, 608), 15, Color.White);
     }
@@ -2174,6 +2221,12 @@ public sealed class Game1 : Game
         {
             _weaponView.Swing(weapon);
             _weaponView.Update(progress, moving: false, guarding: false);
+        }
+
+        if (_captureCast is { } castProgress)
+        {
+            _weaponView.Cast();
+            _weaponView.Update(castProgress, moving: false, guarding: false);
         }
 
         var texture = WeaponSprites.Get(GraphicsDevice, weapon);
@@ -2703,6 +2756,9 @@ public sealed class Game1 : Game
             ("Q", "cast the readied spell"),
             ("I", "character and inventory — Enter to use an item"),
             ("E", "talk, open, take"),
+            ("P", "pick a pocket"),
+            ("B", "trade with a merchant"),
+            ("Tab", "free the mouse"),
             ("4 5 6 7 8", "flame, rime, arc, mend, emberlight"),
             ("Arrow keys", "look (keyboard)"),
             ("Shift", "sprint — spends stamina"),
@@ -3156,7 +3212,18 @@ public sealed class Game1 : Game
         _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, _uiTransform);
     }
 
-    private void EndUi() => _spriteBatch.End();
+    /// <summary>
+    /// Closes the UI batch, drawing our pointer last.
+    ///
+    /// Doing it here rather than at each screen is deliberate: the pointer was previously
+    /// added to one screen by hand and silently missing from the main menu, which is exactly
+    /// the failure a shared exit point prevents.
+    /// </summary>
+    private void EndUi()
+    {
+        DrawPointer();
+        _spriteBatch.End();
+    }
 
     private void DrawPanel(Rectangle bounds, Color fill, Color border)
     {

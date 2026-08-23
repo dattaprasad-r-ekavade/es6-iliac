@@ -56,11 +56,31 @@ public sealed class WeaponView
 
     private float _swingRemaining;
     private float _swingDuration;
+    private float _castRemaining;
+    private float _castDuration;
     private float _bobPhase;
     private float _guard;
 
     /// <summary>True while a swing is still playing out.</summary>
     public bool IsSwinging => _swingRemaining > 0f;
+
+    /// <summary>True while a cast is playing out.</summary>
+    public bool IsCasting => _castRemaining > 0f;
+
+    /// <summary>
+    /// Casting is a different motion from swinging.
+    ///
+    /// A swing sweeps the blade across the body; a cast pulls the hand back and pushes it
+    /// forward, so the two read as different actions rather than the same one relabelled.
+    /// </summary>
+    public void Cast()
+    {
+        _castDuration = 0.46f;
+        _castRemaining = _castDuration;
+
+        // A cast interrupts a swing rather than layering on top of it.
+        _swingRemaining = 0f;
+    }
 
     /// <summary>Start a swing. Its length follows the weapon, so a greatsword feels heavier.</summary>
     public void Swing(WeaponDefinition weapon)
@@ -74,6 +94,7 @@ public sealed class WeaponView
         if (deltaSeconds <= 0f) return;
 
         if (_swingRemaining > 0f) _swingRemaining = MathF.Max(0f, _swingRemaining - deltaSeconds);
+        if (_castRemaining > 0f) _castRemaining = MathF.Max(0f, _castRemaining - deltaSeconds);
 
         // The bob only advances while actually walking, so standing still is still.
         if (moving) _bobPhase += deltaSeconds * 7.4f;
@@ -98,6 +119,26 @@ public sealed class WeaponView
         // Guard.
         position += GuardOffset * _guard;
         rotation += GuardRotation * _guard;
+
+        if (_castRemaining > 0f)
+        {
+            var castT = 1f - _castRemaining / _castDuration;
+
+            // Draw back for the first third, then thrust forward and settle.
+            var thrust = castT < 0.33f
+                ? -EaseOut(castT / 0.33f) * 0.4f
+                : (castT - 0.33f) / 0.67f;
+
+            // Up and inward rather than across: the hand presents rather than sweeps.
+            position += new Vector2(-96f, -150f) * thrust;
+            rotation += 0.55f * thrust;
+
+            // A pulse at the moment the spell leaves the hand.
+            var flare = MathF.Sin(MathHelper.Clamp(castT, 0f, 1f) * MathF.PI);
+            scale += BaseScale * 0.26f * flare;
+
+            return new WeaponPose(position, rotation, scale);
+        }
 
         if (_swingRemaining <= 0f) return new WeaponPose(position, rotation, scale);
 
