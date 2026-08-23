@@ -20,6 +20,46 @@ public sealed class EnemyArchetype
     public float AttackCooldown { get; init; } = 1.4f;
     public int XpReward { get; init; } = 20;
     public bool DropsLoot { get; init; } = true;
+
+    /// <summary>What rank this archetype represents. Display only; scaling is applied.</summary>
+    public int Level { get; init; } = 1;
+
+    /// <summary>Health added per level above the first.</summary>
+    public const float HealthPerLevel = 0.22f;
+
+    /// <summary>Damage added per level above the first — slower than health on purpose.</summary>
+    public const float DamagePerLevel = 0.16f;
+
+    /// <summary>Experience added per level, which is why deeper floors are worth the risk.</summary>
+    public const float XpPerLevel = 0.35f;
+
+    /// <summary>
+    /// The same enemy, at a deeper floor.
+    ///
+    /// Health grows faster than damage so a run gets longer before it gets lethal: a level
+    /// that doubles both at once turns a survivable fight into an unwinnable one in a single
+    /// step, which is the classic way a scaling curve ruins a roguelike.
+    /// </summary>
+    public EnemyArchetype AtLevel(int level, string? title = null)
+    {
+        var steps = Math.Max(0, level - 1);
+        if (steps == 0 && title is null) return this;
+
+        return new EnemyArchetype
+        {
+            Id = Id,
+            DisplayName = title ?? DisplayName,
+            Level = Math.Max(1, level),
+            MaxHealth = MaxHealth * (1f + HealthPerLevel * steps),
+            MoveSpeed = MoveSpeed,
+            AggroRange = AggroRange,
+            AttackRange = AttackRange,
+            AttackDamage = AttackDamage * (1f + DamagePerLevel * steps),
+            AttackCooldown = AttackCooldown,
+            XpReward = (int)MathF.Round(XpReward * (1f + XpPerLevel * steps)),
+            DropsLoot = DropsLoot
+        };
+    }
 }
 
 /// <summary>What an enemy wants to do this frame.</summary>

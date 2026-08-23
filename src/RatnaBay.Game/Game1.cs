@@ -353,6 +353,7 @@ public sealed class Game1 : Game
         _ambientAudio?.Dispose();
         CharacterSprites.Clear();
         WeaponSprites.Clear();
+        BoltSprites.Clear();
         base.UnloadContent();
     }
 
@@ -379,39 +380,14 @@ public sealed class Game1 : Game
             {
                 if (_showSettings) _showSettings = false;
             }
-            else if (_showHelp)
+            else if (AnyPanelOpen)
             {
-                _showHelp = false;
+                ClosePanels();
             }
             else
             {
                 SetMouseLook(false);
-                if (_showSettings)
-                {
-                    _showSettings = false;
-                }
-                else if (_dialogueOpen)
-                {
-                    _dialogueOpen = false;
-                    _conversationActor = null;
-                    _dialogueResponse = string.Empty;
-                }
-                else if (_showJournal)
-                {
-                    _showJournal = false;
-                }
-                else if (_showCharacter)
-                {
-                    _showCharacter = false;
-                }
-                else if (_showShop)
-                {
-                    _showShop = false;
-                }
-                else
-                {
-                    _screen = GameScreen.MainMenu;
-                }
+                _screen = GameScreen.MainMenu;
             }
         }
 
@@ -669,17 +645,27 @@ public sealed class Game1 : Game
     private void UpdateGameScreen(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         if (Pressed(keyboard, Keys.M)) { SetMouseLook(false); _screen = GameScreen.MainMenu; }
-        if (Pressed(keyboard, Keys.F1)) { _showHelp = !_showHelp; if (_showHelp) SetMouseLook(false, forPanel: true); }
+        if (Pressed(keyboard, Keys.F1))
+        {
+            if (_showHelp) ClosePanels();
+            else { _showHelp = true; SetMouseLook(false, forPanel: true); }
+        }
         if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
         if (Pressed(keyboard, Keys.J))
         {
-            _showJournal = !_showJournal;
-            if (_showJournal) { _showCharacter = false; SetMouseLook(false, forPanel: true); }
+            if (_showJournal) ClosePanels();
+            else { _showJournal = true; _showCharacter = false; SetMouseLook(false, forPanel: true); }
         }
         if (Pressed(keyboard, Keys.I) || Pressed(keyboard, Keys.K))
         {
-            _showCharacter = !_showCharacter;
-            if (_showCharacter) { _showJournal = false; _inventorySelection = 0; SetMouseLook(false, forPanel: true); }
+            if (_showCharacter) ClosePanels();
+            else
+            {
+                _showCharacter = true;
+                _showJournal = false;
+                _inventorySelection = 0;
+                SetMouseLook(false, forPanel: true);
+            }
         }
 
         if (_showCharacter)
@@ -735,6 +721,31 @@ public sealed class Game1 : Game
             UpdateSession(gameTime, keyboard, mouse);
 
         RestoreMouseLookAfterPanels();
+    }
+
+    /// <summary>True while any screen is holding the pointer.</summary>
+    private bool AnyPanelOpen =>
+        _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp || _showSettings;
+
+    /// <summary>
+    /// Close everything and give the camera straight back.
+    ///
+    /// Every panel used to close itself in its own way, and dialogue closed itself in two
+    /// different places, so whether the camera came back depended on which path you took out.
+    /// One exit means one behaviour: the pointer goes, the camera moves, no click needed.
+    /// </summary>
+    private void ClosePanels()
+    {
+        _dialogueOpen = false;
+        _conversationActor = null;
+        _dialogueResponse = string.Empty;
+        _showShop = false;
+        _showJournal = false;
+        _showCharacter = false;
+        _showHelp = false;
+        _showSettings = false;
+
+        if (_screen == GameScreen.WorldScene) SetMouseLook(true);
     }
 
     /// <summary>
@@ -900,7 +911,7 @@ public sealed class Game1 : Game
         }
         if (Pressed(keyboard, Keys.Q))
         {
-            var cast = _encounter.PlayerCast(_cameraPosition, _cameraYaw);
+            var cast = _encounter.PlayerCast(_cameraPosition, _cameraYaw, Forward);
             if (cast.WasCast) _weaponView.Cast();
             ReportCast(cast);
         }
@@ -1015,9 +1026,7 @@ public sealed class Game1 : Game
         var topics = _conversationActor.AvailableTopics();
         if (Pressed(keyboard, Keys.Escape))
         {
-            _dialogueOpen = false;
-            _conversationActor = null;
-            _dialogueResponse = string.Empty;
+            ClosePanels();
             return;
         }
 
@@ -1808,6 +1817,7 @@ public sealed class Game1 : Game
         DrawSpeakingActors();
         DrawWatchers();
         DrawEnemies();
+        DrawBolts();
 
         BeginUi();
 
@@ -2255,6 +2265,32 @@ public sealed class Game1 : Game
             pose.Scale,
             SpriteEffects.None,
             0f);
+    }
+
+    /// <summary>
+    /// Spells in flight.
+    ///
+    /// Drawn as camera-facing glows in the element's colour, so what is crossing the room is
+    /// legible at a glance: orange is fire, pale blue is frost, gold is shock.
+    /// </summary>
+    private void DrawBolts()
+    {
+        if (_encounter is null || _encounter.Bolts.Count == 0) return;
+
+        _billboards.Begin(_view, _projection);
+
+        foreach (var bolt in _encounter.Bolts)
+        {
+            var texture = BoltSprites.Get(GraphicsDevice, bolt.Colour);
+
+            // A pulse so a bolt reads as burning energy rather than a thrown pebble.
+            var pulse = 0.52f + MathF.Sin(bolt.Spin) * 0.06f;
+            _billboards.Draw(texture, bolt.Position - Vector3.Up * (pulse * 0.5f), pulse,
+                _cameraYaw, Color.White);
+        }
+
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
     }
 
     /// <summary>A red vignette while the player is being hurt.</summary>

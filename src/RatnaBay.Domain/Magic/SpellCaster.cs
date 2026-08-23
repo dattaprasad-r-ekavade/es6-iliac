@@ -101,6 +101,23 @@ public sealed class SpellCaster
     /// </param>
     public CastOutcome Cast(string? spellId, IEnemy? target = null, IEnemy? chainTarget = null)
     {
+        var paid = Pay(spellId);
+        if (!paid.WasCast) return paid;
+
+        var landed = Deliver(paid.Spell!, target, chainTarget);
+        return new CastOutcome(landed ? CastResult.Landed : CastResult.Missed, paid.Spell, paid.Cost);
+    }
+
+    /// <summary>
+    /// Charge for a spell without applying it.
+    ///
+    /// Split from delivery so a spell can leave the hand as a projectile and arrive a moment
+    /// later: the prana is spent when the player casts, and the effect happens where the bolt
+    /// lands. A returned result of <see cref="CastResult.Missed"/> means "paid for, not yet
+    /// delivered" — the caller owns it from here.
+    /// </summary>
+    public CastOutcome Pay(string? spellId)
+    {
         var spell = SpellCatalog.Get(spellId);
         if (spell is null) return new CastOutcome(CastResult.UnknownSpell, null, 0f);
 
@@ -108,6 +125,14 @@ public sealed class SpellCaster
         if (!_vitals.SpendPrana(cost)) return new CastOutcome(CastResult.NoCharge, spell, cost);
 
         SpellCast?.Invoke(spell);
+        return new CastOutcome(CastResult.Missed, spell, cost);
+    }
+
+    /// <summary>
+    /// Apply a spell that has already been paid for. Returns true when it found something.
+    /// </summary>
+    public bool Deliver(SpellDefinition spell, IEnemy? target, IEnemy? chainTarget = null)
+    {
         var landed = Apply(spell, target, chainTarget);
 
         // Restoration always trains — a heal that heals is a use. Destruction only trains on
@@ -115,8 +140,15 @@ public sealed class SpellCaster
         if (spell.School == SpellSchool.Restoration || landed)
             _skills.ReportUse(spell.SkillId, spell.Power, spell.Power);
 
-        return new CastOutcome(landed ? CastResult.Landed : CastResult.Missed, spell, cost);
+        return landed;
     }
+
+    /// <summary>True when this spell travels to its target rather than happening at once.</summary>
+    public static bool IsProjectile(SpellDefinition spell) =>
+        spell.School == SpellSchool.Destruction;
+
+    /// <summary>Metres per second a bolt travels. Fast, but dodgeable at range.</summary>
+    public const float ProjectileSpeed = 26f;
 
     private bool Apply(SpellDefinition spell, IEnemy? target, IEnemy? chainTarget)
     {

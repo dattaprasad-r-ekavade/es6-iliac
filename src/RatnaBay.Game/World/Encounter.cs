@@ -65,6 +65,17 @@ public sealed class Encounter
     /// <summary>The visual half of the fight: markers, numbers and damage direction.</summary>
     public CombatFeedback Feedback { get; } = new();
 
+    private readonly List<SpellBolt> _bolts = new();
+
+    /// <summary>Spells currently in flight.</summary>
+    public IReadOnlyList<SpellBolt> Bolts => _bolts;
+
+    /// <summary>How close a bolt must get to count as a hit.</summary>
+    private const float BoltHitRadius = 1.1f;
+
+    /// <summary>Seconds a bolt flies before it fizzles.</summary>
+    private const float BoltLifetime = 2.2f;
+
     public void Spawn(EnemyArchetype archetype, Vector3 position, string spawnId)
     {
         // A save remembers the ones already killed, so they do not come back on reload.
@@ -105,6 +116,7 @@ public sealed class Encounter
         _lastPlayerPosition = player;
         _lastPlayerYaw = playerYaw;
         Feedback.Tick(deltaSeconds);
+        UpdateBolts(deltaSeconds);
 
         foreach (var enemy in _enemies)
         {
@@ -195,61 +207,139 @@ public sealed class Encounter
         return outcome;
     }
 
-    /// <summary>Cast at whatever is down the crosshair, with Arc's chain target resolved.</summary>
-    public CastOutcome PlayerCast(Vector3 playerPosition, float playerYaw)
+    /// <summary>
+    /// Move every bolt, and resolve the ones that arrive.
+    ///
+    /// A bolt homes gently toward what it was aimed at so a moving target is still hittable,
+    /// but it can miss: an enemy that dies or steps aside leaves it to fly on and fizzle.
+    /// </summary>
+    private void UpdateBolts(float deltaSeconds)
     {
+        for (var index = _bolts.Count - 1; index >= 0; index--)
+        {
+            var bolt = _bolts[index];
+            bolt.Remaining -= deltaSeconds;
+            bolt.Spin += deltaSeconds * 9f;
+
+            var velocity = bolt.Velocity;
+
+            if (bolt.Target is { IsAlive: true } target)
+            {
+                var toTarget = new Vector3(target.Position.X, target.Position.Y + 1f, target.Position.Z)
+                    - bolt.Position;
+
+                if (toTarget.LengthSquared() > 0.0001f)
+                {
+                    toTarget.Normalize();
+                    // Gentle homing: enough to track a walking bandit, not enough to curve
+                    // around cover or to make aiming pointless.
+                    velocity = Vector3.Normalize(Vector3.Lerp(
+                        Vector3.Normalize(velocity), toTarget, 0.14f)) * SpellCaster.ProjectileSpeed;
+                }
+            }
+
+            bolt.Position += velocity * deltaSeconds;
+
+            var hit = FindBoltHit(bolt);
+            if (hit is null && bolt.Remaining > 0f) continue;
+
+            _bolts.RemoveAt(index);
+            ResolveBolt(bolt, hit);
+        }
+    }
+
+    private Enemy? FindBoltHit(SpellBolt bolt)
+    {
+        var point = new WorldPoint(bolt.Position.X, bolt.Position.Y, bolt.Position.Z);
+
+        foreach (var enemy in _enemies)
+        {
+            if (!enemy.IsAlive) continue;
+            if (point.FlatDistanceTo(enemy.Position) > BoltHitRadius) continue;
+            if (MathF.Abs(bolt.Position.Y - (enemy.Position.Y + FigureHeight * 0.5f)) > FigureHeight) continue;
+            return enemy;
+        }
+
+        return null;
+    }
+
+    /// <summary>Apply a bolt that has arrived, or report the miss when it fizzled.</summary>
+    private void ResolveBolt(SpellBolt bolt, Enemy? hit)
+    {
+        if (hit is null)
+        {
+            Feedback.Cast(bolt.Spell.DisplayName, "found no target", bolt.Colour);
+            return;
+        }
+
+        var chain = Targeting.FindNearestOther(hit, _enemies, 6f);
+        _session.Player.Spells.Deliver(bolt.Spell, hit, chain);
+
+        Struck(hit);
+        Feedback.PlayerHit(hit.Position, bolt.Spell.Power, !hit.IsAlive);
+        Feedback.Cast(bolt.Spell.DisplayName, $"struck {hit.DisplayName}", bolt.Colour);
+
+        var status = bolt.Spell.Effect switch
+        {
+            SpellEffect.Fire => "burning",
+            SpellEffect.Frost => "chilled",
+            SpellEffect.Shock => "staggered",
+            _ => string.Empty
+        };
+
+        if (status.Length > 0) Feedback.PlayerEffect(hit.Position, status, bolt.Colour);
+
+        if (chain is not null && bolt.Spell.Effect == SpellEffect.Shock)
+            Feedback.PlayerEffect(chain.Position, "arced", bolt.Colour);
+    }
+
+    /// <summary>Cast at whatever is down the crosshair, with Arc's chain target resolved.</summary>
+    public CastOutcome PlayerCast(Vector3 playerPosition, float playerYaw, Vector3 aimDirection)
+    {
+        var caster = _session.Player.Spells;
+        var paid = caster.Pay(caster.SelectedSpellId);
+        if (paid.Spell is not { } spell) return paid;
+
+        var colour = ElementColour(spell.Effect);
+
+        if (!paid.WasCast)
+        {
+            Feedback.Cast(spell.DisplayName, "no prana, and no stone to draw",
+                new Color(200, 128, 122));
+            return paid;
+        }
+
+        // Heals and light happen in the hand; the elements leave it.
+        if (!SpellCaster.IsProjectile(spell))
+        {
+            caster.Deliver(spell, target: null);
+            Feedback.Cast(spell.DisplayName, "cast", colour);
+            return new CastOutcome(CastResult.Landed, spell, paid.Cost);
+        }
+
         var origin = new WorldPoint(playerPosition.X, playerPosition.Y, playerPosition.Z);
-        var spell = SpellCatalog.Get(_session.Player.Spells.SelectedSpellId);
-        var range = spell?.Range ?? 0f;
+        var target = Targeting.Find(origin, playerYaw, spell.Range, _enemies,
+            Targeting.SpellConeRadians);
 
-        var target = range > 0f
-            ? Targeting.Find(origin, playerYaw, range, _enemies, Targeting.SpellConeRadians)
-            : null;
+        var direction = aimDirection.LengthSquared() > 0.0001f
+            ? Vector3.Normalize(aimDirection)
+            : new Vector3(Targeting.FlatForward(playerYaw).X, 0f, Targeting.FlatForward(playerYaw).Z);
 
-        var chain = target is null ? null : Targeting.FindNearestOther(target, _enemies, 6f);
-        var outcome = _session.Player.Spells.Cast(target, chain);
-
-        // Say what happened, every time: cast and hit, cast and missed, or never paid for.
-        if (outcome.Spell is { } cast)
+        _bolts.Add(new SpellBolt
         {
-            var colour = ElementColour(cast.Effect);
-            var line = outcome.Result switch
-            {
-                CastResult.Landed when target is not null => $"struck {target.DisplayName}",
-                CastResult.Landed => "cast",
-                CastResult.Missed => "found no target",
-                CastResult.NoCharge => "no prana, and no stone to draw",
-                _ => "failed"
-            };
+            Spell = spell,
+            Colour = colour,
+            // Launched a little below the eye so it reads as leaving the hand.
+            Position = playerPosition + direction * 0.9f - Vector3.Up * 0.35f,
+            Velocity = direction * SpellCaster.ProjectileSpeed,
+            Target = target,
+            Remaining = BoltLifetime
+        });
 
-            Feedback.Cast(cast.DisplayName, line,
-                outcome.Result == CastResult.NoCharge ? new Color(200, 128, 122) : colour);
-        }
+        Feedback.Cast(spell.DisplayName, target is null ? "loosed" : $"loosed at {target.DisplayName}",
+            colour);
 
-        if (target is not null && outcome.Result == CastResult.Landed)
-        {
-            Struck(target);
-
-            // A spell reports its power and then what it did, so an element reads as more
-            // than a damage number with a different colour.
-            Feedback.PlayerHit(target.Position, spell?.Power ?? 0f, !target.IsAlive);
-
-            var status = spell?.Effect switch
-            {
-                SpellEffect.Fire => "burning",
-                SpellEffect.Frost => "chilled",
-                SpellEffect.Shock => "staggered",
-                _ => string.Empty
-            };
-
-            if (status.Length > 0)
-                Feedback.PlayerEffect(target.Position, status, ElementColour(spell!.Effect));
-
-            if (chain is not null && spell?.Effect == SpellEffect.Shock)
-                Feedback.PlayerEffect(chain.Position, "arced", new Color(232, 214, 130));
-        }
-
-        return outcome;
+        return new CastOutcome(CastResult.Missed, spell, paid.Cost);
     }
 
     /// <summary>
