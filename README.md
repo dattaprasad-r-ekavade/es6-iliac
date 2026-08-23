@@ -104,6 +104,9 @@ Two documents, and no others:
 - **[`Docs/PRODUCTION_PLAN.md`](Docs/PRODUCTION_PLAN.md)** — what gets built, in what order, and
   the closed decisions that are not revisited.
 
+- **[`Docs/TRAILER.md`](Docs/TRAILER.md)** — the 45 seconds that sell it, which doubles as the
+  scope contract for what the slice must be able to show.
+
 Supporting records:
 
 - [`Docs/PLAYTEST_NOTES.md`](Docs/PLAYTEST_NOTES.md) — what testers found, and what was done

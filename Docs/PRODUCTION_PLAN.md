@@ -2,6 +2,7 @@
 
 **Written:** 2026-08-23
 **Design of record:** [`design_pivot.md`](design_pivot.md) — what the game is.
+**Scope contract:** [`TRAILER.md`](TRAILER.md) — what the slice must be able to show.
 **This document:** what gets built, in what order, and how it is known to work.
 
 ---
@@ -215,6 +216,9 @@ One board. Work in progress limit: **one**.
 ### Next
 
 - Iteration 13 — room-graph generator emitting a `WorldManifest`.
+- Trailer build list, from [`TRAILER.md`](TRAILER.md): preta rise animation, two cave themes,
+  the camp decision UI, succession, one fort room. Two themes and one room film the trailer;
+  five and ten ship the game.
 
 ### Ready
 
