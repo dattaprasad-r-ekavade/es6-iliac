@@ -111,3 +111,42 @@ Use this short script for each tester:
 
 The release is implementation-complete but should not be called fully closed until these
 three rows contain real player observations.
+
+---
+
+## 2026-08-23 — the first recorded descent
+
+One session, read back with `RatnaBay.Tools review`. Rated 6/10 by the player, with
+*"all the rooms feel the same, I just had to power up."*
+
+**What the recording said:** four real doors, pressed on at all four, median hesitation **1.0
+seconds** — one at 0.3s, which is not long enough to read the panel. The fifth door was camped
+only because the mine had no sixth room.
+
+**Two causes, both fixed.**
+
+**Levelling was a full heal.** `AddXp` set `Health = MaxHealth`, so a kill that levelled you up
+healed you mid-fight. The log shows 72 → 112 on a kill, twice in under two minutes; the player
+took 102 damage across the whole run and finished at 66 of 124. There was nothing to weigh
+because there was never any danger. Levelling now raises the ceiling and heals nothing — the
+rule prana already followed.
+
+**The mine could be exhausted.** A six-room mine is four decisions and then a wall. Press-your-
+luck cannot work in a level you can finish: the run has to end because the player stopped, not
+because the game did. Menu descents are now 18 rooms, and enemies gain a level every four rooms
+so depth actually bites — past the point where a room is full of bodies, only their level can
+carry the difficulty.
+
+**Three defects in the recorder itself, found by reading the raw events rather than the report:**
+
+- The camp panel lingers a frame after pressing on, and the hook re-armed immediately, logging
+  a phantom offer with stale numbers. The reader then timed the *next* decision from it: a 0.9s
+  answer was reported as 11.8s, and the verdict came out as "genuinely weighed" — the opposite
+  of the truth.
+- Room entry was only recorded through the camp panel, so the first room was missed every run.
+- **Melee was not recorded at all**, so a session whose last room was fought entirely with the
+  sword read back as one where no melee happened. Silence was reported as absence. The evidence
+  was in the log the whole time — room five held three kills and zero casts.
+
+The lesson worth keeping: **a log that has no word for something will report its absence as a
+fact.** Every claim from telemetry gets checked against the raw events before it is believed.

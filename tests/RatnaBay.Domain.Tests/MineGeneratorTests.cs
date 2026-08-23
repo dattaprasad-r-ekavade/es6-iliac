@@ -56,7 +56,7 @@ public class MineGeneratorTests
     public void EverySeedAndShapeValidates()
     {
         foreach (var seed in Seeds)
-        foreach (var rooms in new[] { 2, 3, 5, 8, 12 })
+        foreach (var rooms in new[] { 2, 3, 5, 8, 12, 18, 30 })
         {
             var failures = MineGenerator.Generate(seed, rooms).Validate();
             Assert.That(failures, Is.Empty, $"seed {seed}, {rooms} rooms: {string.Join(" ", failures)}");
@@ -411,6 +411,77 @@ public class MineGeneratorTests
             Assert.That(deep.XpReward, Is.GreaterThan(shallow.XpReward),
                 "the reward has to grow with the risk, or nobody presses on");
         });
+    }
+
+    [Test]
+    public void EachStretchOfTheMineIsWorseThanTheOneBefore()
+    {
+        // Depth has to bite, or a long mine is only a long walk. This was the second half of
+        // the fix for a session where the player pressed on at every door: with the payout
+        // rising and the danger flat, pressing on was simply correct every time.
+        foreach (var seed in Seeds)
+        {
+            var mine = MineGenerator.Generate(seed, rooms: 20);
+
+            var byRoom = mine.Spawns
+                .GroupBy(spawn => spawn.RoomIndex)
+                .OrderBy(group => group.Key)
+                .Select(group => (Room: group.Key, Count: group.Count(),
+                    Level: group.Max(spawn => spawn.Level)))
+                .ToList();
+
+            var first = byRoom[0];
+            var last = byRoom[^1];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(last.Count, Is.GreaterThan(first.Count),
+                    $"seed {seed}: the far end is no busier than the entrance");
+                Assert.That(last.Level, Is.GreaterThan(first.Level),
+                    $"seed {seed}: the far end is no more dangerous than the entrance");
+            });
+
+            // Never gets easier on the way down, at any point.
+            foreach (var pair in byRoom.Zip(byRoom.Skip(1)))
+            {
+                Assert.That(pair.Second.Level, Is.GreaterThanOrEqualTo(pair.First.Level),
+                    $"seed {seed}: room {pair.Second.Room} is a step backwards");
+            }
+        }
+    }
+
+    [Test]
+    public void ADeepMineKeepsGettingHarderRatherThanPlateauing()
+    {
+        // The count of bodies has a ceiling — a room only holds so many — so the escalation
+        // past that point has to come from their level, or the mine has a difficulty cap and
+        // a good player can walk to the bottom of it.
+        var mine = MineGenerator.Generate(4211, rooms: 28);
+        var deepest = mine.Spawns.Max(spawn => spawn.Level);
+        var atRoomTen = mine.Spawns.Where(spawn => spawn.RoomIndex == 10).Max(spawn => spawn.Level);
+
+        Assert.That(deepest, Is.GreaterThan(atRoomTen),
+            "past the point where rooms are full, only levels can carry the difficulty");
+    }
+
+    [Test]
+    public void EveryRoomOfADeepMineIsActuallyPopulated()
+    {
+        // Deep rooms hold five bodies in a space that must also keep its doorways clear. If
+        // placement quietly gives up, the mine gets easier the deeper it goes — the exact
+        // opposite of the intent, and invisible without this.
+        foreach (var seed in Seeds)
+        {
+            var mine = MineGenerator.Generate(seed, rooms: 20);
+            for (var room = 1; room < 20; room++)
+            {
+                var count = mine.Spawns.Count(spawn => spawn.RoomIndex == room);
+                var wanted = Math.Min(5, 1 + room / 2 + (room == 19 ? 1 : 0));
+
+                Assert.That(count, Is.EqualTo(wanted),
+                    $"seed {seed}: room {room} under-filled");
+            }
+        }
     }
 
     [Test]

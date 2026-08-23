@@ -8,7 +8,15 @@ namespace RatnaBay.Domain;
 public sealed record MineRequest(int Seed, int Rooms = 4, int Depth = 1)
 {
     public const int MinRooms = 2;
-    public const int MaxRooms = 12;
+
+    /// <summary>
+    /// Deep enough that a run ends because the player stopped, not because the mine did.
+    ///
+    /// Press-your-luck cannot work in a mine you can exhaust. A recorded session cleared every
+    /// room of a six-room mine and was then simply told there was nothing deeper — four real
+    /// decisions and a wall. The greed has to be bounded by nerve.
+    /// </summary>
+    public const int MaxRooms = 30;
 
     /// <summary>The request with its numbers forced into the range the generator can honour.</summary>
     public MineRequest Clamped() => this with
@@ -65,8 +73,11 @@ public static class MineGenerator
     /// </summary>
     private const float DoorwayClearance = 6f;
 
-    /// <summary>The most fights one room is allowed to hold.</summary>
-    private const int MaxEnemiesPerRoom = 3;
+    /// <summary>The most fights one room is allowed to hold, however deep it is.</summary>
+    private const int MaxEnemiesPerRoom = 5;
+
+    /// <summary>Rooms per level of escalation. Every few rooms, what waits gets harder.</summary>
+    private const int RoomsPerLevel = 4;
 
     private enum Side { North, East, South, West }
 
@@ -418,6 +429,11 @@ public static class MineGenerator
             var cell = cells[index];
             var isLast = index == cells.Count - 1;
             var count = Math.Min(MaxEnemiesPerRoom, 1 + index / 2 + (isLast ? 1 : 0));
+
+            // Depth has to bite, or a long mine is only a long walk. Enemies gain a level
+            // every few rooms, so the room after the door is always worse than the one behind
+            // it — which is the only thing that makes pressing on a risk rather than a chore.
+            var level = request.Depth + index / RoomsPerLevel;
             var placed = new List<WorldVector>();
 
             for (var slot = 0; slot < count; slot++)
@@ -430,7 +446,7 @@ public static class MineGenerator
                 {
                     Id = $"{request.MineId}.room{index:00}.enemy{slot:00}",
                     ArchetypeId = random.Next(4) == 0 ? EnemyCatalog.PretaId : EnemyCatalog.BanditId,
-                    Level = request.Depth,
+                    Level = level,
                     Position = position,
                     RoomIndex = index
                 });
@@ -446,7 +462,9 @@ public static class MineGenerator
     {
         const float reach = RoomHalf - SpawnMargin;
 
-        for (var attempt = 0; attempt < 24; attempt++)
+        // Deep rooms hold five bodies in a space that also has to keep its doorways clear,
+        // so the search is given room to fail and retry rather than quietly under-filling.
+        for (var attempt = 0; attempt < 80; attempt++)
         {
             var x = cell.CentreX + random.NextFloat(-reach, reach);
             var z = cell.CentreZ + random.NextFloat(-reach, reach);

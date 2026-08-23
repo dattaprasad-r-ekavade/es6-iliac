@@ -672,7 +672,11 @@ public sealed class Game1 : Game
     private void EnterWorld(int? mineSeed)
     {
         _mineSeed = mineSeed;
-        _mineRooms = 6;
+
+        // Deeper than a run is meant to last. A mine you can clear out ends the run for you,
+        // and then pressing on is never a risk — it is just the way forward until the game
+        // stops you. The descent has to end because the player decided it did.
+        _mineRooms = 18;
         _mineDepth = 1;
 
         _world = null;

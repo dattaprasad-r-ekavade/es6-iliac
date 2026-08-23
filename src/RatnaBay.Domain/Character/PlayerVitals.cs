@@ -90,10 +90,18 @@ public sealed class PlayerVitals
             MaxHealth += HealthPerLevel;
             MaxPrana += PranaPerLevel;
             MaxStamina += StaminaPerLevel;
-            Health = MaxHealth;
-            Stamina = MaxStamina;
-            // Prana is charge, not a pool: levelling raises the ceiling but hands out no free
-            // stones. Refilling here would make every level-up a silent resupply.
+
+            // Levelling raises the ceiling and heals nothing.
+            //
+            // Health used to be set to the new maximum here, which meant a kill that levelled
+            // you up was a full heal in the middle of a fight — and in a press-your-luck run
+            // that is fatal to the whole mechanic. A recorded session showed health going from
+            // 72 to 112 on a kill, twice in under two minutes; the player was never in danger
+            // and so pressed on at every door without reading the panel. Attrition across
+            // rooms is the pressure the camp decision is built on, and this quietly removed it.
+            //
+            // This is the same rule prana already followed: raise the ceiling, hand out
+            // nothing. Stamina refills itself in seconds, so it needs no help either.
             LevelGained?.Invoke(Level);
         }
 

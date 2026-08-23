@@ -134,12 +134,17 @@ public class PlayerVitalsTests
     }
 
     [Test]
-    public void LevellingRaisesTheCeilingsAndRefillsHealth()
+    public void LevellingRaisesTheCeilingsAndHealsNothing()
     {
+        // Reversed deliberately. Levelling used to set health to the new maximum, which made a
+        // kill mid-fight into a full heal — and a recorded run showed a player going 72 -> 112
+        // twice in two minutes, never in danger, pressing on at every door without reading it.
+        // Attrition across rooms is the pressure the whole run loop is built on.
         var maxHealth = _vitals.MaxHealth;
         var maxPrana = _vitals.MaxPrana;
 
         _vitals.TakeDamage(40f);
+        var hurt = _vitals.Health;
         _vitals.AddXp(_vitals.XpToLevel);
 
         Assert.Multiple(() =>
@@ -147,8 +152,22 @@ public class PlayerVitalsTests
             Assert.That(_vitals.Level, Is.EqualTo(2));
             Assert.That(_vitals.MaxHealth, Is.GreaterThan(maxHealth));
             Assert.That(_vitals.MaxPrana, Is.GreaterThan(maxPrana));
-            Assert.That(_vitals.Health, Is.EqualTo(_vitals.MaxHealth));
+            Assert.That(_vitals.Health, Is.EqualTo(hurt), "the wound is still there");
+            Assert.That(_vitals.Health, Is.LessThan(_vitals.MaxHealth));
         });
+    }
+
+    [Test]
+    public void ARunOfLevelUpsCannotOutHealTheDamageTaken()
+    {
+        // The failure this guards: levelling repeatedly during a descent must never be a way
+        // to arrive at the bottom healthier than you left the top.
+        _vitals.TakeDamage(60f);
+        var hurt = _vitals.Health;
+
+        for (var level = 0; level < 5; level++) _vitals.AddXp(_vitals.XpToLevel);
+
+        Assert.That(_vitals.Health, Is.EqualTo(hurt));
     }
 
     [Test]
