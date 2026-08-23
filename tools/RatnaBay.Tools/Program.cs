@@ -14,6 +14,7 @@ var checks = command switch
     "validate" => RunValidate(root, args.Skip(1).ToArray()),
     "sim" => RunSimulation(root),
     "mine" => RunMine(root, args.Skip(1).ToArray()),
+    "review" => RunReview(args.Skip(1).ToArray()),
     "asset-info" => RunAssetInfo(root, args.Skip(1).ToArray()),
     "help" or "--help" or "-h" => PrintHelp(),
     _ => Unknown(command)
@@ -242,6 +243,111 @@ static string? ReadOption(string[] arguments, string name)
     return index >= 0 && index + 1 < arguments.Length ? arguments[index + 1] : null;
 }
 
+/// <summary>
+/// Read a recording back.
+///
+/// The report is arranged around one question — did the player hesitate at the door — because
+/// that is the question the run loop lives or dies by, and it is the one thing a player cannot
+/// reliably answer about themselves afterwards.
+/// </summary>
+static int RunReview(string[] arguments)
+{
+    var directory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "RatnaBay", "recordings");
+
+    var path = arguments.FirstOrDefault(argument => !argument.StartsWith("--", StringComparison.Ordinal))
+        ?? NewestRecording(directory);
+
+    if (path is null)
+    {
+        Console.Error.WriteLine($"No recordings found in {directory}");
+        Console.Error.WriteLine("Play a descent first; one file is written per sitting.");
+        return 1;
+    }
+
+    if (!PlayRecording.TryLoad(path, out var recording, out var error))
+    {
+        Console.Error.WriteLine(error);
+        return 1;
+    }
+
+    var runs = PlayReview.Runs(recording!);
+    Console.WriteLine($"Recording: {Path.GetFileName(path)}");
+    Console.WriteLine($"  started {recording!.StartedUtc}, {recording.Events.Count} events, "
+        + $"{runs.Count} run(s)");
+    Console.WriteLine();
+
+    if (runs.Count == 0)
+    {
+        Console.WriteLine("No descents in this recording.");
+        return 0;
+    }
+
+    foreach (var run in runs)
+    {
+        var ending = run.Survived ? $"camped with {run.StonesBanked}"
+            : run.StonesLost > 0 ? $"died, lost {run.StonesLost}"
+            : "did not finish";
+
+        Console.WriteLine($"Run  seed {run.Seed}  tier {run.Tier}  —  {ending}");
+        Console.WriteLine($"  {run.Seconds / 60f:0.0} min, {run.RoomsCleared} rooms, "
+            + $"{run.EnemiesKilled} kills, {run.DamageTaken:0} damage taken");
+
+        if (run.RoomSeconds.Count > 0)
+            Console.WriteLine($"  per room: "
+                + string.Join(", ", run.RoomSeconds.Select(seconds => $"{seconds:0}s")));
+
+        foreach (var decision in run.Decisions)
+        {
+            var verdict = decision.Hesitation < PlayReview.ReflexSeconds ? "reflex"
+                : decision.Hesitation >= PlayReview.DeliberateSeconds ? "WEIGHED"
+                : "quick";
+
+            Console.WriteLine(
+                $"    door after {decision.RoomsCleared}: {decision.Pending} at risk "
+                + $"vs +{decision.NextPays}, {decision.Health:0} hp  ->  "
+                + $"{(decision.PressedOn ? "pressed on" : "camped")} "
+                + $"after {decision.Hesitation:0.0}s [{verdict}]");
+        }
+
+        Console.WriteLine();
+    }
+
+    var decisions = PlayReview.AllDecisions(recording);
+    Console.WriteLine("---");
+    Console.WriteLine($"Decisions reached: {decisions.Count}");
+
+    if (decisions.Count > 0)
+    {
+        Console.WriteLine($"  pressed on: {decisions.Count(item => item.PressedOn)}"
+            + $" / camped: {decisions.Count(item => !item.PressedOn)}");
+        Console.WriteLine($"  median hesitation: {Median(decisions.Select(item => item.Hesitation))
+            :0.0}s");
+    }
+
+    Console.WriteLine($"Verdict: {PlayReview.Verdict(decisions)}");
+    return 0;
+}
+
+static string? NewestRecording(string directory)
+{
+    if (!Directory.Exists(directory)) return null;
+
+    var files = Directory.GetFiles(directory, "play_*.json");
+    Array.Sort(files, StringComparer.Ordinal);
+    return files.Length == 0 ? null : files[^1];
+}
+
+static float Median(IEnumerable<float> values)
+{
+    var sorted = values.OrderBy(value => value).ToList();
+    if (sorted.Count == 0) return 0f;
+    return sorted.Count % 2 == 1
+        ? sorted[sorted.Count / 2]
+        : (sorted[sorted.Count / 2 - 1] + sorted[sorted.Count / 2]) * 0.5f;
+}
+
 static int RunValidate(string root, string[] arguments)
 {
     var contentRoot = Path.Combine(root, "src", "RatnaBay.Game", "Content");
@@ -344,6 +450,7 @@ static int PrintHelp()
     Console.WriteLine("  validate   Validate JSON world, dialogue, quest and shop manifests (optionally pass a path)");
     Console.WriteLine("  sim        Run the dialogue -> quest -> combat -> reward -> save regression");
     Console.WriteLine("  mine       Generate a mine: mine --seed N [--rooms N] [--depth N] [--out PATH]");
+    Console.WriteLine("  review     Read back a play recording: review [path] (defaults to the newest)");
     Console.WriteLine("  asset-info Inspect a .gltf or .glb asset using SharpGLTF");
     Console.WriteLine("  help       Show this help");
     return 0;

@@ -83,6 +83,12 @@ public sealed class Encounter
     /// <summary>The visual half of the fight: markers, numbers and damage direction.</summary>
     public CombatFeedback Feedback { get; } = new();
 
+    /// <summary>An enemy went down: what it was, and what level it was at.</summary>
+    public event Action<Enemy>? EnemyDefeated;
+
+    /// <summary>The player took a blow: how much landed, and whether it was guarded.</summary>
+    public event Action<float, bool>? PlayerStruck;
+
     private readonly List<SpellBolt> _bolts = new();
 
     /// <summary>Spells currently in flight.</summary>
@@ -181,6 +187,7 @@ public sealed class Encounter
 
                     var guarded = _session.Player.Combat.IsBlocking;
                     var landed = _session.Player.Combat.TakeHit(damage);
+                    PlayerStruck?.Invoke(landed, guarded);
                     Feedback.PlayerHurt(landed,
                         Targeting.RelativeBearing(player, playerYaw, enemy.Position), guarded);
 
@@ -520,6 +527,7 @@ public sealed class Encounter
     {
         _session.Player.NotifyEnemyKilled(enemy);
         _session.ShowToast($"{enemy.DisplayName} falls.");
+        EnemyDefeated?.Invoke(enemy);
 
         if (!enemy.Archetype.DropsLoot) return;
         _session.Player.Inventory.Add("bandit_loot", "Bandit Satchel", 1, "loot");

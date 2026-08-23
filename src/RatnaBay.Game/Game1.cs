@@ -155,6 +155,12 @@ public sealed class Game1 : Game
     /// <summary>How long a restored bar stays lit.</summary>
     private const float PulseSeconds = 0.7f;
 
+    /// <summary>What the player did this sitting, for reading back afterwards.</summary>
+    private readonly PlayRecorder _recorder = PlayRecorder.Start();
+
+    /// <summary>True once the camp panel has been shown for the current door.</summary>
+    private bool _decisionRecorded;
+
     /// <summary>The descent in progress, when the loaded world is a mine.</summary>
     private RunRuntime? _run;
 
@@ -389,6 +395,9 @@ public sealed class Game1 : Game
         _white.Dispose();
         _primitiveEffect.Dispose();
         _billboards.Dispose();
+        // A sitting that ends by closing the window is still a sitting worth reading back.
+        _recorder.Flush();
+
         _ambientAudio?.Dispose();
         CharacterSprites.Clear();
         WeaponSprites.Clear();
@@ -735,18 +744,44 @@ public sealed class Game1 : Game
 
         if (_run is { AtDecision: true } decision && _session is not null)
         {
+            // The clock on the answer starts the first frame the panel is up.
+            if (!_decisionRecorded)
+            {
+                _decisionRecorded = true;
+                _recorder.Record(PlayEventKind.DecisionOffered,
+                    $"after {decision.Run.RoomsCleared} rooms",
+                    decision.Run.Pending, decision.Run.NextRoomPays,
+                    _session.Player.Vitals.Health);
+            }
+
             if (Pressed(keyboard, Keys.C))
             {
-                EndRun(decision.Camp());
+                var result = decision.Camp();
+                _recorder.Record(PlayEventKind.Camped, $"after {result.RoomsCleared} rooms",
+                    result.StonesCarriedOut, 0f, _session.Player.Vitals.Health);
+                EndRun(result);
                 return;
             }
 
             if (Pressed(keyboard, Keys.E) && decision.Run.CanPressOn)
             {
+                _recorder.Record(PlayEventKind.PressedOn,
+                    $"into room {decision.Run.RoomsCleared + 1}",
+                    decision.Run.Pending, decision.Run.NextRoomPays,
+                    _session.Player.Vitals.Health);
+
                 decision.PressOn(_world!, _session.Player);
                 _session.ShowToast("The door swings in. No going back.");
+                _decisionRecorded = false;
+                _recorder.Record(PlayEventKind.RoomEntered,
+                    $"room {decision.Run.RoomsCleared + 1}", decision.Run.RoomsCleared + 1,
+                    0f, _session.Player.Vitals.Health);
                 return;
             }
+        }
+        else if (_run is not null)
+        {
+            _decisionRecorded = false;
         }
 
         if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
@@ -1020,7 +1055,12 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Q))
         {
             var cast = _encounter.PlayerCast(_cameraPosition, _cameraYaw, Forward);
-            if (cast.WasCast) _weaponView.Cast();
+            if (cast.WasCast)
+            {
+                _weaponView.Cast();
+                _recorder.Record(PlayEventKind.SpellCast, cast.Spell?.DisplayName ?? "spell",
+                    cast.Spell?.Power ?? 0f, 0f, _session.Player.Vitals.Health);
+            }
             ReportCast(cast);
         }
 
@@ -1250,6 +1290,8 @@ public sealed class Game1 : Game
         var item = items[_inventorySelection];
         var name = item.Name;
         var result = ItemUse.Use(item.Id, _session.Player);
+        _recorder.Record(PlayEventKind.ItemUsed, item.Name, 0f, 0f,
+            _session.Player.Vitals.Health);
 
         _session.ShowToast(result switch
         {
@@ -1310,6 +1352,7 @@ public sealed class Game1 : Game
         _questObjectiveId = string.Empty;
         _world?.RestoreOpenedDoors(session.Player.Story.State.OpenedLocks);
         _encounter = new Encounter(session);
+        WatchForTheRecord(_encounter, session);
         SpawnEnemies();
         StartRun();
 
@@ -1319,7 +1362,10 @@ public sealed class Game1 : Game
             // still the old forgiving reset, because there is nothing there to lose.
             if (_run is { Run.IsActive: true })
             {
-                EndRun(_run.Die());
+                var lostRun = _run.Die();
+                _recorder.Record(PlayEventKind.Died, $"after {lostRun.RoomsCleared} rooms",
+                    lostRun.StonesLost, 0f, 0f);
+                EndRun(lostRun);
                 return;
             }
 
@@ -1366,6 +1412,22 @@ public sealed class Game1 : Game
         _pranaPulse = MathF.Max(0f, _pranaPulse - fade);
     }
 
+    /// <summary>
+    /// Subscribe the recorder to the fight.
+    ///
+    /// Everything here is something that already happened for its own reasons; the recorder
+    /// only listens. Nothing in the game asks whether it is recording, which is what keeps it
+    /// impossible for telemetry to change how the game plays.
+    /// </summary>
+    private void WatchForTheRecord(Encounter encounter, GameSession session)
+    {
+        encounter.EnemyDefeated += enemy => _recorder.Record(PlayEventKind.EnemyKilled,
+            enemy.DisplayName, enemy.Archetype.Level, 0f, session.Player.Vitals.Health);
+
+        encounter.PlayerStruck += (damage, guarded) => _recorder.Record(PlayEventKind.PlayerHurt,
+            guarded ? "guarded" : "clean", damage, 0f, session.Player.Vitals.Health);
+    }
+
     /// <summary>Start the ledger for this descent, if the loaded world is a mine at all.</summary>
     private void StartRun()
     {
@@ -1376,8 +1438,17 @@ public sealed class Game1 : Game
         if (_world.Manifest.Rooms.Count < 2) return;
 
         _run = new RunRuntime(_world.Manifest, seed, _mineDepth);
+        _decisionRecorded = false;
+
+        _recorder.Record(PlayEventKind.RunStarted, _world.Manifest.Id, seed, _mineDepth,
+            _session?.Player.Vitals.Health ?? 0f);
+
         _run.RoomCleared += paid =>
+        {
             _session?.ShowToast($"Room clear.  +{paid} stones held  ({_run.Run.Pending} at risk)");
+            _recorder.Record(PlayEventKind.RoomCleared, $"room {_run.CurrentRoom}", paid,
+                _run.Run.Pending, _session?.Player.Vitals.Health ?? 0f);
+        };
     }
 
     /// <summary>
@@ -1390,6 +1461,11 @@ public sealed class Game1 : Game
     {
         _runSummary = result;
         SetMouseLook(false, forPanel: true);
+
+        _recorder.Record(PlayEventKind.RunEnded,
+            result.Survived ? "camped" : "died", result.RoomsCleared, result.Tier,
+            _session?.Player.Vitals.Health ?? 0f);
+        _recorder.Flush();
 
         if (_session is null) return;
 
@@ -1424,6 +1500,7 @@ public sealed class Game1 : Game
         RefreshQuestObjective();
 
         _encounter = new Encounter(_session);
+        WatchForTheRecord(_encounter, _session);
         SpawnEnemies();
         StartRun();
 
@@ -3360,6 +3437,10 @@ public sealed class Game1 : Game
             Text(action, new Vector2(panel.X + 250, y), 17, new Color(214, 226, 222));
             y += 31f;
         }
+
+        // Anyone being recorded should be told so without having to be told so.
+        TextCentred($"This session is being recorded to {PlayRecorder.Directory}",
+            panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, new Color(140, 156, 164));
     }
 
     private void DrawGallery()
