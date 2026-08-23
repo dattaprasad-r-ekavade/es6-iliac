@@ -656,6 +656,8 @@ public static class SessionSelfTest
                 walked.FlatDistanceTo(start) > 1f
                 && walked.FlatDistanceTo(firstRoom) < 16f);
 
+            CheckEnemiesRespectWalls(failures, mine);
+
             // Last, because a descent opens doors and that changes what the walls do.
             RunOneDescent(failures, mine);
         }
@@ -739,6 +741,40 @@ public static class SessionSelfTest
         var died = run.Die();
         Check(failures, $"dying forfeits the pot ({died.StonesLost})",
             !died.Survived && died.StonesLost == 2 && run.Run.Pending == 0);
+    }
+
+    /// <summary>
+    /// Reported from play: enemies walked through walls.
+    ///
+    /// Their pursuit never consulted the world at all, so in a mine of small rooms a bandit
+    /// would step out of solid rock. This puts one on the far side of a wall and asks it to
+    /// come and get the player.
+    /// </summary>
+    private static void CheckEnemiesRespectWalls(List<string> failures, WorldRuntime mine)
+    {
+        var session = GameSession.NewGame();
+        var encounter = new Encounter(session);
+        encounter.UseCollision(mine.Collision);
+
+        var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
+        var bandit = EnemyCatalog.Find(EnemyCatalog.BanditId)!;
+
+        // One enemy in the entrance, the player two rooms away with shut doors between.
+        var start = rooms[0].CentrePoint();
+        var target = new Vector3(rooms[2].Centre.X, 1.7f, rooms[2].Centre.Z);
+
+        encounter.Spawn(bandit, new Vector3(start.X, 0f, start.Z), "selftest.wallwalker");
+        var walker = encounter.Enemies.Single(enemy => enemy.SpawnId == "selftest.wallwalker");
+        walker.Home = new WorldPoint(target.X, 0f, target.Z);
+
+        for (var step = 0; step < 600; step++) encounter.Update(0.05f, target, 0f);
+
+        var stillInside = rooms[0].Contains(walker.Position.X, walker.Position.Z);
+        Check(failures, "an enemy cannot walk out through a wall", stillInside);
+
+        var reached = new WorldPoint(walker.Position.X, 0f, walker.Position.Z)
+            .FlatDistanceTo(new WorldPoint(target.X, 0f, target.Z));
+        Check(failures, $"and is stopped well short of the player ({reached:0.0} m)", reached > 8f);
     }
 
     private static void Check(ICollection<string> failures, string what, bool passed)

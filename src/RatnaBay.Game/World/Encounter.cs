@@ -27,10 +27,25 @@ public sealed class Encounter
     /// <summary>How long a struck enemy is knocked back on its heels.</summary>
     private const float RecoilSeconds = 0.22f;
 
+    /// <summary>How far a landed blow shoves an enemy, in metres.</summary>
+    private const float KnockbackMetres = 0.85f;
+
+    /// <summary>Roughly a body's width, for sliding an enemy along a wall.</summary>
+    private const float BodyRadius = 0.42f;
+
     private readonly List<Enemy> _enemies = new();
     private readonly Dictionary<Enemy, float> _hitFlash = new();
     private readonly Dictionary<Enemy, EnemyAnimation> _animation = new();
     private readonly GameSession _session;
+
+    /// <summary>
+    /// The walls, so enemies have to go round them.
+    ///
+    /// Without this an enemy walked straight at the player through whatever was in the way,
+    /// which in a mine of small rooms meant bandits stepping out of solid rock. It is the same
+    /// swept mover the player uses, so an enemy slides along a wall rather than sticking to it.
+    /// </summary>
+    private StaticCollisionIndex? _collision;
 
     /// <summary>
     /// Enough motion for a sprite to read as alive.
@@ -50,6 +65,9 @@ public sealed class Encounter
     }
 
     public Encounter(GameSession session) => _session = session;
+
+    /// <summary>Give the fight the world to walk around. Without it enemies ignore geometry.</summary>
+    public void UseCollision(StaticCollisionIndex collision) => _collision = collision;
 
     public IReadOnlyList<Enemy> Enemies => _enemies;
 
@@ -191,10 +209,7 @@ public sealed class Encounter
         if (distance < 0.001f) return;
 
         var step = enemy.CurrentMoveSpeed * deltaSeconds;
-        var next = new WorldPoint(
-            enemy.Position.X + dx / distance * step,
-            enemy.Position.Y,
-            enemy.Position.Z + dz / distance * step);
+        var next = Nudge(enemy.Position, dx / distance * step, dz / distance * step);
 
         // Without this the whole camp converges into a single overlapping sprite.
         foreach (var other in _enemies)
@@ -204,6 +219,22 @@ public sealed class Encounter
         }
 
         enemy.Position = next;
+    }
+
+    /// <summary>
+    /// Move a body by a step, stopped and slid by the world.
+    ///
+    /// The mover works on eye height with the feet a body below, so an enemy standing at ground
+    /// level is lifted to the same frame of reference before being swept and put back.
+    /// </summary>
+    private WorldPoint Nudge(WorldPoint position, float dx, float dz)
+    {
+        if (_collision is null)
+            return new WorldPoint(position.X + dx, position.Y, position.Z + dz);
+
+        var standing = new WorldPoint(position.X, position.Y + FigureHeight, position.Z);
+        var moved = _collision.Move(standing, new WorldPoint(dx, 0f, dz), BodyRadius, FigureHeight);
+        return new WorldPoint(moved.X, position.Y, moved.Z);
     }
 
     /// <summary>
@@ -218,10 +249,27 @@ public sealed class Encounter
         if (outcome.Result == AttackResult.Hit && target is not null)
         {
             Struck(target);
+            Knock(target, KnockbackMetres);
             Feedback.PlayerHit(target.Position, outcome.Damage, !target.IsAlive);
         }
 
         return outcome;
+    }
+
+    /// <summary>
+    /// Shove a struck enemy away from the player.
+    ///
+    /// The recoil animation only ever offset where the sprite was drawn, so a blow looked like
+    /// it landed but changed nothing about the fight. Actually displacing the body is what
+    /// makes a swing feel like it weighs something — and it buys back a fraction of a second
+    /// of distance, which is the difference between trading blows and controlling a fight.
+    /// </summary>
+    private void Knock(Enemy enemy, float metres)
+    {
+        if (!enemy.IsAlive || metres <= 0f) return;
+
+        var away = Direction(_lastPlayerPosition, enemy.Position);
+        enemy.Position = Nudge(enemy.Position, away.X * metres, away.Z * metres);
     }
 
     /// <summary>

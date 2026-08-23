@@ -184,6 +184,29 @@ public class MineGeneratorTests
     }
 
     [Test]
+    public void NothingIsWaitingAtADoorway()
+    {
+        // Reported from play: enemies appeared to spawn on top of the door the player was
+        // walking through. The old rule excluded a band across the end of the room, which
+        // still allowed a body three metres inside the doorway.
+        foreach (var seed in Seeds)
+        {
+            var mine = MineGenerator.Generate(seed, rooms: 8);
+
+            foreach (var spawn in mine.Spawns)
+            foreach (var door in mine.Doors)
+            {
+                var centre = new WorldPoint(
+                    (door.Min.X + door.Max.X) * 0.5f, 0f, (door.Min.Z + door.Max.Z) * 0.5f);
+                var at = new WorldPoint(spawn.Position.X, 0f, spawn.Position.Z);
+
+                Assert.That(at.FlatDistanceTo(centre), Is.GreaterThan(5f),
+                    $"seed {seed}: '{spawn.Id}' is loitering at '{door.Id}'");
+            }
+        }
+    }
+
+    [Test]
     public void EveryFightKnowsWhichRoomItIsIn()
     {
         // The run ledger needs this to know when a room is clear. Without it the game layer

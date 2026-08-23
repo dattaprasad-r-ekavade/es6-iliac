@@ -52,9 +52,18 @@ public static class MineGenerator
     /// <summary>Matches the authored world's spawn height; the player falls the last inch.</summary>
     private const float PlayerSpawnHeight = 2.4f;
 
-    /// <summary>Enemies never spawn nearer than this to a wall, a doorway or each other.</summary>
+    /// <summary>Enemies never spawn nearer than this to a wall.</summary>
     private const float SpawnMargin = 2.5f;
     private const float SpawnSeparation = 3f;
+
+    /// <summary>
+    /// How far every fight must stand from a doorway.
+    ///
+    /// This was a band across the end of the room, which let an enemy stand three metres inside
+    /// the door the player was about to walk through — close enough to read as spawning on top
+    /// of them. A radius from the doorway itself is what the rule was always meant to be.
+    /// </summary>
+    private const float DoorwayClearance = 6f;
 
     /// <summary>The most fights one room is allowed to hold.</summary>
     private const int MaxEnemiesPerRoom = 3;
@@ -442,20 +451,10 @@ public static class MineGenerator
             var x = cell.CentreX + random.NextFloat(-reach, reach);
             var z = cell.CentreZ + random.NextFloat(-reach, reach);
 
-            // Keep the doorways clear so nothing is standing in the gap as the door swings.
-            var blocksDoorway = cell.Openings.Any(side => side switch
-            {
-                Side.North => z < cell.CentreZ - reach + SpawnMargin
-                    && MathF.Abs(x - cell.CentreX) < DoorwayHalf + 1f,
-                Side.South => z > cell.CentreZ + reach - SpawnMargin
-                    && MathF.Abs(x - cell.CentreX) < DoorwayHalf + 1f,
-                Side.East => x > cell.CentreX + reach - SpawnMargin
-                    && MathF.Abs(z - cell.CentreZ) < DoorwayHalf + 1f,
-                _ => x < cell.CentreX - reach + SpawnMargin
-                    && MathF.Abs(z - cell.CentreZ) < DoorwayHalf + 1f
-            });
-
-            if (blocksDoorway) continue;
+            // Nothing waits at a doorway. The player has to be able to walk in and see the
+            // room before it is on top of them.
+            if (cell.Openings.Any(side => Near(DoorwayOf(cell, side), x, z, DoorwayClearance)))
+                continue;
 
             var crowded = placed.Any(other =>
                 MathF.Sqrt((other.X - x) * (other.X - x) + (other.Z - z) * (other.Z - z))
@@ -465,6 +464,22 @@ public static class MineGenerator
         }
 
         return null;
+    }
+
+    /// <summary>The middle of the opening on one side of a room.</summary>
+    private static (float X, float Z) DoorwayOf(Cell cell, Side side) => side switch
+    {
+        Side.North => (cell.CentreX, cell.CentreZ - RoomHalf),
+        Side.South => (cell.CentreX, cell.CentreZ + RoomHalf),
+        Side.East => (cell.CentreX + RoomHalf, cell.CentreZ),
+        _ => (cell.CentreX - RoomHalf, cell.CentreZ)
+    };
+
+    private static bool Near((float X, float Z) point, float x, float z, float range)
+    {
+        var dx = point.X - x;
+        var dz = point.Z - z;
+        return dx * dx + dz * dz < range * range;
     }
 
     private static WorldColor StoneColour(int depth) => depth switch

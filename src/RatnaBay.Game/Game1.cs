@@ -140,6 +140,21 @@ public sealed class Game1 : Game
     /// <summary>--stambha: frame the carved pillar as the trailer's opening shot.</summary>
     private bool _stambhaPreview;
 
+    /// <summary>
+    /// Bars that have just gone up, and for how much longer they say so.
+    ///
+    /// Tracked by watching the numbers rather than by listening for an event, so anything that
+    /// restores health or prana — a potion, a stone, a heal, whatever is added later — reports
+    /// itself without the domain needing to know that a HUD exists.
+    /// </summary>
+    private float _healthPulse;
+    private float _pranaPulse;
+    private float _lastHealth;
+    private float _lastPrana;
+
+    /// <summary>How long a restored bar stays lit.</summary>
+    private const float PulseSeconds = 0.7f;
+
     /// <summary>The descent in progress, when the loaded world is a mine.</summary>
     private RunRuntime? _run;
 
@@ -962,6 +977,7 @@ public sealed class Game1 : Game
         if (_session is null || _encounter is null) return;
 
         var step = StepSeconds(gameTime);
+        TickVitalPulses(step);
         _encounter.Update(step, _cameraPosition, _cameraYaw);
         if (_world is not null) _run?.Update(_world, _cameraPosition, _encounter);
         _weaponView.Update(step, IsMoving(keyboard), _session.Player.Combat.IsBlocking);
@@ -1322,10 +1338,32 @@ public sealed class Game1 : Game
     {
         if (_encounter is null) return;
 
+        // Enemies used to walk through walls: their pursuit never consulted the world.
+        if (_world is not null) _encounter.UseCollision(_world.Collision);
+
         if (_world?.Manifest.Spawns is { Count: > 0 } && _encounter.SpawnFrom(_world.Manifest) > 0)
             return;
 
         _encounter.SpawnDefaultCamp();
+    }
+
+    /// <summary>Light a bar that has just been restored, and fade the light back out.</summary>
+    private void TickVitalPulses(float deltaSeconds)
+    {
+        if (_session is null) return;
+
+        var vitals = _session.Player.Vitals;
+
+        // A whole point, so the slow out-of-combat prana trickle does not keep the bar lit.
+        if (vitals.Health > _lastHealth + 1f) _healthPulse = 1f;
+        if (vitals.Prana > _lastPrana + 1f) _pranaPulse = 1f;
+
+        _lastHealth = vitals.Health;
+        _lastPrana = vitals.Prana;
+
+        var fade = deltaSeconds / PulseSeconds;
+        _healthPulse = MathF.Max(0f, _healthPulse - fade);
+        _pranaPulse = MathF.Max(0f, _pranaPulse - fade);
     }
 
     /// <summary>Start the ledger for this descent, if the loaded world is a mine at all.</summary>
@@ -2915,7 +2953,13 @@ public sealed class Game1 : Game
                 position.Y -= rise;
             }
 
-            TextCentred(number.Text, position.X, position.Y, 19, number.Colour * fade);
+            // Numbers were already being drawn for sword hits, but at melee range they sat
+            // pale over a pale sprite and went unnoticed. A dark shadow behind them is what
+            // makes them read against anything.
+            var size = CombatFeedback.IsSelfInflicted(number) ? 19 : 24;
+            TextCentred(number.Text, position.X + 2f, position.Y + 2f, size,
+                new Color(0, 0, 0, 190) * fade);
+            TextCentred(number.Text, position.X, position.Y, size, number.Colour * fade);
         }
     }
 
@@ -3189,27 +3233,47 @@ public sealed class Game1 : Game
         var barWidth = panel.Width - 36;
 
         DrawVitalBar(new Rectangle(barX, panel.Y + 20, barWidth, 26), "HEALTH",
-            vitals.Health, vitals.MaxHealth, new Color(198, 68, 74));
+            vitals.Health, vitals.MaxHealth, new Color(198, 68, 74), _healthPulse);
 
         DrawVitalBar(new Rectangle(barX, panel.Y + 58, barWidth, 26), "PRANA",
-            vitals.Prana, vitals.MaxPrana, new Color(74, 134, 216));
+            vitals.Prana, vitals.MaxPrana, new Color(74, 134, 216), _pranaPulse);
 
         DrawVitalBar(new Rectangle(barX, panel.Y + 96, barWidth, 26), "STAMINA",
             vitals.Stamina, vitals.MaxStamina, new Color(98, 172, 106));
     }
 
     /// <summary>One labelled bar. The label and the value live inside it, vertically centred.</summary>
-    private void DrawVitalBar(Rectangle bounds, string label, float value, float max, Color colour)
+    private void DrawVitalBar(Rectangle bounds, string label, float value, float max, Color colour,
+        float pulse = 0f)
     {
         var fraction = max <= 0f ? 0f : MathHelper.Clamp(value / max, 0f, 1f);
 
         Fill(bounds, new Color(20, 27, 33));
         Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * fraction), bounds.Height), colour);
-        Border(bounds, new Color(0, 0, 0, 110));
+
+        // A bar that just changed says so. Using an item used to alter a number in the corner
+        // of the screen and nothing else, so it was easy to believe nothing had happened.
+        if (pulse > 0f)
+        {
+            Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * fraction), bounds.Height),
+                new Color(255, 255, 255) * (pulse * 0.42f));
+            Border(bounds, new Color(226, 240, 255) * pulse);
+            Border(new Rectangle(bounds.X - 2, bounds.Y - 2, bounds.Width + 4, bounds.Height + 4),
+                new Color(226, 240, 255) * (pulse * 0.7f));
+        }
+        else
+        {
+            Border(bounds, new Color(0, 0, 0, 110));
+        }
 
         // A dark scrim behind the text keeps it legible over both the filled and empty halves.
         Text(label, new Vector2(bounds.X + 10, bounds.Y + 5), 14, Color.White);
-        TextRight($"{value:0} / {max:0}", bounds.Right - 10, bounds.Y + 5, 14, Color.White);
+
+        var readout = pulse > 0f
+            ? Color.Lerp(Color.White, new Color(198, 232, 255), pulse)
+            : Color.White;
+        TextRight($"{value:0} / {max:0}", bounds.Right - 10, bounds.Y + 5,
+            pulse > 0f ? 16 : 14, readout);
     }
 
     /// <summary>Domain events, rendered above the vitals. Newest last, fading as they expire.</summary>
