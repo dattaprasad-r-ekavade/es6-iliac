@@ -117,6 +117,10 @@ public static class SaveGame
         player.World.LoadKilled(data.KilledEnemies);
         player.Dialogue.Restore(data.KnownTopics);
         player.Story.Restore(data.Story);
+
+        // Derived from the saved route rather than stored twice: one source of truth for
+        // which path this character walks.
+        player.LifePath.Select(player.Story.State.RouteId);
         player.Quests.Restore(data.Quests);
         player.ReconcileQuestStoryFlags();
         player.Objective.Restore(data.Objective);

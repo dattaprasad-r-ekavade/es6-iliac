@@ -34,13 +34,17 @@ public sealed class Shop
 
     public ShopDefinition Definition => _definition;
 
+    /// <summary>What a given path is charged for an item on the shelf.</summary>
+    public int PriceFor(ShopItemDefinition item, LifePath? path) =>
+        path?.PriceOf(item.Price) ?? item.Price;
+
     public ShopPurchaseResult Buy(int index, PlayerVitals vitals, Inventory inventory,
-        out ShopItemDefinition? item)
+        out ShopItemDefinition? item, LifePath? path = null)
     {
         item = index >= 0 && index < _definition.Items.Count ? _definition.Items[index] : null;
         if (item is null) return ShopPurchaseResult.InvalidItem;
         if (_soldOut.Contains(item.Id)) return ShopPurchaseResult.SoldOut;
-        if (!vitals.SpendGold(item.Price)) return ShopPurchaseResult.TooExpensive;
+        if (!vitals.SpendGold(PriceFor(item, path))) return ShopPurchaseResult.TooExpensive;
 
         inventory.Add(item.Id, item.Name, item.Count, item.Kind);
         _soldOut.Add(item.Id);

@@ -34,16 +34,22 @@ public sealed class PlayerCombat
     private readonly PlayerVitals _vitals;
     private readonly PlayerEquipment _equipment;
     private readonly SkillProgression _skills;
+    private readonly LifePath _path;
 
     private float _cooldown;
     private float _combatTimer;
 
-    public PlayerCombat(PlayerVitals vitals, PlayerEquipment equipment, SkillProgression skills)
+    public PlayerCombat(PlayerVitals vitals, PlayerEquipment equipment, SkillProgression skills,
+        LifePath? path = null)
     {
         _vitals = vitals;
         _equipment = equipment;
         _skills = skills;
+        _path = path ?? new LifePath();
     }
+
+    /// <summary>What the equipped weapon lands for, after the life path's gift.</summary>
+    public float WeaponDamage => ActiveWeapon.Damage * _path.WeaponMultiplier;
 
     public bool InCombat { get; private set; }
 
@@ -105,7 +111,7 @@ public sealed class PlayerCombat
         if (target is null || !target.IsAlive) return new AttackOutcome(AttackResult.Missed, 0f);
 
         var threat = target.MaxHealth;
-        var dealt = target.TakeDamage(weapon.Damage);
+        var dealt = target.TakeDamage(WeaponDamage);
         EnterCombat();
 
         // Advancement is use-based, so the swing trains the weapon's skill rather than paying

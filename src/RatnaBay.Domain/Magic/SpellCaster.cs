@@ -55,12 +55,18 @@ public sealed class SpellCaster
 
     private readonly PlayerVitals _vitals;
     private readonly SkillProgression _skills;
+    private readonly LifePath _path;
 
-    public SpellCaster(PlayerVitals vitals, SkillProgression skills)
+    public SpellCaster(PlayerVitals vitals, SkillProgression skills, LifePath? path = null)
     {
         _vitals = vitals;
         _skills = skills;
+        _path = path ?? new LifePath();
     }
+
+    /// <summary>What a spell actually lands for, after the life path's gift.</summary>
+    public float PowerOf(SpellDefinition? spell) =>
+        spell is null ? 0f : spell.Power * _path.SpellMultiplier;
 
     /// <summary>The spell bound to the cast input. Defaults to fire.</summary>
     public string SelectedSpellId { get; private set; } = SpellCatalog.FireId;
@@ -138,7 +144,7 @@ public sealed class SpellCaster
         // Restoration always trains — a heal that heals is a use. Destruction only trains on
         // something that can fight back, which is what stops casting at walls being practice.
         if (spell.School == SpellSchool.Restoration || landed)
-            _skills.ReportUse(spell.SkillId, spell.Power, spell.Power);
+            _skills.ReportUse(spell.SkillId, PowerOf(spell), PowerOf(spell));
 
         return landed;
     }
@@ -152,10 +158,12 @@ public sealed class SpellCaster
 
     private bool Apply(SpellDefinition spell, IEnemy? target, IEnemy? chainTarget)
     {
+        var power = PowerOf(spell);
+
         switch (spell.Effect)
         {
             case SpellEffect.Heal:
-                _vitals.Heal(spell.Power);
+                _vitals.Heal(power);
                 return true;
 
             case SpellEffect.Light:
@@ -164,19 +172,20 @@ public sealed class SpellCaster
 
             default:
                 if (target is null || !target.IsAlive) return false;
-                ApplyTo(target, spell, chainTarget);
+                ApplyTo(target, spell, power, chainTarget);
                 return true;
         }
     }
 
-    private static void ApplyTo(IEnemy enemy, SpellDefinition spell, IEnemy? chainTarget)
+    private static void ApplyTo(IEnemy enemy, SpellDefinition spell, float power,
+        IEnemy? chainTarget)
     {
-        enemy.TakeDamage(spell.Power);
+        enemy.TakeDamage(power);
 
         switch (spell.Effect)
         {
             case SpellEffect.Fire:
-                enemy.ApplyBurn(spell.Power * BurnFactor, spell.Duration);
+                enemy.ApplyBurn(power * BurnFactor, spell.Duration);
                 break;
 
             case SpellEffect.Frost:
@@ -187,7 +196,7 @@ public sealed class SpellCaster
                 enemy.ApplyStagger(spell.Duration);
                 // One jump only, at reduced power.
                 if (chainTarget is null || ReferenceEquals(chainTarget, enemy)) break;
-                chainTarget.TakeDamage(spell.Power * ChainFactor);
+                chainTarget.TakeDamage(power * ChainFactor);
                 chainTarget.ApplyStagger(spell.Duration * ChainFactor);
                 break;
         }

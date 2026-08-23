@@ -13,10 +13,11 @@ public sealed class PlayerCharacter
     {
         Inventory = inventory ?? new Inventory();
         Skills = new SkillProgression();
+        LifePath = new LifePath();
         Vitals = new PlayerVitals(Inventory);
         Equipment = new PlayerEquipment(Inventory);
-        Combat = new PlayerCombat(Vitals, Equipment, Skills);
-        Spells = new SpellCaster(Vitals, Skills);
+        Combat = new PlayerCombat(Vitals, Equipment, Skills, LifePath);
+        Spells = new SpellCaster(Vitals, Skills, LifePath);
         Detection = new Detection(Skills);
         Story = new StoryDirector();
         Dialogue = new TopicDialogueService(Story);
@@ -36,6 +37,9 @@ public sealed class PlayerCharacter
 
     public Inventory Inventory { get; }
     public SkillProgression Skills { get; }
+
+    /// <summary>Which of the three paths this character walks, and what it is worth.</summary>
+    public LifePath LifePath { get; }
     public PlayerVitals Vitals { get; }
     public PlayerEquipment Equipment { get; }
     public PlayerCombat Combat { get; }
@@ -58,6 +62,19 @@ public sealed class PlayerCharacter
     {
         foreach (var quest in Quests.Quests)
             if (quest.IsCompleted) Story.SetFlag(QuestCompletedFlag(quest.Id));
+    }
+
+    /// <summary>
+    /// Commit to a life path. One entry point, because the choice touches three systems at
+    /// once — the story remembers it, the skills are granted from it, and what a weapon or a
+    /// spell or a price is worth all follow from it.
+    /// </summary>
+    public bool SelectLifePath(string? routeId)
+    {
+        var accepted = Story.SelectRoute(routeId);
+        Skills.GrantRouteSkills(Story.State.RouteId);
+        LifePath.Select(Story.State.RouteId);
+        return accepted;
     }
 
     /// <summary>A fresh character with the starting kit, equipped.</summary>

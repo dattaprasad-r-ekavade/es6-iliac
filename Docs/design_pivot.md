@@ -1,7 +1,7 @@
 # Ratna Bay — Design Pivot
 
-**Status:** Loop, run length, classes, progression and the content budget are decided. A
-spell-damage pass and three smaller questions remain — see §9.
+**Status:** Loop, run length, classes, progression, balance and the content budget are decided
+and implemented. Three smaller questions remain — see §9.
 **Supersedes:** the vertical-slice product definition in `PRODUCTION_PLAN.md`. The engineering
 decisions in that document (engine, sprites, domain separation, publish gates) still stand.
 
@@ -230,27 +230,30 @@ Run length, how a run ends, the banking curve, body recovery, cave themes, the f
 multipliers, where stones are found, character levelling, and the content budget are all settled
 above.
 
-### Needs a numbers pass before it will play
+### Done: the spell-damage pass
 
-**Spell power is too low for the mage to be a class.** The multipliers are not the problem; the
-base values are, because they were set when spells were a side option rather than an identity.
+Spell power was set when spells were a side option beside a sword, and it made the mage
+pointless — a mage's own sword out-damaged their own magic. The multipliers were never the
+problem; the base values were.
 
-| | base | warrior | mage |
-|---|---:|---:|---:|
-| Iron sword | 18 | **36** | 22 |
-| Greatsword | 34 | **68** | 42 |
-| Flame | 10 | 12 | **20** |
-| Arc | 16 | 20 | **32** |
+| Spell | was | now | shape |
+|---|---:|---:|---|
+| Flame | 10 | **22** | Lowest burst, highest total once it burns |
+| Rime | 12 | **34** | Middle burst, and it buys distance |
+| Arc | 16 | **38** | Highest burst, staggers, jumps once |
+| Mend | 35 | **48** | Now beats the 40 a free potion restores |
 
-A warrior swinging an iron sword deals ~80 damage per second and spends only stamina, which
-regenerates. A mage casting Flame deals ~15 per second including burn, and spends prana, which
-is bought with gold. Range does not cover a five-fold gap. **Spell base power needs roughly a
-2–3× lift of its own** before class multipliers are applied.
+Balanced by **whole resource bars**, because that is the unit a player spends — stamina refills
+itself, prana is bought with gold:
 
-**`x⁰·⁷⁵` welds the trader discount to the current gold scale.** The exponent is applied to a
-number with units, so rescaling prices — gold to copper, or an inflation pass — silently changes
-every discount. The formula is fine; the gold scale is now load-bearing and must not be
-rescaled casually.
+| Path | One stamina bar | One prana reserve |
+|---|---:|---:|
+| Warrior | **581** | 412 |
+| Mage | 363 | **660** |
+| Trader | 290 | 330 |
+
+Each path now does most with its own gift, a full reserve of prana is worth more than a full bar
+of stamina, and the trader is worst at both. All of it is asserted rather than assumed.
 
 ### Content budget for first release
 

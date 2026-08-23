@@ -68,17 +68,27 @@ public static class SpellCatalog
 
     static SpellCatalog()
     {
+        // Power was set when spells were a side option beside a sword. As a class identity
+        // they were hopeless: a warrior's iron sword landed 18 every 0.45s for stamina that
+        // regenerates, while Flame landed 10 for prana that is bought with gold. These
+        // values are set so that one full reserve of prana is worth slightly more than one
+        // full bar of stamina, which is the least a resource you pay money for can be worth.
+        //
+        // The three keep their shapes: fire has the lowest burst and the highest total,
+        // frost sits between and buys distance, shock hits hardest once and jumps.
         Add(FireId, "Flame", SpellSchool.Destruction, SpellEffect.Fire,
-            cost: 16f, range: 18f, power: 10f, duration: 4f);
+            cost: 16f, range: 18f, power: 22f, duration: 4f);
 
         Add(FrostId, "Rime", SpellSchool.Destruction, SpellEffect.Frost,
-            cost: 14f, range: 18f, power: 12f, duration: 4f);
+            cost: 14f, range: 18f, power: 34f, duration: 4f);
 
         Add(ShockId, "Arc", SpellSchool.Destruction, SpellEffect.Shock,
-            cost: 18f, range: 18f, power: 16f, duration: 1.2f);
+            cost: 18f, range: 18f, power: 38f, duration: 1.2f);
 
+        // A potion restores 40 and costs nothing to carry, so a heal bought with prana has
+        // to beat one or there is no reason ever to cast it.
         Add(HealId, "Mend", SpellSchool.Restoration, SpellEffect.Heal,
-            cost: 20f, range: 0f, power: 35f, duration: 0f);
+            cost: 20f, range: 0f, power: 48f, duration: 0f);
 
         // Light is deliberately cheap but not free: carrying a light in a crystal-lit world
         // is consuming the resource, so every dark corridor is a small decision.
