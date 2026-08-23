@@ -97,16 +97,23 @@ public sealed class WorldRuntime
         out WorldDoorRuntime? door)
     {
         door = FindDoor(player, yaw);
-        if (door is null) return LockResult.NotLocked;
+        return door is null ? LockResult.NotLocked : OpenDoor(door, character);
+    }
 
+    /// <summary>
+    /// Open one named door, rather than whichever one the player happens to be facing. The run
+    /// loop already knows which door it is asking about, and making it aim at it would turn a
+    /// decision the player has already made into a thing they can miss.
+    /// </summary>
+    public LockResult OpenDoor(WorldDoorRuntime door, PlayerCharacter character)
+    {
         var result = door.Lock.TryOpen(character.Skills, character.Inventory, character.Detection);
-        if (door.Lock.IsOpen) RebuildCollision();
-        if (door.Lock.IsOpen)
-        {
-            _openedDoors.Add(door.Definition.Id);
-            character.Story.MarkOpened(door.Definition.Id);
-            character.Story.SetFlag($"flag.opened.{door.Definition.Id}");
-        }
+        if (!door.Lock.IsOpen) return result;
+
+        RebuildCollision();
+        _openedDoors.Add(door.Definition.Id);
+        character.Story.MarkOpened(door.Definition.Id);
+        character.Story.SetFlag($"flag.opened.{door.Definition.Id}");
         return result;
     }
 

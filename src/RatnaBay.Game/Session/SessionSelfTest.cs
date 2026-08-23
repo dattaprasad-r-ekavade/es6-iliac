@@ -655,11 +655,90 @@ public static class SessionSelfTest
             Check(failures, "the player spawns inside the mine and is stopped by its walls",
                 walked.FlatDistanceTo(start) > 1f
                 && walked.FlatDistanceTo(firstRoom) < 16f);
+
+            // Last, because a descent opens doors and that changes what the walls do.
+            RunOneDescent(failures, mine);
         }
         finally
         {
             DeleteTestFile(path);
         }
+    }
+
+    /// <summary>
+    /// A whole descent, driven through the runtime rather than the domain.
+    ///
+    /// The ledger's arithmetic is already proven headlessly. What this covers is the wiring
+    /// nobody else does: that standing in a room makes it the current room, that killing the
+    /// last thing in it pays out exactly once, and that the door is what ends the argument.
+    /// </summary>
+    private static void RunOneDescent(List<string> failures, WorldRuntime mine)
+    {
+        var session = GameSession.NewGame();
+        var encounter = new Encounter(session);
+        encounter.SpawnFrom(mine.Manifest);
+
+        var run = new RunRuntime(mine.Manifest, seed: 4211, tier: 2);
+        var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
+
+        Check(failures, $"the run counts the payable rooms ({run.Run.Rooms})",
+            run.Run.Rooms == rooms.Count - 1);
+
+        Vector3 Stand(WorldRoom room) => new(room.Centre.X, 1.7f, room.Centre.Z);
+
+        // Standing in the entrance pays nothing and offers nothing.
+        run.Update(mine, Stand(rooms[0]), encounter);
+        Check(failures, "the entrance room is worth nothing",
+            run.Run.Pending == 0 && !run.Run.CanCamp);
+
+        // Walk into the first fight room without killing anything.
+        run.Update(mine, Stand(rooms[1]), encounter);
+        Check(failures, "walking into an occupied room does not pay",
+            run.Run.Pending == 0 && !run.Run.RoomIsClear);
+
+        // Kill everything in it.
+        foreach (var enemy in encounter.Enemies
+            .Where(enemy => mine.Manifest.Spawns
+                .Any(spawn => spawn.Id == enemy.SpawnId && spawn.RoomIndex == 1))
+            .ToList())
+        {
+            enemy.TakeDamage(enemy.MaxHealth * 4f);
+        }
+
+        encounter.Update(0.016f, Stand(rooms[1]), 0f);
+        run.Update(mine, Stand(rooms[1]), encounter);
+
+        Check(failures, $"clearing the first room of a tier-two mine pays two ({run.Run.Pending})",
+            run.Run.Pending == 2);
+        // Ticking again must not pay a second time; the room is already clear.
+        run.Update(mine, Stand(rooms[1]), encounter);
+        Check(failures, "and it pays exactly once", run.Run.Pending == 2 && run.Run.RoomsCleared == 1);
+        Check(failures, "the next room is worth more than the last",
+            run.Run.NextRoomPays > 2);
+
+        // The decision is only offered at the door, not in the middle of the room.
+        Check(failures, "no decision in the middle of a cleared room", !run.AtDecision);
+
+        var door = mine.Doors.First(candidate => !candidate.Lock.IsOpen);
+        var atDoor = door.Definition.Centre();
+        run.Update(mine, new Vector3(atDoor.X, 1.7f, atDoor.Z), encounter);
+
+        Check(failures, "standing at the shut door asks the question", run.AtDecision);
+        Check(failures, "and both answers are available",
+            run.Run.CanCamp && run.Run.CanPressOn);
+
+        // Press on: the door opens and the room behind it is committed to.
+        Check(failures, "pressing on opens the way deeper",
+            run.PressOn(mine, session.Player) && door.Lock.IsOpen);
+
+        run.Update(mine, Stand(rooms[2]), encounter);
+        Check(failures, "the room behind the door is not yet clear", !run.Run.RoomIsClear);
+        Check(failures, "and there is no banking mid-fight", !run.Run.CanCamp);
+
+        // Dying now forfeits everything held.
+        var died = run.Die();
+        Check(failures, $"dying forfeits the pot ({died.StonesLost})",
+            !died.Survived && died.StonesLost == 2 && run.Run.Pending == 0);
     }
 
     private static void Check(ICollection<string> failures, string what, bool passed)

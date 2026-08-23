@@ -222,6 +222,14 @@ public static class MineGenerator
         EmitWall(manifest, $"{prefix}.east", cell.Openings.Contains(Side.East),
             cx + RoomHalf, cx + outer, cz - RoomHalf, cz + RoomHalf, horizontal: false, cz, stone);
 
+        manifest.Rooms.Add(new WorldRoom
+        {
+            Id = $"{prefix}.room",
+            Index = index,
+            Centre = new WorldVector(cx, 0f, cz),
+            HalfExtent = RoomHalf
+        });
+
         manifest.Lights.Add(new WorldLight
         {
             Id = $"{prefix}.light",
@@ -414,7 +422,8 @@ public static class MineGenerator
                     Id = $"{request.MineId}.room{index:00}.enemy{slot:00}",
                     ArchetypeId = random.Next(4) == 0 ? EnemyCatalog.PretaId : EnemyCatalog.BanditId,
                     Level = request.Depth,
-                    Position = position
+                    Position = position,
+                    RoomIndex = index
                 });
             }
         }

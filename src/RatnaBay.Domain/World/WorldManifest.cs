@@ -28,6 +28,15 @@ public sealed class WorldManifest
     /// </summary>
     public List<WorldEnemySpawn> Spawns { get; set; } = new();
 
+    /// <summary>
+    /// The rooms this location is divided into, if it has any.
+    ///
+    /// A run needs to know which room the player is standing in to know when it is clear, and
+    /// deriving that from geometry would mean re-deducing the level's structure every frame
+    /// from the boxes it was flattened into. The generator already knows; it just says so.
+    /// </summary>
+    public List<WorldRoom> Rooms { get; set; } = new();
+
     public static bool TryLoad(string path, out WorldManifest? manifest, out string error)
     {
         manifest = null;
@@ -160,6 +169,17 @@ public sealed class WorldManifest
                 failures.Add($"pickup '{pickup.Id}' scale must be positive.");
         }
 
+        foreach (var room in Rooms ?? new List<WorldRoom>())
+        {
+            ValidateId(room?.Id, "room", ids, failures);
+            if (room is null || room.Centre is null || !room.Centre.IsFinite())
+                failures.Add($"room '{room?.Id ?? "<null>"}' has an invalid centre.");
+            if (room is not null && (!float.IsFinite(room.HalfExtent) || room.HalfExtent <= 0f))
+                failures.Add($"room '{room.Id}' halfExtent must be positive.");
+            if (room is not null && room.Index < 0)
+                failures.Add($"room '{room.Id}' index cannot be negative.");
+        }
+
         foreach (var spawn in Spawns ?? new List<WorldEnemySpawn>())
         {
             ValidateId(spawn?.Id, "spawn", ids, failures);
@@ -284,6 +304,28 @@ public sealed class WorldEnemySpawn
     public string ArchetypeId { get; set; } = string.Empty;
     public int Level { get; set; } = 1;
     public WorldVector Position { get; set; } = new();
+
+    /// <summary>Which room this fight belongs to. Zero for locations that have no rooms.</summary>
+    public int RoomIndex { get; set; }
+}
+
+/// <summary>One room of a generated location, in plan view.</summary>
+public sealed class WorldRoom
+{
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Position along the mine. Room zero is the entrance and is never payable.</summary>
+    public int Index { get; set; }
+
+    public WorldVector Centre { get; set; } = new();
+
+    /// <summary>Half the width of the room's floor, walls excluded.</summary>
+    public float HalfExtent { get; set; } = 8f;
+
+    public bool Contains(float x, float z) =>
+        MathF.Abs(x - Centre.X) <= HalfExtent && MathF.Abs(z - Centre.Z) <= HalfExtent;
+
+    public WorldPoint CentrePoint() => Centre.ToWorldPoint();
 }
 
 public sealed class WorldVector

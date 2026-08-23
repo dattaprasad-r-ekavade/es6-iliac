@@ -37,7 +37,7 @@ acting.
 | | Lines | State |
 |---|---:|---|
 | `RatnaBay.Domain` | ~4,600 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | ~4,600 | **383 tests, ~280 ms** |
+| `RatnaBay.Domain.Tests` | ~4,900 | **409 tests, ~300 ms** |
 | `RatnaBay.Game` | ~5,600 | Renderer, HUD, session, world runtime, combat |
 | `RatnaBay.Tools` | ~370 | `doctor`, `validate`, `asset-info`, `sim`, `mine` |
 
@@ -47,7 +47,7 @@ three life paths and their multipliers · eight use-based skills · collision, d
 stealth, watchers, pickpocketing · dialogue, quests, shops · versioned saves · the world manifest
 format, its validation and its hot reload · the publish pipeline and its gates.
 
-**Not yet built:** run state · stone slots · amulets · succession · the fort ·
+**Not yet built:** stone slots · amulets · succession · the fort ·
 bosses.
 
 ---
@@ -86,20 +86,28 @@ fight through it, open each door, walk out the far end.
 
 ---
 
-### Iteration 14 — The run (2–3 weeks)
+### Iteration 14 — The run ✅ built, not yet judged
 
-**Risk retired:** the whole design. Does press-your-luck feel like a decision at this length?
+**Risk retired:** *partly.* The loop exists and its numbers are the design's. Whether it is
+**tense** is not a thing code can answer — that needs a stranger.
 
-- Run state: seed, depth, rooms cleared, stones banked.
-- Camp at a cleared room's exit — bank and end, or open the next door.
-- Payout `N x T`; death forfeits the banked stones.
-- A run summary screen: what you cleared, what you carried out.
+- `RunState`: seed, tier, rooms cleared, stones held. Engine-free and tested against the design
+  table — 3 rooms banks 6, 5 banks 15, 8 banks 36.
+- `RunRuntime`: the bridge from where the player is standing to what the ledger believes.
+- Camp at a cleared room's exit — bank and end, or open the next door. Never mid-fight.
+- Payout `N x T`; death forfeits the pot, and records what was lost so succession can fetch it.
+- A run summary screen, and a running "at risk" total so the pot is never a surprise at the door.
 
 **Playable:** a complete run. Clear rooms, decide each time whether to press on, walk out with
 stones or lose them.
 
-**Done when:** you catch yourself pushing one room too far. **This is the iteration that decides
-whether the pivot works** — if the decision is not tense here, no later system fixes it.
+**Done when:** you catch yourself pushing one room too far. **Still open.** The code is
+finished; the question it exists to answer is not. **This is the iteration that decides whether
+the pivot works** — if the decision is not tense, no later system fixes it.
+
+**Known gap:** a descent cannot be saved out of, by design — reloading the moment a fight turned
+would remove the only thing being risked. Resuming an *interrupted* run is a different feature
+and does not exist; it belongs with succession, which touches the same code.
 
 ---
 
@@ -225,19 +233,22 @@ One board. Work in progress limit: **one**.
 
 ### Next
 
-- **Iteration 14 — the run.** Run state, the camp decision, the payout, the forfeit. The
-  iteration that decides whether the pivot works.
+- **Play it, then hand it to somebody.** The loop is built; nobody has pushed one room too far
+  yet. Tune the numbers before anything is stacked on top of them.
+- **Iteration 15 — succession.** Death creates a successor; the fallen cache is recoverable
+  once. Resuming an interrupted descent lands here too.
 - Trailer build list, from [`TRAILER.md`](TRAILER.md): the Stambha and its carved verse, the
   preta rise animation, one fort room with a conversation, the camp decision UI, succession,
   and two cave themes. Two themes and one room film the trailer; five and ten ship the game.
 
 ### Ready
 
-- Iteration 15 — succession.
+- Iteration 16 — stones and slots.
 
 ### Playtest queue
 
-- The run loop, with a stranger, as soon as iteration 14 is playable.
+- **The run loop, with a stranger. It is playable now.** This is the most valuable hour
+  available to the project and nothing later replaces it.
 
 ### Done
 
@@ -245,6 +256,7 @@ One board. Work in progress limit: **one**.
   dialogue, quests, shops, stealth, the packaged build and its gates.
 - Pivot groundwork: travelling spell bolts, enemy levels, life-path multipliers, the spell
   rebalance.
+- Iteration 14: the run ledger, the camp decision, the payout curve, the summary screen.
 - Iteration 13: the mine generator, `WorldEnemySpawn` in the manifest, the enemy catalogue,
   `RatnaBay.Tools mine`, and `--mine N` in the game.
 - The design, decided end to end.

@@ -140,6 +140,12 @@ public sealed class Game1 : Game
     /// <summary>--stambha: frame the carved pillar as the trailer's opening shot.</summary>
     private bool _stambhaPreview;
 
+    /// <summary>The descent in progress, when the loaded world is a mine.</summary>
+    private RunRuntime? _run;
+
+    /// <summary>The run that just ended, while its summary is on screen.</summary>
+    private RunResult? _runSummary;
+
     /// <summary>--mine N: play a generated mine instead of the authored world.</summary>
     private int? _mineSeed;
     private int _mineRooms = 4;
@@ -669,6 +675,36 @@ public sealed class Game1 : Game
             if (_showHelp) ClosePanels();
             else { _showHelp = true; SetMouseLook(false, forPanel: true); }
         }
+        // The run summary owns the screen: nothing else is reachable until it is dismissed.
+        if (_runSummary is not null)
+        {
+            if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Escape)
+                || Pressed(keyboard, Keys.Space))
+            {
+                _runSummary = null;
+                SetMouseLook(false);
+                _screen = GameScreen.MainMenu;
+            }
+
+            return;
+        }
+
+        if (_run is { AtDecision: true } decision && _session is not null)
+        {
+            if (Pressed(keyboard, Keys.C))
+            {
+                EndRun(decision.Camp());
+                return;
+            }
+
+            if (Pressed(keyboard, Keys.E) && decision.Run.CanPressOn)
+            {
+                decision.PressOn(_world!, _session.Player);
+                _session.ShowToast("The door swings in. No going back.");
+                return;
+            }
+        }
+
         if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
         if (Pressed(keyboard, Keys.J))
         {
@@ -825,8 +861,15 @@ public sealed class Game1 : Game
         if (keyboard.IsKeyDown(Keys.LeftShift) && IsMoving(keyboard))
             _session.Player.Vitals.SpendStamina(18f * StepSeconds(gameTime));
 
-        if (Pressed(keyboard, Keys.F5)) _session.ShowToast(_session.Save());
-        if (Pressed(keyboard, Keys.F9)) LoadSession();
+        // A run cannot be saved out of. Being able to reload the moment a fight turns would
+        // remove the only thing being risked, and the whole loop is the risk. Resuming an
+        // interrupted descent is a separate feature and does not exist yet.
+        if (Pressed(keyboard, Keys.F5))
+            _session.ShowToast(_run is { Run.IsActive: true }
+                ? "Not down here. Camp to bank what you are carrying."
+                : _session.Save());
+
+        if (Pressed(keyboard, Keys.F9) && _run is not { Run.IsActive: true }) LoadSession();
 
         if (Pressed(keyboard, Keys.P))
         {
@@ -891,6 +934,7 @@ public sealed class Game1 : Game
 
         var step = StepSeconds(gameTime);
         _encounter.Update(step, _cameraPosition, _cameraYaw);
+        if (_world is not null) _run?.Update(_world, _cameraPosition, _encounter);
         _weaponView.Update(step, IsMoving(keyboard), _session.Player.Combat.IsBlocking);
 
         // Only while the pointer is captured, so a click that is reclaiming the mouse does
@@ -1222,9 +1266,18 @@ public sealed class Game1 : Game
         _world?.RestoreOpenedDoors(session.Player.Story.State.OpenedLocks);
         _encounter = new Encounter(session);
         SpawnEnemies();
+        StartRun();
 
         session.Player.Vitals.Died += () =>
         {
+            // Down in a mine, dying ends the run and forfeits the pot. Above ground it is
+            // still the old forgiving reset, because there is nothing there to lose.
+            if (_run is { Run.IsActive: true })
+            {
+                EndRun(_run.Die());
+                return;
+            }
+
             session.ShowToast("You were defeated — returned to safe ground.");
             session.Player.Vitals.FullRestore();
             session.Player.Combat.ClearCombat();
@@ -1244,6 +1297,44 @@ public sealed class Game1 : Game
             return;
 
         _encounter.SpawnDefaultCamp();
+    }
+
+    /// <summary>Start the ledger for this descent, if the loaded world is a mine at all.</summary>
+    private void StartRun()
+    {
+        _run = null;
+        _runSummary = null;
+
+        if (_world is null || _mineSeed is not { } seed) return;
+        if (_world.Manifest.Rooms.Count < 2) return;
+
+        _run = new RunRuntime(_world.Manifest, seed, _mineDepth);
+        _run.RoomCleared += paid =>
+            _session?.ShowToast($"Room clear.  +{paid} stones held  ({_run.Run.Pending} at risk)");
+    }
+
+    /// <summary>
+    /// Put the run away and show what it was worth.
+    ///
+    /// Camping pays out here rather than in the domain because this is where the inventory
+    /// lives; the ledger's job ends at deciding the number.
+    /// </summary>
+    private void EndRun(RunResult result)
+    {
+        _runSummary = result;
+        SetMouseLook(false, forPanel: true);
+
+        if (_session is null) return;
+
+        if (result.StonesCarriedOut > 0)
+            _session.Player.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName,
+                result.StonesCarriedOut, SoulCrystals.ItemKind);
+
+        if (result.Outcome == RunOutcome.Died)
+        {
+            _session.Player.Vitals.FullRestore();
+            _session.Player.Combat.ClearCombat();
+        }
     }
 
     private bool LoadSession()
@@ -1267,6 +1358,7 @@ public sealed class Game1 : Game
 
         _encounter = new Encounter(_session);
         SpawnEnemies();
+        StartRun();
 
         _session.ShowToast(message);
         _menuStatus = string.Empty;
@@ -1916,7 +2008,9 @@ public sealed class Game1 : Game
             DrawDamageDirections();
             DrawSpellBar();
             DrawCastBanner();
+            DrawCampDecision();
             DrawDoorPrompt();
+            DrawRunLedger();
             DrawLocationBanner();
             DrawAwareness();
             DrawEnemyHealth();
@@ -1933,8 +2027,109 @@ public sealed class Game1 : Game
         if (_showJournal) DrawJournal();
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
+        if (_runSummary is { } summary) DrawRunSummary(summary);
 
         EndUi();
+    }
+
+    /// <summary>
+    /// The whole game, in one panel.
+    ///
+    /// Both numbers are shown together on purpose: what is being staked, and what the next
+    /// room pays. The escalating ratio between them is the pressure the loop runs on, and a
+    /// player who has to work it out in their head is not feeling it.
+    /// </summary>
+    private void DrawCampDecision()
+    {
+        if (_run is not { AtDecision: true } decision) return;
+
+        var run = decision.Run;
+        var panel = new Rectangle(360, 386, 560, 232);
+        DrawPanel(panel, new Color(6, 12, 19, 240), new Color(205, 157, 98));
+
+        TextCentred("A CLEARED ROOM, AND A SHUT DOOR", panel.Center.X, panel.Y + 18f, 13,
+            new Color(205, 157, 98));
+
+        TextCentred($"{run.Pending}", panel.X + 148f, panel.Y + 52f, 44, new Color(151, 206, 210));
+        TextCentred("stones held", panel.X + 148f, panel.Y + 104f, 13, new Color(150, 162, 170));
+
+        TextCentred(run.IsExhausted ? "—" : $"+{run.NextRoomPays}",
+            panel.Right - 148f, panel.Y + 52f, 44, new Color(214, 186, 120));
+        TextCentred(run.IsExhausted ? "the mine is spent" : "the next room pays",
+            panel.Right - 148f, panel.Y + 104f, 13, new Color(150, 162, 170));
+
+        TextCentred(run.IsExhausted
+                ? $"{run.RoomsCleared} rooms cleared. There is nothing deeper."
+                : $"{run.RoomsCleared} cleared  ·  risking {run.RiskRatio:0.0} : 1",
+            panel.Center.X, panel.Y + 134f, 15, new Color(206, 212, 218));
+
+        var camp = new Rectangle(panel.X + 24, panel.Bottom - 62, 248, 40);
+        DrawPanel(camp, new Color(17, 34, 28, 235), new Color(120, 178, 132));
+        TextCentred($"C   Camp — bank {run.Pending}", camp.Center.X, camp.Y + 12f, 15,
+            new Color(214, 240, 220));
+
+        var press = new Rectangle(panel.Right - 272, panel.Bottom - 62, 248, 40);
+        if (run.CanPressOn)
+        {
+            DrawPanel(press, new Color(40, 24, 20, 235), new Color(196, 118, 96));
+            TextCentred("E   Open it", press.Center.X, press.Y + 12f, 15, new Color(244, 214, 200));
+            return;
+        }
+
+        DrawPanel(press, new Color(18, 22, 26, 200), new Color(70, 78, 86));
+        TextCentred("nothing deeper", press.Center.X, press.Y + 12f, 15, new Color(110, 120, 128));
+    }
+
+    /// <summary>A quiet running total, so the pot is never a surprise at the door.</summary>
+    private void DrawRunLedger()
+    {
+        if (_run is not { } active || !active.Run.IsActive || _runSummary is not null) return;
+
+        var run = active.Run;
+        var panel = new Rectangle(1016, 84, 240, 62);
+        DrawPanel(panel, new Color(5, 11, 18, 214), new Color(65, 105, 119));
+
+        Text("AT RISK", new Vector2(panel.X + 14, panel.Y + 10), 12, new Color(151, 206, 210));
+        Text($"{run.Pending}", new Vector2(panel.Right - 44, panel.Y + 8), 18, Color.White);
+        Text($"room {run.RoomsCleared} of {run.Rooms}",
+            new Vector2(panel.X + 14, panel.Y + 34), 12, new Color(150, 162, 170));
+    }
+
+    /// <summary>What the descent was worth, once it is over either way.</summary>
+    private void DrawRunSummary(RunResult summary)
+    {
+        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 226),
+            new Color(3, 6, 10, 0));
+
+        var panel = new Rectangle(360, 220, 560, 280);
+        var accent = summary.Survived ? new Color(120, 178, 132) : new Color(196, 96, 88);
+        DrawPanel(panel, new Color(6, 12, 19, 246), accent);
+
+        TextCentred(summary.Survived ? "YOU WALKED OUT" : "YOU DID NOT",
+            panel.Center.X, panel.Y + 30f, 26, accent);
+
+        TextCentred($"{summary.RoomsCleared} rooms cleared at tier {summary.Tier}",
+            panel.Center.X, panel.Y + 78f, 15, new Color(206, 212, 218));
+
+        if (summary.Survived)
+        {
+            TextCentred($"+{summary.StonesCarriedOut}", panel.Center.X, panel.Y + 124f, 52,
+                new Color(151, 206, 210));
+            TextCentred("jiva stones banked", panel.Center.X, panel.Y + 186f, 14,
+                new Color(150, 162, 170));
+        }
+        else
+        {
+            TextCentred($"−{summary.StonesLost}", panel.Center.X, panel.Y + 124f, 52,
+                new Color(196, 96, 88));
+            TextCentred(summary.StonesLost > 0
+                    ? "left where you fell"
+                    : "you had nothing to lose yet",
+                panel.Center.X, panel.Y + 186f, 14, new Color(150, 162, 170));
+        }
+
+        TextCentred("Enter  ·  back to the surface", panel.Center.X, panel.Bottom - 38f, 14,
+            new Color(150, 162, 170));
     }
 
     private void DrawDoorPrompt()
@@ -1981,7 +2176,9 @@ public sealed class Game1 : Game
             return;
         }
 
-        if (_world is null) return;
+        // The camp decision is a bigger question about the same door; two prompts on one
+        // doorway would just be noise.
+        if (_world is null || _run is { AtDecision: true }) return;
         var door = _world.FindDoor(player, _cameraYaw);
         if (door is null) return;
 

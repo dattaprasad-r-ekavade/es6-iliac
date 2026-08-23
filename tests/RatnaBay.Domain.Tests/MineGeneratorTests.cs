@@ -20,10 +20,9 @@ public class MineGeneratorTests
         mine.Geometry.Where(geometry => geometry.Solid);
 
     /// <summary>Room centres, in the order the mine is walked.</summary>
-    private static List<WorldPoint> RoomCentres(WorldManifest mine) => mine.Lights
-        .Where(light => light.Id.EndsWith(".light", StringComparison.Ordinal))
-        .OrderBy(light => light.Id, StringComparer.Ordinal)
-        .Select(light => new WorldPoint(light.Position.X, 1.5f, light.Position.Z))
+    private static List<WorldPoint> RoomCentres(WorldManifest mine) => mine.Rooms
+        .OrderBy(room => room.Index)
+        .Select(room => new WorldPoint(room.Centre.X, 1.5f, room.Centre.Z))
         .ToList();
 
     private static StaticCollisionIndex IndexOf(WorldManifest mine, bool includeDoors)
@@ -180,6 +179,24 @@ public class MineGeneratorTests
             {
                 Assert.That(pair.a.FlatDistanceTo(pair.b), Is.GreaterThan(17f),
                     $"seed {seed}: two rooms are on top of each other");
+            }
+        }
+    }
+
+    [Test]
+    public void EveryFightKnowsWhichRoomItIsIn()
+    {
+        // The run ledger needs this to know when a room is clear. Without it the game layer
+        // would have to re-derive the level's structure from the boxes it was flattened into.
+        foreach (var seed in Seeds)
+        {
+            var mine = MineGenerator.Generate(seed, rooms: 8);
+            foreach (var spawn in mine.Spawns)
+            {
+                var room = mine.Rooms.SingleOrDefault(candidate => candidate.Index == spawn.RoomIndex);
+                Assert.That(room, Is.Not.Null, $"seed {seed}: '{spawn.Id}' names no room");
+                Assert.That(room!.Contains(spawn.Position.X, spawn.Position.Z), Is.True,
+                    $"seed {seed}: '{spawn.Id}' is not actually inside room {spawn.RoomIndex}");
             }
         }
     }
