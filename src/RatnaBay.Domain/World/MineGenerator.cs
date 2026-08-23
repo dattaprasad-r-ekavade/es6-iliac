@@ -61,8 +61,17 @@ public static class MineGenerator
     private const float PlayerSpawnHeight = 2.4f;
 
     /// <summary>Enemies never spawn nearer than this to a wall.</summary>
-    private const float SpawnMargin = 2.5f;
-    private const float SpawnSeparation = 3f;
+    private const float SpawnMargin = 2f;
+
+    /// <summary>
+    /// How far apart two bodies must stand.
+    ///
+    /// Trimmed from three metres once rooms began holding five: with two doorway exclusion
+    /// zones in a sixteen-metre room, rejection sampling could not always fit the fifth, and a
+    /// room that quietly under-fills makes the mine easier the deeper it goes — the exact
+    /// opposite of the intent, and invisible without a test that counts.
+    /// </summary>
+    public const float SpawnSeparation = 2.6f;
 
     /// <summary>
     /// How far every fight must stand from a doorway.
@@ -445,7 +454,7 @@ public static class MineGenerator
                 manifest.Spawns.Add(new WorldEnemySpawn
                 {
                     Id = $"{request.MineId}.room{index:00}.enemy{slot:00}",
-                    ArchetypeId = random.Next(4) == 0 ? EnemyCatalog.PretaId : EnemyCatalog.BanditId,
+                    ArchetypeId = ChooseArchetype(index, slot, random),
                     Level = level,
                     Position = position,
                     RoomIndex = index
@@ -482,6 +491,21 @@ public static class MineGenerator
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// What waits in a given slot.
+    ///
+    /// From the third room on, the first thing placed is an archer. That is deliberate and not
+    /// random: a recorded run cleared seven of nine rooms from the previous doorway without
+    /// ever setting foot inside, because every enemy chased in a straight line and could be
+    /// fought as a queue. A shooter makes the corridor the worst place to stand instead of the
+    /// best. Leaving it to chance would mean some rooms still taught the old habit.
+    /// </summary>
+    private static string ChooseArchetype(int roomIndex, int slot, Prng random)
+    {
+        if (slot == 0 && roomIndex >= 3) return EnemyCatalog.ArcherId;
+        return random.Next(4) == 0 ? EnemyCatalog.PretaId : EnemyCatalog.BanditId;
     }
 
     /// <summary>The middle of the opening on one side of a room.</summary>

@@ -657,6 +657,7 @@ public static class SessionSelfTest
                 && walked.FlatDistanceTo(firstRoom) < 16f);
 
             CheckEnemiesRespectWalls(failures, mine);
+            CheckTheArcherBreaksTheDoorway(failures, mine);
 
             // Last, because a descent opens doors and that changes what the walls do.
             RunOneDescent(failures, mine);
@@ -794,6 +795,94 @@ public static class SessionSelfTest
         var reached = new WorldPoint(walker.Position.X, 0f, walker.Position.Z)
             .FlatDistanceTo(new WorldPoint(target.X, 0f, target.Z));
         Check(failures, $"and is stopped well short of the player ({reached:0.0} m)", reached > 8f);
+    }
+
+    /// <summary>
+    /// The archer, which exists to break fighting every room from its doorway.
+    ///
+    /// A recorded run cleared seven of nine rooms without setting foot in them, because every
+    /// enemy chased in a straight line and could be met one at a time in a corridor. This
+    /// checks the two behaviours that change that: it hurts from across the room, and it gives
+    /// ground rather than walking into reach.
+    /// </summary>
+    private static void CheckTheArcherBreaksTheDoorway(List<string> failures, WorldRuntime mine)
+    {
+        var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
+        var archer = EnemyCatalog.Find(EnemyCatalog.ArcherId)!;
+        var centre = rooms[1].CentrePoint();
+
+        // --- it shoots from far outside sword reach
+        var session = GameSession.NewGame();
+        var encounter = new Encounter(session);
+        encounter.UseCollision(mine.Collision);
+        encounter.Spawn(archer, new Vector3(centre.X, 0f, centre.Z), "selftest.archer");
+
+        var shooter = encounter.Enemies.Single();
+
+        // Inside the room. A room is sixteen metres across, so standing twelve from its centre
+        // is standing in the rock — and the arrow correctly stopped at the wall, which read as
+        // the archer being harmless.
+        var standing = new Vector3(centre.X, 1.7f, centre.Z + 6.5f);
+        var reach = session.Player.Combat.ActiveWeapon.Range;
+
+        Check(failures, $"the archer outranges a sword ({archer.AttackRange:0} m vs {reach:0} m)",
+            archer.AttackRange > reach * 3f);
+
+        var before = session.Player.Vitals.Health;
+        for (var step = 0; step < 200; step++) encounter.Update(0.05f, standing, 0f);
+
+        Check(failures,
+            $"and hurts from across the room ({before - session.Player.Vitals.Health:0} damage)",
+            session.Player.Vitals.Health < before);
+
+        // And its arrows are stopped by rock, so a doorway is cover rather than a firing slit.
+        var walled = GameSession.NewGame();
+        var walledEncounter = new Encounter(walled);
+        walledEncounter.UseCollision(mine.Collision);
+        walledEncounter.Spawn(archer, new Vector3(centre.X, 0f, centre.Z), "selftest.archer.wall");
+
+        var throughRock = new Vector3(centre.X, 1.7f, centre.Z + 13f);
+        for (var step = 0; step < 200; step++) walledEncounter.Update(0.05f, throughRock, 0f);
+
+        Check(failures, "but not through a wall",
+            walled.Player.Vitals.Health >= walled.Player.Vitals.MaxHealth);
+
+        // --- it gives ground rather than closing
+        var closeSession = GameSession.NewGame();
+        var closeEncounter = new Encounter(closeSession);
+        closeEncounter.UseCollision(mine.Collision);
+        closeEncounter.Spawn(archer, new Vector3(centre.X, 0f, centre.Z), "selftest.archer.close");
+
+        var cornered = closeEncounter.Enemies.Single();
+        var crowding = new Vector3(centre.X, 1.7f, centre.Z + 2f);
+        var startedAt = cornered.Position.FlatDistanceTo(
+            new WorldPoint(crowding.X, 0f, crowding.Z));
+
+        for (var step = 0; step < 40; step++) closeEncounter.Update(0.05f, crowding, 0f);
+
+        var endedAt = cornered.Position.FlatDistanceTo(new WorldPoint(crowding.X, 0f, crowding.Z));
+        Check(failures,
+            $"and backs away when crowded ({startedAt:0.0} m -> {endedAt:0.0} m)",
+            endedAt > startedAt);
+
+        // A plain bandit must still do the opposite, or the fix has broken melee.
+        var meleeSession = GameSession.NewGame();
+        var meleeEncounter = new Encounter(meleeSession);
+        meleeEncounter.UseCollision(mine.Collision);
+        meleeEncounter.Spawn(EnemyCatalog.Find(EnemyCatalog.BanditId)!,
+            new Vector3(centre.X, 0f, centre.Z), "selftest.melee");
+
+        // From outside its reach, or it is already where it wants to be and has no reason
+        // to move — which is a test of nothing.
+        var brawler = meleeEncounter.Enemies.Single();
+        var far = new Vector3(centre.X, 1.7f, centre.Z + 8f);
+        var meleeStart = brawler.Position.FlatDistanceTo(new WorldPoint(far.X, 0f, far.Z));
+
+        for (var step = 0; step < 40; step++) meleeEncounter.Update(0.05f, far, 0f);
+
+        var meleeEnd = brawler.Position.FlatDistanceTo(new WorldPoint(far.X, 0f, far.Z));
+        Check(failures, $"while a bandit still closes ({meleeStart:0.0} m -> {meleeEnd:0.0} m)",
+            meleeEnd < meleeStart);
     }
 
     private static void Check(ICollection<string> failures, string what, bool passed)

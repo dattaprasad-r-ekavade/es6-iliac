@@ -15,6 +15,7 @@ public static class EnemyCatalog
 {
     public const string BanditId = "bandit";
     public const string PretaId = "preta";
+    public const string ArcherId = "bandit_archer";
 
     private static readonly Dictionary<string, EnemyArchetype> Archetypes =
         new(StringComparer.Ordinal)
@@ -45,6 +46,27 @@ public static class EnemyCatalog
                 AttackDamage = 9f,
                 AttackCooldown = 1.2f,
                 XpReward = 26
+            },
+
+            // The answer to fighting every room from its doorway.
+            //
+            // It shoots from across the room and gives ground when approached, so standing in
+            // a corridor is the worst place to be rather than the best: the queue of melee
+            // walks into you while this thing keeps hitting you from the dark. Frail on
+            // purpose — it is meant to be rushed, which is exactly the behaviour the room
+            // shapes need from the player before they are worth designing.
+            [ArcherId] = new EnemyArchetype
+            {
+                Id = ArcherId,
+                DisplayName = "Bandit Archer",
+                MaxHealth = 30f,
+                MoveSpeed = 4.0f,
+                AggroRange = 22f,
+                AttackRange = 15f,
+                StandOffRange = 9f,
+                AttackDamage = 8f,
+                AttackCooldown = 2.1f,
+                XpReward = 24
             }
         };
 

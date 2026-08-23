@@ -207,6 +207,41 @@ public class MineGeneratorTests
     }
 
     [Test]
+    public void EveryRoomPastTheThirdHasSomethingThatShootsBack()
+    {
+        // The structural answer to a recorded run that cleared seven of nine rooms from the
+        // previous doorway. Every enemy chasing in a straight line makes a corridor the
+        // safest place in the mine; something that shoots and gives ground makes it the worst.
+        foreach (var seed in Seeds)
+        {
+            var mine = MineGenerator.Generate(seed, rooms: 12);
+            for (var room = 3; room < 12; room++)
+            {
+                var archers = mine.Spawns.Count(spawn =>
+                    spawn.RoomIndex == room && spawn.ArchetypeId == EnemyCatalog.ArcherId);
+
+                Assert.That(archers, Is.GreaterThan(0),
+                    $"seed {seed}: room {room} can still be fought from the doorway");
+            }
+        }
+    }
+
+    [Test]
+    public void TheFirstRoomsTeachMeleeBeforeAnythingShoots()
+    {
+        // A shooter in room one, before the player has found the attack button, is not a
+        // lesson — it is an ambush.
+        foreach (var seed in Seeds)
+        {
+            var mine = MineGenerator.Generate(seed, rooms: 12);
+            var early = mine.Spawns.Where(spawn => spawn.RoomIndex < 3);
+
+            Assert.That(early.Any(spawn => spawn.ArchetypeId == EnemyCatalog.ArcherId), Is.False,
+                $"seed {seed}: something is shooting in the opening rooms");
+        }
+    }
+
+    [Test]
     public void EveryFightKnowsWhichRoomItIsIn()
     {
         // The run ledger needs this to know when a room is clear. Without it the game layer
@@ -470,7 +505,12 @@ public class MineGeneratorTests
         // Deep rooms hold five bodies in a space that must also keep its doorways clear. If
         // placement quietly gives up, the mine gets easier the deeper it goes — the exact
         // opposite of the intent, and invisible without this.
-        foreach (var seed in Seeds)
+        // Swept wide rather than over the usual dozen seeds. Placement is rejection sampling
+        // against two doorway exclusion zones, so it fails rarely and unluckily — a handful of
+        // seeds would have called it fine right up until a player found the seed that was not.
+        var shortfalls = new List<string>();
+
+        for (var seed = -250; seed < 250; seed++)
         {
             var mine = MineGenerator.Generate(seed, rooms: 20);
             for (var room = 1; room < 20; room++)
@@ -478,10 +518,12 @@ public class MineGeneratorTests
                 var count = mine.Spawns.Count(spawn => spawn.RoomIndex == room);
                 var wanted = Math.Min(5, 1 + room / 2 + (room == 19 ? 1 : 0));
 
-                Assert.That(count, Is.EqualTo(wanted),
-                    $"seed {seed}: room {room} under-filled");
+                if (count < wanted) shortfalls.Add($"seed {seed} room {room}: {count}/{wanted}");
             }
         }
+
+        Assert.That(shortfalls, Is.Empty,
+            $"{shortfalls.Count} under-filled rooms, e.g. {string.Join("; ", shortfalls.Take(5))}");
     }
 
     [Test]
@@ -506,7 +548,10 @@ public class MineGeneratorTests
                 var distance = new WorldPoint(pair.a.Position.X, 0f, pair.a.Position.Z)
                     .FlatDistanceTo(new WorldPoint(pair.b.Position.X, 0f, pair.b.Position.Z));
 
-                Assert.That(distance, Is.GreaterThan(2.9f),
+                // Against the generator's own rule rather than a number copied out of it,
+                // so tuning the packing does not quietly turn this test into a formality.
+                Assert.That(distance,
+                    Is.GreaterThanOrEqualTo(MineGenerator.SpawnSeparation).Within(0.01f),
                     $"seed {seed}: '{pair.a.Id}' and '{pair.b.Id}' overlap");
             }
         }

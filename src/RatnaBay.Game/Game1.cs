@@ -2242,7 +2242,12 @@ public sealed class Game1 : Game
             new Color(205, 157, 98));
 
         TextCentred($"{run.Pending}", panel.X + 148f, panel.Y + 52f, 44, new Color(151, 206, 210));
-        TextCentred("stones held", panel.X + 148f, panel.Y + 104f, 13, new Color(150, 162, 170));
+
+        // "Fifteen stones" is an abstraction; what it is worth is not. A pot the player cannot
+        // price is a pot they cannot be afraid of losing, and a recorded run answered eight
+        // doors in under a second each with forty-five stones on the table.
+        TextCentred($"stones held  ·  {run.Pending * SoulCrystals.LesserBasePrice} gold",
+            panel.X + 148f, panel.Y + 104f, 13, new Color(150, 162, 170));
 
         TextCentred(run.IsExhausted ? "—" : $"+{run.NextRoomPays}",
             panel.Right - 148f, panel.Y + 52f, 44, new Color(214, 186, 120));
@@ -2251,8 +2256,12 @@ public sealed class Game1 : Game
 
         TextCentred(run.IsExhausted
                 ? $"{run.RoomsCleared} rooms cleared. There is nothing deeper."
-                : $"{run.RoomsCleared} cleared  ·  risking {run.RiskRatio:0.0} : 1",
-            panel.Center.X, panel.Y + 134f, 15, new Color(206, 212, 218));
+                : $"{run.RoomsCleared} rooms cleared  ·  staking {run.RiskRatio:0.0} : 1",
+            panel.Center.X, panel.Y + 128f, 15, new Color(206, 212, 218));
+
+        if (!run.IsExhausted)
+            TextCentred("Fall in there and you carry out nothing.",
+                panel.Center.X, panel.Y + 150f, 13, new Color(196, 118, 96));
 
         var camp = new Rectangle(panel.X + 24, panel.Bottom - 62, 248, 40);
         DrawPanel(camp, new Color(17, 34, 28, 235), new Color(120, 178, 132));
@@ -2282,7 +2291,7 @@ public sealed class Game1 : Game
 
         Text("AT RISK", new Vector2(panel.X + 14, panel.Y + 10), 12, new Color(151, 206, 210));
         Text($"{run.Pending}", new Vector2(panel.Right - 44, panel.Y + 8), 18, Color.White);
-        Text($"room {run.RoomsCleared} of {run.Rooms}",
+        Text($"room {run.RoomsCleared}  ·  {run.Pending * SoulCrystals.LesserBasePrice} gold",
             new Vector2(panel.X + 14, panel.Y + 34), 12, new Color(150, 162, 170));
     }
 
@@ -2306,15 +2315,16 @@ public sealed class Game1 : Game
         {
             TextCentred($"+{summary.StonesCarriedOut}", panel.Center.X, panel.Y + 124f, 52,
                 new Color(151, 206, 210));
-            TextCentred("jiva stones banked", panel.Center.X, panel.Y + 186f, 14,
-                new Color(150, 162, 170));
+            TextCentred(
+                $"jiva stones banked  ·  {summary.StonesCarriedOut * SoulCrystals.LesserBasePrice} gold",
+                panel.Center.X, panel.Y + 186f, 14, new Color(150, 162, 170));
         }
         else
         {
             TextCentred($"−{summary.StonesLost}", panel.Center.X, panel.Y + 124f, 52,
                 new Color(196, 96, 88));
             TextCentred(summary.StonesLost > 0
-                    ? "left where you fell"
+                    ? $"left where you fell  ·  {summary.StonesLost * SoulCrystals.LesserBasePrice} gold"
                     : "you had nothing to lose yet",
                 panel.Center.X, panel.Y + 186f, 14, new Color(150, 162, 170));
         }
@@ -2740,11 +2750,23 @@ public sealed class Game1 : Game
     /// Drawn as camera-facing glows in the element's colour, so what is crossing the room is
     /// legible at a glance: orange is fire, pale blue is frost, gold is shock.
     /// </summary>
+    /// <summary>Arrows in flight. Small, pale and fast, so they read as shafts, not spells.</summary>
+    private static readonly Color ArrowColour = new(226, 214, 186);
+
     private void DrawBolts()
     {
-        if (_encounter is null || _encounter.Bolts.Count == 0) return;
+        if (_encounter is null) return;
+
+        var shots = _encounter.Shots.ToList();
+        if (_encounter.Bolts.Count == 0 && shots.Count == 0) return;
 
         _billboards.Begin(_view, _projection);
+
+        foreach (var shot in shots)
+        {
+            _billboards.Draw(BoltSprites.Get(GraphicsDevice, ArrowColour),
+                shot.Position, 0.2f, _cameraYaw, Color.White);
+        }
 
         foreach (var bolt in _encounter.Bolts)
         {

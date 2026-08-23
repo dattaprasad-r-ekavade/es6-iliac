@@ -24,6 +24,15 @@ public sealed class EnemyArchetype
     /// <summary>What rank this archetype represents. Display only; scaling is applied.</summary>
     public int Level { get; init; } = 1;
 
+    /// <summary>
+    /// The distance this enemy tries to keep. Zero means it closes and swings like anything
+    /// else; anything above its attack range would be nonsense, so it is clamped in use.
+    /// </summary>
+    public float StandOffRange { get; init; }
+
+    /// <summary>True when this thing shoots rather than swings.</summary>
+    public bool IsRanged => StandOffRange > 0f;
+
     /// <summary>Health added per level above the first.</summary>
     public const float HealthPerLevel = 0.22f;
 
@@ -57,7 +66,8 @@ public sealed class EnemyArchetype
             AttackDamage = AttackDamage * (1f + DamagePerLevel * steps),
             AttackCooldown = AttackCooldown,
             XpReward = (int)MathF.Round(XpReward * (1f + XpPerLevel * steps)),
-            DropsLoot = DropsLoot
+            DropsLoot = DropsLoot,
+            StandOffRange = StandOffRange
         };
     }
 }
@@ -72,7 +82,17 @@ public enum EnemyIntent
     Chase,
 
     /// <summary>In reach and off cooldown.</summary>
-    Attack
+    Attack,
+
+    /// <summary>
+    /// Too close for comfort. Back away rather than trade blows.
+    ///
+    /// This exists to break the doorway. Every enemy chasing in a straight line means the
+    /// player can stand in a corridor and fight a queue one at a time, which makes the shape
+    /// of a room irrelevant and the fight identical every time. Something that refuses to
+    /// close, and shoots from where it stands, has to be walked up to.
+    /// </summary>
+    Withdraw
 }
 
 /// <summary>
@@ -193,11 +213,20 @@ public sealed class Enemy : IEnemy, ITargetable
         if (Home.FlatDistanceTo(Position) > Archetype.AggroRange * LeashFactor) return EnemyIntent.Idle;
 
         if (distance > Archetype.AttackRange) return EnemyIntent.Chase;
+
+        // A shooter that has been walked up to gives ground instead of trading. It still
+        // shoots while it retreats — backing off is not a reprieve, it is a repositioning.
+        if (Archetype.IsRanged && distance < Archetype.StandOffRange * TooCloseFraction)
+            return _attackCooldown <= 0f ? EnemyIntent.Attack : EnemyIntent.Withdraw;
+
         return _attackCooldown <= 0f ? EnemyIntent.Attack : EnemyIntent.Idle;
     }
 
     /// <summary>How far past its aggro range an enemy will follow before giving up.</summary>
     private const float LeashFactor = 2.8f;
+
+    /// <summary>Inside this fraction of its stand-off, a shooter starts giving ground.</summary>
+    public const float TooCloseFraction = 0.7f;
 
     /// <summary>
     /// Commit to a swing. The game layer calls this once it knows the player is in range and

@@ -90,6 +90,33 @@ public sealed class Encounter
     public event Action<float, bool>? PlayerStruck;
 
     private readonly List<SpellBolt> _bolts = new();
+    private readonly List<EnemyShot> _shots = new();
+
+    /// <summary>
+    /// An arrow in flight.
+    ///
+    /// Ranged damage is delivered by something the player can see coming, not applied the
+    /// instant an enemy decides to shoot. A hit from fifteen metres with no travel reads as
+    /// the game cheating; a shaft crossing the room reads as being shot at, and can be broken
+    /// by moving. It is also the only honest way to make standing still expensive.
+    /// </summary>
+    private sealed class EnemyShot
+    {
+        public Vector3 Position;
+        public Vector3 Velocity;
+        public float Damage;
+        public float Remaining;
+    }
+
+    /// <summary>Arrows currently in the air, for drawing.</summary>
+    public IEnumerable<(Vector3 Position, float Spin)> Shots =>
+        _shots.Select(shot => (shot.Position, shot.Remaining * 7f));
+
+    /// <summary>How near an arrow must pass to count as a hit.</summary>
+    private const float ShotRadius = 0.75f;
+
+    private const float ShotSpeed = 19f;
+    private const float ShotLifetime = 2.6f;
 
     /// <summary>Spells currently in flight.</summary>
     public IReadOnlyList<SpellBolt> Bolts => _bolts;
@@ -158,6 +185,7 @@ public sealed class Encounter
         _lastPlayerYaw = playerYaw;
         Feedback.Tick(deltaSeconds);
         UpdateBolts(deltaSeconds);
+        UpdateShots(deltaSeconds, playerPosition, playerYaw);
 
         foreach (var enemy in _enemies)
         {
@@ -178,12 +206,24 @@ public sealed class Encounter
                     animation.WalkPhase += deltaSeconds * enemy.CurrentMoveSpeed * 2.4f;
                     break;
 
+                case EnemyIntent.Withdraw:
+                    Retreat(enemy, player, deltaSeconds);
+                    animation.WalkPhase += deltaSeconds * enemy.CurrentMoveSpeed * 2.4f;
+                    break;
+
                 case EnemyIntent.Attack:
                     var damage = enemy.Attack();
                     if (damage <= 0f) break;
 
                     animation.Lunge = LungeSeconds;
                     animation.Facing = Direction(enemy.Position, player);
+
+                    // A shooter looses something the player can watch arrive and step out of.
+                    if (enemy.Archetype.IsRanged)
+                    {
+                        Loose(enemy, playerPosition, damage);
+                        break;
+                    }
 
                     var guarded = _session.Player.Combat.IsBlocking;
                     var landed = _session.Player.Combat.TakeHit(damage);
@@ -205,6 +245,105 @@ public sealed class Encounter
         _enemies.RemoveAll(e => !e.IsAlive);
         Focused = Targeting.Find(player, playerYaw,
             _session.Player.Combat.ActiveWeapon.Range, _enemies);
+    }
+
+    /// <summary>
+    /// Give ground, keeping the player in front.
+    ///
+    /// Backing into a wall is fine — it is stopped by the same mover as everything else, and a
+    /// shooter cornered against the rock is exactly the moment the player has earned.
+    /// </summary>
+    private void Retreat(Enemy enemy, WorldPoint player, float deltaSeconds)
+    {
+        var away = Direction(player, enemy.Position);
+        var step = enemy.CurrentMoveSpeed * 0.8f * deltaSeconds;
+
+        var next = Nudge(enemy.Position, away.X * step, away.Z * step);
+        foreach (var other in _enemies)
+        {
+            if (ReferenceEquals(other, enemy) || !other.IsAlive) continue;
+            if (next.FlatDistanceTo(other.Position) < Separation) return;
+        }
+
+        enemy.Position = next;
+    }
+
+    /// <summary>Loose an arrow at where the player is standing now.</summary>
+    private void Loose(Enemy enemy, Vector3 playerPosition, float damage)
+    {
+        var from = new Vector3(enemy.Position.X, enemy.Position.Y + FigureHeight * 0.62f,
+            enemy.Position.Z);
+        var to = new Vector3(playerPosition.X, playerPosition.Y - 0.35f, playerPosition.Z);
+        var direction = to - from;
+
+        if (direction.LengthSquared() < 0.0001f) return;
+        direction.Normalize();
+
+        _shots.Add(new EnemyShot
+        {
+            Position = from,
+            // No homing. An arrow is aimed where the player was, so moving beats it.
+            Velocity = direction * ShotSpeed,
+            Damage = damage,
+            Remaining = ShotLifetime
+        });
+    }
+
+    /// <summary>Move every arrow, and resolve the ones that arrive.</summary>
+    private void UpdateShots(float deltaSeconds, Vector3 playerPosition, float playerYaw)
+    {
+        var player = new WorldPoint(playerPosition.X, playerPosition.Y, playerPosition.Z);
+
+        for (var index = _shots.Count - 1; index >= 0; index--)
+        {
+            var shot = _shots[index];
+            shot.Remaining -= deltaSeconds;
+
+            var from = shot.Position;
+            shot.Position += shot.Velocity * deltaSeconds;
+
+            var origin = new WorldPoint(from.X, from.Y, from.Z);
+            var at = new WorldPoint(shot.Position.X, shot.Position.Y, shot.Position.Z);
+
+            // Stopped by the world, so a doorway is cover rather than a firing slit.
+            if (_collision is not null && _collision.RaycastBlocked(origin, at, out _))
+            {
+                _shots.RemoveAt(index);
+                continue;
+            }
+
+            // Swept against the whole step, not just its endpoint.
+            //
+            // An arrow moves nearly a metre a frame, so testing only where it ended up let it
+            // step clean through a body: at fifteen metres the shot simply never landed. This
+            // is the same mistake as timing a doorway with an infinitely thin ray, and it
+            // fails the same silent way — everything looks fine, nothing connects.
+            if (DistanceToSegment(playerPosition, from, shot.Position) <= ShotRadius)
+            {
+                _shots.RemoveAt(index);
+
+                var guarded = _session.Player.Combat.IsBlocking;
+                var landed = _session.Player.Combat.TakeHit(shot.Damage);
+                PlayerStruck?.Invoke(landed, guarded);
+                Feedback.PlayerHurt(landed,
+                    Targeting.RelativeBearing(player, playerYaw, origin), guarded);
+                DamageFlash = DamageFlashSeconds;
+                continue;
+            }
+
+            if (shot.Remaining <= 0f) _shots.RemoveAt(index);
+        }
+    }
+
+    /// <summary>Nearest approach of a travelling point to a standing one.</summary>
+    private static float DistanceToSegment(Vector3 point, Vector3 from, Vector3 to)
+    {
+        var along = to - from;
+        var lengthSquared = along.LengthSquared();
+        if (lengthSquared < 0.000001f) return Vector3.Distance(point, from);
+
+        var t = MathHelper.Clamp(Vector3.Dot(point - from, along) / lengthSquared, 0f, 1f);
+        return Vector3.Distance(point, from + along * t);
     }
 
     /// <summary>Slide toward the player, stopping short of anything already standing there.</summary>
