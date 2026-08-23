@@ -1,307 +1,270 @@
 # Ratna Bay Production Plan
 
-**Written:** 2026-08-22
-**Status:** Active. This is the single planning document for the project.
-
-This document supersedes the roadmap sections of `SOLO_AGILE_DEVELOPMENT_PLAN.md`,
-`MONOGAME_PIVOT_PLAN.md`, and the gate ladder in `DAGGERFALL_SCOPE_AND_BUILD_RESEARCH.md`.
-Those remain as research and rationale; when they disagree with this file, this file wins.
+**Written:** 2026-08-23
+**Design of record:** [`design_pivot.md`](design_pivot.md) — what the game is.
+**This document:** what gets built, in what order, and how it is known to work.
 
 ---
 
-## 1. The decisions that are closed
+## 1. Closed decisions
 
-These are not revisited. Reopening any of them costs months, and the project's history shows
-that is the failure mode most likely to kill it.
+Not revisited. Reopening any of them costs months, and this project's history shows that is the
+failure most likely to end it.
 
 | Decision | Ruling |
 |---|---|
+| **Genre** | Roguelike. Runs of five to eight minutes, generated mines, a fort that opens a room at a time. |
 | **Engine** | MonoGame + custom tooling. The Unity archive is a source of ported logic, not a fallback. |
 | **Game rules live in `RatnaBay.Domain`** | Engine-free C#, tested headlessly. No MonoGame reference, ever. |
-| **Characters are billboard sprites** | Sidesteps skinned animation, MonoGame's worst gap, and is period-correct. |
-| **Physics is hand-rolled** | Swept AABB/capsule against a static BVH. BepuPhysics stays unintegrated until the slice is done. |
-| **Navigation is waypoints** | DotRecast stays unintegrated. A town needs waypoints, not a navmesh. |
-| **UI is immediate-mode on SpriteBatch** | Not Gum. A Daggerfall-like is mostly UI, and immediate mode is faster to iterate. |
-| **Levels are JSON with hot reload** | No GUI editor. The editor is a text file plus a running game. |
-| **Scope is one town, one dungeon, one questline** | 2–3 hours of play. Daggerfall breadth is a sequel. |
+| **Characters and weapons are sprites drawn in code** | A palette and some proportions, not modelled assets. Sidesteps skinned animation entirely. |
+| **Physics is hand-rolled** | Swept AABB against a static BVH, all three axes. BepuPhysics stays unintegrated. |
+| **Navigation is direct pursuit** | Enemies close on the player. DotRecast stays unintegrated. |
+| **UI is immediate-mode on SpriteBatch** | Not Gum. |
+| **Levels are JSON manifests** | Generated mines emit the same format the game already loads and hot-reloads. |
+| **The publish gate is the definition of done** | `.\publish.ps1` runs the domain tests, the sim, and the published build's own self-test. A build that fails is not handed to anyone. |
 
-### Explicitly excluded from the first product
+### Excluded from the first release
 
-Procedural world generation · sailing · day/night and weather · cutscene system · fast travel
-and fog of war · world map · NPC schedules · time-bound quests · radiant quests · public mod
-support · multiplayer · voice acting.
-
-Each of these was implemented or partly implemented in the Unity build. Each is parked, not
-deleted. Parked means: not on the board, not in the backlog, not a consideration in any
-architectural decision until the slice ships.
+Continent-scale world · authored open regions · sailing · day/night and weather · cutscene
+system · fast travel · NPC schedules · radiant quests · public mod support · multiplayer · voice
+acting.
 
 ---
 
-## 2. Where the project actually is
-
-**Iterations 5 through 12 are implemented.** The current remaining gate is three independent
-external playthroughs of the self-contained slice.
+## 2. Where the project is
 
 | | Lines | State |
 |---|---:|---|
-| `RatnaBay.Domain` | 3,100 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | 3,300 | 296 tests, ~160 ms |
-| `RatnaBay.Game` | ~1,900 | Menu, camera, HUD, session, saves, sprites, combat |
-| `RatnaBay.Tools` | ~150 | `doctor`, `asset-info` |
+| `RatnaBay.Domain` | ~4,600 | Tested game rules, engine-free |
+| `RatnaBay.Domain.Tests` | ~4,300 | **359 tests, ~190 ms** |
+| `RatnaBay.Game` | ~5,600 | Renderer, HUD, session, world runtime, combat |
+| `RatnaBay.Tools` | ~310 | `doctor`, `asset-info`, `sim` |
 
-`.\publish.ps1 -Run` produces a self-contained `build\RatnaBay.exe` that runs on a machine
-with no .NET installed. The HUD reads the domain's own numbers, and a save round-trips
-through a real file — verified by the published executable's own `--selftest`.
+**Built and carried into the pivot:** combat with guarding and weapon classes · enemy levels and
+scaling · five spells with distinct effects, cast as travelling bolts · the prana economy · the
+three life paths and their multipliers · eight use-based skills · collision, doors, locks ·
+stealth, watchers, pickpocketing · dialogue, quests, shops · versioned saves · the world manifest
+format, its validation and its hot reload · the publish pipeline and its gates.
 
-### What the domain already does
-
-Character vitals and levelling · eight use-based skills with five anti-grind rules · three
-weapon classes with blocking · five mechanically distinct spells · the jiva-stone prana
-economy · enemies with burn/chill/stagger · sight-based stealth with crouch and watchers ·
-deterministic lockpicking and pickpocketing · crime witnessing · quests with kill and
-location objectives · written directions with generated compass bearings · Morrowind-style
-keyword dialogue with story-conditioned answers · chapter/beat/route story state · versioned
-saves with migration and corruption handling.
+**Not yet built:** mine generation · run state · stone slots · amulets · succession · the fort ·
+bosses.
 
 ---
 
 ## 3. The iteration plan
 
-**The rule: every iteration ends with something playable for five minutes.** An iteration
-that ends with a passing build and nothing new to play did not happen.
+**Every iteration ends with something playable for five minutes.** An iteration that ends with a
+passing build and nothing new to play did not happen.
 
-Estimates assume 15–20 hours per week. Halve them for full-time.
-
----
-
-### Iteration 5 — Wire the shell — **DONE**
-
-**Risk retired:** does the domain actually integrate, or is it a beautiful island?
-
-This is first because it is the cheapest possible test of the whole architecture. If
-`PlayerCharacter` does not drop into `Game1.cs` cleanly, that must surface in week one.
-
-**Deliverables**
-- `PlayerCharacter` instantiated and ticked from the game loop.
-- Immediate-mode HUD layer on `SpriteBatch`: health, prana, stamina bars reading live values.
-- Toast/message queue fed by domain events (`SkillRaised`, `LevelGained`, `CrystalDrawn`).
-- F5 saves, F9 loads, through `SaveGame` to a real file on disk.
-- Player position and yaw round-trip through the save.
-
-**Playable:** walk the Northwatch scene, watch your own stamina drain and recover, save,
-quit, relaunch, and arrive back where you were.
-
-**Done when:** a save written before a restart restores position, vitals and skills exactly.
-
-**Delivered.** Plus two things beyond the brief: `--selftest`, a headless save round-trip that
-also gates the publish, and the objective now persists (its bearing regenerates rather than
-being stored).
+Estimates assume 15–20 hours a week.
 
 ---
 
-### Iteration 6 — First fight — **DONE**
+### Iteration 13 — One generated mine (2 weeks)
 
-**Risk retired:** is the combat loop legible and does it feel like anything?
+**Risk retired:** can generation produce the format the game already loads?
 
-**Deliverables**
-- Billboard sprite renderer: camera-facing quad, palette-locked, texture generated in code.
-- `Enemy` wired to a game-layer chase controller (no navmesh — move toward, stop at range).
-- Sphere cast down camera forward to find `IAttackable`.
-- Attack, block, cooldown and stamina bound to input.
-- Enemy health bar, damage flash, hit feedback.
-- Skill-up toasts on screen.
+- Room-graph generator: a seed in, a `WorldManifest` out.
+- Rooms connected by the existing door system; one entrance, one exit each.
+- `RatnaBay.Tools mine --seed N` writes a manifest and validates it.
+- Enemies placed per room by the existing spawn path.
 
-**Playable:** a bandit notices you, closes, and fights. You swing, block, kill it, and watch
-Blade go up.
+**Playable:** descend into a generated three-room mine, fight through it, walk out the far end.
 
-**Done when:** the fight is winnable and losable, and Blade rises only on landed hits.
-
-**Delivered.** All three are asserted headlessly by `--selftest`, which plays a whole fight
-with no window: the bandit closes from 12 m, both sides trade blows, a swing away from it
-trains nothing, four landed hits kill it, and an unarmed player against three of them dies.
-Targeting moved into the domain as a cone test rather than a physics sphere cast, so its
-edges are asserted rather than felt out in the running game.
+**Done when:** a new seed produces a different, valid, playable mine with no code change.
 
 ---
 
-### Iteration 7 — First room (2 weeks)
+### Iteration 14 — The run (2–3 weeks)
 
-**Risk retired:** collision and level authoring — the two things MonoGame gives you nothing for.
+**Risk retired:** the whole design. Does press-your-luck feel like a decision at this length?
 
-**Deliverables**
-- Static level BVH and swept AABB/capsule collision (~500 lines, no Bepu).
-- JSON world manifest: geometry, spawns, props, lights.
-- Hot reload — edit the JSON, see it without restarting.
-- `content validate` in `RatnaBay.Tools`.
-- One authored interior with a door.
-- `Lockable` wired to that door with Security.
+- Run state: seed, depth, rooms cleared, stones banked.
+- Camp at a cleared room's exit — bank and end, or open the next door.
+- Payout `N x T`; death forfeits the banked stones.
+- A run summary screen: what you cleared, what you carried out.
 
-**Playable:** walk into a building through a door you picked open.
+**Playable:** a complete run. Clear rooms, decide each time whether to press on, walk out with
+stones or lose them.
 
-**Done when:** a new room can be added by editing JSON only, with no C# changes.
-
----
-
-### Iteration 8 — First conversation (2 weeks)
-
-**Risk retired:** can dialogue carry narrative without a conversation-tree editor?
-
-**Deliverables**
-- Dialogue topics loaded from JSON.
-- Interaction prompt and target query.
-- Immediate-mode topic menu and response panel.
-- `SpeakingActor` wired to billboard NPCs.
-- Three NPCs, ~15 topics, at least three with story conditions.
-
-**Playable:** learn a keyword from one person and get a different answer from another.
-
-**Done when:** a topic can be added in JSON alone, and no offered keyword produces silence.
+**Done when:** you catch yourself pushing one room too far. **This is the iteration that decides
+whether the pivot works** — if the decision is not tense here, no later system fixes it.
 
 ---
 
-### Iteration 9 — First quest (2 weeks)
+### Iteration 15 — Succession (1–2 weeks)
 
-**Risk retired:** does the whole loop connect end to end?
+**Risk retired:** does death read as continuity rather than punishment?
 
-**Deliverables**
-- Quest definitions in JSON.
-- Journal screen.
-- Objective banner with live compass bearing.
-- Quest acceptance through dialogue.
-- Reward payout, and quest state in the save.
+- Death ends the run and creates a successor: all amulets, half the gear, unspent level
+  progress cleared.
+- The fallen Deepankar's cache is recoverable once, on the next descent into that mine.
+- Life path chosen on first character; the successor inherits it.
 
-**Playable:** take a quest from a trader, follow written directions, kill two bandits, return
-and get paid.
-
-**Done when:** someone else can play it without you in the room. **This is the first external
-playtest.**
+**Playable:** die, come back as somebody else, and go and fetch your own body.
 
 ---
 
-### Iteration 10 — First theft (2 weeks)
+### Iteration 16 — Stones and slots (2 weeks)
 
-**Risk retired:** stealth legibility — the hardest thing to make readable.
+**Risk retired:** is in-run variety readable inside five to eight minutes?
 
-**Deliverables**
-- `IWatcher` implemented with view cone and sight-blocker raycast.
-- Crouch, and a visible awareness indicator.
-- Guard patrol waypoints.
-- `Pickpocketing` wired to an interaction.
-- Suspicion decay feedback.
+- Sockets on weapons and armour; stones found below, never carried down.
+- A small set of stone effects that change how a weapon or spell behaves, not how large it is.
+- Socketing UI in the existing inventory screen.
 
-**Playable:** crouch past a guard, lift a purse, get spotted, break line of sight, escape.
+**Playable:** find a stone mid-run, socket it, and fight differently for the rest of the run.
 
-**Done when:** a playtester can explain *why* they were spotted, without being told.
+**Done when:** two runs with different stones feel like different runs.
 
 ---
 
-### Iteration 11 — First town (3–4 weeks)
+### Iteration 17 — The ratchet (2 weeks)
 
-**Risk retired:** content authoring throughput — can one person fill a world?
+**Risk retired:** does a losing run still pull you back in?
 
-This is the iteration that answers whether the project is finishable. It is the first time
-the work is authoring rather than engineering.
+- Amulets drop on clearing a mine; permanent, and they survive death.
+- Character level moves onto the experience track; level-up grants skill points.
+- A between-run screen showing what was gained.
 
-**Deliverables**
-- One hand-authored settlement: streets, buildings, two enterable interiors.
-- Five NPCs with distinct topics.
-- A shop that takes gold and moves items (replacing the placeholder).
-- Loot placement and world pickups.
-- Ambient sound and music.
-
-**Playable:** a town worth walking around for fifteen minutes.
-
-**Done when:** you can measure hours-of-authoring per hour-of-play. **Record this number** —
-it is the single most useful figure for planning the full game.
+**Playable:** lose a run and still be measurably stronger for the next one.
 
 ---
 
-### Iteration 12 — Slice lock (2 weeks)
+### Iteration 18 — Cave themes (2 weeks)
 
-**Risk retired:** does it survive contact with a real player and a real build?
+**Risk retired:** does theme change how you play, or only how it looks?
 
-**Deliverables**
-- One authored dungeon.
-- Death and recovery flow.
-- Settings screen (display, UI scale, bindings).
-- Packaged build that runs on a machine without .NET installed.
-- Full playthrough regression script in `RatnaBay.Tools sim`.
-- Three external playtests, with notes.
+- Five themes: colour shading, preta sprite set, one resisted and one feared element.
+- Resistance, never immunity.
+- The theme is shown before the player pays to open the mine.
 
-**Playable:** the complete loop — start, quest, dungeon, reward, save, quit, reload.
+**Playable:** choose which cave to buy into, knowing what is down there, and ready the right
+spell for it.
 
-The loop includes completion-aware trader dialogue: returning after the reward must acknowledge
-the cleared road rather than offer the finished quest again.
+---
 
-**Done when:** three people finish it without your help.
+### Iteration 19 — The fort (3–4 weeks)
+
+**Risk retired:** content authoring throughput — the number that decides whether this is
+finishable.
+
+- Ten rooms, opened by wins and gold.
+- Occupants stay silent until a rank or a sum is reached.
+- Story fragments attached to rooms rather than to a questline.
+
+**Playable:** a fort worth walking around between runs.
+
+**Done when:** you can state **hours of authoring per hour of play**. Record it. This is the
+single most useful figure for planning everything after release.
+
+---
+
+### Iteration 20 — Bosses (2–3 weeks)
+
+**Risk retired:** is there a reason to reach the bottom?
+
+- Three distinct fight behaviours, dressed per theme to make six or seven encounters.
+- A boss ends a deeper mine rather than a camp.
+
+**Playable:** a run that ends on a fight worth the descent.
+
+---
+
+### Iteration 21 — Slice lock (2 weeks)
+
+- Settings, bindings, death and recovery flow.
+- A full playthrough regression script in `RatnaBay.Tools sim`.
+- Packaged build verified on a machine without .NET.
+- **Three external playtests, with notes.**
+
+**Done when:** three people play several runs each without your help.
 
 ---
 
 ## 4. Timeline
 
 ```
-Iteration  5  ██                          Wire the shell
-Iteration  6  ███                         First fight
-Iteration  7  ██                          First room
-Iteration  8  ██                          First conversation
-Iteration  9  ██                          First quest        ← first external playtest
-Iteration 10  ██                          First theft
-Iteration 11  ████                        First town         ← authoring throughput measured
-Iteration 12  ██                          Slice lock
-                                          ────────────────
-                                          16–20 weeks
+13  Generated mine       ██
+14  The run              ███      ← the iteration that decides the pivot
+15  Succession           ██
+16  Stones and slots     ██
+17  The ratchet          ██
+18  Cave themes          ██
+19  The fort             ████     ← authoring throughput measured
+20  Bosses               ███
+21  Slice lock           ██
+                         ─────────
+                         17–22 weeks
 ```
 
-**Vertical slice: 16–20 weeks** at 15–20 hours/week. Roughly four to five months.
-
-After the slice, and only after, the project decides between:
-1. Expand to a low-mid sized game (est. 12–18 months further).
-2. Ship the slice as a short paid game.
-3. Stop, having learned what it costs.
-
-That decision needs the authoring-throughput number from iteration 11. Do not make it earlier.
+Roughly four to five months at 15–20 hours a week. The first external playtest is **iteration
+14**, not 21 — the run loop is the thing that most needs a stranger's opinion, and it needs it
+before eight more weeks are built on top of it.
 
 ---
 
-## 5. Working rules
+## 5. The board
+
+One board. Work in progress limit: **one**.
+
+### In progress
+
+- None.
+
+### Next
+
+- Iteration 13 — room-graph generator emitting a `WorldManifest`.
+
+### Ready
+
+- Iteration 14 — run state and the camp decision.
+
+### Playtest queue
+
+- The run loop, with a stranger, as soon as iteration 14 is playable.
+
+### Done
+
+- Iterations 5–12: domain port, live HUD, saves, combat, sprites, authored world, collision,
+  dialogue, quests, shops, stealth, the packaged build and its gates.
+- Pivot groundwork: travelling spell bolts, enemy levels, life-path multipliers, the spell
+  rebalance.
+- The design, decided end to end.
+
+---
+
+## 6. Working rules
 
 **Definition of done.** Code integrated · `.\publish.ps1` passes end to end · the new thing is
 playable by double-clicking `build\RatnaBay.exe` · the board records it.
 
-**One command to a playable build.** `.\publish.ps1 -Run`. It gates on the domain tests and
-on the published executable's own save round-trip, so a build that reaches `build\` is one
-that can be handed to a playtester.
-
 **Every new domain system arrives with its rules asserted as tests.** Not coverage for its own
-sake — the design decisions, written as assertions, so a rebalance that breaks one is a
-decision someone made on purpose.
+sake — the design decisions, written as assertions, so a rebalance that breaks one is a decision
+somebody made on purpose.
 
-**Work in progress limit: one.** One implementation item at a time.
-
-**When something takes twice its estimate, cut scope rather than extend.** The estimate was
-the hypothesis; the overrun is the result.
+**When something takes twice its estimate, cut scope rather than extend.** The estimate was the
+hypothesis; the overrun is the result.
 
 **No new package earns integration without a vertical spike and a passing release build.**
-Eleven packages are pinned. Most should stay unintegrated through the slice.
 
 ---
 
-## 6. Standing risks
+## 7. Standing risks
 
 | Risk | Watch for | Response |
 |---|---|---|
-| **Another engine pivot** | "MonoGame is fighting me on X" | The decision is closed. Solve X. |
-| **Polish before playability** | An iteration spent on fonts, scaling, art direction | Ship the playable thing first. |
-| **Content authoring is too slow** | Iteration 11's throughput number is bad | Cut world size, not systems. |
-| **The domain outruns the game** | More tests, nothing new to play | Stop porting. Wire what exists. |
-| **Art becomes the bottleneck** | Weeks spent on a single asset | Buy packs. Generate sprites. Never model by hand. |
-| **Scope creep through the archive** | "While I'm in here, sailing was nice" | The parked list is parked. |
+| **The run loop is not tense** | Iteration 14 plays flat | Fix the numbers before building on it. Nothing later rescues a dull loop. |
+| **Generated mines feel samey** | Every run reads the same after three | More room shapes before more systems |
+| **The fort outgrows its cap** | Room eleven | Ten is the number. Story goes into the ten. |
+| **Another engine or genre pivot** | "X is fighting me" | Both decisions are closed. Solve X. |
+| **Polish before playability** | An iteration spent on shading | Ship the playable thing first |
+| **Art becomes the bottleneck** | A week on one sprite | Sprites are generated. If one is taking a week, generate it. |
 
 ---
 
-## 7. The measure
+## 8. The measure
 
-**By iteration 9, someone who is not you should be able to play the build and finish a quest
-without help.**
+**By iteration 14, a stranger should play three runs in a row without being asked to.**
 
-Everything before that is preparation. Everything after that is a game getting better.
+Everything before that is preparation. Everything after is a game getting better.

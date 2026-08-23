@@ -1,4 +1,9 @@
-# Ratna Bay Slice Playtest Notes
+# Ratna Bay Playtest Notes
+
+> **These notes record the authored vertical slice, which the roguelike pivot supersedes.**
+> They are kept because the findings are still true of the systems underneath — the mouse, the
+> feedback, the inventory, the prompts — and because the tester script below is the shape the
+> next one should take. See [`design_pivot.md`](design_pivot.md) for the current design.
 
 Date: 2026-08-23
 Build: .\publish.ps1 -Clean

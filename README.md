@@ -93,18 +93,26 @@ logical-canvas scale. License and attribution files live beside the font assets.
 
 ## Direction
 
-Read [`Docs/MONOGAME_PIVOT_PLAN.md`](Docs/MONOGAME_PIVOT_PLAN.md) before adding systems.
-The guiding rule is to keep game rules and data independent from MonoGame, while making
-rendering, tools, content, and builds explicit C# projects or command-line steps.
+Ratna Bay is a first-person roguelike. A mining town digs up jiva stones that raise the dead;
+you are hired to go down and clear them. Runs are five to eight minutes, mines are generated,
+and the town opens one room at a time.
 
-**The plan of record is [`Docs/PRODUCTION_PLAN.md`](Docs/PRODUCTION_PLAN.md).** Read it first;
-where the older documents disagree with it, it wins.
+Two documents, and no others:
 
-Supporting research and process notes:
+- **[`Docs/design_pivot.md`](Docs/design_pivot.md)** — what the game is. The loop, the classes,
+  the progression, the balance.
+- **[`Docs/PRODUCTION_PLAN.md`](Docs/PRODUCTION_PLAN.md)** — what gets built, in what order, and
+  the closed decisions that are not revisited.
 
-- [`Docs/DAGGERFALL_SCOPE_AND_BUILD_RESEARCH.md`](Docs/DAGGERFALL_SCOPE_AND_BUILD_RESEARCH.md)
-- [`Docs/SOLO_AGILE_DEVELOPMENT_PLAN.md`](Docs/SOLO_AGILE_DEVELOPMENT_PLAN.md)
-- [`Docs/ITERATION_BOARD.md`](Docs/ITERATION_BOARD.md)
-- [`Docs/KANBAN.md`](Docs/KANBAN.md)
-- [`Docs/STEAM_PRESENTATION_BASELINE.md`](Docs/STEAM_PRESENTATION_BASELINE.md)
-- [`Docs/COMMUNITY_TOOLS_BASELINE.md`](Docs/COMMUNITY_TOOLS_BASELINE.md)
+Supporting records:
+
+- [`Docs/PLAYTEST_NOTES.md`](Docs/PLAYTEST_NOTES.md) — what testers found, and what was done
+- [`Docs/STEAM_PRESENTATION_BASELINE.md`](Docs/STEAM_PRESENTATION_BASELINE.md) — display contract
+- [`Docs/COMMUNITY_TOOLS_BASELINE.md`](Docs/COMMUNITY_TOOLS_BASELINE.md) — pinned packages
+
+The guiding rule is unchanged: keep game rules and data independent of MonoGame, and make
+rendering, tools, content and builds explicit projects or command-line steps.
+
+The Daggerfall research, the Unity-to-MonoGame pivot plan, the solo-agile process document and
+the two boards were removed when the game became a roguelike. They are in the git history if a
+decision ever needs its reasoning again.
