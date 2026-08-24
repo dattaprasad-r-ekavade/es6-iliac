@@ -105,4 +105,16 @@ public sealed class Lockable
         IsLocked = false;
         IsOpen = true;
     }
+
+    /// <summary>
+    /// Swing it shut again.
+    ///
+    /// Used by the mine, where a door closing behind the player is the commitment the run
+    /// loop is built on: once it opens you are in that room until it is clear or you are not.
+    /// </summary>
+    public void Shut()
+    {
+        IsOpen = false;
+        IsLocked = false;
+    }
 }

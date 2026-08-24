@@ -181,6 +181,9 @@ public sealed class WorldRuntime
         catch (UnauthorizedAccessException) { _lastWriteUtc = DateTime.MinValue; }
     }
 
+    /// <summary>Rebuild the solids after a door has been opened or shut from outside.</summary>
+    public void RefreshCollision() => RebuildCollision();
+
     private void RebuildCollision()
     {
         var boxes = (Manifest.Geometry ?? new List<WorldGeometry>())

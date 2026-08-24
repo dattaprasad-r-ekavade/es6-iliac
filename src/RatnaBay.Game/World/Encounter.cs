@@ -150,20 +150,61 @@ public sealed class Encounter
     /// A spawn naming an enemy that no longer exists is skipped rather than fatal, so an old
     /// saved mine loses one fight instead of failing to load.
     /// </summary>
-    public int SpawnFrom(WorldManifest manifest)
+    /// <summary>
+    /// Fill the scene from the level file.
+    ///
+    /// With <paramref name="deferToRooms"/> a room's occupants are held back until the player
+    /// walks into it. Four recorded runs cleared nearly every room in the instant they entered
+    /// it, because a room's fight could be taken from the doorway of the room before — nothing
+    /// about a room mattered except the gap you shot through. Holding them back means there is
+    /// nothing to shoot at until you are inside, and a preta that rises when the room is
+    /// disturbed is what the fiction said was happening anyway.
+    /// </summary>
+    public int SpawnFrom(WorldManifest manifest, bool deferToRooms = false)
     {
         var spawned = 0;
+        _pending.Clear();
+
         foreach (var spawn in manifest.Spawns ?? new List<WorldEnemySpawn>())
         {
-            var archetype = EnemyCatalog.Resolve(spawn);
-            if (archetype is null) continue;
+            if (EnemyCatalog.Resolve(spawn) is null) continue;
 
-            Spawn(archetype, new Vector3(spawn.Position.X, spawn.Position.Y, spawn.Position.Z),
-                spawn.Id);
+            if (deferToRooms && spawn.RoomIndex > 0)
+            {
+                if (!_pending.TryGetValue(spawn.RoomIndex, out var waiting))
+                    waiting = _pending[spawn.RoomIndex] = new List<WorldEnemySpawn>();
+
+                waiting.Add(spawn);
+                spawned++;
+                continue;
+            }
+
+            Wake(spawn);
             spawned++;
         }
 
         return spawned;
+    }
+
+    /// <summary>Enemies waiting for the room they are in to be walked into.</summary>
+    private readonly Dictionary<int, List<WorldEnemySpawn>> _pending = new();
+
+    /// <summary>Somebody has entered: whatever was waiting in there stands up.</summary>
+    public int AwakenRoom(int roomIndex)
+    {
+        if (!_pending.Remove(roomIndex, out var waiting)) return 0;
+
+        foreach (var spawn in waiting) Wake(spawn);
+        return waiting.Count;
+    }
+
+    private void Wake(WorldEnemySpawn spawn)
+    {
+        var archetype = EnemyCatalog.Resolve(spawn);
+        if (archetype is null) return;
+
+        Spawn(archetype, new Vector3(spawn.Position.X, spawn.Position.Y, spawn.Position.Z),
+            spawn.Id);
     }
 
     /// <summary>Two bandits waiting at the far end of the third room.</summary>

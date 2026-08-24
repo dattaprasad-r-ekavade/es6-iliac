@@ -90,7 +90,7 @@ public sealed class RunRuntime
     {
         if (!Run.IsActive || !HasRooms) return;
 
-        TrackRoom(playerPosition);
+        TrackRoom(playerPosition, world, encounter);
         TrackClearance(encounter);
         TrackDecisionPoint(world, playerPosition);
     }
@@ -100,7 +100,7 @@ public sealed class RunRuntime
     /// Without that the run would flicker out of its room every time somebody walked through a
     /// doorway, and clear the same room twice.
     /// </summary>
-    private void TrackRoom(Vector3 player)
+    private void TrackRoom(Vector3 player, WorldRuntime world, Encounter encounter)
     {
         var room = _rooms.FirstOrDefault(candidate => candidate.Contains(player.X, player.Z));
         if (room is null) return;
@@ -113,8 +113,28 @@ public sealed class RunRuntime
 
         DeepestRoom = room.Index;
         Run.EnterRoom();
+
+        // The door swings shut and whatever was waiting stands up. Both halves matter: with
+        // the door open the fight can be backed out of into the corridor, and with the room
+        // already populated it can be emptied through the gap before ever walking in.
+        ShutTheWayBack(world);
+        encounter.AwakenRoom(room.Index);
+
         RoomEntered?.Invoke(room.Index);
     }
+
+    /// <summary>The door just walked through closes behind.</summary>
+    private void ShutTheWayBack(WorldRuntime world)
+    {
+        if (_openedBehind is null) return;
+
+        _openedBehind.Lock.Shut();
+        _openedBehind = null;
+        world.RefreshCollision();
+    }
+
+    /// <summary>The door this run last opened, so it can be closed once it is through.</summary>
+    private WorldDoorRuntime? _openedBehind;
 
     private void TrackClearance(Encounter encounter)
     {
@@ -212,8 +232,11 @@ public sealed class RunRuntime
         if (WayOnward is null || !Run.CanPressOn) return false;
 
         // Mine doors are shut rather than locked, so this never fails on skill.
-        world.OpenDoor(WayOnward, character);
-        return WayOnward.Lock.IsOpen;
+        var door = WayOnward;
+        world.OpenDoor(door, character);
+
+        if (door.Lock.IsOpen) _openedBehind = door;
+        return door.Lock.IsOpen;
     }
 
     public RunResult Die() => Run.Die();

@@ -1686,7 +1686,10 @@ public sealed class Game1 : Game
         // Enemies used to walk through walls: their pursuit never consulted the world.
         if (_world is not null) _encounter.UseCollision(_world.Collision);
 
-        if (_world?.Manifest.Spawns is { Count: > 0 } && _encounter.SpawnFrom(_world.Manifest) > 0)
+        // A generated mine holds each room's occupants back until it is walked into.
+        var byRoom = _world?.Manifest.Rooms.Count > 1;
+        if (_world?.Manifest.Spawns is { Count: > 0 }
+            && _encounter.SpawnFrom(_world.Manifest, byRoom) > 0)
             return;
 
         _encounter.SpawnDefaultCamp();

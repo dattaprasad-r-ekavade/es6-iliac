@@ -717,7 +717,11 @@ public static class SessionSelfTest
     {
         var session = GameSession.NewGame();
         var encounter = new Encounter(session);
-        encounter.SpawnFrom(mine.Manifest);
+        encounter.UseCollision(mine.Collision);
+        var held = encounter.SpawnFrom(mine.Manifest, deferToRooms: true);
+
+        Check(failures, $"a mine holds its rooms back until they are entered ({held} waiting)",
+            held > 0 && encounter.Enemies.Count == 0);
 
         var run = new RunRuntime(mine.Manifest, seed: 4211, tier: 2);
         var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
