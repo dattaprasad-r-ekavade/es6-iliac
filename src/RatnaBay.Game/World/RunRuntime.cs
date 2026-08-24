@@ -59,6 +59,19 @@ public sealed class RunRuntime
     /// <summary>True while the player is stood at a cleared room's exit, being asked.</summary>
     public bool AtDecision => Run.CanCamp && WayOnward is not null;
 
+    /// <summary>
+    /// The way deeper is shut while anything in this room still moves.
+    ///
+    /// Without this the camp decision is simply bypassable, and a recorded run proved it:
+    /// nine rooms cleared and only six doors ever asked the question. The player opened each
+    /// door early, fought the next room from the corridor behind it, and by the time the room
+    /// counted as clear there was no shut door left nearby to be asked about.
+    ///
+    /// The design already said so — "once it opens you are in that room until it is clear or
+    /// you are not" — and it turns out that only holds if the door is actually barred.
+    /// </summary>
+    public bool BarsTheWay => Run.IsActive && HasRooms && !Run.RoomIsClear;
+
     /// <summary>Raised when a room is cleared, carrying what it paid.</summary>
     public event Action<int>? RoomCleared;
 

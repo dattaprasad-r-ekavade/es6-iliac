@@ -1236,6 +1236,10 @@ public sealed class Game1 : Game
                 {
                     TakePickup(pickup);
                 }
+                else if (_run is { BarsTheWay: true } && _world.FindDoor(player, _cameraYaw) is not null)
+                {
+                    _session.ShowToast("Not while something in here is still moving.");
+                }
                 else
                 {
                     var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
@@ -2757,6 +2761,14 @@ public sealed class Game1 : Game
 
         var hasKey = !string.IsNullOrEmpty(door.Definition.KeyItemId)
             && _session.Player.Inventory.Has(door.Definition.KeyItemId);
+
+        if (_run is { BarsTheWay: true })
+        {
+            DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225), new Color(150, 120, 110));
+            Text("Barred  |  clear this room first", new Vector2(404, 608), 15,
+                new Color(224, 196, 186));
+            return;
+        }
 
         var text = !door.Lock.IsLocked ? "Click / E  Open door"
             : hasKey ? "Click / E  Unlock with your key"

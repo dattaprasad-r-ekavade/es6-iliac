@@ -776,6 +776,20 @@ public static class SessionSelfTest
         Check(failures, "the room behind the door is not yet clear", !run.Run.RoomIsClear);
         Check(failures, "and there is no banking mid-fight", !run.Run.CanCamp);
 
+        // The way deeper stays shut while the room still holds something.
+        //
+        // A recorded run cleared nine rooms and was asked the question at only six of them:
+        // the player opened each door early, fought the next room from the corridor, and by
+        // the time it counted as clear there was no shut door left to be asked about. The
+        // camp decision was bypassable and therefore, most of the time, simply absent.
+        var nextDoor = mine.Doors.First(candidate => !candidate.Lock.IsOpen);
+        var atNext = nextDoor.Definition.Centre();
+        run.Update(mine, new Vector3(atNext.X, 1.7f, atNext.Z), encounter);
+
+        Check(failures, "an unfinished room bars the way deeper", run.BarsTheWay);
+        Check(failures, "and offers no decision while it does",
+            !run.AtDecision && !run.Run.CanPressOn);
+
         // Retreat into the cleared room behind, then come back. Neither may pay.
         //
         // Found in a recorded run: the player stepped back out of a room mid-fight, the
