@@ -453,6 +453,15 @@ public sealed class Game1 : Game
             {
                 ResumeFromPause();
             }
+            else if (_choosingDepth)
+            {
+                _choosingDepth = false;
+                SetMouseLook(true);
+            }
+            else if (_runSummary is not null)
+            {
+                ReturnToTheSurface();
+            }
             else if (AnyPanelOpen)
             {
                 ClosePanels();
@@ -700,6 +709,10 @@ public sealed class Game1 : Game
             ActivateMenuItem();
     }
 
+    /// <summary>One settings row. Drawing and hit testing share it.</summary>
+    private static Rectangle SettingsRowBounds(int index) =>
+        new(284, 214 + index * 56, 712, 42);
+
     private void UpdateSettings(KeyboardState keyboard)
     {
         const int optionCount = 3;
@@ -708,15 +721,35 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Down))
             _settingsSelection = (_settingsSelection + 1) % optionCount;
 
-        if (_settingsSelection == 0 && Pressed(keyboard, Keys.Enter))
+        var mouse = Mouse.GetState();
+        var pointer = LogicalMouse(mouse);
+        var clicked = Clicked(mouse);
+        var hovered = -1;
+
+        for (var index = 0; index < optionCount; index++)
+            if (SettingsRowBounds(index).Contains((int)pointer.X, (int)pointer.Y))
+                hovered = index;
+
+        if (hovered >= 0) _settingsSelection = hovered;
+
+        var toggled = Pressed(keyboard, Keys.Enter) || (clicked && hovered == 0);
+        if (_settingsSelection == 0 && toggled)
             SetBorderlessFullscreen(!_borderlessFullscreen);
 
-        if (_settingsSelection == 1 && (Pressed(keyboard, Keys.Left) || Pressed(keyboard, Keys.Right)))
+        // The scale row is a slider: clicking its left half steps down, its right half up.
+        var nudge = 0f;
+        if (Pressed(keyboard, Keys.Right)) nudge = 0.1f;
+        else if (Pressed(keyboard, Keys.Left)) nudge = -0.1f;
+        else if (clicked && hovered == 1)
         {
-            var direction = keyboard.IsKeyDown(Keys.Right) ? 0.1f : -0.1f;
-            _uiScalePreference = MathHelper.Clamp(_uiScalePreference + direction, 0.8f, 1.2f);
-            UpdateUiTransform();
+            var row = SettingsRowBounds(1);
+            nudge = pointer.X < row.Center.X ? -0.1f : 0.1f;
         }
+
+        if (_settingsSelection != 1 || nudge == 0f) return;
+
+        _uiScalePreference = MathHelper.Clamp(_uiScalePreference + nudge, 0.8f, 1.2f);
+        UpdateUiTransform();
     }
 
     /// <summary>
@@ -1109,10 +1142,18 @@ public sealed class Game1 : Game
             if (_showHelp) ClosePanels();
             else { _showHelp = true; SetMouseLook(false, forPanel: true); }
         }
+
+        // A screen with no way out but a function key is a screen some players will be stuck
+        // on. Anywhere on the controls overlay closes it.
+        if (_showHelp && Clicked(mouse)) ClosePanels();
         // The run summary owns the screen: nothing else is reachable until it is dismissed.
         if (_runSummary is not null)
         {
-            if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Escape)
+            var onTheWayUp = SummaryButtonBounds()
+                .Contains((int)LogicalMouse(mouse).X, (int)LogicalMouse(mouse).Y);
+
+            if ((onTheWayUp && Clicked(mouse))
+                || Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Escape)
                 || Pressed(keyboard, Keys.Space))
             {
                 // Up into the yard rather than out to a menu. A loop that ends at a title
@@ -1234,8 +1275,7 @@ public sealed class Game1 : Game
 
         // Paused means paused: the camera stops too, or the world keeps moving behind a
         // screen that says it is stopped.
-        if (!_paused && !_dialogueOpen && !_showJournal && !_showCharacter && !_showShop)
-            UpdateCamera(gameTime, keyboard, mouse);
+        if (!AnyPanelOpen) UpdateCamera(gameTime, keyboard, mouse);
 
         if (_screen == GameScreen.WorldScene)
             UpdateSession(gameTime, keyboard, mouse);
@@ -1243,9 +1283,18 @@ public sealed class Game1 : Game
         RestoreMouseLookAfterPanels();
     }
 
-    /// <summary>True while any screen is holding the pointer.</summary>
+    /// <summary>
+    /// True while any screen is holding the pointer.
+    ///
+    /// One list, and everything that frees the mouse must be on it. The shaft panel was not,
+    /// so the frame after it opened the camera took the pointer straight back: the panel was
+    /// on screen, the clicks went nowhere, and it looked as though the mouse support had
+    /// simply not been written. Adding a screen and forgetting this line is the bug, so the
+    /// list lives in exactly one place and both the Escape key and the camera read it.
+    /// </summary>
     private bool AnyPanelOpen =>
-        _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp || _showSettings;
+        _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp
+        || _showSettings || _paused || _choosingDepth || _runSummary is not null;
 
     /// <summary>
     /// Close everything and give the camera straight back.
@@ -1279,9 +1328,7 @@ public sealed class Game1 : Game
     {
         if (!_mouseFreedForPanel || _mouseLook) return;
         if (_screen != GameScreen.WorldScene) return;
-
-        if (_dialogueOpen || _showShop || _showJournal || _showCharacter
-            || _showHelp || _showSettings) return;
+        if (AnyPanelOpen) return;
 
         SetMouseLook(true);
     }
@@ -2649,7 +2696,7 @@ public sealed class Game1 : Game
         for (var index = 0; index < options.Length; index++)
         {
             var selected = index == _settingsSelection;
-            var row = new Rectangle(panel.X + 24, panel.Y + 122 + index * 56, panel.Width - 48, 42);
+            var row = SettingsRowBounds(index);
             DrawPanel(row, selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
                 selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
             TextFit(options[index], new Vector2(row.X + 16, row.Y + 10), row.Width - 32, 16,
@@ -2915,12 +2962,17 @@ public sealed class Game1 : Game
             panel.Center.X, panel.Bottom - 28f, 13, new Color(140, 156, 164));
     }
 
+    /// <summary>The way out of the run summary, shared by the drawing and the pointer.</summary>
+    private static Rectangle SummaryButtonBounds() => new(492, 500, 296, 42);
+
     private void DrawRunSummary(RunResult summary)
     {
         DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 226),
             new Color(3, 6, 10, 0));
 
-        var panel = new Rectangle(360, 220, 560, 280);
+        // Taller than it was: it now carries who took the lamp, where the body is, and a
+        // button to leave by.
+        var panel = new Rectangle(360, 200, 560, 360);
         var accent = summary.Survived ? new Color(120, 178, 132) : new Color(196, 96, 88);
         DrawPanel(panel, new Color(6, 12, 19, 246), accent);
 
@@ -2967,8 +3019,15 @@ public sealed class Game1 : Game
                     panel.Center.X, panel.Bottom - 64f, 13, new Color(150, 162, 170));
         }
 
-        TextCentred("Enter  ·  back to the surface", panel.Center.X, panel.Bottom - 30f, 14,
-            new Color(150, 162, 170));
+        var button = SummaryButtonBounds();
+        var hovered = button.Contains(
+            (int)LogicalMouse(Mouse.GetState()).X, (int)LogicalMouse(Mouse.GetState()).Y);
+
+        DrawPanel(button,
+            hovered ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+            hovered ? new Color(224, 181, 88) : new Color(54, 82, 91));
+        TextCentred("Back to the surface", button.Center.X, button.Y + 12f, 16,
+            hovered ? Color.White : new Color(192, 207, 205));
     }
 
     /// <summary>
