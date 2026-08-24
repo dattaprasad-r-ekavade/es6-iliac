@@ -776,6 +776,21 @@ public static class SessionSelfTest
         Check(failures, "the room behind the door is not yet clear", !run.Run.RoomIsClear);
         Check(failures, "and there is no banking mid-fight", !run.Run.CanCamp);
 
+        // A mine's doors are never remembered between descents.
+        //
+        // Found in play: every mine named its doors "link00.door" upward, opening one wrote
+        // that to the save, and so every descent after the first began with its way already
+        // cleared. Nine rooms were cleared and the camp decision was offered exactly once.
+        // Mark every one of this mine's doors as opened in the save, then restore. Nothing
+        // may change: a mine's doors are this visit's business only.
+        var openBefore = mine.Doors.Count(door => door.Lock.IsOpen);
+        foreach (var shut in mine.Manifest.Doors) session.Player.Story.MarkOpened(shut.Id);
+        mine.RestoreOpenedDoors(session.Player.Story.State.OpenedLocks);
+
+        Check(failures,
+            $"a remembered mine door opens nothing on the next descent ({openBefore} open)",
+            mine.Doors.Count(door => door.Lock.IsOpen) == openBefore);
+
         // The way deeper stays shut while the room still holds something.
         //
         // A recorded run cleared nine rooms and was asked the question at only six of them:

@@ -124,9 +124,10 @@ public static class MineGenerator
             EmitRoom(manifest, cells[index], index, settings);
 
         foreach (var link in links)
-            EmitCorridor(manifest, link.From, link.To, link.Side, $"link{link.Index:00}", locked: true);
+            EmitCorridor(manifest, link.From, link.To, link.Side,
+                $"{settings.MineId}.link{link.Index:00}", locked: true);
 
-        EmitStub(manifest, cells[^1], exit);
+        EmitStub(manifest, cells[^1], exit, settings.MineId);
 
         PlaceEnemies(manifest, cells, settings, random);
         return manifest;
@@ -324,8 +325,9 @@ public static class MineGenerator
     }
 
     /// <summary>The way out: a short passage past the last door, ending in the dark.</summary>
-    private static void EmitStub(WorldManifest manifest, Cell last, Side side)
+    private static void EmitStub(WorldManifest manifest, Cell last, Side side, string mineId)
     {
+        var prefix = $"{mineId}.exit";
         const float outer = RoomHalf + WallThickness;
         const float length = 6f;
         var stone = new WorldColor(70, 66, 62);
@@ -336,8 +338,8 @@ public static class MineGenerator
             var minZ = side == Side.North ? last.CentreZ - outer - length : last.CentreZ + outer;
             var maxZ = side == Side.North ? last.CentreZ - outer : last.CentreZ + outer + length;
 
-            Passage(manifest, "exit", cx - DoorwayHalf, cx + DoorwayHalf, minZ, maxZ, true, stone);
-            Door(manifest, "exit.door", cx - DoorwayHalf, cx + DoorwayHalf,
+            Passage(manifest, prefix, cx - DoorwayHalf, cx + DoorwayHalf, minZ, maxZ, true, stone);
+            Door(manifest, $"{prefix}.door", cx - DoorwayHalf, cx + DoorwayHalf,
                 side == Side.North ? minZ + 1.2f : maxZ - 1.2f, true, locked: false);
             return;
         }
@@ -346,8 +348,8 @@ public static class MineGenerator
         var minX = side == Side.East ? last.CentreX + outer : last.CentreX - outer - length;
         var maxX = side == Side.East ? last.CentreX + outer + length : last.CentreX - outer;
 
-        Passage(manifest, "exit", minX, maxX, cz - DoorwayHalf, cz + DoorwayHalf, false, stone);
-        Door(manifest, "exit.door", cz - DoorwayHalf, cz + DoorwayHalf,
+        Passage(manifest, prefix, minX, maxX, cz - DoorwayHalf, cz + DoorwayHalf, false, stone);
+        Door(manifest, $"{prefix}.door", cz - DoorwayHalf, cz + DoorwayHalf,
             side == Side.East ? maxX - 1.2f : minX + 1.2f, false, locked: false);
     }
 
@@ -403,7 +405,12 @@ public static class MineGenerator
             Difficulty = 0f,
             KeyItemId = string.Empty,
             PickingIsCrime = false,
-            InteractDistance = 3f
+            InteractDistance = 3f,
+
+            // Never written to the save. A mine is rebuilt from its seed on every descent, so
+            // remembering a door opened means arriving to find the way already cleared — and
+            // because these ids repeat between mines, it meant every mine after the first.
+            Remembered = false
         });
     }
 

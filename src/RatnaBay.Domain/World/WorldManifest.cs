@@ -258,6 +258,15 @@ public sealed class WorldDoor
     public bool PickingIsCrime { get; set; } = true;
     public float InteractDistance { get; set; } = 2.8f;
 
+    /// <summary>
+    /// Whether opening this door is a fact about the save or only about this visit.
+    ///
+    /// An authored door stays open once forced — that is progress through a place that
+    /// persists. A door in a generated mine must not: the mine is rebuilt every descent, and
+    /// remembering it opened means arriving to find the way already cleared.
+    /// </summary>
+    public bool Remembered { get; set; } = true;
+
     public CollisionBox ToCollisionBox() => new(Id, Min.X, Min.Y, Min.Z, Max.X, Max.Y, Max.Z);
 }
 

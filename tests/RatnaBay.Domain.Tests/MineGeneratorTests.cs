@@ -64,6 +64,29 @@ public class MineGeneratorTests
     }
 
     [Test]
+    public void TwoMinesNeverShareADoorId()
+    {
+        // The bug this exists to prevent, found in play: every mine named its doors
+        // "link00.door" upward, the save remembered which doors had been opened, and so every
+        // descent after the first began with its first nine doors already standing open. Nine
+        // rooms were cleared and the camp decision was offered exactly once.
+        var first = MineGenerator.Generate(1, rooms: 12).Doors.Select(door => door.Id).ToList();
+        var second = MineGenerator.Generate(2, rooms: 12).Doors.Select(door => door.Id).ToList();
+
+        Assert.That(first.Intersect(second, StringComparer.Ordinal), Is.Empty);
+    }
+
+    [Test]
+    public void AMineDoorIsNeverWrittenToTheSave()
+    {
+        // Unique ids alone are not enough. A mine is rebuilt from its seed on every descent,
+        // so returning to the same seed for a fallen cache must still find its doors shut.
+        var mine = MineGenerator.Generate(4211, rooms: 10);
+
+        Assert.That(mine.Doors, Has.All.Property(nameof(WorldDoor.Remembered)).False);
+    }
+
+    [Test]
     public void NoTwoThingsInAMineShareAnId()
     {
         // Validation already rejects duplicates, so this is really a test that the generator
@@ -325,7 +348,7 @@ public class MineGeneratorTests
                     $"seed {seed}: the player cannot reach room {index}");
             }
 
-            var exit = mine.Doors.Single(door => door.Id == "exit.door");
+            var exit = mine.Doors.Single(door => door.Id.EndsWith(".exit.door", StringComparison.Ordinal));
             Assert.That(
                 Walk(geometry, ref position,
                     Standing((exit.Min.X + exit.Max.X) * 0.5f, (exit.Min.Z + exit.Max.Z) * 0.5f)),

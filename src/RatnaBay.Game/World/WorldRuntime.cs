@@ -129,6 +129,12 @@ public sealed class WorldRuntime
         if (!door.Lock.IsOpen) return result;
 
         RebuildCollision();
+
+        // A door in a generated mine is opened for this visit only. Writing it to the save
+        // meant the next mine — which reuses the same door ids — began with its way already
+        // cleared, and the player walked nine rooms without being asked anything.
+        if (!door.Definition.Remembered) return result;
+
         _openedDoors.Add(door.Definition.Id);
         character.Story.MarkOpened(door.Definition.Id);
         character.Story.SetFlag($"flag.opened.{door.Definition.Id}");
@@ -145,8 +151,12 @@ public sealed class WorldRuntime
                 if (!string.IsNullOrWhiteSpace(id)) _openedDoors.Add(id);
         }
 
+        // Belt and braces alongside not writing them in the first place: a save made before
+        // this was fixed still carries the old shared mine-door ids, and must not be allowed
+        // to fling open the doors of every mine generated from now on.
         foreach (var door in _doors)
-            if (_openedDoors.Contains(door.Definition.Id)) door.Lock.RestoreOpened();
+            if (door.Definition.Remembered && _openedDoors.Contains(door.Definition.Id))
+                door.Lock.RestoreOpened();
 
         RebuildCollision();
     }
