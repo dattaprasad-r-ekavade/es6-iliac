@@ -37,7 +37,7 @@ acting.
 | | Lines | State |
 |---|---:|---|
 | `RatnaBay.Domain` | ~4,600 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | ~4,900 | **439 tests, ~500 ms** |
+| `RatnaBay.Domain.Tests` | ~5,600 | **455 tests, ~470 ms** |
 | `RatnaBay.Game` | ~5,600 | Renderer, HUD, session, world runtime, combat |
 | `RatnaBay.Tools` | ~370 | `doctor`, `validate`, `asset-info`, `sim`, `mine` |
 
@@ -114,16 +114,24 @@ and does not exist; it belongs with succession, which touches the same code.
 
 ---
 
-### Iteration 15 — Succession (1–2 weeks)
+### Iteration 15 — Succession ✅ done
 
 **Risk retired:** does death read as continuity rather than punishment?
 
-- Death ends the run and creates a successor: all amulets, half the gear, unspent level
-  progress cleared.
-- The fallen Deepankar's cache is recoverable once, on the next descent into that mine.
-- Life path chosen on first character; the successor inherits it.
+- Death promotes a named successor: levels kept, unspent progress cleared, half the pack lost.
+- The fallen Deepankar's cache waits in the room they died in. Descending again returns to that
+  same mine until it is fetched — a fresh random mine each time would put it somewhere
+  unreachable by design.
+- Life path and the order's training are inherited.
 
 **Playable:** die, come back as somebody else, and go and fetch your own body.
+
+**Two rules that keep a loss answerable.** Keys and the equipped weapon are never taken: a
+successor who arrives unarmed cannot earn back what it costs to re-equip, and one locked out by
+a lost key is stranded behind their own progress. Everything else in the pack is halved,
+rounded up, so a single potion is a single potion lost.
+
+**Not built:** amulets, which do not exist until iteration 17.
 
 ---
 
@@ -236,17 +244,18 @@ One board. Work in progress limit: **one**.
 
 ### Next
 
-- **Play it, then hand it to somebody.** The loop is built; nobody has pushed one room too far
-  yet. Tune the numbers before anything is stacked on top of them.
-- **Iteration 15 — succession.** Death creates a successor; the fallen cache is recoverable
-  once. Resuming an interrupted descent lands here too.
+- **Play it, then hand it to somebody.** Recordings say the player still presses on at every
+  door. Tune before stacking anything on top.
+- **Iteration 18 — cave themes, pulled forward.** Play showed the sameness is mechanical, not
+  visual: every room asked the same question, so powering up was the only strategy. The archer
+  is the first answer; themes are the next.
 - Trailer build list, from [`TRAILER.md`](TRAILER.md): the Stambha and its carved verse, the
   preta rise animation, one fort room with a conversation, the camp decision UI, succession,
   and two cave themes. Two themes and one room film the trailer; five and ten ship the game.
 
 ### Ready
 
-- Iteration 16 — stones and slots.
+- Iteration 16 — stones and slots. In-run variety, and the second answer to sameness.
 
 ### Playtest queue
 
@@ -259,7 +268,11 @@ One board. Work in progress limit: **one**.
   dialogue, quests, shops, stealth, the packaged build and its gates.
 - Pivot groundwork: travelling spell bolts, enemy levels, life-path multipliers, the spell
   rebalance.
+- Iteration 15: succession, the fallen cache, named Deepankars.
 - Iteration 14: the run ledger, the camp decision, the payout curve, the summary screen.
+- Play-driven fixes: enemies that respect walls, a room that pays once, levelling that heals
+  nothing, mines deeper than a run, and an archer that makes the doorway the worst place to
+  stand. All of it found by recording play and reading it back.
 - Iteration 13: the mine generator, `WorldEnemySpawn` in the manifest, the enemy catalogue,
   `RatnaBay.Tools mine`, and `--mine N` in the game.
 - The design, decided end to end.
