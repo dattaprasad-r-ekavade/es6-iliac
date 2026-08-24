@@ -52,6 +52,49 @@ bosses.
 
 ---
 
+## 2b. What is actually missing — read this before planning anything
+
+The design's loop has four stages. **One and a half of them exist.**
+
+```
+   Town ──▶ pay stones to open a mine ──▶ Descend ──▶ Clear / press / camp
+    ✗                   ✗                    ✓                  ✓
+    └──────── rank, story, gear, trade ◀── Return ────────────────┘
+                        ✗                     ~
+```
+
+Five playtests said the camp decision is answered in about a second, and the response each
+time was to make the descent more dangerous: attrition, deeper mines, escalating levels, a
+shooter, doors that bar and rooms that wake. All of it was needed and none of it addressed
+the actual reason.
+
+**Banking stones does nothing.** There is nowhere to spend them, nothing to spend them on, and
+no deeper mine to open with them. A player carrying forty-five stones out of a mine is carrying
+out a number. The risk has been tuned five times; the reward has never been built at all.
+
+No amount of danger makes a decision tense when one side of it is worthless. That is the
+single most important sentence on this page.
+
+**So the next milestone is not an iteration. It is closing the loop.** Nothing else — themes,
+slots, bosses, the fort — is worth building until a run has a point.
+
+### Milestone: the loop closes
+
+| | Why it is the missing half |
+|---|---|
+| **Mine tiers bought with stones** | The design already says money gates depth. It is what banked stones are *for*, and it is the decision the whole surface exists to host. |
+| **A surface to come back to** | Somewhere to stand between runs. It need not be the fort — one room and a trader is enough to test whether returning means anything. |
+| **Something worth buying** | Gear that changes a descent. The shop and the equipment catalogue already exist; nothing in them is worth forty-five stones. |
+| **Levels stop outgrowing the mine** | Max health compounds across successors with nothing to counterweight it. At 220 against enemies tuned for 100, tier one is already solved. |
+
+**Done when:** a player banks, spends, and descends deeper because they chose to — and the
+recording shows a door answered in more than a second because both sides of it are real.
+
+**Playtest after all four, not between them.** Each of these changes what the others mean;
+measuring one at a time has produced five sessions of chasing symptoms.
+
+---
+
 ## 3. The iteration plan
 
 **Every iteration ends with something playable for five minutes.** An iteration that ends with a
@@ -244,23 +287,24 @@ One board. Work in progress limit: **one**.
 
 ### Next
 
-- **Play it, then hand it to somebody.** Recordings say the player still presses on at every
-  door. Tune before stacking anything on top.
-- **Iteration 18 — cave themes, pulled forward.** Play showed the sameness is mechanical, not
-  visual: every room asked the same question, so powering up was the only strategy. The archer
-  is the first answer; themes are the next.
+- **Close the loop** — see §2b. Tiers bought with stones, a surface to return to, gear worth
+  buying, and levels that stop outgrowing the mine. Build all four, then play.
 - Trailer build list, from [`TRAILER.md`](TRAILER.md): the Stambha and its carved verse, the
   preta rise animation, one fort room with a conversation, the camp decision UI, succession,
   and two cave themes. Two themes and one room film the trailer; five and ten ship the game.
 
 ### Ready
 
-- Iteration 16 — stones and slots. In-run variety, and the second answer to sameness.
+- Iteration 18 — cave themes. Held deliberately: the sameness is mechanical, and a themed
+  room is still a room with no reason to be entered until the loop pays.
+- Iteration 16 — stones and slots.
 
 ### Playtest queue
 
-- **The run loop, with a stranger. It is playable now.** This is the most valuable hour
-  available to the project and nothing later replaces it.
+- **The closed loop, in one sitting, after all four pieces land.** Not before: these changes
+  redefine each other, and testing them one at a time is what produced five rounds of chasing
+  symptoms of a missing reward.
+- **Then a stranger.** Still the most valuable hour available to the project.
 
 ### Done
 
