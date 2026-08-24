@@ -24,7 +24,15 @@ public sealed class PlayerVitals
     /// </summary>
     public const float RestPranaRegen = 0.8f;
 
-    private const float HealthPerLevel = 12f;
+    /// <summary>
+    /// Halved, because levels were outgrowing the mines.
+    ///
+    /// Max health compounds across successors — a rank once held is never lost — and a
+    /// recorded run reached 220 against enemies tuned for 100. Twelve a level made tier one
+    /// permanently solved. Difficulty is the tier's job now that tiers can be bought; a level
+    /// should widen what you can do, not quietly remove the need to do it.
+    /// </summary>
+    private const float HealthPerLevel = 6f;
     private const float PranaPerLevel = 8f;
     private const float StaminaPerLevel = 8f;
 

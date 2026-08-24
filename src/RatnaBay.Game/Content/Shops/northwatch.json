@@ -4,11 +4,19 @@
   "shops": [
     {
       "id": "shop.mara",
-      "displayName": "Mara's road pack",
+      "displayName": "The yard stall",
       "items": [
         { "id": "health_potion", "name": "Health Potion", "kind": "potion", "price": 12, "count": 1 },
+        { "id": "soul_crystal_lesser", "name": "Lesser Jiva Stone", "kind": "crystal", "price": 25, "count": 1 },
         { "id": "torch_bundle", "name": "Torch Bundle", "kind": "misc", "price": 8, "count": 2 },
-        { "id": "soul_crystal_lesser", "name": "Lesser Jiva Stone", "kind": "crystal", "price": 25, "count": 1 }
+
+        { "id": "padded_jerkin", "name": "Padded Jerkin", "kind": "armour", "price": 180, "count": 1 },
+        { "id": "iron_greatsword", "name": "Iron Greatsword", "kind": "weapon", "price": 380, "count": 1 },
+        { "id": "hunting_bow", "name": "Hunting Bow", "kind": "weapon", "price": 300, "count": 1 },
+        { "id": "steel_sword", "name": "Steel Sword", "kind": "weapon", "price": 450, "count": 1 },
+        { "id": "mail_hauberk", "name": "Mail Hauberk", "kind": "armour", "price": 520, "count": 1 },
+        { "id": "steel_greatsword", "name": "Steel Greatsword", "kind": "weapon", "price": 900, "count": 1 },
+        { "id": "war_bow", "name": "War Bow", "kind": "weapon", "price": 780, "count": 1 }
       ]
     }
   ]

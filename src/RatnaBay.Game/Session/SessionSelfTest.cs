@@ -596,15 +596,46 @@ public static class SessionSelfTest
         var definition = manifest.ToDefinitions().Single();
         var shop = new Shop(definition);
         var session = GameSession.NewGame();
-        session.Player.Vitals.AddGold(100);
-        var result = shop.Buy(2, session.Player.Vitals, session.Player.Inventory, out _);
+        session.Player.Vitals.AddGold(2000);
 
-        Check(failures, "the shop sells the canonical lesser jiva stone",
+        // Found by id rather than by position. The stall's stock is content and will keep
+        // changing; a check anchored to "row two" tests the ordering of a JSON file.
+        var stoneRow = RowOf(definition, SoulCrystals.LesserId);
+
+        var carried = session.Player.Inventory.CountOf(SoulCrystals.LesserId);
+        var purse = session.Player.Vitals.Gold;
+        var result = shop.Buy(stoneRow, session.Player.Vitals, session.Player.Inventory, out var bought);
+
+        Check(failures, "the stall sells jiva stones",
             result == ShopPurchaseResult.Bought
-            && session.Player.Inventory.CountOf(SoulCrystals.LesserId) == 4
-            && session.Player.Vitals.Gold == 75);
-        Check(failures, "purchased stock becomes sold out",
-            shop.IsSoldOut(SoulCrystals.LesserId));
+            && session.Player.Inventory.CountOf(SoulCrystals.LesserId) == carried + (bought?.Count ?? 0)
+            && session.Player.Vitals.Gold == purse - (bought?.Price ?? 0));
+
+        while (shop.Buy(stoneRow, session.Player.Vitals, session.Player.Inventory, out _)
+            == ShopPurchaseResult.Bought) { }
+
+        Check(failures, "and runs out of them", shop.IsSoldOut(SoulCrystals.LesserId));
+
+        // Gear the stall did not used to carry, which is the point of the surface existing.
+        var steel = RowOf(definition, "steel_sword");
+
+        Check(failures, "the stall carries a weapon worth saving for",
+            steel >= 0
+            && shop.Buy(steel, session.Player.Vitals, session.Player.Inventory, out _)
+                == ShopPurchaseResult.Bought
+            && ItemUse.Use("steel_sword", session.Player) == ItemUseResult.Equipped
+            && session.Player.Combat.ActiveWeapon.Damage
+                > EquipmentCatalog.GetWeapon("iron_sword").Damage);
+    }
+
+    /// <summary>Where a given item sits on the stall, or -1 when it is not stocked.</summary>
+    private static int RowOf(ShopDefinition shop, string itemId)
+    {
+        for (var index = 0; index < shop.Items.Count; index++)
+            if (string.Equals(shop.Items[index].Id, itemId, StringComparison.Ordinal))
+                return index;
+
+        return -1;
     }
 
     /// <summary>Everything that must be identical after a save and a reload.</summary>

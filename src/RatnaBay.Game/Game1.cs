@@ -170,6 +170,10 @@ public sealed class Game1 : Game
     /// <summary>What the last death cost, shown beside the run summary.</summary>
     private SuccessionResult? _succession;
 
+    /// <summary>The shaft panel is open and a depth is being chosen.</summary>
+    private bool _choosingDepth;
+    private int _depthSelection = 1;
+
     /// <summary>Seconds until the next stance sample is written down.</summary>
     private float _stanceCountdown;
 
@@ -609,7 +613,6 @@ public sealed class Game1 : Game
     /// Continue only appears when a save actually exists, so the menu never offers a door
     /// that opens onto nothing.
     /// </summary>
-    private const string DescendItem = "Descend into a Mine";
     private const string ResumeItem = "Resume Descent";
 
     /// <summary>
@@ -639,13 +642,17 @@ public sealed class Game1 : Game
         get
         {
             if (!GameSession.HasSaveFile)
-                return new[] { DescendItem, "Start New Game", "Settings", "Exit" };
+                return new[] { "Start New Game", "Settings", "Exit" };
 
-            // No "Continue" beside it either: resuming *is* continuing, and a second entry
-            // that walks to the surface instead would just be the old confusion again.
+            // No "Descend" here any more: a descent is bought at the shaft, standing in the
+            // yard, with the stones in hand and the price in front of you. A menu entry that
+            // skipped all of that was skipping the decision it exists to pose.
+            //
+            // No "Continue" beside Resume either: resuming *is* continuing, and a second
+            // entry that walked to the surface instead would be the old confusion again.
             return _suspendedDescentOnDisk
                 ? new[] { ResumeItem, "Start New Game", "Settings", "Exit" }
-                : new[] { "Continue", DescendItem, "Start New Game", "Settings", "Exit" };
+                : new[] { "Continue", "Start New Game", "Settings", "Exit" };
         }
     }
 
@@ -773,7 +780,18 @@ public sealed class Game1 : Game
         SetMouseLook(true);
     }
 
-    private void EnterWorld(int? mineSeed, bool newCharacter = false)
+    /// <summary>Go down, at a depth that has been paid for.</summary>
+    private void EnterMine(int seed, int tier) => EnterWorld(seed, tier: tier);
+
+    /// <summary>Come back up. The run is over either way by the time this is called.</summary>
+    private void ReturnToTheSurface()
+    {
+        _runSummary = null;
+        _succession = null;
+        EnterWorld(null);
+    }
+
+    private void EnterWorld(int? mineSeed, bool newCharacter = false, int tier = 1)
     {
         _mineSeed = mineSeed;
 
@@ -781,7 +799,7 @@ public sealed class Game1 : Game
         // and then pressing on is never a risk — it is just the way forward until the game
         // stops you. The descent has to end because the player decided it did.
         _mineRooms = 18;
-        _mineDepth = 1;
+        _mineDepth = Math.Clamp(tier, MineEntry.MinTier, MineEntry.MaxTier);
 
         _world = null;
         _run = null;
@@ -818,30 +836,6 @@ public sealed class Game1 : Game
                     SetMouseLook(true);
                 }
                 break;
-            case DescendItem:
-                // A fresh mine every time. The seed is shown on the HUD so a good one can be
-                // asked for again with --mine.
-                //
-                // After a process restart there is no in-memory session yet. Restore the
-                // surface checkpoint automatically; requiring Continue -> M -> Descend would
-                // make the obvious Descend button silently throw away the previous runs.
-                if (_session is null && GameSession.HasSaveFile)
-                {
-                    _mineSeed = null;
-                    _world = null;
-                    if (!LoadSession()) break;
-                }
-
-                // Back to the mine that killed the last one, if there is a body in it. A
-                // random new mine every time would put the cache somewhere unreachable by
-                // design, and a loss you are never given a chance to answer is only a loss.
-                var fallen = _session?.Player.Legacy.Fallen;
-                EnterWorld(fallen?.MineSeed ?? Environment.TickCount);
-
-                _session!.ShowToast(fallen is null
-                    ? "The shaft closes above you."
-                    : $"The same shaft. {fallen.Name} is still down there, in room {fallen.RoomIndex}.");
-                break;
             case "Start New Game":
                 EnterWorld(null, newCharacter: true);
                 _session!.ShowToast("You wake on the Northwatch road.");
@@ -855,6 +849,95 @@ public sealed class Game1 : Game
                 Exit();
                 break;
         }
+    }
+
+    /// <summary>Use whatever is being stood at in the yard.</summary>
+    private void UseFixture(SurfaceFixture fixture)
+    {
+        if (_session is null) return;
+
+        switch (fixture)
+        {
+            case SurfaceFixture.Shaft:
+                OpenTheShaft();
+                break;
+
+            case SurfaceFixture.Trader:
+                if (_shop is null)
+                {
+                    _session.ShowToast("The stall is shut.");
+                    break;
+                }
+
+                _showShop = true;
+                _shopSelection = 0;
+                SetMouseLook(false, forPanel: true);
+                break;
+
+            case SurfaceFixture.Stambha:
+                _session.ShowToast("मा गृधः कस्य स्विद्धनम्  —  covet not; for whose is wealth?");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// The shaft: choose a depth, pay for it, and go down.
+    ///
+    /// The panel exists so the price and what it buys are in front of the player at the moment
+    /// they commit. Banking stones meant nothing for five playtests because there was nothing
+    /// to spend them on; this is where that stops being true.
+    /// </summary>
+    private void OpenTheShaft()
+    {
+        if (_session is null) return;
+
+        _choosingDepth = true;
+        _depthSelection = Math.Clamp(
+            MineEntry.DeepestAffordable(_session.Player.Inventory), 1, MineEntry.MaxTier);
+        SetMouseLook(false, forPanel: true);
+    }
+
+    private void UpdateDepthChoice(KeyboardState keyboard)
+    {
+        if (_session is null) { _choosingDepth = false; return; }
+
+        if (Pressed(keyboard, Keys.Escape))
+        {
+            _choosingDepth = false;
+            SetMouseLook(true);
+            return;
+        }
+
+        if (Pressed(keyboard, Keys.Up))
+            _depthSelection = Math.Max(MineEntry.MinTier, _depthSelection - 1);
+        if (Pressed(keyboard, Keys.Down))
+            _depthSelection = Math.Min(MineEntry.MaxTier, _depthSelection + 1);
+
+        if (!Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
+
+        var cost = MineEntry.CostOf(_depthSelection);
+        if (!MineEntry.TryOpen(_session.Player.Inventory, _depthSelection))
+        {
+            _session.ShowToast($"That door wants {cost} stones. You have "
+                + $"{_session.Player.Inventory.CountOf(SoulCrystals.LesserId)}.");
+            return;
+        }
+
+        _choosingDepth = false;
+
+        // Back to the mine that killed the last one, if there is a body in it. A fresh random
+        // mine would put the cache somewhere unreachable by design, and a loss you are never
+        // given the chance to answer is only a loss.
+        var fallen = _session.Player.Legacy.Fallen;
+        var returning = fallen is not null && fallen.Tier == _depthSelection;
+
+        EnterMine(returning ? fallen!.MineSeed : Environment.TickCount, _depthSelection);
+
+        _session.ShowToast(returning
+            ? $"The same shaft. {fallen!.Name} is still down there, in room {fallen.RoomIndex}."
+            : cost > 0
+                ? $"{cost} stones, and the shaft opens. Tier {_depthSelection}."
+                : "The shallow workings. They cost nothing and pay like it.");
     }
 
     /// <summary>What the pause screen offers, which depends on whether a run is underway.</summary>
@@ -995,11 +1078,18 @@ public sealed class Game1 : Game
             if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Escape)
                 || Pressed(keyboard, Keys.Space))
             {
-                _runSummary = null;
-                SetMouseLook(false);
-                _screen = GameScreen.MainMenu;
+                // Up into the yard rather than out to a menu. A loop that ends at a title
+                // screen is not a loop; the whole point of the surface is having somewhere
+                // to arrive with what you carried out.
+                ReturnToTheSurface();
             }
 
+            return;
+        }
+
+        if (_choosingDepth)
+        {
+            UpdateDepthChoice(keyboard);
             return;
         }
 
@@ -1237,8 +1327,14 @@ public sealed class Game1 : Game
             }
             else if (_world is not null)
             {
+                var fixture = OnTheSurface ? Surface.FixtureAt(player) : SurfaceFixture.None;
                 var pickup = FindPickup(player, _cameraYaw);
-                if (pickup is not null)
+
+                if (fixture != SurfaceFixture.None)
+                {
+                    UseFixture(fixture);
+                }
+                else if (pickup is not null)
                 {
                     TakePickup(pickup);
                 }
@@ -2038,8 +2134,8 @@ public sealed class Game1 : Game
     private string LocationCaption() => _mineSeed is { } seed
         // The decimal seed, because that is what --mine takes: a mine worth replaying or
         // reporting can be asked for again exactly.
-        ? $"MINE {seed}  ·  DEPTH {_mineDepth}"
-        : "NORTHWATCH OUTSKIRTS";
+        ? $"MINE {seed}  ·  TIER {_mineDepth}"
+        : "THE YARD  ·  RATNA BAY";
 
     private void ResetCamera()
     {
@@ -2083,15 +2179,19 @@ public sealed class Game1 : Game
             return;
         }
 
-        var path = Path.Combine(AppContext.BaseDirectory, "Content", "World", "northwatch.json");
-        if (!WorldRuntime.TryLoad(path, out var world, out var error))
+        // Above ground is the yard. It is where a run starts, where it ends, and the only
+        // place stones turn into anything — which is the half of the loop that did not exist.
+        if (!WorldRuntime.TryCreate(Surface.Build(), out var yard, out var yardError))
         {
-            _assetErrors.Add(error);
+            _assetErrors.Add(yardError);
             return;
         }
 
-        _world = world;
+        _world = yard;
     }
+
+    /// <summary>True while the player is standing in the yard rather than down a mine.</summary>
+    private bool OnTheSurface => _mineSeed is null;
 
     /// <summary>The one pickup that is not part of the level it appears in.</summary>
     private const string CachePickupId = "cache.fallen";
@@ -2436,7 +2536,7 @@ public sealed class Game1 : Game
 
         DrawPanel(new Rectangle(560, 222, 592, 390), new Color(8, 16, 24, 226), new Color(65, 105, 119));
 
-        var descending = menuItems[_menuSelection] == DescendItem;
+        var descending = menuItems[_menuSelection] == ResumeItem;
         Text(descending ? "BELOW RATNA BAY" : "NORTHWATCH OUTSKIRTS",
             new Vector2(592, 246), 14, new Color(151, 206, 210));
         Text(descending ? "A DESCENT" : "A NORTHWATCH BEGINNING",
@@ -2563,6 +2663,7 @@ public sealed class Game1 : Game
         if (_showJournal) DrawJournal();
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
+        if (_choosingDepth) DrawDepthChoice();
         if (_paused && _runSummary is null) DrawPause();
         if (_runSummary is { } summary) DrawRunSummary(summary);
 
@@ -2705,6 +2806,61 @@ public sealed class Game1 : Game
             panel.Center.X, panel.Bottom - 30f, 13, new Color(140, 156, 164));
     }
 
+    /// <summary>
+    /// The price of every depth, and what each is worth, at the moment of committing.
+    ///
+    /// Both halves on screen together on purpose. Stones were an abstraction for five
+    /// playtests because nothing ever asked for them; a door with a number on it is the first
+    /// time carrying forty-five out of a mine has meant anything at all.
+    /// </summary>
+    private void DrawDepthChoice()
+    {
+        if (_session is null) return;
+
+        var stones = _session.Player.Inventory.CountOf(SoulCrystals.LesserId);
+        var panel = new Rectangle(320, 148, 640, 424);
+
+        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 214),
+            new Color(3, 6, 10, 0));
+        DrawPanel(panel, new Color(6, 12, 19, 246), new Color(205, 157, 98));
+
+        TextCentred("HOW DEEP", panel.Center.X, panel.Y + 24f, 24, new Color(214, 226, 226));
+        TextCentred($"{stones} jiva stones in hand", panel.Center.X, panel.Y + 58f, 14,
+            new Color(151, 206, 210));
+
+        for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
+        {
+            var cost = MineEntry.CostOf(tier);
+            var affordable = stones >= cost;
+            var selected = tier == _depthSelection;
+            var row = new Rectangle(panel.X + 28, panel.Y + 88 + (tier - 1) * 56,
+                panel.Width - 56, 48);
+
+            DrawPanel(row,
+                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
+
+            var ink = !affordable ? new Color(112, 100, 96)
+                : selected ? Color.White
+                : new Color(192, 207, 205);
+
+            Text($"Tier {tier}", new Vector2(row.X + 18, row.Y + 6), 18, ink);
+            TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 18, row.Y + 8, 16,
+                affordable ? new Color(214, 186, 120) : new Color(196, 118, 96));
+            TextFit(MineEntry.DescriptionOf(tier), new Vector2(row.X + 18, row.Y + 28),
+                row.Width - 150, 12, new Color(150, 162, 170));
+        }
+
+        var breakEven = MineEntry.RoomsToBreakEven(_depthSelection);
+        TextCentred(breakEven == 0
+                ? "Pays one stone a room. Nothing to make back."
+                : $"Pays {_depthSelection} a room, rising. {breakEven} rooms before the door pays for itself.",
+            panel.Center.X, panel.Bottom - 54f, 14, new Color(206, 212, 218));
+
+        TextCentred("Up / Down choose      Enter descend      Esc step back",
+            panel.Center.X, panel.Bottom - 28f, 13, new Color(140, 156, 164));
+    }
+
     private void DrawRunSummary(RunResult summary)
     {
         DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 226),
@@ -2766,6 +2922,25 @@ public sealed class Game1 : Game
         if (_session is null) return;
 
         var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+
+        if (OnTheSurface)
+        {
+            var fixture = Surface.FixtureAt(player);
+            if (fixture == SurfaceFixture.None) return;
+
+            var stones = _session.Player.Inventory.CountOf(SoulCrystals.LesserId);
+            var line = fixture switch
+            {
+                SurfaceFixture.Shaft => $"E  Open a shaft   ({stones} stones)",
+                SurfaceFixture.Trader => "E  Trade",
+                _ => "E  Read the carving"
+            };
+
+            DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225), new Color(205, 157, 98));
+            Text(line, new Vector2(404, 608), 15, Color.White);
+            return;
+        }
+
         var actor = _dialogue?.FindActor(player, _cameraYaw);
         if (actor is not null)
         {
