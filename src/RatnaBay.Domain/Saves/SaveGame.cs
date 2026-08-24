@@ -48,6 +48,14 @@ public sealed class SaveData
 
     /// <summary>Successors spent, and the cache waiting to be fetched.</summary>
     public SavedLegacy? Legacy { get; set; }
+
+    /// <summary>
+    /// A descent that was put down rather than finished.
+    ///
+    /// Null on the surface, which is the normal state. Its presence is what tells the menu
+    /// there is a run to walk back into rather than a town to stand in.
+    /// </summary>
+    public SavedDescent? Descent { get; set; }
     public string SavedUtc { get; set; } = string.Empty;
 }
 

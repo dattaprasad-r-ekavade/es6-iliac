@@ -106,6 +106,7 @@ public static class SessionSelfTest
             RunShopChecks(failures);
             RunMineChecks(failures);
             RunSuccession(failures);
+            RunSuspendAndResume(failures);
         }
         finally
         {
@@ -988,6 +989,117 @@ public static class SessionSelfTest
         Check(failures, $"the bloodline survives a save ({reloaded.Legacy.CurrentName})",
             reloaded.Legacy.Generation == 1
             && reloaded.Legacy.CurrentName == player.Legacy.CurrentName);
+    }
+
+    /// <summary>
+    /// Put a descent down, pick it up, and check nothing was lost or gained on the way.
+    ///
+    /// This is the flow that was reported as a mess: Escape dropped straight to the main menu
+    /// and took the run with it, and there was no way to stop playing without losing one. What
+    /// matters here is that suspending is lossless and that resuming consumes the record, so
+    /// it can never become a reload button.
+    /// </summary>
+    private static void RunSuspendAndResume(List<string> failures)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"ratnabay_suspend_{Guid.NewGuid():N}.json");
+
+        try
+        {
+            const int seed = 31337;
+            var manifest = MineGenerator.Generate(seed, 18, 1);
+            if (!WorldRuntime.TryCreate(manifest, out var mine, out var error) || mine is null)
+            {
+                Check(failures, $"the suspend fixture builds a mine (said: {error})", false);
+                return;
+            }
+
+            var session = GameSession.NewGame(path);
+            var encounter = new Encounter(session);
+            encounter.UseCollision(mine.Collision);
+            encounter.SpawnFrom(mine.Manifest);
+
+            var run = new RunRuntime(mine.Manifest, seed, tier: 1);
+            var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
+
+            // Clear two rooms so there is something worth not losing.
+            for (var index = 1; index <= 2; index++)
+            {
+                var here = new Vector3(rooms[index].Centre.X, 1.7f, rooms[index].Centre.Z);
+                run.Update(mine, here, encounter);
+
+                foreach (var enemy in encounter.Enemies
+                    .Where(enemy => mine.Manifest.Spawns.Any(spawn =>
+                        spawn.Id == enemy.SpawnId && spawn.RoomIndex == index))
+                    .ToList())
+                {
+                    enemy.TakeDamage(enemy.MaxHealth * 4f);
+                }
+
+                encounter.Update(0.016f, here, 0f);
+                run.Update(mine, here, encounter);
+            }
+
+            var pending = run.Run.Pending;
+            var cleared = run.Run.RoomsCleared;
+            var deepest = run.DeepestRoom;
+            Check(failures, $"the fixture got two rooms in ({pending} stones at risk)",
+                pending == 3 && cleared == 2);
+
+            var standing = new WorldPoint(rooms[2].Centre.X, 1.7f, rooms[2].Centre.Z);
+            var said = session.Suspend(run.Capture(seed, 18, 1), standing, 0.5f, -0.1f);
+            Check(failures, $"a descent can be set aside (said: {said})",
+                session.HasSuspendedDescent);
+
+            // The menu has to know before it loads anything, or it labels its first entry
+            // wrongly and sends the player to the surface instead of back down.
+            Check(failures, "and the save says so without being loaded",
+                GameSession.PeekHasSuspendedDescent(path));
+
+            var returning = GameSession.NewGame(path);
+            Check(failures, $"the save loads it back (said: {returning.Load()})",
+                returning.HasSuspendedDescent);
+
+            var descent = returning.Descent!;
+            Check(failures, $"the same mine comes back (seed {descent.Seed})",
+                descent.Seed == seed && descent.Rooms == 18);
+
+            var rebuilt = MineGenerator.Generate(descent.Seed, descent.Rooms, descent.Depth);
+            Check(failures, "and regenerates identically",
+                WorldManifest.Serialize(rebuilt) == WorldManifest.Serialize(manifest));
+
+            if (!WorldRuntime.TryCreate(rebuilt, out var again, out _) || again is null) return;
+
+            var resumed = new RunRuntime(again.Manifest, descent.Seed, descent.Run.Tier);
+            resumed.Resume(descent);
+
+            Check(failures, $"the ledger is exactly where it was ({resumed.Run.Pending} stones)",
+                resumed.Run.Pending == pending
+                && resumed.Run.RoomsCleared == cleared
+                && resumed.DeepestRoom == deepest);
+            Check(failures, "and the player stands where they left off",
+                Math.Abs(returning.Position.X - standing.X) < 0.01f
+                && Math.Abs(returning.Yaw - 0.5f) < 0.01f);
+
+            // Resuming consumes it, so it can never be used to reload a fight going badly.
+            returning.ConsumeDescent();
+            Check(failures, "walking back in consumes the record",
+                !returning.HasSuspendedDescent);
+
+            var third = GameSession.NewGame(path);
+            third.Load();
+            Check(failures, "and it is gone from disk too", !third.HasSuspendedDescent);
+
+            // Camping or dying must never leave one behind.
+            returning.Descent = descent;
+            returning.CompleteRun(new RunResult(RunOutcome.Camped, 2, 3, 0, 1), default);
+            Check(failures, "a finished descent leaves nothing to resume",
+                !returning.HasSuspendedDescent);
+        }
+        finally
+        {
+            DeleteTestFile(path);
+            DeleteTestFile(path + ".bak");
+        }
     }
 
     private static void Check(ICollection<string> failures, string what, bool passed)

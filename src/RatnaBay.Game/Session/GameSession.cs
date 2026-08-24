@@ -45,6 +45,17 @@ public sealed class GameSession
     public float Yaw { get; set; }
     public float Pitch { get; set; }
 
+    /// <summary>
+    /// A descent that was put down rather than finished, if there is one.
+    ///
+    /// Held on the session rather than the player because it is a fact about this save file,
+    /// not about the person carrying the lamp.
+    /// </summary>
+    public SavedDescent? Descent { get; set; }
+
+    /// <summary>True when Continue should walk back into a mine rather than into the town.</summary>
+    public bool HasSuspendedDescent => Descent is { IsValid: true };
+
     public IReadOnlyList<Toast> Toasts => _toasts;
 
     public static string SaveDirectory => Path.Combine(
@@ -53,6 +64,34 @@ public sealed class GameSession
     public static string SaveFilePath => Path.Combine(SaveDirectory, "ratnabay_save.json");
 
     public static bool HasSaveFile => File.Exists(SaveFilePath) || File.Exists(SaveFilePath + ".bak");
+
+    /// <summary>
+    /// Whether the save on disk holds a descent, without loading it.
+    ///
+    /// The menu has to label its first entry before anything has been read, and offering
+    /// "Continue" to somebody who is actually halfway down a mine is how the whole entry flow
+    /// became confusing in the first place.
+    /// </summary>
+    public static bool PeekHasSuspendedDescent(string? saveFilePath = null)
+    {
+        var target = string.IsNullOrWhiteSpace(saveFilePath) ? SaveFilePath : saveFilePath;
+
+        foreach (var path in new[] { target, target + ".bak" })
+        {
+            try
+            {
+                if (!File.Exists(path)) continue;
+                if (!SaveGame.TryRead(File.ReadAllText(path), out var data, out _)) continue;
+                return data!.Descent is { IsValid: true };
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // An unreadable save is a problem for the loader to report, not for a label.
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// A custom path keeps automated checks completely separate from the player's real slot.
@@ -91,6 +130,7 @@ public sealed class GameSession
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
             var data = SaveGame.Capture(Player, Position, Yaw, sceneId: "scene.northwatch");
+            data.Descent = Descent;
             var json = SaveGame.Serialize(data);
             if (!SaveGame.TryRead(json, out _, out var validationError))
                 return $"Could not save: {validationError}";
@@ -171,6 +211,10 @@ public sealed class GameSession
             Player.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName,
                 result.StonesCarriedOut, SoulCrystals.ItemKind);
 
+        // A finished descent is not a suspended one. Leaving the block behind would offer
+        // "resume" for a run that has already been banked or buried.
+        Descent = null;
+
         // Both outcomes return to the surface. Health and stamina are restored there; prana
         // deliberately is not, because FullRestore preserves the stone economy.
         Player.Vitals.FullRestore();
@@ -179,6 +223,41 @@ public sealed class GameSession
         Yaw = surfaceYaw;
         Pitch = 0f;
 
+        return Save();
+    }
+
+    /// <summary>
+    /// Put a descent down and write it to disk.
+    ///
+    /// This is the only way a run in progress reaches a save file. A manual save mid-descent
+    /// stays refused, because that is a reload button and the entire loop rests on not having
+    /// one; putting the game down and picking it up again is a different thing entirely.
+    /// </summary>
+    public string Suspend(SavedDescent descent, WorldPoint position, float yaw, float pitch)
+    {
+        if (descent is null || !descent.IsValid) return "There is no descent to put down.";
+
+        Descent = descent;
+        Position = position;
+        Yaw = yaw;
+        Pitch = pitch;
+
+        var message = Save();
+        return message == "Saved." ? "Descent set aside. It will be here." : message;
+    }
+
+    /// <summary>
+    /// Take the descent off the save the moment it is walked back into.
+    ///
+    /// Consuming it here is what keeps suspend from becoming a reload: once resumed, the file
+    /// no longer holds a copy to go back to, so the only ways out of a mine remain camping and
+    /// dying.
+    /// </summary>
+    public string ConsumeDescent()
+    {
+        if (Descent is null) return string.Empty;
+
+        Descent = null;
         return Save();
     }
 
@@ -196,6 +275,7 @@ public sealed class GameSession
 
         Position = new WorldPoint(data.PlayerX, data.PlayerY, data.PlayerZ);
         Yaw = data.PlayerYaw;
+        Descent = data.Descent is { IsValid: true } descent ? descent : null;
         message = successMessage;
         return true;
     }

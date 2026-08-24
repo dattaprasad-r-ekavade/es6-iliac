@@ -137,6 +137,32 @@ public sealed class RunRuntime
         }
     }
 
+    /// <summary>Write the descent down so it can be walked back into.</summary>
+    public SavedDescent Capture(int seed, int rooms, int depth) => new()
+    {
+        Seed = seed,
+        Rooms = rooms,
+        Depth = depth,
+        DeepestRoom = DeepestRoom,
+        Run = Run.Capture()
+    };
+
+    /// <summary>
+    /// Put the player back where they left off.
+    ///
+    /// The mine is already rebuilt from its seed by the time this runs; what is restored here
+    /// is the ledger and how far in they had got. Enemies already killed are remembered by the
+    /// world state, so a resumed room is as empty as it was left.
+    /// </summary>
+    public void Resume(SavedDescent saved)
+    {
+        if (saved is null || !saved.IsValid) return;
+
+        DeepestRoom = Math.Clamp(saved.DeepestRoom, 0, Math.Max(0, _rooms.Count - 1));
+        CurrentRoom = DeepestRoom;
+        Run.Adopt(saved.Run);
+    }
+
     /// <summary>Bank the pot and end the run here.</summary>
     public RunResult Camp() => Run.Camp();
 

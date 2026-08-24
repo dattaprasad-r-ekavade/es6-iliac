@@ -322,6 +322,10 @@ public sealed class Game1 : Game
 
         CreatePrimitiveCube();
 
+        // Read before anything is loaded, so the first menu already knows whether there is a
+        // descent waiting rather than a town.
+        _suspendedDescentOnDisk = GameSession.PeekHasSuspendedDescent();
+
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.
         if (_screen == GameScreen.WorldScene)
@@ -435,14 +439,20 @@ public sealed class Game1 : Game
             {
                 if (_showSettings) _showSettings = false;
             }
+            else if (_paused)
+            {
+                ResumeFromPause();
+            }
             else if (AnyPanelOpen)
             {
                 ClosePanels();
             }
             else
             {
-                SetMouseLook(false);
-                _screen = GameScreen.MainMenu;
+                // This used to drop straight to the main menu, which silently threw away a
+                // descent in progress: the one key everybody presses to pause was the one key
+                // that lost the run.
+                Pause();
             }
         }
 
@@ -594,10 +604,44 @@ public sealed class Game1 : Game
     /// that opens onto nothing.
     /// </summary>
     private const string DescendItem = "Descend into a Mine";
+    private const string ResumeItem = "Resume Descent";
 
-    private static string[] MenuItems => GameSession.HasSaveFile
-        ? new[] { "Continue", DescendItem, "Start New Game", "Settings", "Exit" }
-        : new[] { DescendItem, "Start New Game", "Settings", "Exit" };
+    /// <summary>
+    /// Continue means "carry on where I was", and where the player was may be underground.
+    ///
+    /// Splitting that into two entries — one for the town, one for the mine — was the mess:
+    /// three doors into the same save, and no way to tell which one kept your run.
+    /// </summary>
+
+
+    /// <summary>Read at startup so the menu can label itself before anything is loaded.</summary>
+    private static bool _suspendedDescentOnDisk;
+
+    /// <summary>The game is stopped and the pause screen owns the input.</summary>
+    private bool _paused;
+    private int _pauseSelection;
+
+    /// <summary>
+    /// One door per state.
+    ///
+    /// While a descent is set aside there is no "Descend into a Mine" entry at all: offering
+    /// both would let a new mine quietly overwrite a run the player had carefully put down,
+    /// which is the sort of loss that is never noticed until it has already happened.
+    /// </summary>
+    private static string[] MenuItems
+    {
+        get
+        {
+            if (!GameSession.HasSaveFile)
+                return new[] { DescendItem, "Start New Game", "Settings", "Exit" };
+
+            // No "Continue" beside it either: resuming *is* continuing, and a second entry
+            // that walks to the surface instead would just be the old confusion again.
+            return _suspendedDescentOnDisk
+                ? new[] { ResumeItem, "Start New Game", "Settings", "Exit" }
+                : new[] { "Continue", DescendItem, "Start New Game", "Settings", "Exit" };
+        }
+    }
 
     private void UpdateMenu(KeyboardState keyboard, MouseState mouse)
     {
@@ -675,6 +719,54 @@ public sealed class Game1 : Game
     /// kind of world changes. Leaving the old one in place is how "Start New Game" after a
     /// descent used to hand back the mine you had just left.
     /// </summary>
+    /// <summary>
+    /// Walk back into the mine that was put down.
+    ///
+    /// The mine is rebuilt from its seed rather than stored, the ledger is adopted by the run
+    /// that is already wired to the HUD and the recorder, and the descent is then struck off
+    /// the save — so resuming is a way to stop playing and come back, never a way to reload a
+    /// fight that went badly.
+    /// </summary>
+    private void ResumeSuspendedDescent()
+    {
+        _mineSeed = null;
+        _world = null;
+        _run = null;
+        _runSummary = null;
+
+        if (_session is null && !LoadSession()) return;
+        if (_session is null) return;
+
+        if (!_session.HasSuspendedDescent)
+        {
+            _menuStatus = "There is no descent to return to.";
+            return;
+        }
+
+        var descent = _session.Descent!;
+        _mineRooms = descent.Rooms;
+        _mineDepth = descent.Depth;
+        _mineSeed = descent.Seed;
+        _world = null;
+
+        StartSession(_session);
+
+        // Where they were standing, not the mine's entrance.
+        _cameraPosition = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
+        _cameraYaw = _session.Yaw;
+        _cameraPitch = _session.Pitch;
+        _standingEyeY = _session.Position.Y;
+
+        _run?.Resume(descent);
+        _session.ConsumeDescent();
+        _suspendedDescentOnDisk = false;
+
+        _session.ShowToast($"Back in the dark. {_run?.Run.Pending ?? 0} stones still at risk.");
+        _menuStatus = string.Empty;
+        _screen = GameScreen.WorldScene;
+        SetMouseLook(true);
+    }
+
     private void EnterWorld(int? mineSeed, bool newCharacter = false)
     {
         _mineSeed = mineSeed;
@@ -702,6 +794,9 @@ public sealed class Game1 : Game
     {
         switch (MenuItems[_menuSelection])
         {
+            case ResumeItem:
+                ResumeSuspendedDescent();
+                break;
             case "Continue":
                 // A run summary returns to this same menu while its mine is still resident.
                 // Continue means the persisted surface checkpoint, never that spent mine.
@@ -756,9 +851,133 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>What the pause screen offers, which depends on whether a run is underway.</summary>
+    private string[] PauseItems => _run is { Run.IsActive: true }
+        ? new[] { "Resume", "Settings", "Set the descent aside", "Give up the descent" }
+        : new[] { "Resume", "Settings", "Save and quit to menu" };
+
+    private void Pause()
+    {
+        if (_paused) return;
+
+        ClosePanels();
+        _paused = true;
+        _pauseSelection = 0;
+        SetMouseLook(false, forPanel: true);
+    }
+
+    private void ResumeFromPause()
+    {
+        _paused = false;
+        _showSettings = false;
+        if (_screen == GameScreen.WorldScene) SetMouseLook(true);
+    }
+
+    private void UpdatePause(KeyboardState keyboard)
+    {
+        if (_showSettings)
+        {
+            UpdateSettings(keyboard);
+            return;
+        }
+
+        var items = PauseItems;
+        if (Pressed(keyboard, Keys.Up))
+            _pauseSelection = (_pauseSelection + items.Length - 1) % items.Length;
+        if (Pressed(keyboard, Keys.Down))
+            _pauseSelection = (_pauseSelection + 1) % items.Length;
+
+        if (!Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
+
+        switch (items[_pauseSelection])
+        {
+            case "Resume":
+                ResumeFromPause();
+                break;
+
+            case "Settings":
+                _showSettings = true;
+                _settingsSelection = 0;
+                break;
+
+            case "Set the descent aside":
+                SuspendDescent();
+                break;
+
+            case "Give up the descent":
+                AbandonDescent();
+                break;
+
+            case "Save and quit to menu":
+                _session?.ShowToast(_session.Save());
+                LeaveToMenu();
+                break;
+        }
+    }
+
+    /// <summary>Put the run down mid-descent, to be walked back into later.</summary>
+    private void SuspendDescent()
+    {
+        if (_session is null || _run is not { Run.IsActive: true } run || _mineSeed is not { } seed)
+            return;
+
+        var message = _session.Suspend(
+            run.Capture(seed, _mineRooms, _mineDepth),
+            new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z),
+            _cameraYaw, _cameraPitch);
+
+        _suspendedDescentOnDisk = _session.HasSuspendedDescent;
+        _session.ShowToast(message);
+        LeaveToMenu();
+    }
+
+    /// <summary>
+    /// Give up on a descent, at the full price of one.
+    ///
+    /// It costs exactly what dying costs — the pot, half the pack, and progress toward the
+    /// next level — because anything cheaper is a button that cancels a fight going badly.
+    /// A run with an escape hatch is not a risk, and the risk is the entire loop.
+    ///
+    /// It exists at all so that "I want to stop playing this run" never requires losing the
+    /// game on purpose, and so a set-aside descent can be cleared without being abandoned by
+    /// accident somewhere else.
+    /// </summary>
+    private void AbandonDescent()
+    {
+        if (_session is null || _run is not { Run.IsActive: true } run) return;
+
+        var result = run.Die();
+        _recorder.Record(PlayEventKind.Died, "gave up", result.StonesLost, 0f,
+            _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+
+        _succession = Succession.Promote(_session.Player, result, _mineSeed ?? 0, run.DeepestRoom);
+
+        _session.Descent = null;
+        _suspendedDescentOnDisk = false;
+        _paused = false;
+        EndRun(result);
+    }
+
+    private void LeaveToMenu()
+    {
+        _paused = false;
+        _showSettings = false;
+        SetMouseLook(false);
+        _screen = GameScreen.MainMenu;
+        _menuSelection = 0;
+    }
+
     private void UpdateGameScreen(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
-        if (Pressed(keyboard, Keys.M)) { SetMouseLook(false); _screen = GameScreen.MainMenu; }
+        // M was a second silent way out of a run. It opens the same pause screen now.
+        if (Pressed(keyboard, Keys.M)) Pause();
+
+        if (_paused)
+        {
+            UpdatePause(keyboard);
+            return;
+        }
+
         if (Pressed(keyboard, Keys.F1))
         {
             if (_showHelp) ClosePanels();
@@ -880,7 +1099,9 @@ public sealed class Game1 : Game
                 _session?.ShowToast($"Dialogue reload failed: {reloadMessage}");
         }
 
-        if (!_dialogueOpen && !_showJournal && !_showCharacter && !_showShop)
+        // Paused means paused: the camera stops too, or the world keeps moving behind a
+        // screen that says it is stopped.
+        if (!_paused && !_dialogueOpen && !_showJournal && !_showCharacter && !_showShop)
             UpdateCamera(gameTime, keyboard, mouse);
 
         if (_screen == GameScreen.WorldScene)
@@ -2286,6 +2507,7 @@ public sealed class Game1 : Game
         if (_showJournal) DrawJournal();
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
+        if (_paused && _runSummary is null) DrawPause();
         if (_runSummary is { } summary) DrawRunSummary(summary);
 
         EndUi();
@@ -2377,6 +2599,56 @@ public sealed class Game1 : Game
     }
 
     /// <summary>What the descent was worth, once it is over either way.</summary>
+    /// <summary>
+    /// The pause screen.
+    ///
+    /// It exists because Escape used to go straight to the main menu and take the descent with
+    /// it. What is at stake is spelled out here rather than assumed: a player deciding whether
+    /// to stop should be able to see what stopping costs.
+    /// </summary>
+    private void DrawPause()
+    {
+        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 214),
+            new Color(3, 6, 10, 0));
+
+        var inRun = _run is { Run.IsActive: true };
+        var panel = new Rectangle(400, 196, 480, inRun ? 332 : 268);
+        DrawPanel(panel, new Color(6, 12, 19, 246), new Color(151, 206, 210));
+
+        TextCentred("PAUSED", panel.Center.X, panel.Y + 26f, 24, new Color(214, 226, 226));
+
+        var top = panel.Y + 78f;
+        if (inRun && _run is not null)
+        {
+            var run = _run.Run;
+            TextCentred($"{run.RoomsCleared} rooms cleared  ·  {run.Pending} stones at risk",
+                panel.Center.X, panel.Y + 62f, 14, new Color(151, 206, 210));
+            TextCentred("Setting it aside keeps all of it. Giving up keeps none.",
+                panel.Center.X, panel.Y + 84f, 13, new Color(150, 162, 170));
+            top = panel.Y + 118f;
+        }
+
+        var items = PauseItems;
+        for (var index = 0; index < items.Length; index++)
+        {
+            var bounds = new Rectangle(panel.X + 40, (int)top + index * 46, panel.Width - 80, 38);
+            var selected = index == _pauseSelection;
+            var giveUp = items[index].StartsWith("Give up", StringComparison.Ordinal);
+
+            DrawPanel(bounds,
+                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+                selected
+                    ? giveUp ? new Color(214, 118, 96) : new Color(224, 181, 88)
+                    : new Color(54, 82, 91));
+
+            TextCentred(items[index], bounds.Center.X, bounds.Y + 10f, 16,
+                selected ? Color.White : new Color(192, 207, 205));
+        }
+
+        TextCentred("Up / Down select      Enter confirm      Esc resume",
+            panel.Center.X, panel.Bottom - 30f, 13, new Color(140, 156, 164));
+    }
+
     private void DrawRunSummary(RunResult summary)
     {
         DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 226),

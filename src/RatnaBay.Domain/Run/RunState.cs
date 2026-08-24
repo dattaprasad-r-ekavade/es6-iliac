@@ -186,6 +186,27 @@ public sealed class RunState
         Outcome = Outcome.ToString()
     };
 
+    /// <summary>
+    /// Take on a saved ledger without replacing the object.
+    ///
+    /// The game layer wires events to a run the moment it is created, so handing back a new
+    /// instance on resume would silently drop every subscription — the toasts and the recorder
+    /// would go quiet for the rest of the descent and nothing would look wrong.
+    /// </summary>
+    public void Adopt(SavedRun? saved)
+    {
+        if (saved is null) return;
+
+        RoomsCleared = Math.Clamp(saved.RoomsCleared, 0, Rooms);
+        Pending = Math.Max(0, saved.Pending);
+        RoomIsClear = saved.RoomIsClear;
+        Outcome = Enum.TryParse<RunOutcome>(saved.Outcome, out var outcome)
+            ? outcome
+            : RunOutcome.InProgress;
+
+        Changed?.Invoke();
+    }
+
     public static RunState? Restore(SavedRun? saved)
     {
         if (saved is null || saved.Rooms <= 0) return null;
@@ -200,6 +221,27 @@ public sealed class RunState
 
         return run;
     }
+}
+
+/// <summary>
+/// Everything needed to put a player back where they were, mid-descent.
+///
+/// The mine itself is not stored — only its seed, because generation is deterministic and a
+/// seed rebuilds the identical mine for a fraction of the bytes. What has to be written down
+/// is the part generation cannot reproduce: how far in they had got.
+/// </summary>
+public sealed class SavedDescent
+{
+    public int Seed { get; init; }
+    public int Rooms { get; init; }
+    public int Depth { get; init; }
+
+    /// <summary>The deepest room reached, which is the room the run is about.</summary>
+    public int DeepestRoom { get; init; }
+
+    public SavedRun Run { get; init; } = new();
+
+    public bool IsValid => Rooms > 0 && Run is { Rooms: > 0 };
 }
 
 public sealed class SavedRun
