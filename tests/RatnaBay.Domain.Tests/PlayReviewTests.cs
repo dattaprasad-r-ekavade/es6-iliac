@@ -23,12 +23,13 @@ public class PlayReviewTests
         }
 
         public Tape At(string kind, string detail = "", float value = 0f, float extra = 0f,
-            float health = 100f)
+            float health = 100f, string target = "", float distance = 0f)
         {
             _recording.Events.Add(new PlayEvent
             {
                 At = _clock, Kind = kind, Detail = detail,
-                Value = value, Extra = extra, Health = health
+                Value = value, Extra = extra, Health = health,
+                Target = target, Distance = distance
             });
 
             return this;
@@ -420,6 +421,81 @@ public class PlayReviewTests
             Assert.That(run.SpellsCast, Is.EqualTo(1));
             Assert.That(run.CastsRefused, Is.EqualTo(2),
                 "running dry is why a mage picks the sword back up");
+        });
+    }
+
+    [Test]
+    public void WhatKilledWhatIsRecoveredFromTheLog()
+    {
+        // The tactic this exists to make visible, reported by the player and invisible to the
+        // recorder: burn an archer down from range, and save the sword for things that walk
+        // into it. A log that only knows something died cannot tell the two apart.
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine", 1, 1)
+            .At(PlayEventKind.EnemyKilled, "Flame (burning)", 3, target: "Bandit Archer", distance: 11f)
+            .At(PlayEventKind.EnemyKilled, "Flame (burning)", 3, target: "Bandit Archer", distance: 9f)
+            .At(PlayEventKind.EnemyKilled, "Iron Sword", 2, target: "Bandit", distance: 1.8f)
+            .At(PlayEventKind.EnemyKilled, "Iron Sword", 2, target: "Bandit", distance: 2.1f)
+            .At(PlayEventKind.EnemyKilled, "Iron Sword", 2, target: "Preta", distance: 1.9f)
+            .Done();
+
+        var run = PlayReview.Runs(recording)[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.KillsByWeapon["Bandit Archer"]["Flame (burning)"], Is.EqualTo(2));
+            Assert.That(run.KillsByWeapon["Bandit"]["Iron Sword"], Is.EqualTo(2));
+            Assert.That(run.KillsByWeapon.ContainsKey("Bandit Archer"), Is.True);
+            Assert.That(run.KillsByWeapon["Bandit Archer"].ContainsKey("Iron Sword"), Is.False,
+                "no archer was reached with steel");
+        });
+    }
+
+    [Test]
+    public void TheRangeAFightIsTakenAtIsRecovered()
+    {
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine", 1, 1)
+            .At(PlayEventKind.MeleeSwing, "Iron Sword", 9f, 1f, target: "Bandit", distance: 2f)
+            .At(PlayEventKind.MeleeSwing, "Iron Sword", 9f, 1f, target: "Bandit", distance: 2.4f)
+            .At(PlayEventKind.SpellCast, "Flame", 22f, target: "Bandit Archer", distance: 12f)
+            .At(PlayEventKind.SpellCast, "Flame", 22f, target: "Bandit Archer", distance: 10f)
+            .Done();
+
+        var run = PlayReview.Runs(recording)[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.MedianMeleeRange, Is.EqualTo(2.2f).Within(0.05f));
+            Assert.That(run.MedianSpellRange, Is.EqualTo(11f).Within(0.05f),
+                "spells are being used at five times the range of steel");
+        });
+    }
+
+    [Test]
+    public void TimeSpentStandingInDoorwaysIsMeasured()
+    {
+        // The habit that decides whether shaping rooms is worth any effort. It cannot be
+        // inferred from actions, only from sampling the spaces between them.
+        var recording = new Tape().At(PlayEventKind.RunStarted, "mine", 1, 1);
+        for (var second = 0; second < 10; second++)
+            recording.Wait(1f).At(PlayEventKind.Stance, "room 3", 6f, second < 7 ? 1f : 0f);
+
+        Assert.That(PlayReview.Runs(recording.Done())[0].ShareOfTimeInDoorways,
+            Is.EqualTo(0.7f).Within(0.01f));
+    }
+
+    [Test]
+    public void ARunWithNoSamplesReportsNoHabitRatherThanZero()
+    {
+        // Older recordings carry no stance samples at all. Reporting them as "nought percent
+        // of the time in doorways" would be a confident claim about data that does not exist.
+        var run = PlayReview.Runs(Descent(3, 1f))[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.ShareOfTimeInDoorways, Is.Zero);
+            Assert.That(run.MedianMeleeRange, Is.Zero);
         });
     }
 

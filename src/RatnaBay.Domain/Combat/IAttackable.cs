@@ -15,6 +15,16 @@ public interface IAttackable
 
     /// <summary>Apply damage. Returns the amount that actually landed.</summary>
     float TakeDamage(float amount);
+
+    /// <summary>
+    /// Apply damage and remember what did it.
+    ///
+    /// Attribution exists so a recording can answer questions about *how* a fight was won —
+    /// which weapon killed which enemy, and how much of the work a lingering burn did. That
+    /// turns out to be where a player's actual tactics live, and none of it is visible from
+    /// a log that only knows something died.
+    /// </summary>
+    float TakeDamage(float amount, string? source) => TakeDamage(amount);
 }
 
 /// <summary>

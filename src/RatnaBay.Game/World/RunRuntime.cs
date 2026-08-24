@@ -176,6 +176,33 @@ public sealed class RunRuntime
         Run.Adopt(saved.Run);
     }
 
+    /// <summary>
+    /// Where the player is standing, in the terms the design cares about.
+    ///
+    /// "In room 4" and "in the doorway of room 4" are different tactics, and only one of them
+    /// makes the shape of a room matter. Nothing else in the log distinguishes them.
+    /// </summary>
+    public (string Where, bool InDoorway) Stance(WorldRuntime world, Vector3 player)
+    {
+        var here = new WorldPoint(player.X, player.Y, player.Z);
+        var room = _rooms.FirstOrDefault(candidate => candidate.Contains(player.X, player.Z));
+
+        var nearestDoor = float.MaxValue;
+        foreach (var door in world.Doors)
+        {
+            var distance = here.FlatDistanceTo(door.Definition.Centre());
+            if (distance < nearestDoor) nearestDoor = distance;
+        }
+
+        // A body's length of a threshold, open or shut. Corridors count as doorways: standing
+        // in one is the same tactic by another name.
+        var inDoorway = nearestDoor <= DoorwayReach || room is null;
+        return (room is null ? "corridor" : $"room {room.Index}", inDoorway);
+    }
+
+    /// <summary>How close to a threshold still counts as standing in it.</summary>
+    private const float DoorwayReach = 3.5f;
+
     /// <summary>Bank the pot and end the run here.</summary>
     public RunResult Camp() => Run.Camp();
 

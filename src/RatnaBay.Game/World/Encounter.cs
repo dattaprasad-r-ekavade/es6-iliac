@@ -86,6 +86,9 @@ public sealed class Encounter
     /// <summary>An enemy went down: what it was, and what level it was at.</summary>
     public event Action<Enemy>? EnemyDefeated;
 
+    /// <summary>A cast bolt arrived: what it was, what it hit, and how far it flew.</summary>
+    public event Action<SpellDefinition, Enemy, float>? SpellLanded;
+
     /// <summary>The player took a blow: how much landed, and whether it was guarded.</summary>
     public event Action<float, bool>? PlayerStruck;
 
@@ -387,6 +390,23 @@ public sealed class Encounter
     /// Swing at whatever the crosshair is over. Returns what happened so the caller can say
     /// so on screen.
     /// </summary>
+    /// <summary>Where the player was standing on the last tick, for measuring range.</summary>
+    public WorldPoint PlayerPosition => _lastPlayerPosition;
+
+    /// <summary>Metres to the nearest living enemy, or -1 when the room is empty.</summary>
+    public float NearestEnemyRange()
+    {
+        var nearest = -1f;
+        foreach (var enemy in _enemies)
+        {
+            if (!enemy.IsAlive) continue;
+            var distance = _lastPlayerPosition.FlatDistanceTo(enemy.Position);
+            if (nearest < 0f || distance < nearest) nearest = distance;
+        }
+
+        return nearest;
+    }
+
     public AttackOutcome PlayerAttack()
     {
         var target = Focused;
@@ -487,6 +507,7 @@ public sealed class Encounter
         _session.Player.Spells.Deliver(bolt.Spell, hit, chain);
 
         Struck(hit);
+        SpellLanded?.Invoke(bolt.Spell, hit, _lastPlayerPosition.FlatDistanceTo(hit.Position));
         Feedback.PlayerHit(hit.Position, bolt.Spell.Power, !hit.IsAlive);
         Feedback.Cast(bolt.Spell.DisplayName, $"struck {hit.DisplayName}", bolt.Colour);
 

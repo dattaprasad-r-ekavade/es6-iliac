@@ -170,6 +170,12 @@ public sealed class Game1 : Game
     /// <summary>What the last death cost, shown beside the run summary.</summary>
     private SuccessionResult? _succession;
 
+    /// <summary>Seconds until the next stance sample is written down.</summary>
+    private float _stanceCountdown;
+
+    /// <summary>How often the recorder notes where the player is standing.</summary>
+    private const float StanceSampleSeconds = 1f;
+
     /// <summary>Northwatch's safe surface checkpoint between descents.</summary>
     private static readonly WorldPoint SurfaceCheckpoint = new(0f, 2.4f, 14.5f);
 
@@ -1243,6 +1249,9 @@ public sealed class Game1 : Game
                 else
                 {
                     var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
+                    if (door is not null && door.Lock.IsOpen)
+                        _recorder.Record(PlayEventKind.DoorOpened, door.Definition.Id, 0f, 0f,
+                            _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
                     if (door is not null)
                     {
                         _session.ShowToast(result switch
@@ -1270,6 +1279,7 @@ public sealed class Game1 : Game
 
         var step = StepSeconds(gameTime);
         TickVitalPulses(step);
+        SampleStance(step);
         _encounter.Update(step, _cameraPosition, _cameraYaw);
         if (_world is not null) _run?.Update(_world, _cameraPosition, _encounter);
         _weaponView.Update(step, IsMoving(keyboard), _session.Player.Combat.IsBlocking);
@@ -1305,10 +1315,13 @@ public sealed class Game1 : Game
 
             // Melee was invisible to the recorder, so a session fought with the sword read
             // back as one where no melee happened at all.
+            var struck = _encounter.Focused;
             _recorder.Record(PlayEventKind.MeleeSwing,
                 _session.Player.Combat.ActiveWeapon.DisplayName,
                 outcome.Damage, outcome.Result == AttackResult.Hit ? 1f : 0f,
-                _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+                _session.Player.Vitals.Health, _session.Player.Vitals.Prana,
+                struck?.Archetype.DisplayName ?? string.Empty,
+                struck is null ? 0f : _encounter.PlayerPosition.FlatDistanceTo(struck.Position));
 
             // The arm moves whenever the swing actually happened — a hit and a miss look the
             // same from behind the weapon, which is what makes missing feel like missing
@@ -1322,9 +1335,12 @@ public sealed class Game1 : Game
             if (cast.WasCast)
             {
                 _weaponView.Cast();
+                var aimed = _encounter.Focused;
                 _recorder.Record(PlayEventKind.SpellCast, cast.Spell?.DisplayName ?? "spell",
                     cast.Spell?.Power ?? 0f, 0f,
-                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana,
+                    aimed?.Archetype.DisplayName ?? string.Empty,
+                    _encounter.NearestEnemyRange());
             }
             else
             {
@@ -1676,6 +1692,29 @@ public sealed class Game1 : Game
         _encounter.SpawnDefaultCamp();
     }
 
+    /// <summary>
+    /// Note where the player is standing, once a second, while a descent is underway.
+    ///
+    /// Every other event in the log is something the player did. This is the only record of
+    /// the spaces in between, and it is the only way to answer whether a fight was taken in a
+    /// room or through the doorway of the one before it — which decides whether shaping rooms
+    /// is worth any effort at all.
+    /// </summary>
+    private void SampleStance(float deltaSeconds)
+    {
+        if (_session is null || _encounter is null || _world is null) return;
+        if (_run is not { Run.IsActive: true } run) return;
+
+        _stanceCountdown -= deltaSeconds;
+        if (_stanceCountdown > 0f) return;
+        _stanceCountdown = StanceSampleSeconds;
+
+        var (where, inDoorway) = run.Stance(_world, _cameraPosition);
+        _recorder.Record(PlayEventKind.Stance, where,
+            _encounter.NearestEnemyRange(), inDoorway ? 1f : 0f,
+            _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+    }
+
     /// <summary>Light a bar that has just been restored, and fade the light back out.</summary>
     private void TickVitalPulses(float deltaSeconds)
     {
@@ -1705,7 +1744,17 @@ public sealed class Game1 : Game
     private void WatchForTheRecord(Encounter encounter, GameSession session)
     {
         encounter.EnemyDefeated += enemy => _recorder.Record(PlayEventKind.EnemyKilled,
-            enemy.DisplayName, enemy.Archetype.Level, 0f, session.Player.Vitals.Health);
+            // What did the most damage to it, not what struck last: a spell that softened
+            // something and a sword that finished it would otherwise read as a sword kill.
+            enemy.KilledBy, enemy.Archetype.Level, 0f,
+            session.Player.Vitals.Health, session.Player.Vitals.Prana,
+            enemy.Archetype.DisplayName,
+            encounter.PlayerPosition.FlatDistanceTo(enemy.Position));
+
+        encounter.SpellLanded += (spell, enemy, range) => _recorder.Record(PlayEventKind.SpellHit,
+            spell.DisplayName, spell.Power, 0f,
+            session.Player.Vitals.Health, session.Player.Vitals.Prana,
+            enemy.Archetype.DisplayName, range);
 
         encounter.PlayerStruck += (damage, guarded) => _recorder.Record(PlayEventKind.PlayerHurt,
             guarded ? "guarded" : "clean", damage, 0f, session.Player.Vitals.Health);

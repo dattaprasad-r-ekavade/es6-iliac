@@ -320,8 +320,28 @@ static int RunReview(string[] arguments)
             + $"{run.EnemiesKilled} kills, {run.DamageTaken:0} damage taken");
 
         var refused = run.CastsRefused > 0 ? $", {run.CastsRefused} refused for want of prana" : "";
-        Console.WriteLine($"  {run.MeleeSwings} swings ({run.MeleeLanded} landed), "
+        var hitRate = run.MeleeSwings == 0 ? 0 : run.MeleeLanded * 100 / run.MeleeSwings;
+        Console.WriteLine($"  {run.MeleeSwings} swings ({run.MeleeLanded} landed, {hitRate}%), "
             + $"{run.SpellsCast} spells{refused}");
+
+        if (run.MedianMeleeRange > 0f || run.MedianSpellRange > 0f)
+            Console.WriteLine($"  fought at: {run.MedianMeleeRange:0.0} m with steel, "
+                + $"{run.MedianSpellRange:0.0} m with spells");
+
+        if (run.ShareOfTimeInDoorways > 0f)
+            Console.WriteLine($"  {run.ShareOfTimeInDoorways * 100:0}% of the run spent in or "
+                + "beside a doorway");
+
+        // What actually kills what. This is where a player's tactics live, and none of it is
+        // visible from a list of swings and a list of corpses.
+        foreach (var enemy in run.KillsByWeapon.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            var byWeapon = enemy.Value
+                .OrderByDescending(entry => entry.Value)
+                .Select(entry => $"{entry.Key} x{entry.Value}");
+
+            Console.WriteLine($"    {enemy.Key,-16} {string.Join(", ", byWeapon)}");
+        }
 
         if (run.RoomSeconds.Count > 0)
             Console.WriteLine($"  per room: "

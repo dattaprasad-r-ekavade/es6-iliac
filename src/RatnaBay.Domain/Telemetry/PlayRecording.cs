@@ -31,6 +31,21 @@ public static class PlayEventKind
 
     /// <summary>A spell that would not go off, almost always for want of prana.</summary>
     public const string CastFailed = "spell.failed";
+
+    /// <summary>A cast bolt arrived on something.</summary>
+    public const string SpellHit = "spell.hit";
+
+    /// <summary>A door was opened, which is a commitment as much as an action.</summary>
+    public const string DoorOpened = "door.opened";
+
+    /// <summary>
+    /// A periodic sample of where the player is standing and what is near them.
+    ///
+    /// Everything else in this log is an action. This is the only thing that records the
+    /// spaces between them, which is where habits live — whether a fight is taken in a room
+    /// or through the doorway of the one before it cannot be inferred from a list of swings.
+    /// </summary>
+    public const string Stance = "stance";
     public const string PlayerHurt = "player.hurt";
     public const string SpellCast = "spell.cast";
     public const string ItemUsed = "item.used";
@@ -68,6 +83,17 @@ public sealed class PlayEvent
 
     /// <summary>Prana at the moment. Running dry is what forces a change of weapon.</summary>
     public float Prana { get; set; }
+
+    /// <summary>What the event was aimed at or about — usually an enemy.</summary>
+    public string Target { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Metres between the player and the subject.
+    ///
+    /// The single most informative number in the log. Whether a player fights at two metres
+    /// or twelve decides what the rooms are for, and no amount of counting swings reveals it.
+    /// </summary>
+    public float Distance { get; set; }
 }
 
 /// <summary>
@@ -139,6 +165,16 @@ public sealed record RunReview(
     int MeleeLanded,
     int SpellsCast,
     int CastsRefused,
+
+    /// <summary>What killed what, by the thing that did the most damage to it.</summary>
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, int>> KillsByWeapon,
+
+    /// <summary>Median distance at which swings and casts were made.</summary>
+    float MedianMeleeRange,
+    float MedianSpellRange,
+
+    /// <summary>Share of sampled time spent within a body's length of a doorway.</summary>
+    float ShareOfTimeInDoorways,
 
     /// <summary>
     /// Rooms that were already empty by the time the player set foot in them.
@@ -233,13 +269,19 @@ public static class PlayReview
         var lost = 0;
         var survived = false;
         var damage = 0f;
-        var kills = 0;
+        var killCount = 0;
         var swings = 0;
         var landed = 0;
         var casts = 0;
         var refused = 0;
         var fromDoorway = 0;
         var endedAt = start.At;
+
+        var kills = new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+        var meleeRanges = new List<float>();
+        var spellRanges = new List<float>();
+        var stances = 0;
+        var inDoorways = 0;
 
         // A room's real cost is measured from the moment the player committed to it — the
         // door closing behind them — not from when they finally walked in. Timing it from
@@ -317,17 +359,40 @@ public static class PlayReview
                     break;
 
                 case PlayEventKind.EnemyKilled:
-                    kills++;
+                    killCount++;
+
+                    // Detail is whatever did the most damage to it, not the final blow: a
+                    // spell that softened something and a sword that finished it would
+                    // otherwise be reported as a sword kill, which is the opposite of the
+                    // tactic actually used.
+                    if (!string.IsNullOrEmpty(item.Target))
+                    {
+                        var byWeapon = kills.TryGetValue(item.Target, out var found)
+                            ? found
+                            : kills[item.Target] = new Dictionary<string, int>(StringComparer.Ordinal);
+
+                        var weapon = string.IsNullOrEmpty(item.Detail) ? "unknown" : item.Detail;
+                        byWeapon[weapon] = byWeapon.GetValueOrDefault(weapon) + 1;
+                    }
+
                     break;
 
                 case PlayEventKind.MeleeSwing:
                     swings++;
                     // Extra carries whether it connected; a miss is still a swing.
                     if (item.Extra > 0f) landed++;
+                    if (item.Distance > 0f) meleeRanges.Add(item.Distance);
                     break;
 
                 case PlayEventKind.SpellCast:
                     casts++;
+                    if (item.Distance > 0f) spellRanges.Add(item.Distance);
+                    break;
+
+                case PlayEventKind.Stance:
+                    stances++;
+                    // Extra is one when the player is standing in or beside a doorway.
+                    if (item.Extra > 0f) inDoorways++;
                     break;
 
                 case PlayEventKind.CastFailed:
@@ -352,8 +417,14 @@ public static class PlayReview
         return Build();
 
         RunReview Build() => new(seed, tier, start.At, endedAt, roomsCleared, banked, lost,
-            survived, damage, kills, swings, landed, casts, refused, fromDoorway,
-            decisions, roomSeconds);
+            survived, damage, killCount, swings, landed, casts, refused,
+            kills.ToDictionary(
+                entry => entry.Key,
+                entry => (IReadOnlyDictionary<string, int>)entry.Value,
+                StringComparer.Ordinal),
+            Median(meleeRanges), Median(spellRanges),
+            stances == 0 ? 0f : inDoorways / (float)stances,
+            fromDoorway, decisions, roomSeconds);
 
         // The clock on the next room starts when the door opens, not when it is walked through.
         bool SetSegment(float at)
@@ -361,6 +432,16 @@ public static class PlayReview
             segmentStart = at;
             return true;
         }
+    }
+
+    private static float Median(List<float> values)
+    {
+        if (values.Count == 0) return 0f;
+
+        values.Sort();
+        return values.Count % 2 == 1
+            ? values[values.Count / 2]
+            : (values[values.Count / 2 - 1] + values[values.Count / 2]) * 0.5f;
     }
 
     /// <summary>Every decision across every run, for the only question that matters yet.</summary>

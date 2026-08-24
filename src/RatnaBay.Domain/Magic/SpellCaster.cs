@@ -9,6 +9,10 @@ public interface IEnemy : IAttackable
     /// <summary>Damage that keeps ticking after the hit — the reason fire beats groups.</summary>
     void ApplyBurn(float damagePerSecond, float duration);
 
+    /// <summary>Burn, remembering which spell lit it.</summary>
+    void ApplyBurn(float damagePerSecond, float duration, string? source) =>
+        ApplyBurn(damagePerSecond, duration);
+
     /// <summary>Slow. Beats chargers.</summary>
     void ApplyChill(float slowFactor, float duration);
 
@@ -180,12 +184,13 @@ public sealed class SpellCaster
     private static void ApplyTo(IEnemy enemy, SpellDefinition spell, float power,
         IEnemy? chainTarget)
     {
-        enemy.TakeDamage(power);
+        enemy.TakeDamage(power, spell.DisplayName);
 
         switch (spell.Effect)
         {
             case SpellEffect.Fire:
-                enemy.ApplyBurn(power * BurnFactor, spell.Duration);
+                enemy.ApplyBurn(power * BurnFactor, spell.Duration,
+                    $"{spell.DisplayName} (burning)");
                 break;
 
             case SpellEffect.Frost:
@@ -196,7 +201,7 @@ public sealed class SpellCaster
                 enemy.ApplyStagger(spell.Duration);
                 // One jump only, at reduced power.
                 if (chainTarget is null || ReferenceEquals(chainTarget, enemy)) break;
-                chainTarget.TakeDamage(power * ChainFactor);
+                chainTarget.TakeDamage(power * ChainFactor, $"{spell.DisplayName} (chained)");
                 chainTarget.ApplyStagger(spell.Duration * ChainFactor);
                 break;
         }

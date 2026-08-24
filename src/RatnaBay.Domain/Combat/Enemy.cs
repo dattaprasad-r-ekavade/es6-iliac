@@ -110,6 +110,7 @@ public sealed class Enemy : IEnemy, ITargetable
 
     private float _burnDamagePerSecond;
     private float _burnRemaining;
+    private string _burnSource = string.Empty;
     private float _chillFactor = 1f;
     private float _chillRemaining;
     private float _staggerRemaining;
@@ -154,8 +155,12 @@ public sealed class Enemy : IEnemy, ITargetable
     public event Action<Enemy>? Died;
 
     /// <summary>Fire: damage over time. Beats groups and the unarmoured.</summary>
-    public void ApplyBurn(float damagePerSecond, float duration)
+    public void ApplyBurn(float damagePerSecond, float duration) =>
+        ApplyBurn(damagePerSecond, duration, null);
+
+    public void ApplyBurn(float damagePerSecond, float duration, string? source)
     {
+        if (!string.IsNullOrEmpty(source)) _burnSource = source;
         _burnDamagePerSecond = MathF.Max(_burnDamagePerSecond, damagePerSecond);
         _burnRemaining = MathF.Max(_burnRemaining, duration);
     }
@@ -187,7 +192,8 @@ public sealed class Enemy : IEnemy, ITargetable
         if (_burnRemaining <= 0f) return;
 
         _burnRemaining = MathF.Max(0f, _burnRemaining - deltaSeconds);
-        TakeDamage(_burnDamagePerSecond * deltaSeconds);
+        TakeDamage(_burnDamagePerSecond * deltaSeconds,
+            string.IsNullOrEmpty(_burnSource) ? "burning" : _burnSource);
         if (_burnRemaining <= 0f) _burnDamagePerSecond = 0f;
     }
 
@@ -239,15 +245,35 @@ public sealed class Enemy : IEnemy, ITargetable
         return Archetype.AttackDamage;
     }
 
-    public float TakeDamage(float amount)
+    public float TakeDamage(float amount) => TakeDamage(amount, null);
+
+    public float TakeDamage(float amount, string? source)
     {
         if (!IsAlive || amount <= 0f) return 0f;
 
+        if (!string.IsNullOrEmpty(source)) LastHurtBy = source;
+
         var before = Health;
         Health = MathF.Max(0f, Health - amount);
+        DamageBySource[LastHurtBy] = DamageBySource.GetValueOrDefault(LastHurtBy) + (before - Health);
         HealthChanged?.Invoke(Health, MaxHealth);
 
         if (!IsAlive) Died?.Invoke(this);
         return before - Health;
     }
+
+    /// <summary>What last landed on this. Empty until something does.</summary>
+    public string LastHurtBy { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// How much each thing contributed, so "a spell softened it and a sword finished it" is
+    /// distinguishable from "a sword did all of it". The final blow alone would report the
+    /// opposite of what happened in exactly the cases worth knowing about.
+    /// </summary>
+    public Dictionary<string, float> DamageBySource { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>Whatever did the most work, which is the honest answer to "what killed it".</summary>
+    public string KilledBy => DamageBySource.Count == 0
+        ? LastHurtBy
+        : DamageBySource.OrderByDescending(entry => entry.Value).First().Key;
 }

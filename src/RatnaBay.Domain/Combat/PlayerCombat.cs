@@ -111,7 +111,7 @@ public sealed class PlayerCombat
         if (target is null || !target.IsAlive) return new AttackOutcome(AttackResult.Missed, 0f);
 
         var threat = target.MaxHealth;
-        var dealt = target.TakeDamage(WeaponDamage);
+        var dealt = target.TakeDamage(WeaponDamage, ActiveWeapon.DisplayName);
         EnterCombat();
 
         // Advancement is use-based, so the swing trains the weapon's skill rather than paying
