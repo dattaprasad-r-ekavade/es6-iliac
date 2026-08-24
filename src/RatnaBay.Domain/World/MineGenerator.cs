@@ -44,9 +44,17 @@ public sealed record MineRequest(int Seed, int Rooms = 4, int Depth = 1)
 public static class MineGenerator
 {
     /// <summary>Grid pitch. Rooms sit inside it with a gap left over for the corridors.</summary>
-    private const float CellSize = 22f;
+    private const float CellSize = 32f;
 
-    private const float RoomHalf = 8f;
+    /// <summary>
+    /// Half a room's floor. Twenty-four metres across.
+    ///
+    /// Was sixteen, and reported as too cramped to fight in: with the door shut behind and
+    /// five bodies rising at once there was nowhere to stand. The recordings agreed — rooms
+    /// were being cleared in seven to ten seconds with a third of the run spent within a
+    /// body's length of a threshold, because in a room that small everywhere is a doorway.
+    /// </summary>
+    public const float RoomHalf = 12f;
     private const float WallThickness = 0.5f;
 
     /// <summary>Half-width of a doorway, and so of the corridor behind it.</summary>
@@ -71,7 +79,7 @@ public static class MineGenerator
     /// room that quietly under-fills makes the mine easier the deeper it goes — the exact
     /// opposite of the intent, and invisible without a test that counts.
     /// </summary>
-    public const float SpawnSeparation = 2.6f;
+    public const float SpawnSeparation = 3.4f;
 
     /// <summary>
     /// How far every fight must stand from a doorway.
@@ -80,7 +88,7 @@ public static class MineGenerator
     /// the door the player was about to walk through — close enough to read as spawning on top
     /// of them. A radius from the doorway itself is what the rule was always meant to be.
     /// </summary>
-    private const float DoorwayClearance = 6f;
+    private const float DoorwayClearance = 9f;
 
     /// <summary>The most fights one room is allowed to hold, however deep it is.</summary>
     private const int MaxEnemiesPerRoom = 5;

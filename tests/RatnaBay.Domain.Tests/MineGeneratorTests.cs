@@ -200,7 +200,10 @@ public class MineGeneratorTests
             foreach (var pair in centres.SelectMany(
                 (a, i) => centres.Skip(i + 1).Select(b => (a, b))))
             {
-                Assert.That(pair.a.FlatDistanceTo(pair.b), Is.GreaterThan(17f),
+                // Against the generator's own room size rather than a copied number, so
+                // resizing a room cannot quietly turn this into a test of nothing.
+                Assert.That(pair.a.FlatDistanceTo(pair.b),
+                    Is.GreaterThan(MineGenerator.RoomHalf * 2f),
                     $"seed {seed}: two rooms are on top of each other");
             }
         }

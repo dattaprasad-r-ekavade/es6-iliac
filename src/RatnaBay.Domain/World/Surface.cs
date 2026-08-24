@@ -60,6 +60,7 @@ public static class Surface
         TheShaft(manifest);
         TheStall(manifest);
         ThePillar(manifest);
+        Dressing(manifest);
         Lanterns(manifest);
 
         return manifest;
@@ -138,11 +139,51 @@ public static class Surface
         Box(manifest, "surface.stambha.capital", 8.2f, 4.6f, -0.1f, 10.8f, 5f, 2.1f, plinth);
     }
 
+    /// <summary>
+    /// Crates, barrels, a brazier and a notice board.
+    ///
+    /// Reported as looking empty, which it was: four walls and three fixtures reads as a test
+    /// level rather than a place people work. None of this does anything, and that is fine —
+    /// a yard that looks used is what makes the three things that *do* work look deliberate.
+    /// </summary>
+    private static void Dressing(WorldManifest manifest)
+    {
+        var timber = new WorldColor(110, 80, 52);
+        var crate = new WorldColor(122, 96, 62);
+        var iron = new WorldColor(74, 70, 68);
+
+        // Spoil heaps beside the shaft, because something came out of it.
+        Box(manifest, "surface.spoil.a", 4.6f, FloorTop, -12.4f, 8.2f, 1.3f, -9.2f,
+            new WorldColor(88, 78, 62));
+        Box(manifest, "surface.spoil.b", -8.4f, FloorTop, -12.6f, -5.2f, 1f, -9.8f,
+            new WorldColor(84, 74, 60));
+
+        // Crates stacked by the stall.
+        Box(manifest, "surface.crate.a", -13.4f, FloorTop, 5f, -11.9f, 1.5f, 6.5f, crate);
+        Box(manifest, "surface.crate.b", -11.7f, FloorTop, 5.2f, -10.3f, 1.3f, 6.6f, crate);
+        Box(manifest, "surface.crate.c", -13.2f, 1.5f, 5.2f, -11.9f, 2.7f, 6.4f, crate);
+
+        // Barrels by the gate.
+        Box(manifest, "surface.barrel.a", 10.6f, FloorTop, 9.4f, 11.8f, 1.6f, 10.6f, timber);
+        Box(manifest, "surface.barrel.b", 12.1f, FloorTop, 9.6f, 13.3f, 1.6f, 10.8f, timber);
+
+        // A brazier, which is where the warm light is coming from.
+        Box(manifest, "surface.brazier.stem", 5.6f, FloorTop, 8.6f, 6.2f, 1.4f, 9.2f, iron);
+        Box(manifest, "surface.brazier.bowl", 5.1f, 1.4f, 8.1f, 6.7f, 2f, 9.7f,
+            new WorldColor(198, 118, 58));
+
+        // The notice board the order pins its work to.
+        Box(manifest, "surface.board.post.a", -3.6f, FloorTop, 12.4f, -3.1f, 2.8f, 12.9f, timber);
+        Box(manifest, "surface.board.post.b", 0.1f, FloorTop, 12.4f, 0.6f, 2.8f, 12.9f, timber);
+        Box(manifest, "surface.board.face", -3.8f, 1.4f, 12.5f, 0.8f, 2.9f, 12.8f, crate);
+    }
+
     private static void Lanterns(WorldManifest manifest)
     {
         Light(manifest, "surface.light.shaft", 0f, 4f, -9f, 26f);
         Light(manifest, "surface.light.stall", -10.5f, 3f, 1f, 18f);
         Light(manifest, "surface.light.gate", 0f, 4f, 11f, 22f);
+        Light(manifest, "surface.light.brazier", 5.9f, 2.2f, 8.9f, 14f);
     }
 
     private static void Light(WorldManifest manifest, string id, float x, float y, float z,

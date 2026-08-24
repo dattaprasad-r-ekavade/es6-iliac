@@ -194,17 +194,27 @@ public sealed class Encounter
     {
         if (!_pending.Remove(roomIndex, out var waiting)) return 0;
 
-        foreach (var spawn in waiting) Wake(spawn);
+        // Staggered rather than all at once. Five bodies standing up in the same frame is an
+        // ambush; the same five noticing you one after another is a room turning to look, and
+        // it gives the player the beat they need to see what they have walked into.
+        for (var index = 0; index < waiting.Count; index++)
+        {
+            var enemy = Wake(waiting[index]);
+            enemy?.Rouse(0.5f + index * 0.28f);
+        }
+
         return waiting.Count;
     }
 
-    private void Wake(WorldEnemySpawn spawn)
+    private Enemy? Wake(WorldEnemySpawn spawn)
     {
         var archetype = EnemyCatalog.Resolve(spawn);
-        if (archetype is null) return;
+        if (archetype is null) return null;
 
         Spawn(archetype, new Vector3(spawn.Position.X, spawn.Position.Y, spawn.Position.Z),
             spawn.Id);
+
+        return _enemies.Count == 0 ? null : _enemies[^1];
     }
 
     /// <summary>Two bandits waiting at the far end of the third room.</summary>
@@ -661,6 +671,13 @@ public sealed class Encounter
     public Vector3 DrawPositionOf(Enemy enemy)
     {
         var position = new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z);
+
+        // Rising out of the floor. A warning the player can act on has to be one they can see,
+        // and a body coming up out of the rock is the clearest possible statement that this
+        // room is about to be a fight.
+        if (enemy.IsRousing)
+            position.Y -= (1f - enemy.RousedFraction) * FigureHeight * 0.85f;
+
         if (!_animation.TryGetValue(enemy, out var animation)) return position;
 
         // Bounce on every stride. Absolute sine, so the figure never sinks into the ground.

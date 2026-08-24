@@ -924,7 +924,7 @@ public static class SessionSelfTest
         // Inside the room. A room is sixteen metres across, so standing twelve from its centre
         // is standing in the rock — and the arrow correctly stopped at the wall, which read as
         // the archer being harmless.
-        var standing = new Vector3(centre.X, 1.7f, centre.Z + 6.5f);
+        var standing = new Vector3(centre.X, 1.7f, centre.Z + MineGenerator.RoomHalf - 2f);
         var reach = session.Player.Combat.ActiveWeapon.Range;
 
         Check(failures, $"the archer outranges a sword ({archer.AttackRange:0} m vs {reach:0} m)",
@@ -943,10 +943,30 @@ public static class SessionSelfTest
         walledEncounter.UseCollision(mine.Collision);
         walledEncounter.Spawn(archer, new Vector3(centre.X, 0f, centre.Z), "selftest.archer.wall");
 
-        var throughRock = new Vector3(centre.X, 1.7f, centre.Z + 13f);
+        // Just past a wall that is actually a wall.
+        //
+        // Twice wrong before this: first a fixed distance that a room resize quietly moved
+        // *inside* the room, then a spot due south — which is the doorway the player arrives
+        // through, so the arrow flew out through the gap exactly as it should have.
+        //
+        // A side with an opening is emitted as two boxes suffixed .a and .b; a solid side is
+        // one box. So find a side of this room that came out whole.
+        var prefix = $"{mine.Manifest.Id}.room01.";
+        var solidSide = new[] { "north", "south", "east", "west" }.First(side =>
+            mine.Manifest.Geometry.Any(box =>
+                string.Equals(box.Id, prefix + side, StringComparison.Ordinal)));
+
+        var beyond = MineGenerator.RoomHalf + 1.5f;
+        var throughRock = solidSide switch
+        {
+            "north" => new Vector3(centre.X, 1.7f, centre.Z - beyond),
+            "south" => new Vector3(centre.X, 1.7f, centre.Z + beyond),
+            "east" => new Vector3(centre.X + beyond, 1.7f, centre.Z),
+            _ => new Vector3(centre.X - beyond, 1.7f, centre.Z)
+        };
         for (var step = 0; step < 200; step++) walledEncounter.Update(0.05f, throughRock, 0f);
 
-        Check(failures, "but not through a wall",
+        Check(failures, $"but not through a wall (stood past the {solidSide} face)",
             walled.Player.Vitals.Health >= walled.Player.Vitals.MaxHealth);
 
         // --- it gives ground rather than closing

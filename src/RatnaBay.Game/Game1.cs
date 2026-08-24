@@ -897,7 +897,7 @@ public sealed class Game1 : Game
         SetMouseLook(false, forPanel: true);
     }
 
-    private void UpdateDepthChoice(KeyboardState keyboard)
+    private void UpdateDepthChoice(KeyboardState keyboard, MouseState mouse)
     {
         if (_session is null) { _choosingDepth = false; return; }
 
@@ -913,7 +913,18 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Down))
             _depthSelection = Math.Min(MineEntry.MaxTier, _depthSelection + 1);
 
-        if (!Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
+        var chosen = false;
+        var pointer = LogicalMouse(mouse);
+        for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
+        {
+            if (!DepthRowBounds(tier).Contains((int)pointer.X, (int)pointer.Y)) continue;
+
+            _depthSelection = tier;
+            chosen = Clicked(mouse);
+            break;
+        }
+
+        if (!chosen && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
 
         var cost = MineEntry.CostOf(_depthSelection);
         if (!MineEntry.TryOpen(_session.Player.Inventory, _depthSelection))
@@ -945,6 +956,19 @@ public sealed class Game1 : Game
         ? new[] { "Resume", "Settings", "Set the descent aside", "Give up the descent" }
         : new[] { "Resume", "Settings", "Save and quit to menu" };
 
+    /// <summary>One row of the pause screen. Shared so the mouse and the drawing agree.</summary>
+    private Rectangle PauseItemBounds(int index)
+    {
+        var inRun = _run is { Run.IsActive: true };
+        var panel = new Rectangle(400, 196, 480, inRun ? 332 : 268);
+        var top = inRun ? panel.Y + 118 : panel.Y + 78;
+        return new Rectangle(panel.X + 40, top + index * 46, panel.Width - 80, 38);
+    }
+
+    /// <summary>One row of the shaft panel.</summary>
+    private static Rectangle DepthRowBounds(int tier) =>
+        new(348, 236 + (tier - MineEntry.MinTier) * 56, 584, 48);
+
     private void Pause()
     {
         if (_paused) return;
@@ -962,7 +986,7 @@ public sealed class Game1 : Game
         if (_screen == GameScreen.WorldScene) SetMouseLook(true);
     }
 
-    private void UpdatePause(KeyboardState keyboard)
+    private void UpdatePause(KeyboardState keyboard, MouseState mouse)
     {
         if (_showSettings)
         {
@@ -976,7 +1000,20 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Down))
             _pauseSelection = (_pauseSelection + 1) % items.Length;
 
-        if (!Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
+        // The pointer is already free and on screen here, so a menu that ignored it was
+        // simply broken: the one screen that stops the game was the one you could not click.
+        var chosen = false;
+        var pointer = LogicalMouse(mouse);
+        for (var index = 0; index < items.Length; index++)
+        {
+            if (!PauseItemBounds(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
+
+            _pauseSelection = index;
+            chosen = Clicked(mouse);
+            break;
+        }
+
+        if (!chosen && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
 
         switch (items[_pauseSelection])
         {
@@ -1063,7 +1100,7 @@ public sealed class Game1 : Game
 
         if (_paused)
         {
-            UpdatePause(keyboard);
+            UpdatePause(keyboard, mouse);
             return;
         }
 
@@ -1089,7 +1126,7 @@ public sealed class Game1 : Game
 
         if (_choosingDepth)
         {
-            UpdateDepthChoice(keyboard);
+            UpdateDepthChoice(keyboard, mouse);
             return;
         }
 
@@ -1481,8 +1518,20 @@ public sealed class Game1 : Game
     private static Rectangle DialogueTopicBounds(int index) =>
         new(376, 300 + index * 34, 528, 30);
 
-    private static Rectangle ShopItemBounds(int index) =>
-        new(274, 232 + index * 52, 732, 42);
+    /// <summary>Tiles across the stall. Three to a row.</summary>
+    private const int ShopColumns = 3;
+
+    /// <summary>
+    /// One tile of stock.
+    ///
+    /// A list ran off the bottom of the panel the moment the stall carried more than six
+    /// things, and there was no way to reach what had overflowed. A grid holds four times as
+    /// much in the same space and every tile is clickable.
+    /// </summary>
+    private static Rectangle ShopItemBounds(int index) => new(
+        282 + index % ShopColumns * 246,
+        200 + index / ShopColumns * 96,
+        230, 84);
 
     private static Rectangle TalkPromptBounds() => new(302, 596, 224, 42);
     private static Rectangle SecondaryPromptBounds() => new(534, 596, 212, 42);
@@ -2394,10 +2443,15 @@ public sealed class Game1 : Game
         }
         if (items.Count == 0) return;
 
-        if (Pressed(keyboard, Keys.Up))
+        // Left and right move across a row; up and down move between rows.
+        if (Pressed(keyboard, Keys.Left))
             _shopSelection = (_shopSelection + items.Count - 1) % items.Count;
-        if (Pressed(keyboard, Keys.Down))
+        if (Pressed(keyboard, Keys.Right))
             _shopSelection = (_shopSelection + 1) % items.Count;
+        if (Pressed(keyboard, Keys.Up))
+            _shopSelection = (_shopSelection + items.Count - ShopColumns) % items.Count;
+        if (Pressed(keyboard, Keys.Down))
+            _shopSelection = (_shopSelection + ShopColumns) % items.Count;
 
         var pointer = LogicalMouse(mouse);
         for (var index = 0; index < items.Count; index++)
@@ -2644,6 +2698,7 @@ public sealed class Game1 : Game
             DrawDamageDirections();
             DrawSpellBar();
             DrawCastBanner();
+            DrawSurfaceSigns();
             DrawCampDecision();
             DrawDoorPrompt();
             DrawRunLedger();
@@ -2788,7 +2843,7 @@ public sealed class Game1 : Game
         var items = PauseItems;
         for (var index = 0; index < items.Length; index++)
         {
-            var bounds = new Rectangle(panel.X + 40, (int)top + index * 46, panel.Width - 80, 38);
+            var bounds = PauseItemBounds(index);
             var selected = index == _pauseSelection;
             var giveUp = items[index].StartsWith("Give up", StringComparison.Ordinal);
 
@@ -2802,7 +2857,7 @@ public sealed class Game1 : Game
                 selected ? Color.White : new Color(192, 207, 205));
         }
 
-        TextCentred("Up / Down select      Enter confirm      Esc resume",
+        TextCentred("Click or arrows select      Enter confirm      Esc resume",
             panel.Center.X, panel.Bottom - 30f, 13, new Color(140, 156, 164));
     }
 
@@ -2833,8 +2888,7 @@ public sealed class Game1 : Game
             var cost = MineEntry.CostOf(tier);
             var affordable = stones >= cost;
             var selected = tier == _depthSelection;
-            var row = new Rectangle(panel.X + 28, panel.Y + 88 + (tier - 1) * 56,
-                panel.Width - 56, 48);
+            var row = DepthRowBounds(tier);
 
             DrawPanel(row,
                 selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
@@ -2857,7 +2911,7 @@ public sealed class Game1 : Game
                 : $"Pays {_depthSelection} a room, rising. {breakEven} rooms before the door pays for itself.",
             panel.Center.X, panel.Bottom - 54f, 14, new Color(206, 212, 218));
 
-        TextCentred("Up / Down choose      Enter descend      Esc step back",
+        TextCentred("Click or arrows choose      Enter descend      Esc step back",
             panel.Center.X, panel.Bottom - 28f, 13, new Color(140, 156, 164));
     }
 
@@ -2915,6 +2969,52 @@ public sealed class Game1 : Game
 
         TextCentred("Enter  ·  back to the surface", panel.Center.X, panel.Bottom - 30f, 14,
             new Color(150, 162, 170));
+    }
+
+    /// <summary>
+    /// Names over the three things in the yard, and a line saying what a Deepankar is for.
+    ///
+    /// Reported as not knowing what to do here, which was fair: a walled yard with no labels
+    /// and no instruction is a room, not a hub. A name floating over each fixture answers
+    /// "where do I go" from anywhere in the yard, without a tutorial saying it out loud.
+    /// </summary>
+    private void DrawSurfaceSigns()
+    {
+        if (!OnTheSurface || _session is null || _runSummary is not null) return;
+
+        var stones = _session.Player.Inventory.CountOf(SoulCrystals.LesserId);
+        var gold = _session.Player.Vitals.Gold;
+
+        var deepest = MineEntry.DeepestAffordable(_session.Player.Inventory);
+        var next = Math.Min(MineEntry.MaxTier, deepest + 1);
+
+        TextCentred(deepest >= MineEntry.MaxTier
+                ? $"{stones} stones. The order will sell you any depth it has.  {gold} gold."
+                : deepest > MineEntry.MinTier
+                    ? $"{stones} stones opens tier {deepest}. Tier {next} wants {MineEntry.CostOf(next)}.  {gold} gold."
+                    : $"The shallow shaft is free. {MineEntry.CostOf(2)} stones opens a deeper one — you have {stones}.",
+            LogicalWidth / 2f, 48f, 14, new Color(163, 191, 194));
+
+        Sign("THE SHAFT", "go down", Surface.Shaft, 5.6f, new Color(214, 186, 120));
+        Sign("THE STALL", "spend gold", Surface.Trader, 4f, new Color(196, 176, 210));
+        Sign("THE STAMBHA", "read it", Surface.Stambha, 5.4f, new Color(151, 206, 210));
+    }
+
+    private void Sign(string title, string subtitle, WorldPoint at, float height, Color colour)
+    {
+        if (!TryProjectToScreen(new Vector3(at.X, at.Y + height, at.Z), out var screen)) return;
+
+        var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+        var distance = player.FlatDistanceTo(at);
+
+        // Fades in with distance rather than out: a label is most useful from across the yard
+        // and just noise when you are stood at the thing it names.
+        var fade = MathHelper.Clamp((distance - 3f) / 5f, 0f, 1f);
+        if (fade <= 0.02f) return;
+
+        TextCentred(title, screen.X + 2f, screen.Y + 2f, 17, new Color(0, 0, 0, 170) * fade);
+        TextCentred(title, screen.X, screen.Y, 17, colour * fade);
+        TextCentred(subtitle, screen.X, screen.Y + 20f, 12, new Color(150, 162, 170) * fade);
     }
 
     private void DrawDoorPrompt()
@@ -3242,7 +3342,9 @@ public sealed class Game1 : Game
     {
         if (_session is null || _shop is null) return;
 
-        var panel = new Rectangle(250, 112, 780, 468);
+        // Tall enough for four rows of three. The stall carries ten things and the last row
+        // used to run off the bottom of the panel and through the help text.
+        var panel = new Rectangle(250, 100, 780, 552);
         DrawPanel(panel, new Color(5, 11, 18, 248), new Color(205, 157, 98));
         Text("SHOP", new Vector2(panel.X + 30, panel.Y + 26), 13,
             new Color(214, 183, 108));
@@ -3256,23 +3358,43 @@ public sealed class Game1 : Game
             Text("No stock.", new Vector2(panel.X + 30, panel.Y + 126), 17, new Color(174, 188, 186));
         else
         {
+            var purse = _session.Player.Vitals.Gold;
+
             for (var index = 0; index < items.Count; index++)
             {
                 var item = items[index];
                 var selected = index == _shopSelection;
-                var row = ShopItemBounds(index);
-                DrawPanel(row, selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+                var sold = _shop.IsSoldOut(item.Id);
+                var affordable = !sold && purse >= item.Price;
+                var tile = ShopItemBounds(index);
+
+                DrawPanel(tile,
+                    selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
                     selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
-                var state = _shop.IsSoldOut(item.Id) ? "SOLD OUT" : $"{item.Price} gold";
-                TextFit($"{index + 1}. {item.Name} x{item.Count}", new Vector2(row.X + 14, row.Y + 10),
-                    500f, 16, selected ? Color.White : new Color(203, 216, 214));
-                TextRight(state, row.Right - 14, row.Y + 10, 15,
-                    _shop.IsSoldOut(item.Id) ? new Color(142, 157, 157) : new Color(228, 197, 122));
+
+                var ink = sold ? new Color(112, 122, 122)
+                    : !affordable ? new Color(146, 130, 124)
+                    : selected ? Color.White
+                    : new Color(203, 216, 214);
+
+                TextFit(item.Name, new Vector2(tile.X + 12, tile.Y + 10), tile.Width - 24, 16, ink);
+                TextFit(ItemUse.Describe(item.Id, item.Kind), new Vector2(tile.X + 12, tile.Y + 34),
+                    tile.Width - 24, 12, new Color(140, 156, 164));
+
+                Text(sold ? "SOLD OUT" : $"{item.Price} gold",
+                    new Vector2(tile.X + 12, tile.Bottom - 24), 15,
+                    sold ? new Color(142, 157, 157)
+                        : affordable ? new Color(228, 197, 122)
+                        : new Color(196, 118, 96));
+
+                if (item.Count > 1)
+                    TextRight($"x{item.Count}", tile.Right - 12, tile.Bottom - 24, 14,
+                        new Color(150, 162, 170));
             }
         }
 
-        Text("Click an item to buy   Up / Down select   B / Esc close", new Vector2(panel.X + 30, panel.Bottom - 34),
-            13, new Color(163, 191, 194));
+        Text("Click to buy      Arrows move      Enter buy      B / Esc close",
+            new Vector2(panel.X + 30, panel.Bottom - 34), 13, new Color(163, 191, 194));
     }
 
     /// <summary>

@@ -111,6 +111,7 @@ public sealed class Enemy : IEnemy, ITargetable
     private float _burnDamagePerSecond;
     private float _burnRemaining;
     private string _burnSource = string.Empty;
+    private float _rousing;
     private float _chillFactor = 1f;
     private float _chillRemaining;
     private float _staggerRemaining;
@@ -140,6 +141,27 @@ public sealed class Enemy : IEnemy, ITargetable
     public bool IsAlive => Health > 0f;
 
     public bool IsBurning => _burnRemaining > 0f;
+
+    /// <summary>
+    /// Still getting up. Neither closes nor swings.
+    ///
+    /// A room that wakes the instant it is entered gives the player no moment to see what is
+    /// in it — reported as enemies appearing with no hint in a space too small to react in.
+    /// A beat of rising is the difference between a fight and an ambush, and it is what the
+    /// fiction always claimed was happening: the dead stand up when the room is disturbed.
+    /// </summary>
+    public bool IsRousing => _rousing > 0f;
+
+    /// <summary>How far through standing up this is, nought to one, for the sprite.</summary>
+    public float RousedFraction => RousingSeconds <= 0f
+        ? 1f
+        : Math.Clamp(1f - _rousing / RousingSeconds, 0f, 1f);
+
+    /// <summary>The longest anything takes to notice the door.</summary>
+    public const float RousingSeconds = 1.6f;
+
+    /// <summary>Start getting up. Called when the room this is in is walked into.</summary>
+    public void Rouse(float seconds) => _rousing = Math.Clamp(seconds, 0f, RousingSeconds);
     public bool IsChilled => _chillRemaining > 0f;
 
     /// <summary>Staggered enemies neither close nor swing — shock is control, not damage.</summary>
@@ -182,6 +204,7 @@ public sealed class Enemy : IEnemy, ITargetable
 
         if (_attackCooldown > 0f) _attackCooldown = MathF.Max(0f, _attackCooldown - deltaSeconds);
         if (_staggerRemaining > 0f) _staggerRemaining = MathF.Max(0f, _staggerRemaining - deltaSeconds);
+        if (_rousing > 0f) _rousing = MathF.Max(0f, _rousing - deltaSeconds);
 
         if (_chillRemaining > 0f)
         {
@@ -209,7 +232,7 @@ public sealed class Enemy : IEnemy, ITargetable
     {
         // A staggered enemy neither closes nor swings — that is what makes shock a control
         // element rather than a third damage number.
-        if (!IsAlive || IsStaggered || !canSeePlayer) return EnemyIntent.Idle;
+        if (!IsAlive || IsStaggered || IsRousing || !canSeePlayer) return EnemyIntent.Idle;
 
         var distance = Position.FlatDistanceTo(playerPosition);
         if (distance > Archetype.AggroRange) return EnemyIntent.Idle;
