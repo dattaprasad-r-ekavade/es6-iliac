@@ -124,6 +124,21 @@ public sealed class PlayerVitals
         return incoming;
     }
 
+    /// <summary>
+    /// Wipe progress toward the next level, keeping the level itself.
+    ///
+    /// The successor is trained to the standard the order has reached but not yet promoted.
+    /// It is the only death cost that cannot produce a wall: a player who dies repeatedly
+    /// stops advancing, and never goes backwards past a rank they have held.
+    /// </summary>
+    public void ClearUnspentXp()
+    {
+        if (Xp == 0) return;
+
+        Xp = 0;
+        Changed?.Invoke();
+    }
+
     public void Heal(float amount)
     {
         if (amount <= 0f) return;

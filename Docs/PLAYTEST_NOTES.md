@@ -150,3 +150,28 @@ carry the difficulty.
 
 The lesson worth keeping: **a log that has no word for something will report its absence as a
 fact.** Every claim from telemetry gets checked against the raw events before it is believed.
+
+---
+
+## Iteration 14 follow-up — three-run handoff
+
+**Status:** build fixes complete; human result pending.
+
+The follow-up build removes level-up healing, extends ordinary descents to eighteen rooms,
+adds ranged enemies that punish doorway fighting, shows the pot's gold value, preserves banked
+stones and character progression between descents, and checkpoints each completed run.
+
+Use one uninterrupted sitting:
+
+1. Choose **Descend into a Mine** and play until you voluntarily camp or die.
+2. Return to the menu, descend again, and confirm previously banked stones remain in the I/K
+   inventory screen.
+3. Complete three descents total. Do not force a camp for the test; make the decision you would
+   actually make.
+4. Record a one-line rating and what made you stop or continue.
+5. Run `dotnet run --project tools\RatnaBay.Tools -- review` and paste the resulting summary here.
+
+Evidence to look for: at least one door is genuinely weighed, ranged pressure draws the player
+into rooms rather than letting every fight be won from the previous doorway, and banking once
+changes what the next descent begins with. If all three runs still press reflexively, Iteration
+14 remains open and the risk/reward numbers need another pass before succession begins.

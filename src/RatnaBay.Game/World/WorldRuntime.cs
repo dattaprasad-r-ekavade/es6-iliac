@@ -14,12 +14,12 @@ namespace RatnaBay.Client;
 public sealed class WorldRuntime
 {
     private readonly StaticCollisionIndex _collision = new();
-    private readonly string _manifestPath;
+    private readonly string? _manifestPath;
     private readonly HashSet<string> _openedDoors = new(StringComparer.Ordinal);
     private DateTime _lastWriteUtc;
     private List<WorldDoorRuntime> _doors = new();
 
-    private WorldRuntime(string manifestPath, WorldManifest manifest)
+    private WorldRuntime(string? manifestPath, WorldManifest manifest)
     {
         _manifestPath = manifestPath;
         Manifest = manifest;
@@ -29,7 +29,8 @@ public sealed class WorldRuntime
     public WorldManifest Manifest { get; private set; }
     public IReadOnlyList<WorldDoorRuntime> Doors => _doors;
     public StaticCollisionIndex Collision => _collision;
-    public string ManifestPath => _manifestPath;
+    /// <summary>Null for generated worlds created in memory rather than loaded from disk.</summary>
+    public string? ManifestPath => _manifestPath;
 
     public static bool TryLoad(string path, out WorldRuntime? world, out string error)
     {
@@ -40,10 +41,27 @@ public sealed class WorldRuntime
         return true;
     }
 
+    /// <summary>
+    /// Validate and load a generated world without writing into the installed game directory.
+    /// Serializing through the public contract keeps this path identical to authored JSON while
+    /// avoiding one permanent file per descent.
+    /// </summary>
+    public static bool TryCreate(WorldManifest manifest, out WorldRuntime? world, out string error)
+    {
+        world = null;
+        if (!WorldManifest.TryParse(WorldManifest.Serialize(manifest), out var validated, out error))
+            return false;
+
+        world = new WorldRuntime(manifestPath: null, validated!);
+        return true;
+    }
+
     /// <summary>Reload once after an edit; a malformed edit leaves the current room playable.</summary>
     public bool TryReloadIfChanged(out string message)
     {
         message = string.Empty;
+        if (_manifestPath is null) return false;
+
         DateTime writeUtc;
         try { writeUtc = File.GetLastWriteTimeUtc(_manifestPath); }
         catch (IOException) { return false; }
@@ -141,6 +159,12 @@ public sealed class WorldRuntime
         foreach (var door in _doors)
             if (_openedDoors.Contains(door.Definition.Id)) door.Lock.RestoreOpened();
         RebuildCollision();
+
+        if (_manifestPath is null)
+        {
+            _lastWriteUtc = DateTime.MinValue;
+            return;
+        }
 
         try { _lastWriteUtc = File.GetLastWriteTimeUtc(_manifestPath); }
         catch (IOException) { _lastWriteUtc = DateTime.MinValue; }

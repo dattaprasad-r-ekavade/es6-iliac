@@ -35,6 +35,10 @@ public static class PlayEventKind
     public const string SpellCast = "spell.cast";
     public const string ItemUsed = "item.used";
     public const string Died = "player.died";
+
+
+    /// <summary>The successor found the last one's body and carried it out.</summary>
+    public const string CacheRecovered = "cache.recovered";
     public const string RunEnded = "run.ended";
 }
 

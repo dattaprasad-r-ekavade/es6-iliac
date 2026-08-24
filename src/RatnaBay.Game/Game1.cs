@@ -167,6 +167,12 @@ public sealed class Game1 : Game
     /// <summary>The run that just ended, while its summary is on screen.</summary>
     private RunResult? _runSummary;
 
+    /// <summary>What the last death cost, shown beside the run summary.</summary>
+    private SuccessionResult? _succession;
+
+    /// <summary>Northwatch's safe surface checkpoint between descents.</summary>
+    private static readonly WorldPoint SurfaceCheckpoint = new(0f, 2.4f, 14.5f);
+
     /// <summary>--mine N: play a generated mine instead of the authored world.</summary>
     private int? _mineSeed;
     private int _mineRooms = 4;
@@ -669,7 +675,7 @@ public sealed class Game1 : Game
     /// kind of world changes. Leaving the old one in place is how "Start New Game" after a
     /// descent used to hand back the mine you had just left.
     /// </summary>
-    private void EnterWorld(int? mineSeed)
+    private void EnterWorld(int? mineSeed, bool newCharacter = false)
     {
         _mineSeed = mineSeed;
 
@@ -683,7 +689,8 @@ public sealed class Game1 : Game
         _run = null;
         _runSummary = null;
 
-        StartSession(GameSession.NewGame());
+        var session = newCharacter || _session is null ? GameSession.NewGame() : _session;
+        StartSession(session);
         ResetCamera();
 
         _menuStatus = string.Empty;
@@ -696,6 +703,13 @@ public sealed class Game1 : Game
         switch (MenuItems[_menuSelection])
         {
             case "Continue":
+                // A run summary returns to this same menu while its mine is still resident.
+                // Continue means the persisted surface checkpoint, never that spent mine.
+                _mineSeed = null;
+                _world = null;
+                _run = null;
+                _runSummary = null;
+                LoadWorldManifest();
                 ResetCamera();
                 if (LoadSession())
                 {
@@ -706,11 +720,29 @@ public sealed class Game1 : Game
             case DescendItem:
                 // A fresh mine every time. The seed is shown on the HUD so a good one can be
                 // asked for again with --mine.
-                EnterWorld(Environment.TickCount);
-                _session!.ShowToast("The shaft closes above you.");
+                //
+                // After a process restart there is no in-memory session yet. Restore the
+                // surface checkpoint automatically; requiring Continue -> M -> Descend would
+                // make the obvious Descend button silently throw away the previous runs.
+                if (_session is null && GameSession.HasSaveFile)
+                {
+                    _mineSeed = null;
+                    _world = null;
+                    if (!LoadSession()) break;
+                }
+
+                // Back to the mine that killed the last one, if there is a body in it. A
+                // random new mine every time would put the cache somewhere unreachable by
+                // design, and a loss you are never given a chance to answer is only a loss.
+                var fallen = _session?.Player.Legacy.Fallen;
+                EnterWorld(fallen?.MineSeed ?? Environment.TickCount);
+
+                _session!.ShowToast(fallen is null
+                    ? "The shaft closes above you."
+                    : $"The same shaft. {fallen.Name} is still down there, in room {fallen.RoomIndex}.");
                 break;
             case "Start New Game":
-                EnterWorld(null);
+                EnterWorld(null, newCharacter: true);
                 _session!.ShowToast("You wake on the Northwatch road.");
                 break;
             case "Settings":
@@ -1352,15 +1384,18 @@ public sealed class Game1 : Game
     /// </summary>
     private void StartSession(GameSession session)
     {
-        LoadWorldManifest();
+        // The session goes in first: a generated mine needs to know whose body is lying in
+        // it before it is built.
+        var changingCharacter = !ReferenceEquals(_session, session);
         _session = session;
+        LoadWorldManifest();
         LoadQuestManifest();
         LoadDialogueManifest();
         LoadWatchers();
         LoadPockets();
         LoadPickups();
         LoadShop();
-        _session.Player.Quests.Changed += RefreshQuestObjective;
+        if (changingCharacter) _session.Player.Quests.Changed += RefreshQuestObjective;
         _dialogueOpen = false;
         _showJournal = false;
         _showCharacter = false;
@@ -1372,6 +1407,8 @@ public sealed class Game1 : Game
         SpawnEnemies();
         StartRun();
 
+        if (!changingCharacter) return;
+
         session.Player.Vitals.Died += () =>
         {
             // Down in a mine, dying ends the run and forfeits the pot. Above ground it is
@@ -1381,6 +1418,11 @@ public sealed class Game1 : Game
                 var lostRun = _run.Die();
                 _recorder.Record(PlayEventKind.Died, $"after {lostRun.RoomsCleared} rooms",
                     lostRun.StonesLost, 0f, 0f);
+
+                // Somebody else takes the lamp, and this one stays where they fell.
+                _succession = Succession.Promote(session.Player, lostRun,
+                    _mineSeed ?? 0, _run.DeepestRoom);
+
                 EndRun(lostRun);
                 return;
             }
@@ -1481,6 +1523,7 @@ public sealed class Game1 : Game
     private void EndRun(RunResult result)
     {
         _runSummary = result;
+        if (result.Survived) _succession = null;
         SetMouseLook(false, forPanel: true);
 
         _recorder.Record(PlayEventKind.RunEnded,
@@ -1490,15 +1533,9 @@ public sealed class Game1 : Game
 
         if (_session is null) return;
 
-        if (result.StonesCarriedOut > 0)
-            _session.Player.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName,
-                result.StonesCarriedOut, SoulCrystals.ItemKind);
-
-        if (result.Outcome == RunOutcome.Died)
-        {
-            _session.Player.Vitals.FullRestore();
-            _session.Player.Combat.ClearCombat();
-        }
+        var saveMessage = _session.CompleteRun(result, SurfaceCheckpoint);
+        if (!string.Equals(saveMessage, "Saved.", StringComparison.Ordinal))
+            _menuStatus = saveMessage;
     }
 
     private bool LoadSession()
@@ -1754,9 +1791,22 @@ public sealed class Game1 : Game
     {
         if (_world is not null) return;
 
-        var path = _mineSeed is { } seed
-            ? WriteGeneratedMine(seed)
-            : Path.Combine(AppContext.BaseDirectory, "Content", "World", "northwatch.json");
+        if (_mineSeed is { } seed)
+        {
+            var manifest = MineGenerator.Generate(seed, _mineRooms, _mineDepth);
+            PlaceTheFallen(manifest, seed);
+
+            if (!WorldRuntime.TryCreate(manifest, out var generated, out var generationError))
+            {
+                _assetErrors.Add(generationError);
+                return;
+            }
+
+            _world = generated;
+            return;
+        }
+
+        var path = Path.Combine(AppContext.BaseDirectory, "Content", "World", "northwatch.json");
         if (!WorldRuntime.TryLoad(path, out var world, out var error))
         {
             _assetErrors.Add(error);
@@ -1766,31 +1816,39 @@ public sealed class Game1 : Game
         _world = world;
     }
 
+    /// <summary>The one pickup that is not part of the level it appears in.</summary>
+    private const string CachePickupId = "cache.fallen";
+
     /// <summary>
-    /// Generate a mine and put it on disk, then load it by the ordinary path.
+    /// Put the last Deepankar's cache into the mine that killed them.
     ///
-    /// Writing the file rather than handing the manifest straight to the runtime is the point:
-    /// it proves the generator emits something the existing loader accepts, and it leaves the
-    /// exact mine sitting there to be inspected, validated or edited by hand when a seed turns
-    /// out to be broken.
+    /// Added to the manifest rather than special-cased at runtime, so it is found, taken,
+    /// saved and remembered by exactly the same machinery as everything else on the floor.
     /// </summary>
-    private string WriteGeneratedMine(int seed)
+    private void PlaceTheFallen(WorldManifest manifest, int seed)
     {
-        var manifest = MineGenerator.Generate(seed, _mineRooms, _mineDepth);
-        var directory = Path.Combine(AppContext.BaseDirectory, "Content", "World", "Generated");
-        var path = Path.Combine(directory, $"{manifest.Id}.json");
+        if (_session is null) return;
 
-        try
-        {
-            Directory.CreateDirectory(directory);
-            File.WriteAllText(path, WorldManifest.Serialize(manifest));
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            _assetErrors.Add($"Could not write generated mine: {exception.Message}");
-        }
+        var cache = _session.Player.Legacy.Fallen;
+        if (cache is null || cache.MineSeed != seed) return;
 
-        return path;
+        var room = manifest.Rooms.FirstOrDefault(candidate => candidate.Index == cache.RoomIndex)
+            ?? manifest.Rooms.LastOrDefault();
+        if (room is null) return;
+
+        manifest.Pickups.Add(new WorldPickup
+        {
+            Id = CachePickupId,
+            ItemId = SoulCrystals.LesserId,
+            Name = string.IsNullOrWhiteSpace(cache.Name)
+                ? "A Deepankar's Cache"
+                : $"{cache.Name}'s Cache",
+            Kind = SoulCrystals.ItemKind,
+            Count = cache.Stones,
+            Position = new WorldVector(room.Centre.X, 0.1f, room.Centre.Z),
+            Model = "cheeseBox",
+            Scale = 0.6f
+        });
     }
 
     private void LoadDialogueManifest()
@@ -1934,6 +1992,16 @@ public sealed class Game1 : Game
         _session.Player.Inventory.Add(pickup.ItemId, pickup.Name, pickup.Count, pickup.Kind);
         _session.Player.Story.MarkLooted($"pickup.{pickup.Id}");
         _pickups.Remove(pickup);
+
+        if (string.Equals(pickup.Id, CachePickupId, StringComparison.Ordinal))
+        {
+            _session.Player.Legacy.Recover();
+            _session.ShowToast($"You lift {pickup.Name}. {pickup.Count} stones come home.");
+            _recorder.Record(PlayEventKind.CacheRecovered, pickup.Name, pickup.Count, 0f,
+                _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+            return;
+        }
+
         _session.ShowToast($"Taken: {pickup.Name} x{pickup.Count}.");
     }
 
@@ -2280,6 +2348,19 @@ public sealed class Game1 : Game
         TextCentred("nothing deeper", press.Center.X, press.Y + 12f, 15, new Color(110, 120, 128));
     }
 
+    /// <summary>First, second, third — for counting the dead.</summary>
+    private static string Ordinal(int value) => (value % 100) switch
+    {
+        11 or 12 or 13 => $"{value}th",
+        _ => (value % 10) switch
+        {
+            1 => $"{value}st",
+            2 => $"{value}nd",
+            3 => $"{value}rd",
+            _ => $"{value}th"
+        }
+    };
+
     /// <summary>A quiet running total, so the pot is never a surprise at the door.</summary>
     private void DrawRunLedger()
     {
@@ -2329,7 +2410,26 @@ public sealed class Game1 : Game
                 panel.Center.X, panel.Y + 186f, 14, new Color(150, 162, 170));
         }
 
-        TextCentred("Enter  ·  back to the surface", panel.Center.X, panel.Bottom - 38f, 14,
+        // Who takes the lamp, and where the last one is lying. A death that only reports a
+        // number is a reset; a death with a name and a place to go back to is a reason.
+        if (!summary.Survived && _session is not null)
+        {
+            var legacy = _session.Player.Legacy;
+            var successor = legacy.CurrentName;
+
+            TextCentred($"{successor} takes the lamp  ·  Deepankar the {Ordinal(legacy.Generation + 1)}",
+                panel.Center.X, panel.Bottom - 88f, 15, new Color(214, 200, 170));
+
+            if (legacy.Fallen is { } cache)
+                TextCentred(
+                    $"{cache.Name} lies in room {cache.RoomIndex} with {cache.Stones} stones. Go and fetch them.",
+                    panel.Center.X, panel.Bottom - 64f, 13, new Color(151, 206, 210));
+            else if (_succession is { } cost && cost.ItemsLost > 0)
+                TextCentred($"{cost.ItemsLost} items went into the ground.",
+                    panel.Center.X, panel.Bottom - 64f, 13, new Color(150, 162, 170));
+        }
+
+        TextCentred("Enter  ·  back to the surface", panel.Center.X, panel.Bottom - 30f, 14,
             new Color(150, 162, 170));
     }
 

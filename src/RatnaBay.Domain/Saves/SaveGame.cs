@@ -45,6 +45,9 @@ public sealed class SaveData
     public SavedObjective? Objective { get; set; }
 
     public StorySnapshot Story { get; set; } = new();
+
+    /// <summary>Successors spent, and the cache waiting to be fetched.</summary>
+    public SavedLegacy? Legacy { get; set; }
     public string SavedUtc { get; set; } = string.Empty;
 }
 
@@ -88,6 +91,7 @@ public static class SaveGame
             KilledEnemies = player.World.GetKilledIds().ToList(),
             KnownTopics = player.Dialogue.Capture().ToList(),
             Story = player.Story.Capture(),
+            Legacy = player.Legacy.Capture(),
             Objective = player.Objective.Capture(),
             SceneId = sceneId,
             SpawnId = spawnId,
@@ -117,6 +121,7 @@ public static class SaveGame
         player.World.LoadKilled(data.KilledEnemies);
         player.Dialogue.Restore(data.KnownTopics);
         player.Story.Restore(data.Story);
+        player.Legacy.Restore(data.Legacy);
 
         // Derived from the saved route rather than stored twice: one source of truth for
         // which path this character walks.

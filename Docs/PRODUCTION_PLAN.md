@@ -37,7 +37,7 @@ acting.
 | | Lines | State |
 |---|---:|---|
 | `RatnaBay.Domain` | ~4,600 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | ~4,900 | **409 tests, ~300 ms** |
+| `RatnaBay.Domain.Tests` | ~4,900 | **439 tests, ~500 ms** |
 | `RatnaBay.Game` | ~5,600 | Renderer, HUD, session, world runtime, combat |
 | `RatnaBay.Tools` | ~370 | `doctor`, `validate`, `asset-info`, `sim`, `mine` |
 
@@ -47,7 +47,7 @@ three life paths and their multipliers · eight use-based skills · collision, d
 stealth, watchers, pickpocketing · dialogue, quests, shops · versioned saves · the world manifest
 format, its validation and its hot reload · the publish pipeline and its gates.
 
-**Not yet built:** stone slots · amulets · succession · the fort ·
+**Not yet built:** stone slots · amulets · succession · five mechanical cave themes · the fort ·
 bosses.
 
 ---
@@ -97,6 +97,9 @@ fight through it, open each door, walk out the far end.
 - Camp at a cleared room's exit — bank and end, or open the next door. Never mid-fight.
 - Payout `N x T`; death forfeits the pot, and records what was lost so succession can fetch it.
 - A run summary screen, and a running "at risk" total so the pot is never a surprise at the door.
+- Camping checkpoints the banked stones at the surface; the same character, inventory, XP and
+  skills enter the next mine. Generated worlds stay in memory rather than accumulating in the
+  installed game directory.
 
 **Playable:** a complete run. Clear rooms, decide each time whether to press on, walk out with
 stones or lose them.

@@ -82,6 +82,10 @@ the last valid room active. Validate the source data with:
 dotnet run --project tools\RatnaBay.Tools -- validate
 ```
 
+Live descents generate their validated mine in memory, so playing does not write into or fill
+the installed game directory. Authors can still materialize a reproducible seed for inspection
+with `dotnet run --project tools\RatnaBay.Tools -- mine --seed 4211 --rooms 8 --depth 2`.
+
 The Steam presentation target is borderless fullscreen by default. The game authors UI
 against a 1280×720 logical canvas and fits it uniformly into the active display, preserving
 readability at 720p, 1080p, 1440p, 4K, and wider aspect ratios. F11 toggles a 1280×720

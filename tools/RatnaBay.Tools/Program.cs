@@ -177,8 +177,33 @@ static int RunSimulation(string root)
         restored.Quests.Find("quest.northwatch.bandits")?.IsCompleted == true);
     Check("known dialogue survives the save loop", restored.Dialogue.KnowsTopic("bandits"));
 
+    var mine = MineGenerator.Generate(seed: 4211, rooms: 8, depth: 2);
+    Check("generated mine validates", mine.Validate().Count == 0);
+
+    var run = RunState.Begin(seed: 4211, tier: 2, rooms: 7);
+    for (var room = 0; room < 3; room++)
+    {
+        run.EnterRoom();
+        run.ClearRoom();
+    }
+
+    var camped = run.Camp();
+    Check("three tier-two rooms bank twelve stones",
+        camped.Survived && camped.StonesCarriedOut == 12);
+    restored.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName,
+        camped.StonesCarriedOut, SoulCrystals.ItemKind);
+
+    var betweenRuns = SaveGame.Capture(restored, new WorldPoint(0f, 2.4f, 14.5f),
+        sceneId: "scene.northwatch");
+    var nextDescent = PlayerCharacter.NewGame();
+    nextDescent.Quests.RegisterRange(quests.ToDefinitions());
+    SaveGame.Restore(nextDescent, betweenRuns);
+    Check("banked stones survive into the next descent",
+        nextDescent.Inventory.CountOf(SoulCrystals.LesserId)
+            == restored.Inventory.CountOf(SoulCrystals.LesserId));
+
     Console.WriteLine(failures.Count == 0
-        ? "Simulation passed: dialogue -> quest -> combat events -> reward -> save -> reload."
+        ? "Simulation passed: quest loop -> generated run -> bank -> save -> next descent."
         : $"Simulation failed with {failures.Count} problem(s).");
     return failures.Count == 0 ? 0 : 1;
 }
@@ -459,7 +484,7 @@ static int PrintHelp()
     Console.WriteLine("Ratna Bay tools");
     Console.WriteLine("  doctor     Check the repository/toolchain baseline (default)");
     Console.WriteLine("  validate   Validate JSON world, dialogue, quest and shop manifests (optionally pass a path)");
-    Console.WriteLine("  sim        Run the dialogue -> quest -> combat -> reward -> save regression");
+    Console.WriteLine("  sim        Run the quest -> generated run -> bank -> save regression");
     Console.WriteLine("  mine       Generate a mine: mine --seed N [--rooms N] [--depth N] [--out PATH]");
     Console.WriteLine("  review     Read back a play recording: review [path] (defaults to the newest)");
     Console.WriteLine("  asset-info Inspect a .gltf or .glb asset using SharpGLTF");

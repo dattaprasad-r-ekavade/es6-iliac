@@ -94,6 +94,9 @@ public static class SessionSelfTest
                 recoveredOk && recoveryMessage.Contains("backup", StringComparison.OrdinalIgnoreCase)
                 && recovered.Player.Vitals.Gold == reloaded.Player.Vitals.Gold);
 
+            RunBetweenRunPersistenceChecks(failures,
+                Path.Combine(testDirectory, "between_runs.json"));
+
             RunFightChecks(failures);
             RunWeaponChecks(failures);
             RunWorldChecks(failures);
@@ -102,12 +105,16 @@ public static class SessionSelfTest
             RunStealthChecks(failures);
             RunShopChecks(failures);
             RunMineChecks(failures);
+            RunSuccession(failures);
         }
         finally
         {
             DeleteTestFile(savePath + ".tmp");
             DeleteTestFile(savePath + ".bak");
             DeleteTestFile(savePath);
+            DeleteTestFile(Path.Combine(testDirectory, "between_runs.json.tmp"));
+            DeleteTestFile(Path.Combine(testDirectory, "between_runs.json.bak"));
+            DeleteTestFile(Path.Combine(testDirectory, "between_runs.json"));
             try { if (Directory.Exists(testDirectory)) Directory.Delete(testDirectory); }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
@@ -123,6 +130,31 @@ public static class SessionSelfTest
         Console.WriteLine($"Session self-test FAILED with {failures.Count} problem(s):");
         foreach (var failure in failures) Console.WriteLine($"  - {failure}");
         return 1;
+    }
+
+    /// <summary>A camp reward must still exist after the next process starts.</summary>
+    private static void RunBetweenRunPersistenceChecks(List<string> failures, string savePath)
+    {
+        var session = GameSession.NewGame(savePath);
+        var before = session.Player.Inventory.CountOf(SoulCrystals.LesserId);
+        var run = RunState.Begin(seed: 4211, tier: 1, rooms: 8);
+        for (var room = 0; room < 3; room++)
+        {
+            run.EnterRoom();
+            run.ClearRoom();
+        }
+
+        var result = run.Camp();
+        var message = session.CompleteRun(result, new WorldPoint(0f, 2.4f, 14.5f));
+        Check(failures, $"camping checkpoints the run reward (said: {message})",
+            message == "Saved."
+            && session.Player.Inventory.CountOf(SoulCrystals.LesserId) == before + 6);
+
+        var nextDescent = GameSession.NewGame(savePath);
+        var loaded = nextDescent.TryLoad(out var loadMessage);
+        Check(failures, $"banked stones survive into the next descent (said: {loadMessage})",
+            loaded && nextDescent.Player.Inventory.CountOf(SoulCrystals.LesserId) == before + 6
+            && nextDescent.Position == new WorldPoint(0f, 2.4f, 14.5f));
     }
 
     /// <summary>
@@ -623,6 +655,11 @@ public static class SessionSelfTest
                 loaded && mine is not null);
             if (mine is null) return;
 
+            var createdInMemory = WorldRuntime.TryCreate(manifest, out var memoryMine,
+                out var memoryError);
+            Check(failures, $"a generated mine loads in memory without an install file (said: {memoryError})",
+                createdInMemory && memoryMine is not null && memoryMine.ManifestPath is null);
+
             Check(failures, "the same seed produces the same mine",
                 WorldManifest.Serialize(MineGenerator.Generate(seed, rooms: 5, depth: 2))
                     == WorldManifest.Serialize(manifest));
@@ -883,6 +920,74 @@ public static class SessionSelfTest
         var meleeEnd = brawler.Position.FlatDistanceTo(new WorldPoint(far.X, 0f, far.Z));
         Check(failures, $"while a bandit still closes ({meleeStart:0.0} m -> {meleeEnd:0.0} m)",
             meleeEnd < meleeStart);
+    }
+
+    /// <summary>
+    /// Die, be replaced, go back down, and lift your predecessor off the floor.
+    ///
+    /// The domain proves the ledger; this proves the loop closes in the world — that the cache
+    /// is placed in the mine that killed them, in the room they died in, and that walking into
+    /// it is an ordinary pickup rather than a special case.
+    /// </summary>
+    private static void RunSuccession(List<string> failures)
+    {
+        const int seed = 90210;
+
+        var session = GameSession.NewGame();
+        var player = session.Player;
+        player.Vitals.AddXp(player.Vitals.XpToLevel + 15);
+
+        var level = player.Vitals.Level;
+        var buried = player.Legacy.CurrentName;
+        var lost = new RunResult(RunOutcome.Died, 6, 0, 21, 1);
+
+        Succession.Promote(player, lost, seed, roomIndex: 6);
+
+        Check(failures, $"a death promotes a successor ({buried} -> {player.Legacy.CurrentName})",
+            player.Legacy.CurrentName != buried && player.Legacy.Generation == 1);
+        Check(failures, $"who keeps the rank but not the progress (level {player.Vitals.Level})",
+            player.Vitals.Level == level && player.Vitals.Xp == 0);
+        Check(failures, "and is sent down armed",
+            player.Combat.ActiveWeapon.Damage > 0f);
+
+        // The same mine, regenerated from the same seed, now holds the body.
+        var manifest = MineGenerator.Generate(seed, 18, 1);
+        var cache = player.Legacy.Fallen!;
+        var room = manifest.Rooms.Single(candidate => candidate.Index == cache.RoomIndex);
+
+        manifest.Pickups.Add(new WorldPickup
+        {
+            Id = "cache.fallen",
+            ItemId = SoulCrystals.LesserId,
+            Name = $"{cache.Name}'s Cache",
+            Kind = SoulCrystals.ItemKind,
+            Count = cache.Stones,
+            Position = new WorldVector(room.Centre.X, 0.1f, room.Centre.Z)
+        });
+
+        Check(failures, "the mine with a body in it still validates",
+            manifest.Validate().Count == 0);
+        Check(failures, $"and the cache is in the room they died in (room {cache.RoomIndex})",
+            room.Contains(manifest.Pickups[^1].Position.X, manifest.Pickups[^1].Position.Z));
+
+        var before = player.Inventory.CountOf(SoulCrystals.LesserId);
+        player.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, cache.Stones,
+            SoulCrystals.ItemKind);
+        player.Legacy.Recover();
+
+        Check(failures, $"lifting it returns the stones ({before} -> "
+            + $"{player.Inventory.CountOf(SoulCrystals.LesserId)})",
+            player.Inventory.CountOf(SoulCrystals.LesserId) == before + 21);
+        Check(failures, "and there is nothing left to fetch",
+            player.Legacy.Fallen is null && !player.Legacy.CanRecoverIn(seed));
+
+        // A save taken after all of that has to remember who is dead.
+        var reloaded = PlayerCharacter.NewGame();
+        SaveGame.Restore(reloaded, SaveGame.Capture(player, default));
+
+        Check(failures, $"the bloodline survives a save ({reloaded.Legacy.CurrentName})",
+            reloaded.Legacy.Generation == 1
+            && reloaded.Legacy.CurrentName == player.Legacy.CurrentName);
     }
 
     private static void Check(ICollection<string> failures, string what, bool passed)

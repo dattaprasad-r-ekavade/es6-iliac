@@ -156,6 +156,32 @@ public sealed class GameSession
         return message;
     }
 
+    /// <summary>
+    /// Apply the durable result of a descent and checkpoint it at the surface.
+    ///
+    /// The run ledger owns whether stones were carried out or lost. The session owns where
+    /// durable inventory lives and where it is written. Keeping this transaction here prevents
+    /// a summary screen from saying "banked" while the next world silently starts a new pack.
+    /// </summary>
+    public string CompleteRun(RunResult result, WorldPoint surfacePosition, float surfaceYaw = 0f)
+    {
+        if (result.Outcome == RunOutcome.InProgress) return "The run is still in progress.";
+
+        if (result.StonesCarriedOut > 0)
+            Player.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName,
+                result.StonesCarriedOut, SoulCrystals.ItemKind);
+
+        // Both outcomes return to the surface. Health and stamina are restored there; prana
+        // deliberately is not, because FullRestore preserves the stone economy.
+        Player.Vitals.FullRestore();
+        Player.Combat.ClearCombat();
+        Position = surfacePosition;
+        Yaw = surfaceYaw;
+        Pitch = 0f;
+
+        return Save();
+    }
+
     private bool TryRestore(SaveData data, string successMessage, out string message)
     {
         try

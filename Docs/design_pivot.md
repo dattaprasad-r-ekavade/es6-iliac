@@ -1,8 +1,8 @@
 # Ratna Bay — Design Pivot
 
-**Status:** The design is decided. Balance is implemented and asserted; the systems in §8 are
-built and tested. What remains is a production plan and the building of mine generation, run
-state, slots, amulets and succession.
+**Status:** The design is decided. Balance is implemented and asserted; generated mines and the
+camp-or-press-on run are built. What remains begins with validating that decision in external
+play, then succession, slots, amulets, themes, the fort and bosses.
 **Supersedes:** the vertical-slice product definition in `PRODUCTION_PLAN.md`. The engineering
 decisions in that document (engine, sprites, domain separation, publish gates) still stand.
 

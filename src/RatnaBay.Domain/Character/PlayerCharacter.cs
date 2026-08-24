@@ -51,6 +51,9 @@ public sealed class PlayerCharacter
     public ObjectiveService Objective { get; }
     public WorldState World { get; }
 
+    /// <summary>The line of Deepankars this save has spent, and the last body left below.</summary>
+    public Legacy Legacy { get; } = new();
+
     public static string QuestCompletedFlag(string questId) =>
         $"flag.quest.completed.{questId}";
 
