@@ -39,6 +39,21 @@ public sealed class Game1 : Game
     private BasicEffect _primitiveEffect = null!;
     private VertexPositionNormalTexture[] _cubeVertices = null!;
     private short[] _cubeIndices = null!;
+
+    /// <summary>
+    /// A faceted solid for the jiva stone.
+    ///
+    /// The stone was a cube, and a cube cannot be a gem: every face catches the light equally,
+    /// so it reads as a lit box rather than something cut. An octahedron with flat per-face
+    /// normals gives eight facets at eight angles, which is the cheapest geometry that still
+    /// glitters when the light rakes across it.
+    /// </summary>
+    private VertexPositionNormalTexture[] _crystalVertices = null!;
+    private short[] _crystalIndices = null!;
+
+    /// <summary>One quad, rebuilt per call, for text carved onto a wall or a pillar face.</summary>
+    private readonly VertexPositionNormalTexture[] _faceQuad = new VertexPositionNormalTexture[4];
+    private readonly short[] _faceIndices = { 0, 1, 2, 0, 2, 3 };
     private KeyboardState _previousKeyboard;
     private MouseState _previousMouse;
 
@@ -315,6 +330,7 @@ public sealed class Game1 : Game
             200f);
 
         CreatePrimitiveCube();
+        CreatePrimitiveCrystal();
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.
@@ -2166,8 +2182,8 @@ public sealed class Game1 : Game
         if (_stambhaPreview)
         {
             // Framed as the trailer's opening: close on the pillar, the stone low and left.
-            _cameraPosition = new Vector3(0f, 0.75f, 2.1f);
-            _cameraPitch = -0.02f;
+            _cameraPosition = new Vector3(0.35f, 0.45f, 3.15f);
+            _cameraPitch = 0.06f;
             _cameraYaw = 0f;
             UpdateCameraMatrices();
 
@@ -2803,48 +2819,106 @@ public sealed class Game1 : Game
         var keyDirection = _primitiveEffect.DirectionalLight0.Direction;
         var keyColour = _primitiveEffect.DirectionalLight0.DiffuseColor;
         var fillEnabled = _primitiveEffect.DirectionalLight1.Enabled;
+        var backEnabled = _primitiveEffect.DirectionalLight2.Enabled;
+        var perPixel = _primitiveEffect.PreferPerPixelLighting;
 
-        _primitiveEffect.AmbientLightColor = new Vector3(0.17f, 0.15f, 0.17f);
+        _primitiveEffect.AmbientLightColor = new Vector3(0.055f, 0.05f, 0.062f);
+
+        // Key: the stone. It sits on the floor to the left of the pillar, so its light travels
+        // up, to the right, and away from the camera — which is what puts the catch on the
+        // upper lip of every cut and throws the pillar's own shadow up the back wall.
+        _primitiveEffect.DirectionalLight0.Enabled = true;
         _primitiveEffect.DirectionalLight0.Direction =
-            Vector3.Normalize(new Vector3(0.62f, 0.66f, -0.42f));
-        _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(1.45f, 0.94f, 0.48f);
+            Vector3.Normalize(new Vector3(0.40f, 0.30f, -0.86f));
+        _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(1.30f, 0.82f, 0.40f);
+        _primitiveEffect.DirectionalLight0.SpecularColor = Vector3.Zero;
+
+        // Fill: cold, from the opposite side, at a tenth of the key. Without it the unlit half
+        // of the pillar is pure black and the silhouette dies against the cave.
         _primitiveEffect.DirectionalLight1.Enabled = true;
         _primitiveEffect.DirectionalLight1.Direction =
-            Vector3.Normalize(new Vector3(-0.3f, -0.5f, -1f));
-        _primitiveEffect.DirectionalLight1.DiffuseColor = new Vector3(0.10f, 0.13f, 0.20f);
+            Vector3.Normalize(new Vector3(-0.75f, -0.25f, -0.5f));
+        _primitiveEffect.DirectionalLight1.DiffuseColor = new Vector3(0.10f, 0.13f, 0.22f);
+        _primitiveEffect.DirectionalLight1.SpecularColor = Vector3.Zero;
+
+        // EnableDefaultLighting leaves a third grey light on, and nothing in this scene ever
+        // set it. It was washing a flat neutral over every surface the key was deliberately
+        // keeping dark, which is most of why the shot read as evenly lit rather than as one
+        // stone in a black cave.
+        _primitiveEffect.DirectionalLight2.Enabled = false;
+
+        // One hard source across faceted stone is exactly the case vertex lighting handles
+        // worst; the carved band is a single quad, so per-vertex it would have no gradient
+        // across it at all.
+        _primitiveEffect.PreferPerPixelLighting = true;
 
         // Cave floor and back wall, as low-poly and as flat as everything else.
-        DrawCube(new Vector3(0f, -1.4f, 0f), new Vector3(14f, 0.4f, 14f), new Color(58, 52, 46), 0f);
-        DrawCube(new Vector3(0f, 2.2f, -5.0f), new Vector3(11f, 7f, 0.4f), new Color(38, 35, 34), 0f);
-        DrawCube(new Vector3(-4.2f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 6f), new Color(33, 31, 30), 0f);
-        DrawCube(new Vector3(4.2f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 6f), new Color(33, 31, 30), 0f);
+        DrawCube(new Vector3(0f, -1.4f, 0f), new Vector3(16f, 0.4f, 16f), new Color(44, 39, 35), 0f);
+        DrawCube(new Vector3(0f, 2.2f, -5.6f), new Vector3(13f, 7f, 0.4f), new Color(24, 22, 22), 0f);
+        DrawCube(new Vector3(-5.4f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 7f), new Color(20, 19, 19), 0f);
+        DrawCube(new Vector3(5.4f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 7f), new Color(20, 19, 19), 0f);
 
-        // The pillar: a tapering column, a dozen faces at most.
-        DrawCube(new Vector3(0f, -1.15f, -3.4f), new Vector3(3.3f, 0.4f, 1.7f), new Color(78, 72, 64), 0f);
-        DrawCube(new Vector3(0f, 0.8f, -3.4f), new Vector3(2.7f, 3.7f, 1.2f), new Color(104, 97, 87), 0f);
-        DrawCube(new Vector3(0f, 2.9f, -3.4f), new Vector3(3.0f, 0.34f, 1.45f), new Color(78, 72, 64), 0f);
+        // The pillar.
+        //
+        // It was three stacked boxes of almost the same width, which is a post rather than a
+        // stambha. The silhouette is the whole read at six seconds and muted, so it is built
+        // the way the real ones are: a rough footing the rock has half swallowed, a monolithic
+        // shaft that tapers as it rises, the inscription band at eye height, then the bell and
+        // the abacus flaring back out above it. The taper is faked in three courses because a
+        // cube is the only solid this renderer has, and at this distance three is enough.
+        const float ShaftZ = -3.4f;
+        const float ShaftDepth = 1.2f;
+        const float ShaftFrontZ = ShaftZ + ShaftDepth * 0.5f;
 
-        // The carved face, standing just proud of the shaft.
+        var stone = StambhaCarving.ShaftStone;
+        var stoneDeep = new Color(78, 72, 64);
+
+        // Footing: wider than the shaft, sunk into the floor, and rougher.
+        DrawCube(new Vector3(0f, -1.30f, ShaftZ), new Vector3(2.30f, 0.44f, 1.50f), stoneDeep, 0f);
+        DrawCube(new Vector3(0f, -1.00f, ShaftZ), new Vector3(1.94f, 0.26f, 1.28f), new Color(86, 80, 71), 0f);
+
+        // Shaft, in four tapering courses. A monolith has no joints, but four courses of a cube
+        // is the only taper this renderer can spell, and at this framing the silhouette is what
+        // carries — narrow, and rising out of the top of the frame.
+        DrawCube(new Vector3(0f, -0.30f, ShaftZ), new Vector3(1.54f, 1.20f, ShaftDepth), stone, 0f);
+        DrawCube(new Vector3(0f, 0.80f, ShaftZ), new Vector3(1.44f, 1.05f, ShaftDepth * 0.94f), stone, 0f);
+        DrawCube(new Vector3(0f, 1.85f, ShaftZ), new Vector3(1.34f, 1.05f, ShaftDepth * 0.88f), stone, 0f);
+        DrawCube(new Vector3(0f, 2.95f, ShaftZ), new Vector3(1.24f, 1.15f, ShaftDepth * 0.82f), stone, 0f);
+
+        // Bell capital and abacus, deliberately near the top of the frame — a hint of what the
+        // shaft carries rather than the whole capital, which would pull the eye off the verse.
+        DrawCube(new Vector3(0f, 3.62f, ShaftZ), new Vector3(1.44f, 0.20f, 1.02f), stoneDeep, 0f);
+        DrawCube(new Vector3(0f, 3.86f, ShaftZ), new Vector3(1.74f, 0.28f, 1.22f), new Color(96, 89, 79), 0f);
+        DrawCube(new Vector3(0f, 4.14f, ShaftZ), new Vector3(2.02f, 0.30f, 1.44f), stoneDeep, 0f);
+
+        // The verse, lying on the shaft's front face at eye height and lit with it.
         var carving = StambhaCarving.Get(GraphicsDevice, StambhaCarving.SurfaceVerse);
         if (carving is not null)
         {
-            _billboards.Begin(_view, _projection);
-            _billboards.Draw(carving, new Vector3(0f, 0.5f, -2.78f), 1.14f, 0f,
-                new Color(255, 226, 190));
-            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
-            GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+            // Exactly the width of the course it sits on, so its edges are the pillar's edges.
+            const float BandWidth = 1.54f;
+            var bandHeight = BandWidth * carving.Height / carving.Width;
+
+            DrawCarvedFace(
+                new Vector3(0f, -0.22f, ShaftFrontZ + 0.006f),
+                BandWidth,
+                bandHeight,
+                carving);
         }
 
-        // The jiva stone, low and to the left, so the light rakes up across the cuts.
-        // The stone emits rather than reflects, so it is drawn unlit — otherwise the light
-        // source is the darkest object in its own shot.
-        _primitiveEffect.EmissiveColor = new Vector3(0.95f, 0.62f, 0.30f);
-        DrawCube(new Vector3(-1.35f, -1.02f, -2.1f), new Vector3(0.34f, 0.34f, 0.34f),
-            new Color(255, 206, 132), 0.6f);
+        // The jiva stone, low and to the left, so the light rakes up across the cuts. It emits
+        // rather than reflects, so it is drawn emissive — otherwise the light source is the
+        // darkest object in its own shot.
+        var stonePosition = new Vector3(-1.28f, -1.18f, -1.55f);
 
-        _primitiveEffect.EmissiveColor = new Vector3(1f, 0.94f, 0.82f);
-        DrawCube(new Vector3(-1.35f, -1.0f, -2.1f), new Vector3(0.2f, 0.2f, 0.2f),
-            new Color(255, 250, 236), 0.6f);
+        // Turned off-axis so three facets face the camera at three angles. Square on, an
+        // octahedron presents one edge and two faces and reads as a flat kite.
+        const float StoneSpin = 0.42f;
+
+        DrawCrystal(stonePosition, 0.34f, new Color(255, 206, 132),
+            new Vector3(0.95f, 0.62f, 0.30f), StoneSpin);
+        DrawCrystal(stonePosition + new Vector3(0f, 0.02f, 0f), 0.17f, new Color(255, 250, 236),
+            new Vector3(1f, 0.94f, 0.82f), StoneSpin);
 
         _primitiveEffect.EmissiveColor = Vector3.Zero;
 
@@ -2852,15 +2926,19 @@ public sealed class Game1 : Game
         _primitiveEffect.DirectionalLight0.Direction = keyDirection;
         _primitiveEffect.DirectionalLight0.DiffuseColor = keyColour;
         _primitiveEffect.DirectionalLight1.Enabled = fillEnabled;
+        _primitiveEffect.DirectionalLight2.Enabled = backEnabled;
+        _primitiveEffect.PreferPerPixelLighting = perPixel;
 
         BeginUi();
         if (carving is null)
             TextCentred("Devanagari font not loaded", LogicalWidth / 2f, 300f, 20,
                 new Color(228, 128, 118));
 
+        // Lower third, and off to the right: centred, it sat on top of the jiva stone, which is
+        // the one thing in the frame that has to stay clean.
         TextCentred("\"Covet not \u2014 for whose is wealth?\"",
-            LogicalWidth / 2f, 596f, 20, new Color(214, 206, 190));
-        TextCentred("Isha Upanishad 1", LogicalWidth / 2f, 630f, 14, new Color(140, 132, 120));
+            LogicalWidth * 0.63f, 606f, 20, new Color(214, 206, 190));
+        TextCentred("Isha Upanishad 1", LogicalWidth * 0.63f, 640f, 14, new Color(140, 132, 120));
         EndUi();
     }
 
@@ -2948,6 +3026,11 @@ public sealed class Game1 : Game
     private void DrawPointer()
     {
         if (_mouseLook) return;
+
+        // Wherever the pointer happens to be resting is not part of the shot. A capture is
+        // meant to be reproducible, and a cursor in the frame makes it a photograph of this
+        // machine rather than of the game.
+        if (_screenshotPath is not null) return;
 
         var pointer = LogicalMouse(Mouse.GetState());
         if (pointer.X < -8f || pointer.Y < -8f
@@ -3715,6 +3798,139 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>
+    /// A texture lying flat on a surface that faces the camera down -Z, lit like everything
+    /// else in the scene.
+    ///
+    /// The carved verse used to go through <see cref="BillboardRenderer"/>, and that was wrong
+    /// twice over. A billboard turns to face the camera, so the writing slid off a flat pillar
+    /// as the shot moved; and <c>AlphaTestEffect</c> is unlit, so the band stayed at full
+    /// brightness while the stone around it fell into shadow. The two together are exactly what
+    /// made it read as a tan plaque hung on the pillar. Drawn here through the same
+    /// <see cref="BasicEffect"/> as the stone, with the same normal as the face it lies on, it
+    /// takes the same raking light and the seam disappears.
+    /// </summary>
+    private void DrawCarvedFace(Vector3 centre, float width, float height, Texture2D texture)
+    {
+        var halfWidth = width * 0.5f;
+        var halfHeight = height * 0.5f;
+
+        // Backward, where the cube's camera-facing course uses Forward, because this quad is
+        // wound the opposite way round from the cube's faces. Matching the cube's *label*
+        // rather than its *winding* is what leaves the band unlit on a lit pillar; the pair
+        // below was settled by rendering the shot, not by reading the vectors.
+        var normal = Vector3.Backward;
+
+        _faceQuad[0] = new VertexPositionNormalTexture(
+            centre + new Vector3(-halfWidth, halfHeight, 0f), normal, new Vector2(0f, 0f));
+        _faceQuad[1] = new VertexPositionNormalTexture(
+            centre + new Vector3(halfWidth, halfHeight, 0f), normal, new Vector2(1f, 0f));
+        _faceQuad[2] = new VertexPositionNormalTexture(
+            centre + new Vector3(halfWidth, -halfHeight, 0f), normal, new Vector2(1f, 1f));
+        _faceQuad[3] = new VertexPositionNormalTexture(
+            centre + new Vector3(-halfWidth, -halfHeight, 0f), normal, new Vector2(0f, 1f));
+
+        var wasTextured = _primitiveEffect.TextureEnabled;
+        _primitiveEffect.World = Matrix.Identity;
+        _primitiveEffect.View = _view;
+        _primitiveEffect.Projection = _projection;
+
+        // The texture carries the stone's colour, so the diffuse term has to be neutral or it
+        // would be tinted twice.
+        _primitiveEffect.TextureEnabled = true;
+        _primitiveEffect.Texture = texture;
+        _primitiveEffect.DiffuseColor = Vector3.One;
+        _primitiveEffect.Alpha = 1f;
+
+        GraphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
+
+        foreach (var pass in _primitiveEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList, _faceQuad, 0, 4, _faceIndices, 0, 2);
+        }
+
+        _primitiveEffect.TextureEnabled = wasTextured;
+        _primitiveEffect.Texture = null;
+    }
+
+    /// <summary>A jiva stone: eight facets, drawn emissive because it is the light, not lit by it.</summary>
+    private void DrawCrystal(Vector3 centre, float radius, Color colour, Vector3 emissive, float spin)
+    {
+        var previousEmissive = _primitiveEffect.EmissiveColor;
+
+        _primitiveEffect.World = Matrix.CreateScale(radius)
+            * Matrix.CreateRotationZ(0.32f)
+            * Matrix.CreateRotationY(spin)
+            * Matrix.CreateTranslation(centre);
+        _primitiveEffect.View = _view;
+        _primitiveEffect.Projection = _projection;
+        _primitiveEffect.DiffuseColor = colour.ToVector3();
+        _primitiveEffect.EmissiveColor = emissive;
+        _primitiveEffect.Alpha = colour.A / 255f;
+
+        foreach (var pass in _primitiveEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList,
+                _crystalVertices,
+                0,
+                _crystalVertices.Length,
+                _crystalIndices,
+                0,
+                _crystalIndices.Length / 3);
+        }
+
+        _primitiveEffect.EmissiveColor = previousEmissive;
+    }
+
+    /// <summary>
+    /// An octahedron with flat shading: every triangle carries its own three vertices so each
+    /// facet gets one normal. Sharing vertices would average the normals and smooth the stone
+    /// back into a ball, which is the one thing it must not look like.
+    /// </summary>
+    private void CreatePrimitiveCrystal()
+    {
+        var top = new Vector3(0f, 1f, 0f);
+        var bottom = new Vector3(0f, -1f, 0f);
+        var waist = new[]
+        {
+            new Vector3(1f, 0f, 0f),
+            new Vector3(0f, 0f, 1f),
+            new Vector3(-1f, 0f, 0f),
+            new Vector3(0f, 0f, -1f)
+        };
+
+        var triangles = new List<(Vector3 A, Vector3 B, Vector3 C)>();
+        for (var i = 0; i < 4; i++)
+        {
+            var a = waist[i];
+            var b = waist[(i + 1) % 4];
+            triangles.Add((top, a, b));
+            triangles.Add((bottom, b, a));
+        }
+
+        _crystalVertices = new VertexPositionNormalTexture[triangles.Count * 3];
+        _crystalIndices = new short[triangles.Count * 3];
+
+        for (var t = 0; t < triangles.Count; t++)
+        {
+            var (a, b, c) = triangles[t];
+            var normal = Vector3.Normalize(Vector3.Cross(b - a, c - a));
+            var baseIndex = t * 3;
+
+            _crystalVertices[baseIndex] = new VertexPositionNormalTexture(a, normal, Vector2.Zero);
+            _crystalVertices[baseIndex + 1] = new VertexPositionNormalTexture(b, normal, Vector2.UnitX);
+            _crystalVertices[baseIndex + 2] = new VertexPositionNormalTexture(c, normal, Vector2.One);
+
+            _crystalIndices[baseIndex] = (short)baseIndex;
+            _crystalIndices[baseIndex + 1] = (short)(baseIndex + 1);
+            _crystalIndices[baseIndex + 2] = (short)(baseIndex + 2);
+        }
+    }
+
     private void CreatePrimitiveCube()
     {
         _cubeVertices = new VertexPositionNormalTexture[24];
@@ -3729,6 +3945,15 @@ public sealed class Game1 : Game
             new Vector3(-0.5f, 0.5f, 0.5f), new Vector3(0.5f, 0.5f, 0.5f), new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
             new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, 0.5f), new Vector3(-0.5f, -0.5f, 0.5f)
         };
+        // Read with the winding, not against it. The vertex block above lists the +Z face
+        // first, so pairing it with Vector3.Forward — which is (0,0,-1) — looks inverted and
+        // is not: with this winding and CullCounterClockwise the face presented to a camera
+        // on the +Z side is the one these normals light. Swapping them to "agree" with the
+        // positions turns the lit side of every surface black, which the trailer's one-source
+        // shot shows immediately and the authored world's flat ambient hides.
+        //
+        // Anything drawing its own quad into this scene has to follow the same convention.
+        // See DrawCarvedFace.
         var normals = new[]
         {
             Vector3.Forward, Vector3.Backward, Vector3.Left, Vector3.Right, Vector3.Up, Vector3.Down

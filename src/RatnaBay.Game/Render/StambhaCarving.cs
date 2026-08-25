@@ -39,9 +39,18 @@ public static class StambhaCarving
     private static readonly Dictionary<string, Texture2D> Cache = new(StringComparer.Ordinal);
     private static FontSystem? _devanagari;
 
-    /// <summary>Weathered stone, in the flat pigment the art direction is locked to.</summary>
-    private static readonly Color Stone = new(110, 102, 91);
-    private static readonly Color StoneDark = new(92, 85, 76);
+    /// <summary>
+    /// Weathered stone, in the flat pigment the art direction is locked to.
+    ///
+    /// These have to be the shaft's own colour, not merely a similar one. The carved band is
+    /// drawn as a lit quad lying on the shaft's front face, so if its base tone differs at all
+    /// the band reads as a plaque bolted to the pillar rather than a course of the pillar
+    /// itself. <see cref="ShaftStone"/> is the single source both sides read.
+    /// </summary>
+    public static readonly Color ShaftStone = new(104, 97, 87);
+
+    private static readonly Color Stone = ShaftStone;
+    private static readonly Color StoneDark = new(88, 82, 73);
 
     /// <summary>Inside a cut groove, where the light does not reach.</summary>
     private static readonly Color Groove = new(46, 42, 38);
