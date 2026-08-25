@@ -1,4 +1,5 @@
 using FontStashSharp;
+using RatnaBay.Domain;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -39,9 +40,29 @@ public static class StambhaCarving
     private static readonly Dictionary<string, Texture2D> Cache = new(StringComparer.Ordinal);
     private static FontSystem? _devanagari;
 
-    /// <summary>Weathered stone, in the flat pigment the art direction is locked to.</summary>
-    private static readonly Color Stone = new(110, 102, 91);
-    private static readonly Color StoneDark = new(92, 85, 76);
+    /// <summary>
+    /// The script the pillar is actually cut in, when its font is present.
+    ///
+    /// Devanagari postdates a Mauryan mine by roughly a thousand years. Brahmi is what the
+    /// period's pillar edicts were carved in, and it is the better picture as well as the truer
+    /// one: angular, open, and free of the stacked conjuncts that turn Devanagari to mush at
+    /// this size. The verses stay authored in Devanagari because that is what a maintainer can
+    /// read; <see cref="BrahmiTransliteration"/> converts at rasterisation time.
+    /// </summary>
+    private static FontSystem? _brahmi;
+
+    /// <summary>
+    /// Weathered stone, in the flat pigment the art direction is locked to.
+    ///
+    /// These have to be the shaft's own colour, not merely a similar one. The carved band is
+    /// drawn as a lit quad lying on the shaft's front face, so if its base tone differs at all
+    /// the band reads as a plaque bolted to the pillar rather than a course of the pillar
+    /// itself. <see cref="ShaftStone"/> is the single source both sides read.
+    /// </summary>
+    public static readonly Color ShaftStone = new(104, 97, 87);
+
+    private static readonly Color Stone = ShaftStone;
+    private static readonly Color StoneDark = new(88, 82, 73);
 
     /// <summary>Inside a cut groove, where the light does not reach.</summary>
     private static readonly Color Groove = new(46, 42, 38);
@@ -54,14 +75,43 @@ public static class StambhaCarving
 
     public static void Load(string fontDirectory)
     {
-        var path = Path.Combine(fontDirectory, "NotoSansDevanagari", "NotoSansDevanagari-wght.ttf");
-        if (!File.Exists(path)) return;
+        _devanagari = TryLoad(Path.Combine(
+            fontDirectory, "NotoSansDevanagari", "NotoSansDevanagari-wght.ttf"));
 
-        _devanagari = new FontSystem();
-        _devanagari.AddFont(File.ReadAllBytes(path));
+        _brahmi = TryLoad(Path.Combine(
+            fontDirectory, "NotoSansBrahmi", "NotoSansBrahmi-Regular.ttf"));
     }
 
-    public static bool IsAvailable => _devanagari is not null;
+    private static FontSystem? TryLoad(string path)
+    {
+        if (!File.Exists(path)) return null;
+
+        var system = new FontSystem();
+        system.AddFont(File.ReadAllBytes(path));
+        return system;
+    }
+
+    /// <summary>True when a pillar can be carved at all, in either script.</summary>
+    public static bool IsAvailable => _devanagari is not null || _brahmi is not null;
+
+    /// <summary>True when carvings are in the setting's own script rather than the fallback.</summary>
+    public static bool IsPeriodScript => _brahmi is not null;
+
+    /// <summary>
+    /// Which font cuts a given verse, and the text to cut with it.
+    ///
+    /// Brahmi wins when its font is loaded and the verse maps completely. A verse that only
+    /// half-transliterates falls back whole rather than being carved with holes in it: the
+    /// wrong script is something a scholar notices, and a missing syllable is something
+    /// everybody notices.
+    /// </summary>
+    private static (FontSystem? Font, string Text, string Script) Resolve(string verse)
+    {
+        if (_brahmi is not null && BrahmiTransliteration.CanTransliterate(verse))
+            return (_brahmi, BrahmiTransliteration.Transliterate(verse), "brahmi");
+
+        return (_devanagari, verse, "devanagari");
+    }
 
     /// <summary>
     /// The carved face of a pillar. Null when the Devanagari font is not present, so a missing
@@ -69,11 +119,16 @@ public static class StambhaCarving
     /// </summary>
     public static Texture2D? Get(GraphicsDevice device, string verse)
     {
-        if (_devanagari is null) return null;
-        if (Cache.TryGetValue(verse, out var cached)) return cached;
+        var (font, text, script) = Resolve(verse);
+        if (font is null) return null;
 
-        var texture = Build(device, verse);
-        Cache[verse] = texture;
+        // Keyed by script as well as verse: the same line cut in two scripts is two textures,
+        // and a cache that forgot which one it holds would serve the wrong stone.
+        var key = script + ":" + verse;
+        if (Cache.TryGetValue(key, out var cached)) return cached;
+
+        var texture = Build(device, font, text, verse);
+        Cache[key] = texture;
         return texture;
     }
 
@@ -83,14 +138,19 @@ public static class StambhaCarving
         Cache.Clear();
         _devanagari?.Dispose();
         _devanagari = null;
+        _brahmi?.Dispose();
+        _brahmi = null;
     }
 
-    private static Texture2D Build(GraphicsDevice device, string verse)
+    private static Texture2D Build(GraphicsDevice device, FontSystem font, string text, string verse)
     {
         // The glyphs are rasterised once into a scratch target, then read back and turned into
         // stone. Doing it as pixels rather than as a shader keeps the whole thing inspectable.
-        var mask = RenderGlyphMask(device, verse);
+        var mask = RenderGlyphMask(device, font, text);
         var pixels = new Color[Width * Height];
+
+        // Seeded from the authored verse, never from the transliterated one, so a pillar weathers
+        // identically whichever script it ends up cut in.
         var random = new Random(verse.GetHashCode());
 
         Quarry(pixels, random);
@@ -103,9 +163,9 @@ public static class StambhaCarving
     }
 
     /// <summary>Rasterise the verse to an alpha mask via the existing font stack.</summary>
-    private static bool[] RenderGlyphMask(GraphicsDevice device, string verse)
+    private static bool[] RenderGlyphMask(GraphicsDevice device, FontSystem fontSystem, string verse)
     {
-        var font = _devanagari!.GetFont(GlyphPixels);
+        var font = fontSystem.GetFont(GlyphPixels);
         var measured = font.MeasureString(verse);
 
         // Fit the line to the pillar face with a margin, never scaling it up past its raster.
@@ -135,7 +195,57 @@ public static class StambhaCarving
 
         var mask = new bool[raw.Length];
         for (var i = 0; i < raw.Length; i++) mask[i] = raw[i].A > 96;
-        return mask;
+        return Thicken(mask, ChiselWidth);
+    }
+
+    /// <summary>
+    /// How many pixels to grow every stroke by before it is cut.
+    ///
+    /// Noto Sans Brahmi is a text face, and text faces are drawn thin. A chisel is not thin:
+    /// carved at the font's own weight the verse reads as scratched into the stone rather than
+    /// cut out of it, and the groove is too narrow for its lit lip to show at all. Growing the
+    /// stroke is what turns a typeface into a mason's letter.
+    /// </summary>
+    private const int ChiselWidth = 3;
+
+    /// <summary>Grow a mask by <paramref name="radius"/> pixels in every direction.</summary>
+    private static bool[] Thicken(bool[] mask, int radius)
+    {
+        if (radius <= 0) return mask;
+
+        // Separable: a horizontal pass then a vertical one costs 2r per pixel instead of r
+        // squared, and for a box-shaped dilation the result is identical.
+        var horizontal = new bool[mask.Length];
+        for (var y = 0; y < Height; y++)
+        for (var x = 0; x < Width; x++)
+        {
+            for (var offset = -radius; offset <= radius; offset++)
+            {
+                var sample = x + offset;
+                if (sample < 0 || sample >= Width) continue;
+                if (!mask[y * Width + sample]) continue;
+
+                horizontal[y * Width + x] = true;
+                break;
+            }
+        }
+
+        var grown = new bool[mask.Length];
+        for (var y = 0; y < Height; y++)
+        for (var x = 0; x < Width; x++)
+        {
+            for (var offset = -radius; offset <= radius; offset++)
+            {
+                var sample = y + offset;
+                if (sample < 0 || sample >= Height) continue;
+                if (!horizontal[sample * Width + x]) continue;
+
+                grown[y * Width + x] = true;
+                break;
+            }
+        }
+
+        return grown;
     }
 
     /// <summary>Flat stone with a little tonal drift, so the face is not a single dead colour.</summary>
