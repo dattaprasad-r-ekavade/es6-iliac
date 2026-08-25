@@ -3103,8 +3103,12 @@ public sealed class Game1 : Game
         DrawPanel(new Rectangle(64, 62, 1152, 596), new Color(5, 11, 18, 232), new Color(91, 146, 159));
 
         Text("RATNA BAY", new Vector2(98, 96), 38, Color.White);
-        Text("NORTHWATCH SLICE", new Vector2(101, 153), 13, new Color(161, 211, 218));
-        TextFit("Explore, talk, trade, and survive", new Vector2(101, 181), 420f, 15, new Color(184, 197, 196));
+        // This screen described the story slice long after the game stopped being one. It is
+        // the first thing a stranger reads, and it was promising them exploration, trading and
+        // sneaking -- one of which is parked and none of which is what they are about to play.
+        Text("AN ENDLESS MINE", new Vector2(101, 153), 13, new Color(161, 211, 218));
+        TextFit("Go down, clear rooms, and decide when to stop", new Vector2(101, 181), 420f, 15,
+            new Color(184, 197, 196));
 
         DrawPanel(new Rectangle(96, 222, 416, 390), new Color(8, 16, 24, 238), new Color(65, 105, 119));
         Text("MAIN MENU", new Vector2(124, 246), 14, new Color(214, 183, 108));
@@ -3125,9 +3129,9 @@ public sealed class Game1 : Game
         DrawPanel(new Rectangle(560, 222, 592, 390), new Color(8, 16, 24, 226), new Color(65, 105, 119));
 
         var descending = menuItems[_menuSelection] == ResumeItem;
-        Text(descending ? "BELOW RATNA BAY" : "NORTHWATCH OUTSKIRTS",
+        Text(descending ? "BELOW RATNA BAY" : "THE YARD AT RATNA BAY",
             new Vector2(592, 246), 14, new Color(151, 206, 210));
-        Text(descending ? "A DESCENT" : "A NORTHWATCH BEGINNING",
+        Text(descending ? "A DESCENT" : "TAKE UP THE LAMP",
             new Vector2(592, 280), 24, Color.White);
 
         var blurb = descending
@@ -3139,9 +3143,9 @@ public sealed class Game1 : Game
             }
             : new[]
             {
-                "Meet the people at the gate and find your footing.",
-                "Talk, trade, explore the old road, and face the bandits.",
-                "Your choices and discoveries persist in your save."
+                "Buy your way into a mine. The first one costs nothing.",
+                "Every room you clear is worth more than the last one.",
+                "Every shut door asks whether that is enough."
             };
 
         for (var line = 0; line < blurb.Length; line++)
@@ -3152,7 +3156,7 @@ public sealed class Game1 : Game
 
         var doing = descending
             ? new[] { "Fight through generated rooms", "Bank your stones, or press on", "Die and lose the lot" }
-            : new[] { "Explore Northwatch", "Talk and trade with locals", "Fight, sneak, and save" };
+            : new[] { "Fight through generated rooms", "Bank your stones, or press on", "Die, and send the next one down" };
 
         for (var line = 0; line < doing.Length; line++)
             Text(doing[line], new Vector2(592, 442 + line * 26), 14, new Color(190, 215, 208));
