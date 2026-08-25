@@ -65,3 +65,12 @@
 /build:Feasibility/Models/PolyHavenCheeseBox/CheeseBox_01_1k.fbx
 
 
+
+#-------------------------------- Effects -----------------------------------#
+
+#begin Effects/CaveLighting.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/CaveLighting.fx
+

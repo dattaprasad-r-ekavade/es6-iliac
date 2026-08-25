@@ -40,6 +40,34 @@ public sealed class Game1 : Game
     /// <summary>The stone this room is cut from. One per cave theme, later.</summary>
     private StoneTextures.StonePalette _stone = StoneTextures.StonePalette.Granite;
 
+    /// <summary>
+    /// The cave shader: a weak directional fill and up to eight real point lights.
+    ///
+    /// Null when the effect failed to load, in which case every surface falls back to
+    /// BasicEffect and the mine is flatly lit but entirely playable. A missing shader must
+    /// never be the difference between a game and a black screen.
+    /// </summary>
+    private Effect? _caveEffect;
+
+    /// <summary>One lamp in the world. Rebuilt every frame from whatever is currently burning.</summary>
+    private readonly record struct PointLight(Vector3 Position, Vector3 Colour, float Range);
+
+    /// <summary>
+    /// The lights affecting the current draw, nearest first.
+    ///
+    /// The shader takes four. A room with more torches than that is not a lighting problem,
+    /// it is a level design problem, and clamping quietly is the right response either way.
+    /// </summary>
+    private readonly List<PointLight> _lights = new();
+
+    /// <summary>Matches MAX_POINT_LIGHTS in CaveLighting.fx, and is capped by the shader model.</summary>
+    private const int MaxPointLights = 4;
+
+    private readonly Vector3[] _lightPositions = new Vector3[MaxPointLights];
+
+    /// <summary>Colour in xyz, range in w — packed to stay inside the constant register budget.</summary>
+    private readonly Vector4[] _lightColours = new Vector4[MaxPointLights];
+
     private VertexPositionNormalTexture[] _cubeVertices = null!;
     private short[] _cubeIndices = null!;
 
@@ -386,6 +414,15 @@ public sealed class Game1 : Game
 
         // Devanagari for the carved verses. Absent, the pillar simply stands blank.
         StambhaCarving.Load(fontsDirectory);
+
+        try
+        {
+            _caveEffect = Content.Load<Effect>("Effects/CaveLighting");
+        }
+        catch (Exception exception)
+        {
+            _assetErrors.Add($"cave lighting: {exception.GetType().Name}");
+        }
 
         _white = new Texture2D(GraphicsDevice, 1, 1);
         _white.SetData(new[] { Color.White });
@@ -3017,6 +3054,22 @@ public sealed class Game1 : Game
         _primitiveEffect.DirectionalLight1.DiffuseColor = new Vector3(0.16f, 0.17f, 0.26f);
         _primitiveEffect.DirectionalLight2.Enabled = false;
 
+        // Real lights now, not smears on the wall. The torch is at the same place it was; the
+        // difference is that the wall beside it, the floor under it and the ceiling above it
+        // each work out their own share from their own normal and their own distance.
+        var torch = new Vector3(-4.5f, 2.05f, -3.2f);
+
+        _lights.Clear();
+        _lights.Add(new PointLight(torch + new Vector3(0.35f, 0f, 0f),
+            new Vector3(2.35f, 1.42f, 0.62f), 13.5f));
+        _lights.Add(new PointLight(new Vector3(1.6f, 1.1f, -5.6f),
+            new Vector3(0.22f, 0.20f, 0.30f), 7.5f));
+
+        SetCaveAmbience(
+            ambient: new Vector3(0.075f, 0.072f, 0.086f),
+            keyDirection: new Vector3(0.4f, -0.75f, -0.5f),
+            keyColour: new Vector3(0.16f, 0.17f, 0.23f));
+
         var wall = StoneTextures.Wall(GraphicsDevice, _stone);
         var floor = StoneTextures.Floor(GraphicsDevice, _stone);
         var tint = new Color(228, 224, 220);
@@ -3042,18 +3095,16 @@ public sealed class Game1 : Game
         _billboards.Draw(PropTextures.Banner(GraphicsDevice),
             new Vector3(-2.6f, 1.55f, -6.28f), 2.6f, 0f, new Color(236, 226, 214));
 
-        var torch = new Vector3(-4.5f, 2.05f, -3.2f);
         _billboards.Draw(PropTextures.Flame(GraphicsDevice),
             torch, 1.35f, _cameraYaw, Color.White);
 
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
-        // The pool the flame throws. Three, at three radii, because one hard circle reads as a
-        // decal and three stacked read as falloff.
-        DrawGlow(torch + new Vector3(0.35f, 0f, 0f), 5.6f, new Color(190, 116, 44, 255));
-        DrawGlow(torch + new Vector3(0.2f, -0.1f, 0f), 3.0f, new Color(200, 132, 56, 255));
-        DrawGlow(torch, 1.35f, new Color(230, 176, 96, 255));
+        // One small glow left, tight around the flame itself. The shader lights the room;
+        // this is only the bloom around the fire, which no amount of surface lighting can
+        // produce because the flame is not a surface.
+        DrawGlow(torch, 1.15f, new Color(210, 148, 74, 255));
 
         _primitiveEffect.AmbientLightColor = ambient;
         _primitiveEffect.DirectionalLight0.Direction = keyDirection;
@@ -3855,6 +3906,25 @@ public sealed class Game1 : Game
         }
 
         GraphicsDevice.Clear(new Color(96, 121, 136));
+
+        // The manifest has carried a light per room since the generator was written, and
+        // nothing ever read them: BasicEffect had no point lights to put them in. They cost
+        // nothing to honour now.
+        _lights.Clear();
+        foreach (var light in _world.Manifest.Lights ?? new List<WorldLight>())
+        {
+            var position = light.Position.ToWorldPoint();
+            _lights.Add(new PointLight(
+                new Vector3(position.X, position.Y, position.Z),
+                ToXnaColor(light.Color).ToVector3() * MathHelper.Clamp(light.Intensity, 0f, 8f) * 2.1f,
+                MathF.Max(0.5f, light.Range)));
+        }
+
+        SetCaveAmbience(
+            ambient: new Vector3(0.10f, 0.10f, 0.12f),
+            keyDirection: new Vector3(-0.4f, -1f, -0.25f),
+            keyColour: new Vector3(0.20f, 0.20f, 0.26f));
+
         foreach (var geometry in _world.Manifest.Geometry ?? new List<WorldGeometry>())
         {
             if (!geometry.Visible) continue;
@@ -4219,18 +4289,26 @@ public sealed class Game1 : Game
             }
         }
 
-        _primitiveEffect.World = Matrix.CreateScale(scale) * Matrix.CreateTranslation(position);
+        var world = Matrix.CreateScale(scale) * Matrix.CreateTranslation(position);
+
+        // Wrap, or the UV scaling above simply clamps and every face becomes one stretched
+        // brick. Linear rather than point: at 720p a 256-pixel tile repeated down a corridor
+        // aliases into noise without it.
+        GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
+
+        if (_caveEffect is not null)
+        {
+            DrawWithCaveLighting(world, tint, texture, _texturedCube, _cubeIndices);
+            return;
+        }
+
+        _primitiveEffect.World = world;
         _primitiveEffect.View = _view;
         _primitiveEffect.Projection = _projection;
         _primitiveEffect.TextureEnabled = true;
         _primitiveEffect.Texture = texture;
         _primitiveEffect.DiffuseColor = tint.ToVector3();
         _primitiveEffect.Alpha = 1f;
-
-        // Wrap, or the UV scaling above simply clamps and every face becomes one stretched
-        // brick. Linear rather than point: at 720p a 256-pixel tile repeated down a corridor
-        // aliases into noise without it.
-        GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
 
         foreach (var pass in _primitiveEffect.CurrentTechnique.Passes)
         {
@@ -4242,6 +4320,65 @@ public sealed class Game1 : Game
 
         _primitiveEffect.TextureEnabled = false;
         _primitiveEffect.Texture = null;
+    }
+
+    /// <summary>
+    /// Draw geometry through the cave shader, with the eight nearest lights bound.
+    ///
+    /// The lights are chosen per draw rather than per frame because "nearest" is only
+    /// meaningful relative to something: a torch across the room matters to the wall beside it
+    /// and not at all to the wall behind the player.
+    /// </summary>
+    private void DrawWithCaveLighting(Matrix world, Color tint, Texture2D texture,
+        VertexPositionNormalTexture[] vertices, short[] indices)
+    {
+        var effect = _caveEffect!;
+        var centre = Vector3.Transform(Vector3.Zero, world);
+
+        _lights.Sort((a, b) =>
+            Vector3.DistanceSquared(a.Position, centre)
+                .CompareTo(Vector3.DistanceSquared(b.Position, centre)));
+
+        var count = Math.Min(MaxPointLights, _lights.Count);
+        for (var i = 0; i < count; i++)
+        {
+            _lightPositions[i] = _lights[i].Position;
+            _lightColours[i] = new Vector4(_lights[i].Colour, _lights[i].Range);
+        }
+
+        effect.Parameters["World"].SetValue(world);
+        effect.Parameters["View"].SetValue(_view);
+        effect.Parameters["Projection"].SetValue(_projection);
+        effect.Parameters["WorldInverseTranspose"].SetValue(
+            Matrix.Transpose(Matrix.Invert(world)));
+        effect.Parameters["DiffuseColour"].SetValue(tint.ToVector3());
+        effect.Parameters["Surface"].SetValue(texture);
+        effect.Parameters["CameraPosition"].SetValue(_cameraPosition);
+        effect.Parameters["PointCount"].SetValue(count);
+
+        if (count > 0)
+        {
+            effect.Parameters["PointPosition"].SetValue(_lightPositions);
+            effect.Parameters["PointColour"].SetValue(_lightColours);
+        }
+
+        foreach (var pass in effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList, vertices, 0, vertices.Length,
+                indices, 0, indices.Length / 3);
+        }
+    }
+
+    /// <summary>Set the shader's ambient and directional fill for the room being drawn.</summary>
+    private void SetCaveAmbience(Vector3 ambient, Vector3 keyDirection, Vector3 keyColour)
+    {
+        if (_caveEffect is null) return;
+
+        _caveEffect.Parameters["AmbientColour"].SetValue(ambient);
+        _caveEffect.Parameters["KeyDirection"].SetValue(Vector3.Normalize(keyDirection));
+        _caveEffect.Parameters["KeyColour"].SetValue(keyColour);
     }
 
     /// <summary>
