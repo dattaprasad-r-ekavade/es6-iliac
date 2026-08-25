@@ -123,24 +123,48 @@ public static class PropTextures
 
     // ------------------------------------------------------------------ flame
 
+    /// <summary>How many frames one loop of the fire is cut into.</summary>
+    public const int FlameFrames = 6;
+
     /// <summary>
-    /// A teardrop of fire, in bands.
+    /// A teardrop of fire, in bands, at one point in its cycle.
     ///
     /// Opaque inside its silhouette and fully transparent outside, with no soft rim at all.
     /// That is not a compromise, it is the requirement: <see cref="BillboardRenderer"/> draws
     /// cutouts through AlphaTestEffect so that sprites write depth and sort correctly, and a
-    /// soft gradient pushed through a hard alpha test comes out as a stack of steps. Banded
-    /// colour inside a clean outline is also simply what the art direction is everywhere else.
+    /// soft gradient pushed through a hard alpha test comes out as a stack of steps.
+    ///
+    /// Fire is motion, and a still sprite cannot be fire however well its palette is chosen.
+    /// So the shape is a function of phase and the frames are generated rather than drawn: the
+    /// flame leans, its tip whips, and its hot core rises and falls. Six frames is enough
+    /// because fire is not periodic to the eye — it only has to stop being still.
     /// </summary>
-    public static Texture2D Flame(GraphicsDevice device) => Get(device, "flame", 64, 96, () =>
+    public static Texture2D Flame(GraphicsDevice device, int frame = 0)
+    {
+        var index = ((frame % FlameFrames) + FlameFrames) % FlameFrames;
+        return Get(device, "flame" + index, 64, 96, () => BuildFlame(index));
+    }
+
+    private static Color[] BuildFlame(int frame)
     {
         var pixels = new Color[64 * 96];
-        var random = new Random(0x1F1A);
+
+        // Seeded per frame, so the grain that breaks up the bands is different each time and
+        // the loop does not read as one image being nudged.
+        var random = new Random(0x1F1A + frame * 977);
+        var phase = frame / (float)FlameFrames * MathF.PI * 2f;
 
         var core = new Color(255, 248, 214);
         var mid = new Color(255, 186, 66);
         var outer = new Color(232, 108, 30);
         var rim = new Color(176, 62, 20);
+
+        // Three things move, and they move out of step with each other, which is most of why
+        // it reads as fire rather than as a wobbling triangle.
+        var lean = MathF.Sin(phase) * 3.1f;
+        var whip = MathF.Sin(phase * 2f + 0.9f) * 2.4f;
+        var breath = 1f + MathF.Sin(phase * 1.5f + 2.1f) * 0.085f;
+        var heatRise = MathF.Sin(phase * 2f) * 0.07f;
 
         for (var y = 0; y < 96; y++)
         for (var x = 0; x < 64; x++)
@@ -150,9 +174,13 @@ public static class PropTextures
             // 0 at the tip, 1 at the base.
             var t = y / 95f;
 
-            // Full and round at the bottom, drawn to a point at the top, with a slight lean.
-            var halfWidth = MathF.Pow(t, 0.62f) * 25f * (1f - MathF.Pow(t, 6f) * 0.55f);
-            var axis = 32f + MathF.Sin(t * 2.4f) * 2.6f;
+            // Full and round at the bottom, drawn to a point at the top.
+            var halfWidth = MathF.Pow(t, 0.62f) * 25f * breath * (1f - MathF.Pow(t, 6f) * 0.55f);
+
+            // The lean is strongest at the tip and nothing at the base, because the base is
+            // held in the bracket and only the free end of a flame moves.
+            var sway = lean * (1f - t) + whip * MathF.Pow(1f - t, 2.2f);
+            var axis = 32f + MathF.Sin(t * 2.4f) * 2.6f + sway;
             var dx = MathF.Abs(x - axis);
 
             if (halfWidth < 0.8f || dx > halfWidth)
@@ -161,10 +189,8 @@ public static class PropTextures
                 continue;
             }
 
-            // Distance from the flame's own axis decides the band, with the hot core sitting
-            // low where the fuel is.
             var edge = dx / halfWidth;
-            var heat = (1f - edge) * (0.30f + t * 0.95f);
+            var heat = (1f - edge) * (0.30f + t * 0.95f + heatRise);
             heat += (float)random.NextDouble() * 0.06f;
 
             var colour = heat > 0.78f ? core
@@ -176,7 +202,7 @@ public static class PropTextures
         }
 
         return pixels;
-    });
+    }
 
     // ------------------------------------------------------------------ ui frame
 

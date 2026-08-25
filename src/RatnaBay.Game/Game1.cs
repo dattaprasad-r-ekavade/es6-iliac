@@ -249,6 +249,15 @@ public sealed class Game1 : Game
     /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
     /// pixel so glyphs land 1:1 on the display instead of being resampled.
     /// </summary>
+    /// <summary>
+    /// Seconds since the game started, for anything that moves on its own.
+    ///
+    /// Deliberately not <c>gameTime.TotalGameTime</c>: a screenshot run advances a fixed number
+    /// of frames rather than real time, and a capture has to be reproducible. Accumulating the
+    /// same step the rest of the simulation uses keeps <c>--screenshot</c> deterministic.
+    /// </summary>
+    private float _clock;
+
     private float _uiScale = 1f;
     private float _uiScalePreference = 1f;
     private bool _showSettings;
@@ -492,6 +501,8 @@ public sealed class Game1 : Game
     {
         var keyboard = Keyboard.GetState();
         var mouse = Mouse.GetState();
+
+        _clock += StepSeconds(gameTime);
 
         if (Pressed(keyboard, Keys.F11))
             SetBorderlessFullscreen(!_borderlessFullscreen);
@@ -2755,11 +2766,30 @@ public sealed class Game1 : Game
     /// Drawn far to near so the alpha-tested cutouts never punch a hole in something behind
     /// them that has not been drawn yet.
     /// </summary>
+    /// <summary>
+    /// The sprite an enemy is drawn with.
+    ///
+    /// Every enemy used to be a bandit. That was survivable while there was one kind of thing
+    /// to fight and became untenable the moment depth started sending different ones: the
+    /// whole reason tiers exist is that a room announces how hard it is before the fight
+    /// starts, and it cannot do that if the hard thing looks like the easy thing.
+    /// </summary>
+    private Texture2D SpriteFor(Enemy enemy)
+    {
+        var id = enemy.Archetype.Id;
+
+        var risen = ItemSprites.Risen(GraphicsDevice, id);
+        if (risen is not null) return risen;
+
+        return id == EnemyCatalog.ArcherId
+            ? CharacterSprites.Get(GraphicsDevice, "bandit_archer", CharacterPalette.Guard)
+            : CharacterSprites.Get(GraphicsDevice, "bandit", CharacterPalette.Bandit);
+    }
+
     private void DrawEnemies()
     {
         if (_encounter is null || _encounter.Enemies.Count == 0) return;
 
-        var texture = CharacterSprites.Get(GraphicsDevice, "bandit", CharacterPalette.Bandit);
         _billboards.Begin(_view, _projection);
 
         var sorted = new List<Enemy>(_encounter.Enemies);
@@ -2770,10 +2800,11 @@ public sealed class Game1 : Game
             var feet = _encounter.DrawPositionOf(enemy);
             var tint = _encounter.TintOf(enemy);
 
-            // A chilled bandit is visibly cold, so frost reads as more than a slower walk.
+            // A chilled enemy is visibly cold, so frost reads as more than a slower walk.
             if (enemy.IsChilled) tint = new Color(tint.R / 2 + 90, tint.G / 2 + 110, tint.B);
 
-            _billboards.Draw(texture, feet, _encounter.DrawHeightOf(enemy), _cameraYaw, tint);
+            _billboards.Draw(SpriteFor(enemy), feet, _encounter.DrawHeightOf(enemy),
+                _cameraYaw, tint);
         }
 
         // The billboard pass leaves its own render state behind; the UI expects the default.
@@ -3060,8 +3091,12 @@ public sealed class Game1 : Game
         var torch = new Vector3(-4.5f, 2.05f, -3.2f);
 
         _lights.Clear();
+        // The lamp flickers with the flame rather than independently of it. A steady light
+        // beside a moving fire is worse than both being still.
+        var flicker = 1f + MathF.Sin(_clock * 9.3f) * 0.05f + MathF.Sin(_clock * 21.7f) * 0.028f;
+
         _lights.Add(new PointLight(torch + new Vector3(0.35f, 0f, 0f),
-            new Vector3(2.35f, 1.42f, 0.62f), 13.5f));
+            new Vector3(2.35f, 1.42f, 0.62f) * flicker, 13.5f));
         _lights.Add(new PointLight(new Vector3(1.6f, 1.1f, -5.6f),
             new Vector3(0.22f, 0.20f, 0.30f), 7.5f));
 
@@ -3095,7 +3130,10 @@ public sealed class Game1 : Game
         _billboards.Draw(PropTextures.Banner(GraphicsDevice),
             new Vector3(-2.6f, 1.55f, -6.28f), 2.6f, 0f, new Color(236, 226, 214));
 
-        _billboards.Draw(PropTextures.Flame(GraphicsDevice),
+        // Twelve frames a second. Fire read at sixty is a blur and at six is a strobe; this is
+        // the rate hand-drawn fire is almost always animated at, for the same reason.
+        var flameFrame = (int)(_clock * 12f);
+        _billboards.Draw(PropTextures.Flame(GraphicsDevice, flameFrame),
             torch, 1.35f, _cameraYaw, Color.White);
 
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
@@ -3104,7 +3142,7 @@ public sealed class Game1 : Game
         // One small glow left, tight around the flame itself. The shader lights the room;
         // this is only the bloom around the fire, which no amount of surface lighting can
         // produce because the flame is not a surface.
-        DrawGlow(torch, 1.15f, new Color(210, 148, 74, 255));
+        DrawGlow(torch, 1.15f * flicker, new Color(210, 148, 74, 255));
 
         _primitiveEffect.AmbientLightColor = ambient;
         _primitiveEffect.DirectionalLight0.Direction = keyDirection;
@@ -3131,7 +3169,7 @@ public sealed class Game1 : Game
             ("Gold Bars", "200", ItemSprites.GoldBars(GraphicsDevice))
         };
 
-        var panel = new Rectangle(300, 96, 680, 400);
+        var panel = new Rectangle(300, 74, 680, 468);
         DrawFramedPanel(panel, Color.White);
         TextCentred("MERCHANT", panel.Center.X, panel.Y + 18f, 20, new Color(238, 214, 158));
 
@@ -3159,12 +3197,31 @@ public sealed class Game1 : Game
 
         var creature = new Rectangle(panel.X + 466, panel.Y + 248, 188, 120);
         DrawFramedPanel(creature, new Color(200, 198, 196));
-        Text("CHHAYA", new Vector2(creature.X + 16, creature.Y + 14), 12, new Color(196, 170, 120));
+        Text("THE RISEN", new Vector2(creature.X + 16, creature.Y + 14), 12, new Color(196, 170, 120));
 
-        _spriteBatch.Draw(ItemSprites.Chhaya(GraphicsDevice),
-            new Rectangle(creature.X + 22, creature.Y + 34, 76, 76), Color.White);
-        _spriteBatch.Draw(ItemSprites.Chhaya(GraphicsDevice),
-            new Rectangle(creature.X + 116, creature.Y + 50, 44, 44), Color.White);
+        // The three tiers side by side, which is the only way to judge whether they read as
+        // one creature at three ages rather than as three unrelated things.
+        var tiers = new[]
+        {
+            ItemSprites.ChhayaSprite(GraphicsDevice),
+            ItemSprites.VetalaSprite(GraphicsDevice),
+            ItemSprites.KravyadaSprite(GraphicsDevice)
+        };
+
+        for (var i = 0; i < tiers.Length; i++)
+            _spriteBatch.Draw(tiers[i],
+                new Rectangle(creature.X + 14 + i * 56, creature.Y + 34, 52, 52), Color.White);
+
+        // And the flame, every frame of it, so the cycle can be read as a strip. Fire is the
+        // one thing a still sprite cannot be, and a strip is the only honest way to show that
+        // the frames actually differ rather than being one image nudged sideways.
+        var cycle = new Rectangle(panel.X + 26, panel.Y + 380, 628, 68);
+        DrawFramedPanel(cycle, new Color(200, 198, 196));
+        Text("FLAME CYCLE", new Vector2(cycle.X + 16, cycle.Y + 12), 12, new Color(196, 170, 120));
+
+        for (var i = 0; i < PropTextures.FlameFrames; i++)
+            _spriteBatch.Draw(PropTextures.Flame(GraphicsDevice, i),
+                new Rectangle(cycle.X + 150 + i * 74, cycle.Y + 12, 30, 44), Color.White);
     }
 
     /// <summary>The interface, drawn in the same ornament as the world.</summary>

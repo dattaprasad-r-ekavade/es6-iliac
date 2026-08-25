@@ -14,8 +14,28 @@ namespace RatnaBay.Domain;
 public static class EnemyCatalog
 {
     public const string BanditId = "bandit";
-    public const string PretaId = "preta";
     public const string ArcherId = "bandit_archer";
+
+    /// <summary>
+    /// The three tiers of risen dead, weakest first.
+    ///
+    /// One creature at three scales rather than three creatures: a chhaya is what is left of a
+    /// miner, a vetala is one that has kept enough of itself to be deliberate, and a kravyada
+    /// is something the mountain took long before there was a town. They are told apart by
+    /// size and by how much they still want, which is also exactly how the sprites are built.
+    /// </summary>
+    public const string ChhayaId = "chhaya";
+
+    public const string VetalaId = "vetala";
+    public const string KravyadaId = "kravyada";
+
+    /// <summary>
+    /// The old id for the common tier.
+    ///
+    /// Kept so that saves and mine manifests written before the rename still load. Nothing new
+    /// should use it; <see cref="Find"/> resolves it to <see cref="ChhayaId"/>.
+    /// </summary>
+    public const string PretaId = "preta";
 
     private static readonly Dictionary<string, EnemyArchetype> Archetypes =
         new(StringComparer.Ordinal)
@@ -33,12 +53,12 @@ public static class EnemyCatalog
                 XpReward = 20
             },
 
-            // Faster, frailer and it hits harder: a preta is a pressure enemy, and pressure is
-            // what makes the decision at the camp a decision.
-            [PretaId] = new EnemyArchetype
+            // Faster, frailer and it hits harder: a chhaya is a pressure enemy, and pressure
+            // is what makes the decision at the camp a decision.
+            [ChhayaId] = new EnemyArchetype
             {
-                Id = PretaId,
-                DisplayName = "Preta",
+                Id = ChhayaId,
+                DisplayName = "Chhaya",
                 MaxHealth = 38f,
                 MoveSpeed = 5.2f,
                 AggroRange = 18f,
@@ -46,6 +66,37 @@ public static class EnemyCatalog
                 AttackDamage = 9f,
                 AttackCooldown = 1.2f,
                 XpReward = 26
+            },
+
+            // A chhaya that kept enough of itself to be deliberate. Slower than the common
+            // tier on purpose: it does not need to rush, and a player who has learned to
+            // kite chhaya has to learn something else.
+            [VetalaId] = new EnemyArchetype
+            {
+                Id = VetalaId,
+                DisplayName = "Vetala",
+                MaxHealth = 96f,
+                MoveSpeed = 4.6f,
+                AggroRange = 20f,
+                AttackRange = 2.4f,
+                AttackDamage = 16f,
+                AttackCooldown = 1.5f,
+                XpReward = 70
+            },
+
+            // Something the mountain took long before there was a town. Slow, enormously
+            // durable, and it hits hard enough that trading blows is never the answer.
+            [KravyadaId] = new EnemyArchetype
+            {
+                Id = KravyadaId,
+                DisplayName = "Kravyada",
+                MaxHealth = 260f,
+                MoveSpeed = 3.6f,
+                AggroRange = 24f,
+                AttackRange = 3.0f,
+                AttackDamage = 27f,
+                AttackCooldown = 2.0f,
+                XpReward = 220
             },
 
             // The answer to fighting every room from its doorway.
@@ -74,8 +125,17 @@ public static class EnemyCatalog
 
     public static IReadOnlyCollection<string> Ids => Archetypes.Keys;
 
-    public static EnemyArchetype? Find(string? id) =>
-        id is not null && Archetypes.TryGetValue(id, out var archetype) ? archetype : null;
+    public static EnemyArchetype? Find(string? id)
+    {
+        if (id is null) return null;
+
+        // "preta" was the common tier's id before the three tiers existed. Manifests and saves
+        // on disk still carry it, and a mine that fails to spawn its enemies is a worse
+        // outcome than a legacy alias.
+        if (string.Equals(id, PretaId, StringComparison.Ordinal)) id = ChhayaId;
+
+        return Archetypes.TryGetValue(id, out var archetype) ? archetype : null;
+    }
 
     /// <summary>
     /// The archetype a spawn asks for, already scaled to its level. Null when the manifest

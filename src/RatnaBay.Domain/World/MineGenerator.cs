@@ -505,8 +505,30 @@ public static class MineGenerator
     private static string ChooseArchetype(int roomIndex, int slot, Prng random)
     {
         if (slot == 0 && roomIndex >= 3) return EnemyCatalog.ArcherId;
-        return random.Next(4) == 0 ? EnemyCatalog.PretaId : EnemyCatalog.BanditId;
+
+        // The higher tiers arrive with depth, and only one of them at a time.
+        //
+        // Depth already bites through enemy level, which is a number the player cannot see. A
+        // vetala is the same escalation made visible: it is a different silhouette, so the
+        // room announces that it is harder before the fight starts rather than during it.
+        //
+        // Second slot, not first. The first belongs to the archer from room three on, and an
+        // elite placed there would simply never be reached — the archer rule returns before
+        // the roll happens. Binding it to one slot is also what caps a room at one elite.
+        if (slot == 1)
+        {
+            if (roomIndex >= KravyadaFromRoom && random.Next(3) == 0) return EnemyCatalog.KravyadaId;
+            if (roomIndex >= VetalaFromRoom && random.Next(2) == 0) return EnemyCatalog.VetalaId;
+        }
+
+        return random.Next(4) == 0 ? EnemyCatalog.ChhayaId : EnemyCatalog.BanditId;
     }
+
+    /// <summary>Rooms cleared before a vetala can lead one.</summary>
+    private const int VetalaFromRoom = 5;
+
+    /// <summary>And before the mountain sends something older.</summary>
+    private const int KravyadaFromRoom = 11;
 
     /// <summary>The middle of the opening on one side of a room.</summary>
     private static (float X, float Z) DoorwayOf(Cell cell, Side side) => side switch

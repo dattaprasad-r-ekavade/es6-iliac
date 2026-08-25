@@ -217,73 +217,141 @@ public static class ItemSprites
     });
 
     /// <summary>
-    /// A chhaya: what is left of a miner the mountain kept.
+    /// One risen figure, at whatever tier the mountain has made of it.
     ///
-    /// The honest hard case, and the one worth looking at closely. Construction gets you a
-    /// figure that is correctly lit and correctly proportioned. What it does not get you is a
-    /// figure with intent — the tilt of a head that reads as grief rather than as a head at an
-    /// angle. That gap is real, and it is smaller than expected at this size.
+    /// Three creatures out of one description, because that is what they are in the fiction: a
+    /// chhaya is what is left of a miner, a vetala kept enough of itself to be deliberate, and
+    /// a kravyada is something taken long before there was a town. They differ by mass, by
+    /// posture, and by how much of the stone still burns in them.
+    ///
+    /// This is the case that was supposed to need an artist, and the honest limit is narrower
+    /// than that. Construction gets a figure correctly built and correctly lit at any scale.
+    /// What it does not get is *intent* — the tilt of a head that reads as grief rather than as
+    /// a head at an angle. For enemies meant to be barely-people that gap is small. It would
+    /// not be, for a named character.
     /// </summary>
-    public static Texture2D Chhaya(GraphicsDevice device) => Get(device, "chhaya", 64, forge =>
+    private sealed record RisenBuild(
+        float Scale,
+        float ShoulderWidth,
+        float Stoop,
+        Color Flesh,
+        Color Ember,
+        int Stones);
+
+    private static readonly RisenBuild Chhaya =
+        new(0.88f, 6.6f, 0f, new Color(54, 72, 78), new Color(214, 146, 52), 1);
+
+    private static readonly RisenBuild Vetala =
+        new(1.04f, 8.4f, 1.6f, new Color(64, 66, 92), new Color(120, 198, 236), 2);
+
+    private static readonly RisenBuild Kravyada =
+        new(1.2f, 11.2f, 3.4f, new Color(78, 54, 52), new Color(255, 122, 46), 3);
+
+    public static Texture2D ChhayaSprite(GraphicsDevice device) =>
+        Get(device, "risen.chhaya", 64, forge => Risen(forge, Chhaya));
+
+    public static Texture2D VetalaSprite(GraphicsDevice device) =>
+        Get(device, "risen.vetala", 64, forge => Risen(forge, Vetala));
+
+    public static Texture2D KravyadaSprite(GraphicsDevice device) =>
+        Get(device, "risen.kravyada", 64, forge => Risen(forge, Kravyada));
+
+    /// <summary>The sprite for an enemy archetype, or null if it is not one of the risen.</summary>
+    public static Texture2D? Risen(GraphicsDevice device, string archetypeId) => archetypeId switch
     {
-        var shade = new SpriteMaterial
-        {
-            Ramp = new[]
-            {
-                new Color(24, 30, 34), new Color(38, 50, 55), new Color(54, 72, 78),
-                new Color(74, 98, 104), new Color(99, 128, 133)
-            },
-            Outline = new Color(14, 18, 21)
-        };
+        "chhaya" or "preta" => ChhayaSprite(device),
+        "vetala" => VetalaSprite(device),
+        "kravyada" => KravyadaSprite(device),
+        _ => null
+    };
+
+    private static void Risen(SpriteForge forge, RisenBuild build)
+    {
+        var flesh = SpriteMaterial.FromBase(build.Flesh);
 
         var ember = new SpriteMaterial
         {
-            Ramp = new[] { new Color(150, 92, 30), new Color(214, 146, 52), new Color(255, 214, 140) },
-            Outline = new Color(92, 52, 16),
+            Ramp = new[]
+            {
+                Shade(build.Ember, -0.35f), build.Ember, Shade(build.Ember, 0.45f)
+            },
+            Outline = Shade(build.Ember, -0.62f),
             Gloss = 1.2f,
             Highlight = Color.White
         };
 
+        var stone = SpriteMaterial.FromBase(new Color(150, 96, 206), gloss: 1.1f);
+
+        // Everything is measured from the centre line and scaled about the feet, so a heavier
+        // tier grows upward and outward from where it stands rather than floating.
+        const float Mid = 32f;
+        const float Ground = 61f;
+
+        float Y(float from) => Ground - (Ground - from) * build.Scale;
+        float W(float w) => w * build.Scale;
+
+        var shoulder = W(build.ShoulderWidth);
+        var lean = build.Stoop;
+
         // Legs dissolve before they reach the ground: the lower body tapers to nothing, which
-        // is both cheaper than feet and the correct read for something that is not quite here.
+        // is cheaper than feet and the correct read for something that is not quite here.
         forge.Begin();
-        forge.Capsule(30f, 43f, 27f, 61f, 4.9f, 0.6f);
-        forge.Capsule(34f, 43f, 38f, 59f, 4.7f, 0.6f);
-        forge.Fill(shade, roundness: 0.85f, cap: 4.4f);
+        forge.Capsule(Mid - 2f, Y(43f), Mid - 5f, Y(61f), W(4.9f), 0.6f);
+        forge.Capsule(Mid + 2f, Y(43f), Mid + 6f, Y(59f), W(4.7f), 0.6f);
+        forge.Fill(flesh, roundness: 0.85f, cap: 4.4f);
 
-        // Torso, narrow and hollow-chested.
+        // Torso. The stoop pushes the shoulders forward and down, which is most of what makes
+        // the heavy tier read as heavy rather than as the small one enlarged.
         forge.Begin();
-        forge.Capsule(32f, 30f, 32f, 45f, 6.6f, 5.8f);
-        forge.Fill(shade, roundness: 0.7f, cap: 5.6f, lift: 1.2f);
+        forge.Capsule(Mid, Y(30f) + lean, Mid, Y(45f), shoulder, W(5.8f));
+        forge.Fill(flesh, roundness: 0.7f, cap: 5.6f, lift: 1.2f);
 
-        // Arms, one hanging and one half-raised.
+        // Arms, one hanging and one half-raised. They hang further from the body as the figure
+        // widens, or the silhouette closes up and the whole thing becomes a barrel.
         forge.Begin();
-        forge.Capsule(26f, 31f, 19f, 47f, 2.9f, 1.9f);
-        forge.Capsule(38f, 31f, 47f, 38f, 2.9f, 1.9f);
-        forge.Fill(shade, roundness: 1.0f, cap: 3.6f, lift: 2.4f);
+        forge.Capsule(Mid - shoulder * 0.78f, Y(31f) + lean, Mid - shoulder - W(1f), Y(47f),
+            W(2.9f), W(1.9f));
+        forge.Capsule(Mid + shoulder * 0.78f, Y(31f) + lean, Mid + shoulder + W(2f), Y(38f),
+            W(2.9f), W(1.9f));
+        forge.Fill(flesh, roundness: 1.0f, cap: 3.6f, lift: 2.4f);
 
-        // Neck, then head. Without the neck the skull merged straight into the shoulders and
-        // the whole figure read as a blob with eyes on it — the gap is what makes a head a head.
         forge.Begin();
-        forge.Capsule(32f, 19f, 32f, 31f, 2.3f, 2.9f);
-        forge.Fill(shade, roundness: 1.1f, cap: 3.0f, lift: 1.6f);
+        forge.Capsule(Mid, Y(19f) + lean, Mid, Y(31f) + lean, W(2.3f), W(2.9f));
+        forge.Fill(flesh, roundness: 1.1f, cap: 3.0f, lift: 1.6f);
 
         // A skull is an ellipse with the jaw drawn in and the crown kept narrow.
+        var headY = Y(12f) + lean;
         forge.Begin();
-        forge.Ellipse(32f, 12f, 5.6f, 6.6f);
-        forge.Erase(32f, 19.5f, 4.6f, 2.6f);
-        forge.Fill(shade, roundness: 0.95f, cap: 6.0f, lift: 3.4f);
+        forge.Ellipse(Mid, headY, W(5.6f), W(6.6f));
+        forge.Erase(Mid, headY + W(7.5f), W(4.6f), W(2.6f));
+        forge.Fill(flesh, roundness: 0.95f, cap: 6.0f, lift: 3.4f);
 
-        // The eyes: the only warm thing on it, and the reason it reads as looking at you.
+        // The eyes: the only warm thing on it, and the reason it reads as looking at you. They
+        // widen with the tier, because that is the cheapest way to make a bigger thing scarier.
+        var eye = W(1.6f) * (1f + build.Stones * 0.12f);
         forge.Begin();
-        forge.Ellipse(29.7f, 12f, 1.6f, 2.0f);
-        forge.Ellipse(34.3f, 12f, 1.6f, 2.0f);
+        forge.Ellipse(Mid - W(2.3f), headY, eye, eye * 1.25f);
+        forge.Ellipse(Mid + W(2.3f), headY, eye, eye * 1.25f);
         forge.Fill(ember, roundness: 1.6f, cap: 4f, lift: 7.6f);
 
-        // A jiva stone still lodged in the chest, which is what is holding it here.
-        forge.Begin();
-        forge.Polygon(new Vector2(32f, 31f), new Vector2(35f, 35f),
-            new Vector2(32f, 40f), new Vector2(29f, 35f));
-        forge.Fill(Crystal, roundness: 0f, cap: 7.4f, lift: 7.4f);
-    });
+        // The stones still lodged in it, which are what hold it here. More of them, higher up,
+        // the older the thing is.
+        for (var i = 0; i < build.Stones; i++)
+        {
+            var offset = (i - (build.Stones - 1) / 2f) * W(4.6f);
+            var y = Y(35f + i % 2 * 4f) + lean;
+
+            forge.Begin();
+            forge.Polygon(
+                new Vector2(Mid + offset, y - W(3.4f)),
+                new Vector2(Mid + offset + W(2.6f), y),
+                new Vector2(Mid + offset, y + W(4.2f)),
+                new Vector2(Mid + offset - W(2.6f), y));
+            forge.Fill(stone, roundness: 0f, cap: 7.4f, lift: 7.4f);
+        }
+    }
+
+    private static Color Shade(Color colour, float amount) => amount < 0f
+        ? Color.Lerp(colour, new Color(20, 14, 26), -amount)
+        : Color.Lerp(colour, Color.White, amount);
 }
