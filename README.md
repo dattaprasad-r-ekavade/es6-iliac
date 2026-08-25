@@ -109,6 +109,9 @@ Two documents, and no others:
 
 Supporting records:
 
+- [`Docs/SETTING.md`](Docs/SETTING.md) — the world: period, province, the order, and the art
+  direction that follows from them
+
 - [`Docs/PLAYTEST_NOTES.md`](Docs/PLAYTEST_NOTES.md) — what testers found, and what was done
 - [`Docs/STEAM_PRESENTATION_BASELINE.md`](Docs/STEAM_PRESENTATION_BASELINE.md) — display contract
 - [`Docs/COMMUNITY_TOOLS_BASELINE.md`](Docs/COMMUNITY_TOOLS_BASELINE.md) — pinned packages
