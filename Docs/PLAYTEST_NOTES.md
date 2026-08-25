@@ -175,3 +175,46 @@ Evidence to look for: at least one door is genuinely weighed, ranged pressure dr
 into rooms rather than letting every fight be won from the previous doorway, and banking once
 changes what the next descent begins with. If all three runs still press reflexively, Iteration
 14 remains open and the risk/reward numbers need another pass before succession begins.
+
+---
+
+## 2026-08-25 — checkpoint: nine recorded sessions
+
+Written at a deliberate pause. Every finding below came out of a recording rather than an
+opinion, and the ones marked **corrected** overturned a conclusion that had already been acted
+on.
+
+| Session | Score | What it produced |
+|---|---|---|
+| First mine | — | Nothing new was visible: two iterations sat behind a `--mine` flag and the menu could not reach them |
+| First run loop | 6/10 | "Like a Skyrim dungeon." Enemies through walls; enemies at doorways |
+| Doors | — | 9 rooms, 6 doors asked. **Corrected:** blamed on early opening; the real cause was door ids shared between mines |
+| Instrumented | — | Doors finally equal rooms. 7 of 9 rooms cleared from a doorway |
+| Rooms | — | 7–10s a room, 48% of the run in a doorway: rooms were too small to fight in |
+| Closed loop | 7/10 | "An experience I can put my head in." Bought things; banked twice |
+| Merged art | — | Masonry, lighting, three tiers of dead |
+| Combat | — | **Corrected:** melee lands 64–87%, not 28%. The old figure counted impatient clicks as misses |
+| Four deaths | — | A returning successor found seven of eight rooms empty; up to 60 clicks a run did nothing |
+
+### What the numbers say now
+
+- **The camp decision works.** Median hesitation 2.1s across 28 doors with menu time excluded,
+  and several genuine pauses of five to eleven seconds. Nine sessions ago it was one second flat.
+- **Melee is fine.** 64–87% of swings land. The problem was never aiming.
+- **Doorway fighting is beaten**, by holding a room's dead back until it is entered rather than
+  by the archer that was built for it.
+- **Runs last 1.6 to 5.8 minutes** against a 5–8 minute design target. Deaths are common and
+  banking is rare, which is the right way round for a first pass.
+
+### What is still unknown
+
+Everything about how this plays for **somebody who did not build it**. Nine sessions with one
+tester who knows what every system is for is the limit of what this method can tell us, and
+that has now been the top item on the board for three checkpoints.
+
+### The habit worth keeping
+
+**A log with no word for something reports its absence as a fact.** Melee, purchases, menu time
+and door openings each had to be added to the recorder *after* a confident wrong conclusion had
+been drawn from their silence. Before believing anything the review says, check whether the
+thing it is silent about was ever recorded.

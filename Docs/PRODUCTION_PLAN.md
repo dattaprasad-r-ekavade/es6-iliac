@@ -60,21 +60,65 @@ acting.
 
 ## 2. Where the project is
 
+**Checkpoint: 2026-08-25.** Written at a deliberate pause, from the repository rather than
+from memory.
+
 | | Lines | State |
 |---|---:|---|
-| `RatnaBay.Domain` | ~4,600 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | ~5,600 | **455 tests, ~470 ms** |
-| `RatnaBay.Game` | ~5,600 | Renderer, HUD, session, world runtime, combat |
-| `RatnaBay.Tools` | ~370 | `doctor`, `validate`, `asset-info`, `sim`, `mine` |
+| `RatnaBay.Domain` | ~7,400 | Tested game rules, engine-free |
+| `RatnaBay.Domain.Tests` | ~7,200 | **537 tests, ~450 ms** |
+| `RatnaBay.Game` | ~12,000 | Renderer, HUD, session, world and run runtime, combat |
+| `RatnaBay.Tools` | ~550 | `doctor`, `validate`, `sim`, `mine`, `review` |
 
-**Built and carried into the pivot:** combat with guarding and weapon classes · enemy levels and
-scaling · five spells with distinct effects, cast as travelling bolts · the prana economy · the
-three life paths and their multipliers · eight use-based skills · collision, doors, locks ·
-stealth, watchers, pickpocketing · dialogue, quests, shops · versioned saves · the world manifest
-format, its validation and its hot reload · the publish pipeline and its gates.
+Plus **132 checks** in the published build's own self-test, which is what the release gate
+actually runs.
 
-**Not yet built:** stone slots · amulets · succession · five mechanical cave themes · the fort ·
-bosses.
+### The loop, end to end
+
+All four stages exist and connect:
+
+```
+   Yard ──▶ buy a shaft with stones ──▶ Descend ──▶ clear · camp · press on
+    ✓                 ✓                    ✓                  ✓
+    └──── spend gold, fetch your body ◀── Return ◀─────────────┘
+                      ✓                     ✓
+```
+
+A session is: stand in the yard, whistle nothing or buy a depth, go down, clear rooms that
+wake as you enter them, answer the door each time, whistle a trader if the pack is heavy
+enough to pay their fare, bank or die, come up, spend, go again. Death promotes a named
+successor and leaves the body where it fell, with the stones still on it.
+
+### Nine sessions of recorded play
+
+Every one of these was found by recording a real run and reading it back, and several
+corrected a diagnosis this plan had already acted on:
+
+| Found | What it was |
+|---|---|
+| Enemies walked through walls | Pursuit never consulted the world at all |
+| A room paid twice | Clearance judged by where the player stood, not the fight in progress |
+| Doors were already open | Every mine reused `link00.door`, and the save remembered it |
+| Rooms cleared from doorways | Fixed by holding a room's dead back until it is entered, not by the archer |
+| Levelling healed you | A kill that levelled you up was a full heal mid-fight |
+| A mine could be exhausted | Press-your-luck cannot work in a level you can finish |
+| Melee "landed 28%" | Impatient clicks were being counted as missed swings. It is 64–87% |
+| A returning successor found empty rooms | Eight rooms cleared for five kills, and a free 36 stones |
+
+**The lesson that keeps repeating:** a log with no word for something reports its absence as a
+fact. Melee, purchases, menu time and door openings each had to be added after a confident
+wrong conclusion was drawn from their silence.
+
+### Where the decision stands
+
+Nine sessions ago the camp decision was answered in about a second, every time. The most
+recent five runs, with menu time excluded:
+
+> hesitations of 9.1s, 5.5s, 5.0s, 4.7s, 11.3s, 3.9s — median **2.1s** across 28 doors
+> *Verdict: genuinely weighed. The decision is working; build on it.*
+
+**Iteration 14's open question is closed.** The loop is tense. What is not yet known is whether
+it is tense for anybody who is not its author.
 
 ---
 
@@ -309,45 +353,57 @@ One board. Work in progress limit: **one**.
 
 ### In progress
 
-- None.
+- None. Paused deliberately at a good place: gate green, everything pushed.
 
-### Next
+### Next — pick one
 
-- **Close the loop** — see §2b. Tiers bought with stones, a surface to return to, gear worth
-  buying, and levels that stop outgrowing the mine. Build all four, then play.
-- Trailer build list, from [`TRAILER.md`](TRAILER.md): the Stambha and its carved verse, the
-  preta rise animation, one fort room with a conversation, the camp decision UI, succession,
-  and two cave themes. Two themes and one room film the trailer; five and ten ship the game.
+- **A stranger plays it.** Nothing on this list replaces it, and it has been the top item for
+  three checkpoints. The loop is closed, the recorder captures a session unattended, and
+  `Docs/PLAYTEST_DISTRIBUTION.md` already says how to get a build out and the recordings back.
+- **Iteration 16 — stones and slots.** In-run variety. Sockets found below, never carried down.
+- **Iteration 18 — cave themes.** Pulled forward in thinking once, then held: the sameness was
+  mechanical rather than visual, and three of its causes have since been fixed. Worth
+  re-judging against a fresh recording rather than the one that prompted it.
 
 ### Ready
 
-- Iteration 18 — cave themes. Held deliberately: the sameness is mechanical, and a themed
-  room is still a room with no reason to be entered until the loop pays.
-- Iteration 16 — stones and slots.
+- Iteration 17 — the ratchet. Amulets, and levels that grant points rather than numbers.
+- Iteration 19 — the fort. Also where three parked features would come back.
+- Iteration 20 — bosses.
+- Iteration 21 — slice lock.
 
-### Playtest queue
+### Known gaps, none blocking
 
-- **The closed loop, in one sitting, after all four pieces land.** Not before: these changes
-  redefine each other, and testing them one at a time is what produced five rounds of chasing
-  symptoms of a missing reward.
-- **Then a stranger.** Still the most valuable hour available to the project.
+- **Charms at the camp trader.** The stock is potions and torches; one-descent buffs would make
+  it more than a vending machine, but player-side temporary effects do not exist yet.
+- **Story at the camp.** The slot exists and nothing is written into it. It is the only place a
+  person is met every single run, which makes it the natural home for story in frequent pieces.
+- **The stall does not restock.** Buy a row and it is gone for the save.
+- **Gold pacing is a guess.** Roughly 250 a run against a 450 sword, never measured.
+- **Two cave themes, one fort room, and the preta rise** — the remaining trailer build list.
 
-### Done
+### Done this stretch
 
-- Iterations 5–12: domain port, live HUD, saves, combat, sprites, authored world, collision,
-  dialogue, quests, shops, stealth, the packaged build and its gates.
-- Pivot groundwork: travelling spell bolts, enemy levels, life-path multipliers, the spell
-  rebalance.
-- Iteration 15: succession, the fallen cache, named Deepankars.
-- Iteration 14: the run ledger, the camp decision, the payout curve, the summary screen.
-- Play-driven fixes: enemies that respect walls, a room that pays once, levelling that heals
-  nothing, mines deeper than a run, and an archer that makes the doorway the worst place to
-  stand. All of it found by recording play and reading it back.
-- Iteration 13: the mine generator, `WorldEnemySpawn` in the manifest, the enemy catalogue,
-  `RatnaBay.Tools mine`, and `--mine N` in the game.
-- The design, decided end to end.
+Forty-nine commits, iterations 13 through 15, plus two branches merged.
 
----
+- **Iteration 13** — the mine generator. A seed in, a `WorldManifest` out, in the format the
+  game already loads.
+- **Iteration 14** — the run. `RunState`, the camp decision, the `N x T` payout curve, the
+  summary screen.
+- **Iteration 15** — succession. Named Deepankars, the fallen cache, half the pack lost, keys
+  and the equipped weapon spared.
+- **The loop closed** — the yard, tiers bought with stones, gear worth saving for, and levels
+  that stop outgrowing the mine.
+- **The camp trader** — whistled down for `5 x tier x calls`, dealing only in what is spent
+  before the run ends.
+- **The recorder** — every session written down, and `RatnaBay.Tools review` to read it back.
+- **Suspend and resume** — a descent can be set aside and walked back into, once.
+- **Art, setting and story** — merged from `trailer-shot-one`: generated masonry and props, a
+  cave lighting shader, three tiers of risen dead, the Stambha carved in Brahmi, and
+  `SETTING.md`, `STORY.md`, `NAMES_AND_OFFICES.md`.
+- **Distribution research** — merged from the telemetry branch: itch.io, getting recordings
+  back, and whether Android is worth it.
+- **Three features parked** and one dead skill wired up — see §1.
 
 ## 6. Working rules
 
