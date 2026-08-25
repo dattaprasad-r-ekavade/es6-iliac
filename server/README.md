@@ -1,5 +1,10 @@
 # The recording sink
 
+> **Sending this to whoever runs the server?** Send
+> [`Docs/SERVER_SETUP.md`](../Docs/SERVER_SETUP.md) instead. It is self-contained — the full PHP
+> source is inside it, generated from `upload.php` so the two cannot drift — and it assumes no
+> knowledge of this repository. This page is the short version for us.
+
 One endpoint on a server we run, which accepts a finished playtest recording and writes it to
 disk. Nothing else. There is no listing, no reading it back over HTTP, and no way to ask it what
 it holds — so the worst a leaked build token buys anybody is the ability to send junk, which the
