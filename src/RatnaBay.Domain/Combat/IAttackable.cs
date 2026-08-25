@@ -13,6 +13,16 @@ public interface IAttackable
     float MaxHealth { get; }
     bool IsAlive { get; }
 
+    /// <summary>
+    /// True while this cannot fight back — still rising, or staggered.
+    ///
+    /// The ambush, which is the one idea worth keeping out of the stealth pillar that was
+    /// parked. A room's occupants rise when it is entered and a shock spell staggers what it
+    /// hits; both are windows in which the thing in front of you is helpless, and rewarding a
+    /// blow landed in one is what makes rushing into a room better than waiting at its door.
+    /// </summary>
+    bool IsVulnerable => false;
+
     /// <summary>Apply damage. Returns the amount that actually landed.</summary>
     float TakeDamage(float amount);
 

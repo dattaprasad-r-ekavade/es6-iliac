@@ -1693,15 +1693,27 @@ public sealed class Game1 : Game
 
             var outcome = _encounter.PlayerAttack();
 
-            // Melee was invisible to the recorder, so a session fought with the sword read
-            // back as one where no melee happened at all.
+            // A click that never became a swing is recorded as what it was.
+            //
+            // Cooldown and exhaustion were being folded in with misses, so every impatient
+            // click counted against the hit rate. A sword swings every 0.45 seconds; six
+            // sessions of "melee lands 28%" may be mostly mashing.
             var struck = _encounter.Focused;
-            _recorder.Record(PlayEventKind.MeleeSwing,
-                _session.Player.Combat.ActiveWeapon.DisplayName,
-                outcome.Damage, outcome.Result == AttackResult.Hit ? 1f : 0f,
-                _session.Player.Vitals.Health, _session.Player.Vitals.Prana,
-                struck?.Archetype.DisplayName ?? string.Empty,
-                struck is null ? 0f : _encounter.PlayerPosition.FlatDistanceTo(struck.Position));
+            if (outcome.Result is AttackResult.OnCooldown or AttackResult.Exhausted)
+            {
+                _recorder.Record(PlayEventKind.MeleeBalked,
+                    outcome.Result == AttackResult.OnCooldown ? "too soon" : "no stamina",
+                    0f, 0f, _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+            }
+            else
+            {
+                _recorder.Record(PlayEventKind.MeleeSwing,
+                    _session.Player.Combat.ActiveWeapon.DisplayName,
+                    outcome.Damage, outcome.Result == AttackResult.Hit ? 1f : 0f,
+                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana,
+                    struck?.Archetype.DisplayName ?? string.Empty,
+                    struck is null ? 0f : _encounter.PlayerPosition.FlatDistanceTo(struck.Position));
+            }
 
             // The arm moves whenever the swing actually happened — a hit and a miss look the
             // same from behind the weapon, which is what makes missing feel like missing

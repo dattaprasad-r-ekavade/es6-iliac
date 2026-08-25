@@ -15,7 +15,8 @@ public enum AttackResult
     Exhausted
 }
 
-public readonly record struct AttackOutcome(AttackResult Result, float Damage)
+public readonly record struct AttackOutcome(AttackResult Result, float Damage,
+    bool WasOpening = false)
 {
     public bool Swung => Result is AttackResult.Hit or AttackResult.Missed;
 }
@@ -111,13 +112,61 @@ public sealed class PlayerCombat
         if (target is null || !target.IsAlive) return new AttackOutcome(AttackResult.Missed, 0f);
 
         var threat = target.MaxHealth;
-        var dealt = target.TakeDamage(WeaponDamage, ActiveWeapon.DisplayName);
+
+        // Twice as hard on something that cannot answer yet.
+        //
+        // Enough to change where a player stands. A room's five occupants rise one after
+        // another over about two seconds, so rushing in buys three or four of these — which is
+        // the reward for being in the room rather than waiting in the doorway, and it is what
+        // the parked stealth pillar was really for.
+        var opening = target.IsVulnerable;
+        var damage = opening ? WeaponDamage * OpeningStrikeMultiplier : WeaponDamage;
+        var dealt = target.TakeDamage(damage, ActiveWeapon.DisplayName);
         EnterCombat();
 
         // Advancement is use-based, so the swing trains the weapon's skill rather than paying
         // flat XP. Only landed hits get here.
         _skills.ReportUse(weapon.SkillId, dealt, threat);
-        return new AttackOutcome(AttackResult.Hit, dealt);
+        return new AttackOutcome(AttackResult.Hit, dealt, opening);
+    }
+
+    /// <summary>What a blow on something helpless is worth.</summary>
+    public const float OpeningStrikeMultiplier = 2f;
+
+    /// <summary>What everything else in the arc takes from a two-handed sweep.</summary>
+    public const float CleaveFactor = 0.6f;
+
+    /// <summary>True when the equipped weapon sweeps rather than stabs.</summary>
+    public bool WeaponSweeps => ActiveWeapon.Class == WeaponClass.TwoHanded;
+
+    /// <summary>
+    /// Carry the swing through everything else in the arc.
+    ///
+    /// The only thing that makes a greatsword a different weapon. A sword deals eighteen every
+    /// 0.45 seconds and a greatsword thirty-four every 0.85 — the same damage a second — so
+    /// with one target in front of you the choice has never mattered. Against the five bodies
+    /// that rise when a room is entered it decides the fight, and it is paid for in stamina, in
+    /// speed, and in not being able to guard.
+    ///
+    /// The primary target is the caller's business; this is everything after it.
+    /// </summary>
+    public int Sweep(IEnumerable<IAttackable>? others)
+    {
+        if (others is null || !WeaponSweeps) return 0;
+
+        var struck = 0;
+        foreach (var other in others)
+        {
+            if (other is null || !other.IsAlive) continue;
+
+            var damage = WeaponDamage * CleaveFactor;
+            if (other.IsVulnerable) damage *= OpeningStrikeMultiplier;
+
+            other.TakeDamage(damage, ActiveWeapon.DisplayName);
+            struck++;
+        }
+
+        return struck;
     }
 
     /// <summary>Take a hit, applying worn armour and the current guard.</summary>

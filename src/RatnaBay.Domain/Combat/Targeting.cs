@@ -33,6 +33,45 @@ public static class Targeting
         new(MathF.Sin(yaw), 0f, -MathF.Cos(yaw));
 
     /// <summary>
+    /// Every living candidate in the arc, nearest first.
+    ///
+    /// A two-handed weapon sweeps rather than stabs, which is the only thing that makes it a
+    /// different weapon: a greatsword and a sword deal the same damage a second, so with one
+    /// target in front of you there has never been a reason to choose between them. Against
+    /// the five bodies that rise in a room there is.
+    /// </summary>
+    public static IReadOnlyList<T> FindAll<T>(
+        WorldPoint origin,
+        float yaw,
+        float range,
+        IEnumerable<T> candidates,
+        float coneRadians = MeleeConeRadians) where T : class, ITargetable
+    {
+        var forward = FlatForward(yaw);
+        var minimumDot = MathF.Cos(coneRadians);
+        var found = new List<(T Target, float Distance)>();
+
+        foreach (var candidate in candidates)
+        {
+            if (!candidate.IsAlive) continue;
+
+            var distance = origin.FlatDistanceTo(candidate.Position);
+            if (distance > range) continue;
+            if (distance > 0.001f)
+            {
+                var dx = (candidate.Position.X - origin.X) / distance;
+                var dz = (candidate.Position.Z - origin.Z) / distance;
+                if (dx * forward.X + dz * forward.Z < minimumDot) continue;
+            }
+
+            found.Add((candidate, distance));
+        }
+
+        found.Sort((left, right) => left.Distance.CompareTo(right.Distance));
+        return found.ConvertAll(entry => entry.Target);
+    }
+
+    /// <summary>
     /// The nearest living candidate within <paramref name="range"/> and inside the cone.
     /// Null when the player swung at nothing.
     /// </summary>

@@ -152,6 +152,9 @@ public sealed class Enemy : IEnemy, ITargetable
     /// </summary>
     public bool IsRousing => _rousing > 0f;
 
+    /// <summary>Getting up, or reeling from a shock. Either way it cannot answer.</summary>
+    public bool IsVulnerable => IsRousing || IsStaggered;
+
     /// <summary>How far through standing up this is, nought to one, for the sprite.</summary>
     public float RousedFraction => RousingSeconds <= 0f
         ? 1f

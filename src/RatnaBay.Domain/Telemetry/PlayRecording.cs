@@ -29,6 +29,17 @@ public static class PlayEventKind
     /// </summary>
     public const string MeleeSwing = "melee.swing";
 
+    /// <summary>
+    /// A click that could not become a swing — the last one had not finished, or there was no
+    /// stamina left.
+    ///
+    /// Kept apart from a miss because folding the two together is how a hit rate lies. A sword
+    /// swings every 0.45 seconds and people mash; every extra click was being counted as a
+    /// swing that missed, and six sessions of "melee only lands 28% of the time" may be mostly
+    /// this rather than anything wrong with the aiming.
+    /// </summary>
+    public const string MeleeBalked = "melee.balked";
+
     /// <summary>A spell that would not go off, almost always for want of prana.</summary>
     public const string CastFailed = "spell.failed";
 
@@ -183,6 +194,9 @@ public sealed record RunReview(
     int EnemiesKilled,
     int MeleeSwings,
     int MeleeLanded,
+
+    /// <summary>Clicks that never became a swing: too soon, or too tired.</summary>
+    int MeleeBalked,
     int SpellsCast,
     int CastsRefused,
 
@@ -292,6 +306,7 @@ public static class PlayReview
         var killCount = 0;
         var swings = 0;
         var landed = 0;
+        var balked = 0;
         var casts = 0;
         var refused = 0;
         var fromDoorway = 0;
@@ -416,6 +431,10 @@ public static class PlayReview
 
                     break;
 
+                case PlayEventKind.MeleeBalked:
+                    balked++;
+                    break;
+
                 case PlayEventKind.MeleeSwing:
                     swings++;
                     // Extra carries whether it connected; a miss is still a swing.
@@ -456,7 +475,7 @@ public static class PlayReview
         return Build();
 
         RunReview Build() => new(seed, tier, start.At, endedAt, roomsCleared, banked, lost,
-            survived, damage, killCount, swings, landed, casts, refused,
+            survived, damage, killCount, swings, landed, balked, casts, refused,
             kills.ToDictionary(
                 entry => entry.Key,
                 entry => (IReadOnlyDictionary<string, int>)entry.Value,

@@ -468,6 +468,30 @@ public sealed class Encounter
             Struck(target);
             Knock(target, KnockbackMetres);
             Feedback.PlayerHit(target.Position, outcome.Damage, !target.IsAlive);
+
+            // A two-handed weapon carries through everything else in the arc.
+            if (_session.Player.Combat.WeaponSweeps)
+            {
+                var arc = Targeting.FindAll(_lastPlayerPosition, _lastPlayerYaw,
+                    _session.Player.Combat.ActiveWeapon.Range, _enemies)
+                    .Where(enemy => !ReferenceEquals(enemy, target))
+                    .ToList();
+
+                // Health noted before the sweep and read after it. Drawing the numbers first
+                // reported nought damage on everything, because nothing had been hit yet.
+                var before = arc.ToDictionary(enemy => enemy, enemy => enemy.Health);
+                _session.Player.Combat.Sweep(arc);
+
+                foreach (var caught in arc)
+                {
+                    var dealt = before[caught] - caught.Health;
+                    if (dealt <= 0f) continue;
+
+                    Struck(caught);
+                    Knock(caught, KnockbackMetres * 0.6f);
+                    Feedback.PlayerHit(caught.Position, dealt, !caught.IsAlive);
+                }
+            }
         }
 
         return outcome;

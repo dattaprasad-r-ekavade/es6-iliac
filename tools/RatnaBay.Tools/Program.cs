@@ -321,8 +321,12 @@ static int RunReview(string[] arguments)
 
         var refused = run.CastsRefused > 0 ? $", {run.CastsRefused} refused for want of prana" : "";
         var hitRate = run.MeleeSwings == 0 ? 0 : run.MeleeLanded * 100 / run.MeleeSwings;
+        var balked = run.MeleeBalked > 0
+            ? $", {run.MeleeBalked} clicks too soon or too tired"
+            : "";
+
         Console.WriteLine($"  {run.MeleeSwings} swings ({run.MeleeLanded} landed, {hitRate}%), "
-            + $"{run.SpellsCast} spells{refused}");
+            + $"{run.SpellsCast} spells{refused}{balked}");
 
         if (run.MedianMeleeRange > 0f || run.MedianSpellRange > 0f)
             Console.WriteLine($"  fought at: {run.MedianMeleeRange:0.0} m with steel, "
