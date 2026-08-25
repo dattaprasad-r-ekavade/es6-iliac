@@ -181,6 +181,31 @@ public sealed class WorldRuntime
         catch (UnauthorizedAccessException) { _lastWriteUtc = DateTime.MinValue; }
     }
 
+    /// <summary>
+    /// Add more world to the world.
+    ///
+    /// Only ever adds. The doors already standing keep the runtime objects they have, so one
+    /// the player opened a moment ago does not swing shut because the ground below it was
+    /// built — which is the whole reason a segment is a delta rather than a new manifest.
+    /// </summary>
+    public void Append(WorldManifest delta)
+    {
+        if (delta is null) return;
+
+        Manifest.Geometry.AddRange(delta.Geometry ?? new List<WorldGeometry>());
+        Manifest.Lights.AddRange(delta.Lights ?? new List<WorldLight>());
+        Manifest.Rooms.AddRange(delta.Rooms ?? new List<WorldRoom>());
+        Manifest.Spawns.AddRange(delta.Spawns ?? new List<WorldEnemySpawn>());
+
+        foreach (var door in delta.Doors ?? new List<WorldDoor>())
+        {
+            Manifest.Doors.Add(door);
+            _doors.Add(new WorldDoorRuntime(door));
+        }
+
+        RebuildCollision();
+    }
+
     /// <summary>Rebuild the solids after a door has been opened or shut from outside.</summary>
     public void RefreshCollision() => RebuildCollision();
 

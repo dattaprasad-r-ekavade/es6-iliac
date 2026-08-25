@@ -23,14 +23,17 @@ public sealed class RunRuntime
     private readonly Dictionary<string, int> _roomOfSpawn = new(StringComparer.Ordinal);
     private readonly List<WorldRoom> _rooms;
 
-    public RunRuntime(WorldManifest manifest, int seed, int tier)
+    private readonly MineRequest _request;
+
+    public RunRuntime(WorldManifest manifest, int seed, int tier, int roomsPerSegment)
     {
+        _request = new MineRequest(seed, roomsPerSegment, tier);
         _rooms = (manifest.Rooms ?? new List<WorldRoom>()).OrderBy(room => room.Index).ToList();
 
         foreach (var spawn in manifest.Spawns ?? new List<WorldEnemySpawn>())
             _roomOfSpawn[spawn.Id] = spawn.RoomIndex;
 
-        // The entrance is not a payable room, so a five-room mine is four rooms of work.
+        // The entrance is not a payable room, so a five-room segment is four rooms of work.
         Run = RunState.Begin(seed, tier, Math.Max(1, _rooms.Count - 1));
     }
 
@@ -114,6 +117,13 @@ public sealed class RunRuntime
         DeepestRoom = room.Index;
         Run.EnterRoom();
 
+        // Build the ground below before it is needed.
+        //
+        // Done on arriving in the last room rather than on opening the door out of it, so the
+        // work happens while the player is fighting rather than in the instant they press on.
+        // A mine has no bottom; it only has an edge that keeps moving.
+        if (room.Index >= _rooms.Count - 1) Deepen(world, encounter);
+
         // The door swings shut and whatever was waiting stands up. Both halves matter: with
         // the door open the fight can be backed out of into the corridor, and with the room
         // already populated it can be emptied through the gap before ever walking in.
@@ -121,6 +131,27 @@ public sealed class RunRuntime
         encounter.AwakenRoom(room.Index);
 
         RoomEntered?.Invoke(room.Index);
+    }
+
+    /// <summary>
+    /// Add another segment of mine underneath.
+    ///
+    /// The delta is merged rather than replacing anything, so the corridor and door already
+    /// reaching into the next cell simply gain a room on the far side of them, and nothing the
+    /// player has opened or cleared is disturbed.
+    /// </summary>
+    private void Deepen(WorldRuntime world, Encounter encounter)
+    {
+        var delta = MineGenerator.Extend(world.Manifest, _request, Run.Segments + 1);
+        if (delta.Rooms.Count == 0) return;
+
+        world.Append(delta);
+
+        foreach (var spawn in delta.Spawns) _roomOfSpawn[spawn.Id] = spawn.RoomIndex;
+        encounter.SpawnFrom(delta, deferToRooms: true);
+
+        _rooms.AddRange(delta.Rooms.OrderBy(room => room.Index));
+        Run.Deepen(delta.Rooms.Count);
     }
 
     /// <summary>The door just walked through closes behind.</summary>

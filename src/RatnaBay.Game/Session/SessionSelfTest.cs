@@ -758,7 +758,7 @@ public static class SessionSelfTest
         Check(failures, $"a mine holds its rooms back until they are entered ({held} waiting)",
             held > 0 && encounter.Enemies.Count == 0);
 
-        var run = new RunRuntime(mine.Manifest, seed: 4211, tier: 2);
+        var run = new RunRuntime(mine.Manifest, seed: 4211, tier: 2, roomsPerSegment: 8);
         var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
 
         Check(failures, $"the run counts the payable rooms ({run.Run.Rooms})",
@@ -1106,7 +1106,7 @@ public static class SessionSelfTest
             encounter.UseCollision(mine.Collision);
             encounter.SpawnFrom(mine.Manifest);
 
-            var run = new RunRuntime(mine.Manifest, seed, tier: 1);
+            var run = new RunRuntime(mine.Manifest, seed, tier: 1, roomsPerSegment: 8);
             var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
 
             // Clear two rooms so there is something worth not losing.
@@ -1157,7 +1157,7 @@ public static class SessionSelfTest
 
             if (!WorldRuntime.TryCreate(rebuilt, out var again, out _) || again is null) return;
 
-            var resumed = new RunRuntime(again.Manifest, descent.Seed, descent.Run.Tier);
+            var resumed = new RunRuntime(again.Manifest, descent.Seed, descent.Run.Tier, descent.Rooms);
             resumed.Resume(descent);
 
             Check(failures, $"the ledger is exactly where it was ({resumed.Run.Pending} stones)",

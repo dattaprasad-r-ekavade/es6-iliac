@@ -243,6 +243,14 @@ public sealed class Game1 : Game
     /// </summary>
     private bool _resumingDescent;
 
+    /// <summary>
+    /// Rooms built per segment of mine.
+    ///
+    /// Small enough that the first one arrives quickly and the work of building the next lands
+    /// while the player is busy, large enough that a join is rare.
+    /// </summary>
+    private const int RoomsPerSegment = 8;
+
     /// <summary>Seconds left on a click that arrived before the last swing had finished.</summary>
     private float _swingBuffered;
 
@@ -946,10 +954,10 @@ public sealed class Game1 : Game
     {
         _mineSeed = mineSeed;
 
-        // Deeper than a run is meant to last. A mine you can clear out ends the run for you,
-        // and then pressing on is never a risk — it is just the way forward until the game
-        // stops you. The descent has to end because the player decided it did.
-        _mineRooms = 18;
+        // How much mine is built at a time. There is always another segment underneath: a
+        // level you can finish ends the run for you, and pressing on stops being a risk the
+        // moment the game is the one deciding when to stop.
+        _mineRooms = RoomsPerSegment;
         _mineDepth = Math.Clamp(tier, MineEntry.MinTier, MineEntry.MaxTier);
 
         _world = null;
@@ -2235,7 +2243,7 @@ public sealed class Game1 : Game
         if (_world is null || _mineSeed is not { } seed) return;
         if (_world.Manifest.Rooms.Count < 2) return;
 
-        _run = new RunRuntime(_world.Manifest, seed, _mineDepth);
+        _run = new RunRuntime(_world.Manifest, seed, _mineDepth, _mineRooms);
         _decisionRecorded = false;
 
         _recorder.Record(PlayEventKind.RunStarted, _world.Manifest.Id, seed, _mineDepth,

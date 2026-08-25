@@ -47,8 +47,17 @@ public sealed class RunState
     public int Seed { get; private set; }
     public int Tier { get; private set; } = MinTier;
 
-    /// <summary>Payable rooms in this mine. The entrance is not one of them.</summary>
+    /// <summary>
+    /// Payable rooms built so far. The entrance is not one of them.
+    ///
+    /// Not a total. A mine has no bottom, so this grows as the ground below it is built and
+    /// <see cref="IsExhausted"/> is only ever true in the instant before the next segment
+    /// arrives.
+    /// </summary>
     public int Rooms { get; private set; }
+
+    /// <summary>How many segments of mine have been built beneath the entrance.</summary>
+    public int Segments { get; private set; }
 
     public int RoomsCleared { get; private set; }
 
@@ -167,6 +176,18 @@ public sealed class RunState
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// More mine has been built below. There is always more mine below.
+    /// </summary>
+    public void Deepen(int extraRooms)
+    {
+        if (!IsActive || extraRooms <= 0) return;
+
+        Rooms += extraRooms;
+        Segments++;
+        Changed?.Invoke();
+    }
+
     /// <summary>Note that a trader has come, so the next one costs more.</summary>
     public void NoteTraderCalled()
     {
@@ -233,6 +254,7 @@ public sealed class RunState
         Pending = Pending,
         RoomIsClear = RoomIsClear,
         TradersCalled = TradersCalled,
+        Segments = Segments,
         Outcome = Outcome.ToString()
     };
 
@@ -251,6 +273,7 @@ public sealed class RunState
         Pending = Math.Max(0, saved.Pending);
         RoomIsClear = saved.RoomIsClear;
         TradersCalled = Math.Max(0, saved.TradersCalled);
+        Segments = Math.Max(0, saved.Segments);
         Outcome = Enum.TryParse<RunOutcome>(saved.Outcome, out var outcome)
             ? outcome
             : RunOutcome.InProgress;
@@ -267,6 +290,7 @@ public sealed class RunState
         run.Pending = Math.Max(0, saved.Pending);
         run.RoomIsClear = saved.RoomIsClear;
         run.TradersCalled = Math.Max(0, saved.TradersCalled);
+        run.Segments = Math.Max(0, saved.Segments);
         run.Outcome = Enum.TryParse<RunOutcome>(saved.Outcome, out var outcome)
             ? outcome
             : RunOutcome.InProgress;
@@ -305,5 +329,6 @@ public sealed class SavedRun
     public int Pending { get; init; }
     public bool RoomIsClear { get; init; }
     public int TradersCalled { get; init; }
+    public int Segments { get; init; }
     public string Outcome { get; init; } = nameof(RunOutcome.InProgress);
 }

@@ -116,10 +116,10 @@ public static class MineGenerator
 
         var manifest = new WorldManifest { Version = 1, Id = settings.MineId };
 
-        // The chain, then the way out of it. Openings are recorded before any geometry is cut,
-        // because a wall has to know about its doorway before it is emitted, not after.
+        // The chain, and then the way further down. Openings are recorded before any geometry
+        // is cut, because a wall has to know about its doorway before it is emitted.
         var links = LinkChain(cells);
-        var exit = OpenExit(cells);
+        cells[^1].Openings.Add(Side.North);
 
         var first = cells[0];
         manifest.PlayerSpawn = new WorldSpawn
@@ -135,9 +135,11 @@ public static class MineGenerator
             EmitCorridor(manifest, link.From, link.To, link.Side,
                 $"{settings.MineId}.link{link.Index:00}", locked: true);
 
-        EmitStub(manifest, cells[^1], exit, settings.MineId);
+        // A corridor and a door reaching the next cell, with nothing behind them yet. What
+        // lies past it is built when somebody opens it.
+        EmitOnward(manifest, cells[^1], settings.MineId, segment: 0);
 
-        PlaceEnemies(manifest, cells, settings, random);
+        PlaceEnemies(manifest, cells, settings, random, roomOffset: 0);
         return manifest;
     }
 
@@ -151,10 +153,21 @@ public static class MineGenerator
     /// walk can never paint itself into a corner, so the generator has no retry loop and no
     /// failure case — it always returns exactly the number of rooms it was asked for.
     /// </summary>
-    private static List<Cell> Walk(int rooms, Prng random)
+    private static List<Cell> Walk(int rooms, Prng random) =>
+        WalkFrom(new Cell { X = 0, Z = 0 }, new HashSet<(int, int)>(), rooms, random);
+
+    /// <summary>
+    /// The same walk, continued from somewhere.
+    ///
+    /// Extending a mine is the same problem as building one, started at a different cell with
+    /// the cells already built marked as taken. Sharing the routine is what keeps a segment
+    /// join indistinguishable from any other stretch of corridor.
+    /// </summary>
+    private static List<Cell> WalkFrom(Cell start, HashSet<(int, int)> alreadyTaken,
+        int rooms, Prng random)
     {
-        var cells = new List<Cell> { new() { X = 0, Z = 0 } };
-        var taken = new HashSet<(int, int)> { (0, 0) };
+        var cells = new List<Cell> { start };
+        var taken = new HashSet<(int, int)>(alreadyTaken) { (start.X, start.Z) };
         var current = cells[0];
 
         for (var step = 1; step < rooms; step++)
@@ -201,15 +214,59 @@ public static class MineGenerator
         return links;
     }
 
-    /// <summary>Cut the way out of the last room, on a wall the chain did not already use.</summary>
-    private static Side OpenExit(List<Cell> cells)
+    /// <summary>
+    /// Everything below the deepest room built so far.
+    ///
+    /// A mine has no bottom. The walk never steps south, so the cell beyond the deepest room
+    /// has never been visited and is always free to build into — which means a segment can be
+    /// added later without having stored anything about how the last one ended.
+    ///
+    /// Returns only the new parts. The caller merges them into the mine already standing, so
+    /// nothing that exists is rewritten and no door the player has opened swings shut behind
+    /// them.
+    /// </summary>
+    public static WorldManifest Extend(WorldManifest existing, MineRequest request, int segment)
     {
-        var last = cells[^1];
-        var side = last.Openings.Contains(Side.North) ? Side.East : Side.North;
+        var settings = (request ?? new MineRequest(0)).Clamped();
+        var built = (existing?.Rooms ?? new List<WorldRoom>()).OrderBy(room => room.Index).ToList();
+        if (built.Count == 0) return new WorldManifest { Version = 1, Id = settings.MineId };
 
-        last.Openings.Add(side);
-        return side;
+        // The grid is recovered from the rooms themselves, so the manifest stays the one
+        // source of truth about the shape of the mine.
+        var taken = new HashSet<(int, int)>();
+        foreach (var room in built) taken.Add(GridOf(room));
+
+        var (lastX, lastZ) = GridOf(built[^1]);
+        var start = new Cell { X = lastX, Z = lastZ - 1 };
+
+        // Seeded from the mine and the segment, so one seed is one endless mine however many
+        // times it is walked.
+        var random = new Prng(settings.Seed ^ unchecked((segment + 1) * 0x9E3779B));
+        var cells = WalkFrom(start, taken, settings.Rooms, random);
+
+        // The first new room faces back the way the corridor already comes in.
+        cells[0].Openings.Add(Side.South);
+
+        var delta = new WorldManifest { Version = 1, Id = settings.MineId };
+        var links = LinkChain(cells);
+        cells[^1].Openings.Add(Side.North);
+
+        var offset = built[^1].Index;
+        for (var index = 0; index < cells.Count; index++)
+            EmitRoom(delta, cells[index], offset + index + 1, settings);
+
+        foreach (var link in links)
+            EmitCorridor(delta, link.From, link.To, link.Side,
+                $"{settings.MineId}.s{segment:00}.link{link.Index:00}", locked: true);
+
+        EmitOnward(delta, cells[^1], settings.MineId, segment);
+        PlaceEnemies(delta, cells, settings, random, roomOffset: offset);
+        return delta;
     }
+
+    /// <summary>Which grid cell a room sits in.</summary>
+    private static (int X, int Z) GridOf(WorldRoom room) =>
+        ((int)MathF.Round(room.Centre.X / CellSize), (int)MathF.Round(room.Centre.Z / CellSize));
 
     private static Side SideBetween(Cell from, Cell to)
     {
@@ -333,32 +390,27 @@ public static class MineGenerator
     }
 
     /// <summary>The way out: a short passage past the last door, ending in the dark.</summary>
-    private static void EmitStub(WorldManifest manifest, Cell last, Side side, string mineId)
+    /// <summary>
+    /// The corridor and door leading out of the deepest room, into a cell not yet built.
+    ///
+    /// It reaches the boundary of the next cell on purpose. When a segment is added, its first
+    /// room lands against a corridor that is already there, with an opening on the facing
+    /// wall — so extending a mine only ever adds geometry. Nothing already drawn is rewritten
+    /// and no door the player has opened swings shut behind them.
+    /// </summary>
+    private static void EmitOnward(WorldManifest manifest, Cell last, string mineId, int segment)
     {
-        var prefix = $"{mineId}.exit";
+        var prefix = $"{mineId}.s{segment:00}.onward";
         const float outer = RoomHalf + WallThickness;
-        const float length = 6f;
         var stone = new WorldColor(70, 66, 62);
 
-        if (side is Side.North or Side.South)
-        {
-            var cx = last.CentreX;
-            var minZ = side == Side.North ? last.CentreZ - outer - length : last.CentreZ + outer;
-            var maxZ = side == Side.North ? last.CentreZ - outer : last.CentreZ + outer + length;
+        var cx = last.CentreX;
+        var minZ = last.CentreZ - CellSize + outer;
+        var maxZ = last.CentreZ - outer;
 
-            Passage(manifest, prefix, cx - DoorwayHalf, cx + DoorwayHalf, minZ, maxZ, true, stone);
-            Door(manifest, $"{prefix}.door", cx - DoorwayHalf, cx + DoorwayHalf,
-                side == Side.North ? minZ + 1.2f : maxZ - 1.2f, true, locked: false);
-            return;
-        }
-
-        var cz = last.CentreZ;
-        var minX = side == Side.East ? last.CentreX + outer : last.CentreX - outer - length;
-        var maxX = side == Side.East ? last.CentreX + outer + length : last.CentreX - outer;
-
-        Passage(manifest, prefix, minX, maxX, cz - DoorwayHalf, cz + DoorwayHalf, false, stone);
-        Door(manifest, $"{prefix}.door", cz - DoorwayHalf, cz + DoorwayHalf,
-            side == Side.East ? maxX - 1.2f : minX + 1.2f, false, locked: false);
+        Passage(manifest, prefix, cx - DoorwayHalf, cx + DoorwayHalf, minZ, maxZ, true, stone);
+        Door(manifest, $"{prefix}.door", cx - DoorwayHalf, cx + DoorwayHalf,
+            (minZ + maxZ) * 0.5f, true, locked: true);
     }
 
     /// <summary>Floor, ceiling and the two side walls of a passage.</summary>
@@ -446,12 +498,17 @@ public static class MineGenerator
     /// the same call for the same reason.
     /// </summary>
     private static void PlaceEnemies(WorldManifest manifest, List<Cell> cells,
-        MineRequest request, Prng random)
+        MineRequest request, Prng random, int roomOffset)
     {
-        for (var index = 1; index < cells.Count; index++)
+        // The entrance is only the entrance of the first segment. Every room of every segment
+        // after it holds a fight, or the mine would breathe out every eight rooms.
+        var first = roomOffset == 0 ? 1 : 0;
+
+        for (var local = first; local < cells.Count; local++)
         {
-            var cell = cells[index];
-            var isLast = index == cells.Count - 1;
+            var cell = cells[local];
+            var index = roomOffset == 0 ? local : roomOffset + local + 1;
+            var isLast = local == cells.Count - 1;
             var count = Math.Min(MaxEnemiesPerRoom, 1 + index / 2 + (isLast ? 1 : 0));
 
             // Depth has to bite, or a long mine is only a long walk. Enemies gain a level

@@ -351,11 +351,17 @@ public class MineGeneratorTests
                     $"seed {seed}: the player cannot reach room {index}");
             }
 
-            var exit = mine.Doors.Single(door => door.Id.EndsWith(".exit.door", StringComparison.Ordinal));
+            // Not "the way out" any more. A mine has no bottom: this is the corridor past the
+            // deepest room built so far, and the only ways out of a descent are camping and
+            // dying. What matters is that it can be reached.
+            var onward = mine.Doors.Single(
+                door => door.Id.EndsWith(".onward.door", StringComparison.Ordinal));
+
             Assert.That(
                 Walk(geometry, ref position,
-                    Standing((exit.Min.X + exit.Max.X) * 0.5f, (exit.Min.Z + exit.Max.Z) * 0.5f)),
-                Is.True, $"seed {seed}: the mine has no way out");
+                    Standing((onward.Min.X + onward.Max.X) * 0.5f,
+                        (onward.Min.Z + onward.Max.Z) * 0.5f)),
+                Is.True, $"seed {seed}: the way deeper cannot be reached");
         }
     }
 
