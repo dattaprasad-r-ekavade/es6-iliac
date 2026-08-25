@@ -235,6 +235,25 @@ public sealed class Game1 : Game
     private bool _choosingDepth;
     private int _depthSelection = 1;
 
+    /// <summary>
+    /// True while walking back into a descent that was set aside.
+    ///
+    /// The one case where a mine's dead must stay dead: the rooms already cleared before the
+    /// game was put down are still cleared when it is picked up.
+    /// </summary>
+    private bool _resumingDescent;
+
+    /// <summary>Seconds left on a click that arrived before the last swing had finished.</summary>
+    private float _swingBuffered;
+
+    /// <summary>
+    /// How early a click may be and still land.
+    ///
+    /// Long enough to cover an impatient press, short enough that a click during a long
+    /// animation does not fire half a second after the player stopped meaning it.
+    /// </summary>
+    private const float SwingBufferSeconds = 0.22f;
+
     /// <summary>Whether a panel was open on the previous frame.</summary>
     private bool _panelWasOpen;
 
@@ -887,6 +906,7 @@ public sealed class Game1 : Game
         }
 
         var descent = _session.Descent!;
+        _resumingDescent = true;
         _mineRooms = descent.Rooms;
         _mineDepth = descent.Depth;
         _mineSeed = descent.Seed;
@@ -901,6 +921,7 @@ public sealed class Game1 : Game
         _standingEyeY = _session.Position.Y;
 
         _run?.Resume(descent);
+        _resumingDescent = false;
         _session.ConsumeDescent();
         _suspendedDescentOnDisk = false;
 
@@ -1671,10 +1692,32 @@ public sealed class Game1 : Game
         var mouse = Mouse.GetState();
         _session.Player.Combat.SetBlocking(mouse.RightButton == ButtonState.Pressed);
 
-        if (Clicked(mouse))
+        // A click that arrives a fraction early is remembered rather than thrown away.
+        //
+        // The recordings are blunt about this: between twenty-nine and sixty clicks a run did
+        // nothing at all, because a sword swings every 0.45 seconds and people press faster
+        // than that. A click that produces no swing and no sound reads as the game not
+        // listening, so the player presses harder, and the log fills with nothing.
+        if (_swingBuffered > 0f) _swingBuffered -= step;
+
+        if (Clicked(mouse) && !_session.Player.Combat.IsReady && _encounter.Focused is not null)
+            _swingBuffered = SwingBufferSeconds;
+
+        var releaseBuffered = _swingBuffered > 0f && _session.Player.Combat.IsReady;
+        if (releaseBuffered) _swingBuffered = 0f;
+
+        if (Clicked(mouse) || releaseBuffered)
         {
-            var actor = _dialogue?.FindActor(
-                new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z), _cameraYaw);
+            // Only a real click talks to people. A released buffer is a swing the player asked
+            // for a moment ago and nothing else — letting it fall through here would open a
+            // shop with no click behind it, which is exactly the kind of ghost input this
+            // change exists to remove rather than add.
+            var actor = releaseBuffered
+                ? null
+                : _dialogue?.FindActor(
+                    new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z),
+                    _cameraYaw);
+
             if (actor is not null)
             {
                 if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
@@ -2491,6 +2534,16 @@ public sealed class Game1 : Game
         if (_mineSeed is { } seed)
         {
             var manifest = MineGenerator.Generate(seed, _mineRooms, _mineDepth);
+
+            // A fresh descent finds the mine as it was, not as the last one left it.
+            //
+            // Succession sends a successor back into the mine that killed their predecessor,
+            // and the dead were staying dead: a recorded run cleared eight rooms for five
+            // kills and banked thirty-six stones, because seven of the eight were already
+            // empty when it walked in. Going back for a body has to be a descent, not a walk.
+            if (!_resumingDescent)
+                _session?.Player.World.ForgetKilledIn(manifest.Id);
+
             PlaceTheFallen(manifest, seed);
 
             if (!WorldRuntime.TryCreate(manifest, out var generated, out var generationError))

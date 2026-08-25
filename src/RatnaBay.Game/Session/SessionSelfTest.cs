@@ -107,6 +107,7 @@ public static class SessionSelfTest
             RunMineChecks(failures);
             RunSuccession(failures);
             RunSuspendAndResume(failures);
+            CheckMinesRepopulate(failures);
         }
         finally
         {
@@ -1187,6 +1188,46 @@ public static class SessionSelfTest
             DeleteTestFile(path);
             DeleteTestFile(path + ".bak");
         }
+    }
+
+    /// <summary>
+    /// A mine's dead do not stay dead between descents.
+    ///
+    /// Reported from play and visible in the recording: a successor went back into the mine
+    /// that killed their predecessor and found seven of eight rooms already empty. Eight rooms
+    /// cleared for five kills, thirty-six stones banked, and the cache mechanic turned into
+    /// free money.
+    /// </summary>
+    private static void CheckMinesRepopulate(List<string> failures)
+    {
+        const int seed = 60613;
+        var manifest = MineGenerator.Generate(seed, 8, 1);
+        var session = GameSession.NewGame();
+        var player = session.Player;
+
+        // Clear the mine out, the way a descent would.
+        foreach (var spawn in manifest.Spawns) player.World.MarkKilled(spawn.Id);
+
+        // Counted by what is standing, not by what was asked for: SpawnFrom reports the
+        // spawns it considered, and the kill check happens a level below it.
+        var emptied = new Encounter(session);
+        emptied.SpawnFrom(manifest, deferToRooms: false);
+
+        Check(failures, "a cleared mine stays cleared inside one descent",
+            emptied.Enemies.Count == 0);
+
+        // Somewhere else keeps its dead: an authored road cleared of bandits stays cleared.
+        player.World.MarkKilled("bandit.camp.01");
+        player.World.ForgetKilledIn(manifest.Id);
+
+        Check(failures, "and an authored kill is not forgotten with it",
+            player.World.IsKilled("bandit.camp.01"));
+
+        var again = new Encounter(session);
+        again.SpawnFrom(MineGenerator.Generate(seed, 8, 1), deferToRooms: false);
+
+        Check(failures, $"but the next descent finds it full again ({again.Enemies.Count})",
+            again.Enemies.Count == manifest.Spawns.Count);
     }
 
     private static void Check(ICollection<string> failures, string what, bool passed)

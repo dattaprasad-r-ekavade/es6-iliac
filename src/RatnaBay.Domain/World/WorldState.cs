@@ -40,4 +40,23 @@ public sealed class WorldState
 
     /// <summary>Wipe on a fresh game.</summary>
     public void Reset() => _killed.Clear();
+
+    /// <summary>
+    /// Forget everything killed in one place.
+    ///
+    /// A mine is rebuilt from its seed on every descent, so what died in it last time must not
+    /// still be dead this time. Succession sends a successor back into the mine that killed
+    /// their predecessor, and without this they walked into rooms that were already empty:
+    /// eight rooms cleared for five kills, thirty-six stones banked, and a cache mechanic
+    /// turned into free money.
+    ///
+    /// An authored place is different and keeps its dead — a bandit cleared off a road stays
+    /// cleared, which is what makes progress through a hand-made world mean anything.
+    /// </summary>
+    public int ForgetKilledIn(string? locationId)
+    {
+        if (string.IsNullOrWhiteSpace(locationId)) return 0;
+
+        return _killed.RemoveWhere(id => id.StartsWith(locationId, StringComparison.Ordinal));
+    }
 }
