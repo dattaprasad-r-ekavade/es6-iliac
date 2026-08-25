@@ -166,6 +166,9 @@ public sealed class Game1 : Game
     /// </summary>
     private bool _moodboard;
 
+    /// <summary>--assets: the generated item and creature sprites, over the moodboard room.</summary>
+    private bool _assetCase;
+
     /// <summary>
     /// Bars that have just gone up, and for how much longer they say so.
     ///
@@ -265,6 +268,8 @@ public sealed class Game1 : Game
         _captureScreen = ParseOption(args, "--show");
         _stambhaPreview = HasArgument(args, "--stambha");
         _moodboard = HasArgument(args, "--moodboard");
+        _assetCase = HasArgument(args, "--assets");
+        if (_assetCase) _moodboard = true;
         if (int.TryParse(ParseOption(args, "--mine"), out var mineSeed)) _mineSeed = mineSeed;
         if (int.TryParse(ParseOption(args, "--rooms"), out var mineRooms)) _mineRooms = mineRooms;
         if (int.TryParse(ParseOption(args, "--depth"), out var mineDepth)) _mineDepth = mineDepth;
@@ -425,6 +430,7 @@ public sealed class Game1 : Game
         _billboards.Dispose();
         StoneTextures.Clear();
         PropTextures.Clear();
+        ItemSprites.Clear();
         // A sitting that ends by closing the window is still a sitting worth reading back.
         _recorder.Flush();
 
@@ -3057,6 +3063,59 @@ public sealed class Game1 : Game
         DrawMoodboardUi();
     }
 
+    /// <summary>
+    /// The generated-asset case, laid out as the shop it would actually be.
+    ///
+    /// Shown at two sizes on purpose. Icons are judged at the size they are used, and a sprite
+    /// that survives being doubled is one whose form is right rather than one whose noise
+    /// happens to be pleasing.
+    /// </summary>
+    private void DrawAssetCase()
+    {
+        var items = new (string Name, string Price, Texture2D Icon)[]
+        {
+            ("Pickaxe", "120", ItemSprites.Pickaxe(GraphicsDevice)),
+            ("Iron Sword", "150", ItemSprites.Sword(GraphicsDevice)),
+            ("Jiva Stone", "80", ItemSprites.JivaCrystal(GraphicsDevice)),
+            ("Gold Bars", "200", ItemSprites.GoldBars(GraphicsDevice))
+        };
+
+        var panel = new Rectangle(300, 96, 680, 400);
+        DrawFramedPanel(panel, Color.White);
+        TextCentred("MERCHANT", panel.Center.X, panel.Y + 18f, 20, new Color(238, 214, 158));
+
+        for (var i = 0; i < items.Length; i++)
+        {
+            var slot = new Rectangle(panel.X + 26 + i * 160, panel.Y + 56, 148, 168);
+            DrawFramedPanel(slot, new Color(210, 208, 206));
+
+            _spriteBatch.Draw(items[i].Icon,
+                new Rectangle(slot.X + 18, slot.Y + 14, 112, 112), Color.White);
+
+            TextCentred(items[i].Name, slot.Center.X, slot.Y + 128f, 15, new Color(240, 234, 222));
+            TextCentred(items[i].Price + " gold", slot.Center.X, slot.Y + 148f, 14,
+                new Color(232, 196, 112));
+        }
+
+        // The same four at inventory size, unscaled, beside the creature.
+        var strip = new Rectangle(panel.X + 26, panel.Y + 248, 420, 120);
+        DrawFramedPanel(strip, new Color(200, 198, 196));
+        Text("AT 48 PIXELS", new Vector2(strip.X + 16, strip.Y + 14), 12, new Color(196, 170, 120));
+
+        for (var i = 0; i < items.Length; i++)
+            _spriteBatch.Draw(items[i].Icon,
+                new Rectangle(strip.X + 20 + i * 100, strip.Y + 42, 48, 48), Color.White);
+
+        var creature = new Rectangle(panel.X + 466, panel.Y + 248, 188, 120);
+        DrawFramedPanel(creature, new Color(200, 198, 196));
+        Text("CHHAYA", new Vector2(creature.X + 16, creature.Y + 14), 12, new Color(196, 170, 120));
+
+        _spriteBatch.Draw(ItemSprites.Chhaya(GraphicsDevice),
+            new Rectangle(creature.X + 22, creature.Y + 34, 76, 76), Color.White);
+        _spriteBatch.Draw(ItemSprites.Chhaya(GraphicsDevice),
+            new Rectangle(creature.X + 116, creature.Y + 50, 44, 44), Color.White);
+    }
+
     /// <summary>The interface, drawn in the same ornament as the world.</summary>
     private void DrawMoodboardUi()
     {
@@ -3086,6 +3145,8 @@ public sealed class Game1 : Game
         DrawFramedPanel(new Rectangle(1092, 12, 176, 54), Color.White);
         Text("AT RISK", new Vector2(1110, 22), 12, new Color(196, 170, 120));
         Text("0", new Vector2(1110, 40), 15, new Color(238, 232, 220));
+
+        if (_assetCase) DrawAssetCase();
 
         DrawFramedBar(new Rectangle(24, 552, 330, 46), 1f, new Color(168, 44, 46), "HEALTH  100/100");
         DrawFramedBar(new Rectangle(24, 606, 330, 46), 1f, new Color(48, 92, 172), "PRANA    80/80");
