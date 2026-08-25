@@ -215,6 +215,9 @@ public sealed class Game1 : Game
     /// <summary>What the player did this sitting, for reading back afterwards.</summary>
     private readonly PlayRecorder _recorder = PlayRecorder.Start();
 
+    /// <summary>What a first-time player has been told, and what is still to say.</summary>
+    private readonly Coach _coach = Coach.Load();
+
     /// <summary>Whether this player has agreed to send recordings, and their anonymous name.</summary>
     private readonly TelemetryConsent _consent = TelemetryConsent.Load();
 
@@ -1509,6 +1512,12 @@ public sealed class Game1 : Game
 
         if (_run is { AtDecision: true } decision && _session is not null)
         {
+            // The one decision the whole game is built on, explained the first time it is
+            // actually in front of somebody with stones in the pot.
+            _coach.Teach(Lessons.FirstDoor, Lessons.TextOf(Lessons.FirstDoor));
+            if (decision.Run.CanCallTrader)
+                _coach.Teach(Lessons.Trader, Lessons.TextOf(Lessons.Trader));
+
             // The clock on the answer starts the first frame the panel is up.
             if (!_decisionRecorded)
             {
@@ -1820,6 +1829,7 @@ public sealed class Game1 : Game
         if (_session is null || _encounter is null) return;
 
         var step = StepSeconds(gameTime);
+        _coach.Tick(step);
         TickVitalPulses(step);
         SampleStance(step);
         _encounter.Update(step, _cameraPosition, _cameraYaw);
@@ -2146,10 +2156,16 @@ public sealed class Game1 : Game
 
         _inventorySelection = Math.Clamp(_inventorySelection, 0, items.Count - 1);
 
-        if (Pressed(keyboard, Keys.Up) || Pressed(keyboard, Keys.W))
+        // Left and right walk the row; up and down step between rows. A grid navigated as a
+        // list is a grid that fights the player's eyes.
+        if (Pressed(keyboard, Keys.Left) || Pressed(keyboard, Keys.A))
             _inventorySelection = (_inventorySelection + items.Count - 1) % items.Count;
-        if (Pressed(keyboard, Keys.Down) || Pressed(keyboard, Keys.S))
+        if (Pressed(keyboard, Keys.Right) || Pressed(keyboard, Keys.D))
             _inventorySelection = (_inventorySelection + 1) % items.Count;
+        if (Pressed(keyboard, Keys.Up) || Pressed(keyboard, Keys.W))
+            _inventorySelection = (_inventorySelection + items.Count - InventoryColumns) % items.Count;
+        if (Pressed(keyboard, Keys.Down) || Pressed(keyboard, Keys.S))
+            _inventorySelection = (_inventorySelection + InventoryColumns) % items.Count;
 
         var mouse = Mouse.GetState();
         var pointer = LogicalMouse(mouse);
@@ -2185,13 +2201,39 @@ public sealed class Game1 : Game
     }
 
     /// <summary>Rows the character screen can show before it stops listing.</summary>
-    private const int InventoryRows = 10;
+    /// <summary>Tiles across the pack.</summary>
+    private const int InventoryColumns = 3;
+
+    /// <summary>How many fit on the sheet at once.</summary>
+    private const int InventoryRows = 12;
+
+    /// <summary>Left edge of the pack, on the character sheet.</summary>
+    private const int InventoryLeft = 440;
+
+    private const int InventoryTop = 288;
+    private const int InventoryTileWidth = 138;
+    private const int InventoryTileHeight = 52;
 
     /// <summary>
     /// One inventory row. Drawing and hit testing share it, so a clickable row is always
     /// exactly the row on screen.
     /// </summary>
-    private static Rectangle InventoryRowBounds(int index) => new(480, 214 + index * 34, 356, 32);
+    /// <summary>
+    /// One slot of the pack.
+    ///
+    /// A grid rather than a list of names. The list was reported as rudimentary and it was: it
+    /// showed ten of twelve things in a column narrow enough to truncate half of them, gave no
+    /// hint which one was in your hand, and put the only useful information — what the thing
+    /// does — in a box below that nobody looked at.
+    /// </summary>
+    private static Rectangle InventoryRowBounds(int index) => new(
+        InventoryLeft + index % InventoryColumns * (InventoryTileWidth + 6),
+        InventoryTop + index / InventoryColumns * (InventoryTileHeight + 6),
+        InventoryTileWidth, InventoryTileHeight);
+
+    /// <summary>The two slots above the pack: what is in hand, and what is worn.</summary>
+    private static Rectangle EquippedSlotBounds(int index) => new(
+        InventoryLeft + index * 216, 202, 210, 52);
 
     private static bool IsMoving(KeyboardState keyboard) =>
         keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.A)
@@ -2382,9 +2424,17 @@ public sealed class Game1 : Game
         _recorder.Record(PlayEventKind.RunStarted, _world.Manifest.Id, seed, _mineDepth,
             _session?.Player.Vitals.Health ?? 0f);
 
-        _run.RoomEntered += room => _recorder.Record(PlayEventKind.RoomEntered,
-            $"room {room}", room, 0f, _session?.Player.Vitals.Health ?? 0f,
-            _session?.Player.Vitals.Prana ?? 0f);
+        _run.RoomEntered += room =>
+        {
+            _recorder.Record(PlayEventKind.RoomEntered,
+                $"room {room}", room, 0f, _session?.Player.Vitals.Health ?? 0f,
+                _session?.Player.Vitals.Prana ?? 0f);
+
+            // The door has just shut and the floor is opening. Both halves of that are new,
+            // and neither is obvious from watching it happen once.
+            _coach.Teach(Lessons.FirstRoom, Lessons.TextOf(Lessons.FirstRoom));
+            _coach.Teach(Lessons.Rising, Lessons.TextOf(Lessons.Rising));
+        };
 
         _run.RoomCleared += paid =>
         {
@@ -2406,6 +2456,12 @@ public sealed class Game1 : Game
         _runSummary = result;
         if (result.Survived) _succession = null;
         SetMouseLook(false, forPanel: true);
+
+        _coach.Teach(result.Survived ? Lessons.Banked : Lessons.Died,
+            Lessons.TextOf(result.Survived ? Lessons.Banked : Lessons.Died));
+
+        if (!result.Survived && result.StonesLost > 0)
+            _coach.Teach(Lessons.Body, Lessons.TextOf(Lessons.Body));
 
         _recorder.Record(PlayEventKind.RunEnded,
             result.Survived ? "camped" : "died", result.RoomsCleared, result.Tier,
@@ -3187,6 +3243,7 @@ public sealed class Game1 : Game
             DrawSpellBar();
             DrawCastBanner();
             DrawSurfaceSigns();
+            DrawCoach();
             DrawCampDecision();
             DrawDoorPrompt();
             DrawRunLedger();
@@ -3551,6 +3608,20 @@ public sealed class Game1 : Game
     {
         if (!OnTheSurface || _session is null || _runSummary is not null) return;
 
+        // Taught where each thing is true, rather than all at once on arrival. Standing in
+        // front of the shaft is the moment "a shaft costs stones" means anything.
+        _coach.Teach(Lessons.Yard, Lessons.TextOf(Lessons.Yard));
+
+        switch (Surface.FixtureAt(new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z)))
+        {
+            case SurfaceFixture.Shaft:
+                _coach.Teach(Lessons.Shaft, Lessons.TextOf(Lessons.Shaft));
+                break;
+            case SurfaceFixture.Trader:
+                _coach.Teach(Lessons.Stall, Lessons.TextOf(Lessons.Stall));
+                break;
+        }
+
         var stones = _session.Player.Inventory.CountOf(SoulCrystals.LesserId);
         var gold = _session.Player.Vitals.Gold;
 
@@ -3593,6 +3664,30 @@ public sealed class Game1 : Game
         TextCentred(title, screen.X, screen.Y, 17, colour * fade);
         TextCentred(subtitle, screen.X + 1f, screen.Y + 21f, 12, new Color(0, 0, 0, 170) * fade);
         TextCentred(subtitle, screen.X, screen.Y + 20f, 12, new Color(228, 232, 236) * fade);
+    }
+
+    /// <summary>
+    /// The teaching line, under the location banner.
+    ///
+    /// Up near the top rather than over the vitals: it must be readable without pulling the
+    /// eye off the middle of the screen, and it must never sit where a fight is happening. It
+    /// fades rather than snapping, and it never blocks anything — a player who ignores it
+    /// entirely loses nothing but the explanation.
+    /// </summary>
+    private void DrawCoach()
+    {
+        if (_coach.Line.Length == 0 || _coach.Opacity <= 0.02f) return;
+        if (_runSummary is not null || _choosingDepth || _campTraderOpen) return;
+
+        var fade = _coach.Opacity;
+        var width = 760f;
+        var panel = new Rectangle((int)(LogicalWidth / 2f - width / 2f), 74, (int)width, 52);
+
+        Fill(panel, new Color(6, 12, 19) * (fade * 0.86f));
+        Border(panel, new Color(151, 206, 210) * (fade * 0.7f));
+
+        TextFitCentred(_coach.Line, panel.Center.X, panel.Y + 17f, width - 40f, 15,
+            new Color(226, 232, 232) * fade);
     }
 
     private void DrawDoorPrompt()
@@ -3834,11 +3929,10 @@ public sealed class Game1 : Game
             new Color(228, 197, 122));
 
         var leftX = panel.X + 30;
-        var inventoryX = panel.X + 390;
-        var skillsX = panel.X + 750;
+        var skillsX = panel.X + 800;
         var top = panel.Y + 112;
 
-        Text("VITALS & EQUIPMENT", new Vector2(leftX, top), 13, new Color(151, 206, 210));
+        Text("VITALS", new Vector2(leftX, top), 13, new Color(151, 206, 210));
         Text($"Level {vitals.Level}   XP {vitals.Xp} / {vitals.XpToLevel}",
             new Vector2(leftX, top + 34), 17, Color.White);
         Text($"Health     {vitals.Health:0} / {vitals.MaxHealth:0}",
@@ -3847,65 +3941,13 @@ public sealed class Game1 : Game
             new Vector2(leftX, top + 100), 16, new Color(112, 174, 225));
         Text($"Stamina   {vitals.Stamina:0} / {vitals.MaxStamina:0}",
             new Vector2(leftX, top + 130), 16, new Color(117, 194, 137));
-        TextFit($"Weapon: {player.Equipment.Weapon.DisplayName}",
-            new Vector2(leftX, top + 182), 320f, 16, new Color(203, 216, 214));
-        TextFit($"Armour: {player.Equipment.Armour?.DisplayName ?? "None"}",
-            new Vector2(leftX, top + 212), 320f, 16, new Color(203, 216, 214));
-        Text($"Armour value: {player.Equipment.ArmourValue:0}",
-            new Vector2(leftX, top + 242), 15, new Color(174, 188, 186));
+        // What is worn used to be repeated here as two lines of text. It now has its own
+        // slots beside the pack, and saying it twice only made the column look busy.
         Text($"Jiva stones drawn: {vitals.Channeled}",
-            new Vector2(leftX, top + 286), 15, new Color(174, 188, 186));
+            new Vector2(leftX, top + 182), 15, new Color(174, 188, 186));
 
-        Text("INVENTORY", new Vector2(inventoryX, top), 13, new Color(151, 206, 210));
-        var items = player.Inventory.Items;
-
-        if (items.Count == 0)
-        {
-            Text("Empty", new Vector2(inventoryX, top + 34), 16, new Color(142, 157, 157));
-        }
-        else
-        {
-            var selection = Math.Clamp(_inventorySelection, 0, items.Count - 1);
-
-            for (var index = 0; index < items.Count && index < InventoryRows; index++)
-            {
-                var item = items[index];
-                var row = InventoryRowBounds(index);
-                var selected = index == selection;
-                var equipped = string.Equals(item.Id, player.Equipment.WeaponId, StringComparison.Ordinal)
-                    || string.Equals(item.Id, player.Equipment.ArmourId, StringComparison.Ordinal);
-
-                if (selected)
-                    DrawPanel(row, new Color(74, 67, 43, 235), new Color(224, 181, 88));
-
-                TextFit(item.Name, new Vector2(row.X + 12, row.Y + 7), 214f, 16,
-                    selected ? Color.White : new Color(203, 216, 214));
-
-                if (equipped)
-                    Text("worn", new Vector2(row.X + 236, row.Y + 8), 13, new Color(150, 200, 158));
-
-                TextRight($"x{item.Count}", row.Right - 12, row.Y + 7, 15,
-                    new Color(228, 197, 122));
-            }
-
-            if (items.Count > InventoryRows)
-                Text($"+{items.Count - InventoryRows} more",
-                    new Vector2(inventoryX, InventoryRowBounds(InventoryRows).Y + 6), 13,
-                    new Color(142, 157, 157));
-
-            // What the selected item is and what pressing Enter will do to it. Without this
-            // the list is a set of names with no consequences attached.
-            var chosen = items[selection];
-            var detail = new Rectangle(480, 214 + InventoryRows * 34 + 16, 356, 74);
-            DrawPanel(detail, new Color(8, 16, 24, 232), new Color(72, 104, 118));
-            TextFit(ItemUse.Describe(chosen.Id, chosen.Kind),
-                new Vector2(detail.X + 12, detail.Y + 12), 330f, 14, new Color(196, 212, 210));
-
-            var verb = ItemUse.DescribeAction(chosen.Id, chosen.Kind);
-            TextFit(verb == "—" ? "Nothing happens when you use this." : $"Enter or click to {verb.ToLowerInvariant()}",
-                new Vector2(detail.X + 12, detail.Y + 44), 330f, 14,
-                verb == "—" ? new Color(142, 157, 157) : new Color(232, 194, 116));
-        }
+        DrawEquippedSlots(player);
+        DrawPack(player);
 
         Text("SKILLS", new Vector2(skillsX, top), 13, new Color(151, 206, 210));
         var skillY = top + 34;
@@ -5003,6 +5045,115 @@ public sealed class Game1 : Game
             vitals.Stamina, vitals.MaxStamina, new Color(98, 172, 106));
     }
 
+    /// <summary>
+    /// What is in hand and what is worn, above the pack rather than buried in a column of
+    /// text. These are the two facts a player checks mid-run and the two the old sheet made
+    /// hardest to find.
+    /// </summary>
+    private void DrawEquippedSlots(PlayerCharacter player)
+    {
+        Text("EQUIPPED", new Vector2(InventoryLeft, 182), 13, new Color(151, 206, 210));
+
+        var weapon = player.Equipment.Weapon;
+        var armour = player.Equipment.Armour;
+
+        string[] labels = { "IN HAND", "WORN" };
+        string[] names = { weapon.DisplayName, armour?.DisplayName ?? "Nothing" };
+        string[] notes =
+        {
+            $"{weapon.Damage:0} damage   {weapon.Range:0.0} m   {(weapon.CanBlock ? "guards" : "no guard")}",
+            armour is null ? "no protection" : $"{armour.Armour:0} damage reduction"
+        };
+
+        for (var index = 0; index < 2; index++)
+        {
+            var slot = EquippedSlotBounds(index);
+            var filled = index == 0 || armour is not null;
+
+            DrawPanel(slot, new Color(14, 24, 32, 235),
+                filled ? new Color(120, 150, 130) : new Color(54, 68, 76));
+
+            Text(labels[index], new Vector2(slot.X + 12, slot.Y + 8), 11,
+                new Color(140, 168, 160));
+            TextFit(names[index], new Vector2(slot.X + 12, slot.Y + 24), slot.Width - 24, 15,
+                filled ? Color.White : new Color(128, 138, 142));
+            TextRight(notes[index], slot.Right - 12, slot.Y + 8, 11, new Color(150, 162, 170));
+        }
+    }
+
+    /// <summary>
+    /// The pack, as a grid of what things are and what they do.
+    ///
+    /// Each tile carries the name, the count, and whether it is the thing currently in hand,
+    /// because "which of these two swords am I holding" was a question the old list could not
+    /// answer at a glance. What the selected thing does, and what using it will do, sits
+    /// underneath in words rather than in a verb the player has to guess.
+    /// </summary>
+    private void DrawPack(PlayerCharacter player)
+    {
+        var items = player.Inventory.Items;
+        Text("PACK", new Vector2(InventoryLeft, 268), 13, new Color(151, 206, 210));
+
+        if (items.Count == 0)
+        {
+            Text("Empty. Everything down there drops something.",
+                new Vector2(InventoryLeft, InventoryTop + 8), 15, new Color(142, 157, 157));
+            return;
+        }
+
+        var selection = Math.Clamp(_inventorySelection, 0, items.Count - 1);
+        var shown = Math.Min(items.Count, InventoryRows);
+
+        for (var index = 0; index < shown; index++)
+        {
+            var item = items[index];
+            var tile = InventoryRowBounds(index);
+            var selected = index == selection;
+            var inHand = string.Equals(item.Id, player.Equipment.WeaponId, StringComparison.Ordinal)
+                || string.Equals(item.Id, player.Equipment.ArmourId, StringComparison.Ordinal);
+
+            DrawPanel(tile,
+                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+                selected ? new Color(224, 181, 88)
+                    : inHand ? new Color(120, 150, 130)
+                    : new Color(54, 82, 91));
+
+            TextFit(item.Name, new Vector2(tile.X + 10, tile.Y + 9), tile.Width - 20, 14,
+                selected ? Color.White : new Color(203, 216, 214));
+
+            if (item.Count > 1)
+                TextRight($"x{item.Count}", tile.Right - 10, tile.Y + 30, 13,
+                    new Color(228, 197, 122));
+
+            if (inHand)
+                Text("equipped", new Vector2(tile.X + 10, tile.Y + 31), 11,
+                    new Color(150, 200, 158));
+        }
+
+        if (items.Count > shown)
+            TextRight($"+{items.Count - shown} more", InventoryLeft + 426,
+                InventoryTop + 4 * (InventoryTileHeight + 6) + 4, 12, new Color(142, 157, 157));
+
+        // What it is, and what Enter does to it.
+        var chosen = items[selection];
+        var detail = new Rectangle(InventoryLeft, InventoryTop + 4 * (InventoryTileHeight + 6) + 22,
+            426, 78);
+
+        DrawPanel(detail, new Color(8, 16, 24, 232), new Color(72, 104, 118));
+        TextFit(chosen.Name, new Vector2(detail.X + 14, detail.Y + 10), detail.Width - 28, 16,
+            Color.White);
+        TextFit(ItemUse.Describe(chosen.Id, chosen.Kind),
+            new Vector2(detail.X + 14, detail.Y + 34), detail.Width - 28, 13,
+            new Color(196, 212, 210));
+
+        var verb = ItemUse.DescribeAction(chosen.Id, chosen.Kind);
+        TextFit(verb == "—"
+                ? "Nothing happens when you use this."
+                : $"Enter or click to {verb.ToLowerInvariant()}",
+            new Vector2(detail.X + 14, detail.Y + 56), detail.Width - 28, 13,
+            verb == "—" ? new Color(142, 157, 157) : new Color(232, 194, 116));
+    }
+
     /// <summary>One labelled bar. The label and the value live inside it, vertically centred.</summary>
     private void DrawVitalBar(Rectangle bounds, string label, float value, float max, Color colour,
         float pulse = 0f)
@@ -6073,6 +6224,18 @@ public sealed class Game1 : Game
             drawScale *= maxWidth / measuredWidth;
 
         DrawString(font, value, position, drawScale, color);
+    }
+
+    /// <summary>Centred, and shrunk to fit rather than running off its panel.</summary>
+    private void TextFitCentred(string value, float centreX, float y, float maxWidth, float scale,
+        Color color)
+    {
+        var (font, drawScale) = SelectFont(scale);
+        var measured = font.MeasureString(value).X * drawScale;
+        if (measured > maxWidth && measured > 0f) drawScale *= maxWidth / measured;
+
+        var width = font.MeasureString(value).X * drawScale;
+        DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
     }
 
     private void TextCentred(string value, float centreX, float y, float scale, Color color)
