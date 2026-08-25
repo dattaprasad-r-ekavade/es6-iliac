@@ -66,8 +66,23 @@ public static class ParkedFeatures
     /// for it to hide from. Crouching still works and still makes the player harder to see —
     /// it is only the skill that is dead, and it has been dead since it was written.
     ///
-    /// **When it might come back:** watchers in the fort, or a mine that puts something asleep
-    /// in it worth creeping past.
+    /// **The reason it will probably not come back at all**, which is worth writing down
+    /// rather than rediscovering: this game pays you *per room cleared*, and the door shuts
+    /// behind you until the room is empty. Stealth's whole proposition is avoiding the fight.
+    /// Here the fight is the income and the room will not let you leave without it, so there
+    /// is nothing to sneak past — everything has to die for you to be paid.
+    ///
+    /// Stealth earns its place in roguelikes where avoidance reaches the objective another
+    /// way, or where it is a passive wake-up stat rather than a verb. This design has no
+    /// objective except clearing, and a passive stat governing watchers that do not exist is
+    /// not a mechanic.
+    ///
+    /// **What is worth keeping from it** is the ambush, and that belongs to combat rather than
+    /// to stealth: a room's occupants already rise when it is entered, so there is a window in
+    /// which they cannot fight back. Rewarding a blow landed in it is the one good idea here,
+    /// wearing the right clothes.
+    ///
+    /// **When it might come back:** watchers in the fort, if the fort ever wants them.
     /// </summary>
     public static readonly bool Sneaking = false;
 

@@ -2968,7 +2968,10 @@ public sealed class Game1 : Game
         {
             DrawWeapon();
             DrawDamageFlash();
-            DrawSneakOverlay();
+            // Both of these report on a system with nothing to report: no live world places
+            // a watcher, so the awareness meter has read UNAWARE in every screenshot ever
+            // taken of this game. Crouching still works; it just no longer pretends.
+            if (ParkedFeatures.Sneaking) DrawSneakOverlay();
             DrawThreatArrows();
             DrawFloatingNumbers();
             DrawCrosshair();
@@ -2981,7 +2984,7 @@ public sealed class Game1 : Game
             DrawDoorPrompt();
             DrawRunLedger();
             DrawLocationBanner();
-            DrawAwareness();
+            if (ParkedFeatures.Sneaking) DrawAwareness();
             DrawEnemyHealth();
             DrawObjective();
             DrawVitals();
