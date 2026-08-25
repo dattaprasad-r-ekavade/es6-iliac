@@ -206,13 +206,103 @@ For contrast, here is what applies the moment money is involved:
 - **EU VAT is handled automatically** under *Collected by itch.io, paid later*. Under *Direct
   payments* it is more work on the seller's part ([Creator FAQ](https://itch.io/docs/creators/faq)).
 
+One more clause worth knowing even though it only applies once money exists: **unclaimed earnings
+decay.** Revenue from a transaction older than twelve months that has not been withdrawn may be
+debited at **10% of the original revenue per month** until the balance reaches zero — so after ten
+further months it is gone. It cannot make the balance negative
+([ToS §10](https://itch.io/docs/legal/terms)).
+
 **Recommendation: keep the playtest free.** Not because money is hard, but because charging changes
 what the tester is. Somebody who paid has bought a product and will review it; somebody invited has
 been asked a question and will answer it. The 6/10 rating already in `PLAYTEST_NOTES.md` came from a
 question, not a purchase, and that is the mode that produces the finding about levelling being a full
 heal. Charging can wait for iteration 21's slice lock.
 
-### 3.2 Telemetry: the part that actually has legal weight
+### 3.2 The Terms of Service, in the parts that bite
+
+From the [Terms of Service](https://itch.io/docs/legal/terms) (page states last updated 15 April
+2023). Section numbers are itch.io's.
+
+**Who you are.** Uploading makes you a **Publisher**, and Publishers must be at least 18, or have
+parental/guardian consent, and be competent to enter the agreement (§2). Users — the people
+downloading — must be 13 or over, and itch.io's privacy policy states the Service is not intended for
+under-13s and that it does not knowingly collect their personal information. That effectively sets the
+floor audience age, and it interacts with the telemetry question below: a data-protection regime is
+much harsher about children's data, and itch.io's own terms already exclude under-13s.
+
+**You are solely responsible for what you upload** (§4), and you warrant that you "own or have the
+rights, licenses, permissions and consents necessary to publish, duplicate, and distribute" it. This
+is the clause that makes §3.6's font and model licences a contractual matter and not just good
+manners.
+
+**The two licences you grant, and the asymmetry between them** (§4):
+
+- **To itch.io:** worldwide, non-exclusive, royalty-free, **sublicensable and transferable**, to use,
+  reproduce, distribute, prepare derivative works of, display and perform the content in connection
+  with the Service, including promotion and redistribution in any media format. This one terminates
+  "within a commercially reasonable time" after you remove the content.
+- **To Users:** non-exclusive and **perpetual** — and explicitly, "Users shall retain a license to
+  this content even after the content is removed from the Service."
+
+**That second one is the single most important clause for a playtest.** A build you hand to a tester
+cannot be un-handed. Delete the page, revoke the download key, take the game private: everyone who
+already downloaded keeps a perpetual licence to that build. Combined with itch.io's own advice that
+launching early to collect feedback risks feedback and reviews that damage the eventual launch, the
+conclusion is the same one §2.3 reached from a different direction — **keep the group small, keep the
+page Restricted, and treat every build you push as permanent.**
+
+**Indemnity, and why it touches telemetry** (§16). You agree to defend and indemnify itch.io against
+claims arising from your use of the service, your breach of the terms, **your violation of any third
+party right "including without limitation any copyright, trademark, property or privacy right"**, and
+any claim that your content caused damage to a third party. So if the game's data collection went
+wrong in a way that harmed a player, that is contractually yours to carry, not itch.io's. This is the
+sharpest reason to keep the telemetry payload boring.
+
+**One clause to read carefully before shipping an uploader.** The Acceptable Use list in §3 prohibits,
+among other things, "Soliciting, harvesting or collecting information about others." In context the
+list is about conduct on the platform — spam, harassment, impersonation, malicious code — rather than
+about a game's own analytics, and thousands of games on itch.io ship analytics. But it is not
+qualified, and it sits in a section whose stated consequence is "account termination without prior
+notice". If an uploader is ever built, this is worth a support email rather than an assumption.
+
+**The boilerplate, briefly.** Warranty disclaimed and liability limited to the maximum extent
+permitted (§11, §12). California law, San Francisco jurisdiction, and the Service is deemed solely
+based in California (§14). Class actions waived (§15). itch.io "reserves the right to modify and
+amend these Terms of Service at any time and without notice", and continued use signifies acceptance
+(§18) — so this section has a shelf life. Any cause of action must be commenced within one year.
+Sections 4, 5, 8, 9, 11, 12, 14, 15, 16 and 18 survive termination (§13), which is why the perpetual
+user licence outlives the account.
+
+### 3.3 There is no age rating to get
+
+Worth stating plainly because it is a common assumption from Steam and Google Play: **itch.io has no
+age-rating system.** No IARC, no ESRB/PEGI submission, no numeric age band. What exists is a single
+binary flag under **Metadata » Classification** on the project's edit page:
+
+- **"Has sensitive content — This project is not suited for minors or the workplace"** — checking it
+  puts the project behind the adult filter, so it is only shown to accounts that have opted in.
+- **"Show content warning"** — optional, and the publisher's choice; it gates the page behind an
+  interstitial.
+
+The [quality guidelines](https://itch.io/docs/creators/quality-guidelines) are firm about getting it
+right: "If we see that you do not respect the adult content classification, we may remove all of your
+pages from being indexed on our discovery features, or permanently disable payments on your account."
+They also warn against selecting irrelevant classifications to game discovery, which may be treated
+as spam.
+
+**For this game that is a judgement call, not a lookup.** Ratna Bay is about undead dug out of a mine,
+with melee combat, floating damage numbers and death. There is no sexual content. The flag's wording
+is "not suited for minors", and plenty of purely violent or frightening games are marked under it by
+their own developers. The decision is the developer's, it is one checkbox, and it should be made
+deliberately rather than left at its default. It also barely matters while the page is Restricted,
+since the adult filter governs discovery and a Restricted page is not discoverable at all.
+
+Other page fields are about discoverability rather than obligation: kind, genre, tags, languages,
+accessibility flags, a cover image, screenshots, and actual playable files are what it takes to be
+indexed. None of that applies to a Restricted playtest page, which is a reason not to spend time on
+the page until the game is worth being found.
+
+### 3.4 Telemetry: the part that actually has legal weight
 
 If the game sends anything from a player's machine, data-protection law is engaged for players in the
 EU/UK. The practical shape of compliance, as consistently described across the sources below:
@@ -274,7 +364,37 @@ store it, and say so.
 5. An in-game opt-out that persists is what the guidance repeatedly names as the minimum. A settings
    toggle is sufficient — `F2` already opens settings.
 
-### 3.3 The licences already in the build
+### 3.5 What itch.io knows about your testers, and what you are for that data
+
+From the [privacy policy](https://itch.io/docs/legal/privacy-policy) (last modified 26 March 2026).
+
+itch.io collects, for its own purposes: information you provide (name, postal address, email,
+telephone, payment-provider account details, correspondence, survey responses, transaction details)
+and information collected automatically — "traffic data, location data, logs", and device information
+"including the user's IP address, and browser type". It uses cookies and web beacons, names **Google
+Analytics** as an analytics provider, and names **Cloudflare** as a CDN and security provider that may
+itself collect IP address and browser type.
+
+For EU users it states the legal bases it relies on: **performance of a contract**; **consent** for
+technical information such as cookie and IP geo-location data and for marketing; and **legitimate
+interests** for improving the service, security, fraud prevention and internal administration.
+
+**Two conclusions matter for the developer, and both are conclusions of absence.**
+
+First, **none of that data reaches you.** The policy contains no mechanism for passing player-level
+data to publishers, and the dashboard only exposes the aggregate counts described in §2.5. So the
+developer is not handling itch.io's player data at all, which is the cleanest possible position: you
+cannot be a controller or processor for data you never receive. That is worth being pleased about —
+it is why the itch.io route adds almost no data-protection burden by itself, and why every obligation
+in §3.4 comes from *your own* telemetry rather than from the platform.
+
+Second, **no Data Processing Agreement for creators appears anywhere in the primary sources.** The
+privacy policy describes itch.io's own controller relationship with its users and says nothing about
+offering creators a DPA; neither does the ToS. Absence from the documentation is not proof one does
+not exist, so this stays on the open list below — but it is only needed if itch.io ever *does* pass
+personal data to the developer, which on the evidence above it does not.
+
+### 3.6 The licences already in the build
 
 Independent of itch.io, the shipped folder carries third-party assets, and the repository is already
 set up correctly for this — which is worth noting so it does not get broken:
@@ -290,20 +410,30 @@ that the licence files travel with it. If the eight FBX models are dropped (see
 [`ANDROID_FEASIBILITY.md`](ANDROID_FEASIBILITY.md) §3.3, which notes they are also the props that
 occluded the Northwatch yard), that is one fewer set of terms to honour.
 
-### 3.4 Open legal questions
+### 3.7 What is still open
 
-Deliberately not answered here, because they need either a primary-source check or a professional:
+Answered above from primary sources: the ToS obligations and licence grants, the absence of an age
+rating, the fee and withholding model, and what itch.io does and does not know about downloaders.
+These remain genuinely unresolved:
 
-- The precise obligations in itch.io's creator Terms of Service, including the licence granted to
-  itch.io over uploaded content, termination, and liability.
-- Whether itch.io requires an age rating or content classification on a project page, and what the
-  mandatory publishing fields are.
-- Whether itch.io offers creators a Data Processing Agreement, and whether the developer is a
-  controller, joint controller, or neither for the data itch.io holds about downloaders.
-- Whether itch.io's own policies require disclosure of data collection performed by an uploaded
-  game, or a privacy-policy link on the page.
-- Trading-name and contact-details disclosure requirements, which vary by jurisdiction and bite as
-  soon as there is a privacy policy naming a data controller.
+- **Whether itch.io offers creators a Data Processing Agreement.** Not mentioned in either the ToS or
+  the privacy policy. Only matters if itch.io ever passes personal data to the developer, which on
+  the evidence it does not. A support email would settle it.
+- **Whether §3's "collecting information about others" is intended to reach a game's own telemetry.**
+  Almost certainly not, but the clause is unqualified and the penalty is termination without notice.
+  Worth asking before an uploader ships, not after.
+- **Whether itch.io requires disclosure of data collection by an uploaded game, or a privacy-policy
+  link on the page.** No such requirement was found in the ToS, the quality guidelines, or the
+  privacy policy. Doing it anyway is the right call regardless of whether itch.io demands it.
+- **Trading-name and contact-details disclosure**, which varies by jurisdiction and bites the moment
+  a privacy policy names a data controller — publishing a policy means publishing a contactable
+  identity, and for a solo developer that is a real decision about what address to put on the
+  internet.
+- **The developer's own jurisdiction.** Everything above is written for a US or UK/EU developer.
+  Withholding rate, VAT treatment, and whether GDPR applies at all depend on where the developer
+  actually is, and that determines which half of §3.1 and §3.4 is relevant.
+- **Anything involving actual money.** The moment there is revenue, the tax interview, TIN, treaty
+  rate and local return are a matter for an accountant, not for this document.
 
 ---
 
@@ -434,19 +564,24 @@ Two things follow, and they are cheap:
 
 Nothing here needs new packages or a new subsystem, which is the point.
 
-1. **Keep the game free and the page Restricted**, with the password in the invite link.
+1. **Keep the game free and the page Restricted**, with the password in the invite link. Treat every
+   build pushed as permanent — the licence granted to anyone who downloads it is perpetual and
+   survives you deleting the page.
 2. **Write the tester instructions around the itch.io app**, not the browser download, because
    SmartScreen's default answer is "don't run" and a lost tester is 20% of the sample.
-3. **Add two settings-menu buttons: reveal the recordings folder, and copy the review to clipboard.**
+3. **Decide the sensitive-content checkbox deliberately**, once, rather than leaving it at its
+   default. It costs one click and getting it wrong is one of the few things itch.io says it will
+   disable payments over.
+4. **Add two settings-menu buttons: reveal the recordings folder, and copy the review to clipboard.**
    This is the smallest change that closes the data gap, and it transmits nothing.
-4. **Wire `butler push` into `publish.ps1` after the existing gates**, with `--userversion` from the
+5. **Wire `butler push` into `publish.ps1` after the existing gates**, with `--userversion` from the
    assembly version so a recording can be traced to a build.
-5. **Run the playtest. Read the recordings by hand the first time.**
-6. Only if step 3 loses too much data: build the rung-1 uploader, default off, with a consent toggle
+6. **Run the playtest. Read the recordings by hand the first time.**
+7. Only if step 4 loses too much data: build the rung-1 uploader, default off, with a consent toggle
    and a short privacy note linked from the page.
-7. Revisit money, ratings, and code signing at iteration 21's slice lock, not before.
+8. Revisit money, classification and code signing at iteration 21's slice lock, not before.
 
-The reason to stop at step 5 and re-read the notes is that this whole document is in service of one
+The reason to stop at step 6 and re-read the notes is that this whole document is in service of one
 sentence in the production plan: *"By iteration 14, a stranger should play three runs in a row
 without being asked to."* Distribution and telemetry are how that sentence gets tested. They are not
 themselves progress.
@@ -456,6 +591,9 @@ themselves progress.
 ## 6. Sources
 
 itch.io primary documentation:
+[Terms of Service](https://itch.io/docs/legal/terms) ·
+[Privacy Policy](https://itch.io/docs/legal/privacy-policy) ·
+[content creator quality guidelines](https://itch.io/docs/creators/quality-guidelines) ·
 [butler — pushing builds](https://itch.io/docs/butler/pushing.html) ·
 [access control](https://itch.io/docs/creators/access-control) ·
 [limited playtests & releases](https://itch.io/docs/creators/limited-releases) ·
