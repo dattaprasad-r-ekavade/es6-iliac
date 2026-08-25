@@ -57,11 +57,30 @@ public readonly record struct CharacterPalette(
 /// them, and it is what Daggerfall itself did. Because the texture is generated rather than
 /// authored, a character is data — a palette and a few proportions — rather than an asset
 /// somebody has to model.
+///
+/// Built on <see cref="SpriteForge"/>, which changes what "drawn in code" means here. The old
+/// version stacked flat rectangles: a torso was one colour, an arm was one colour, and the
+/// only thing separating them was that they were different colours. Now every part writes
+/// thickness and the whole figure is lit at the end, from the same direction as every item
+/// icon in the game. An arm in front of a torso is now readable because it is *rounder and
+/// nearer*, not because somebody remembered to pick a different shade for it.
+///
+/// The palettes below are untouched, and deliberately so. Each flat colour becomes a five-step
+/// ramp through <see cref="SpriteMaterial.FromBase"/>, so nothing that references a palette
+/// had to change and the figures gained volume anyway.
 /// </summary>
 public static class CharacterSprites
 {
     private const int Width = 32;
     private const int Height = 48;
+
+    /// <summary>
+    /// Upper left, and identical to the light in <c>ItemSprites</c>.
+    ///
+    /// This is the payoff of one shading model. A bandit and the sword he is holding are now
+    /// lit by the same lamp, without anybody maintaining that agreement.
+    /// </summary>
+    private static readonly Vector3 Key = new(-0.55f, -0.68f, 0.5f);
 
     private static readonly Dictionary<string, Texture2D> Cache = new(StringComparer.Ordinal);
 
@@ -83,106 +102,74 @@ public static class CharacterSprites
 
     private static Texture2D Build(GraphicsDevice device, CharacterPalette palette)
     {
-        var pixels = new Color[Width * Height];
+        var forge = new SpriteForge(Width, Height);
 
-        // Head and hair.
-        FillEllipse(pixels, 16, 8, 5, 6, palette.Skin);
-        FillRect(pixels, 11, 2, 10, 4, palette.Hair);
-        FillRect(pixels, 10, 5, 3, 4, palette.Hair);
-        FillRect(pixels, 19, 5, 3, 4, palette.Hair);
+        var skin = SpriteMaterial.FromBase(palette.Skin);
+        var hair = SpriteMaterial.FromBase(palette.Hair);
+        var garment = SpriteMaterial.FromBase(palette.Garment);
+        var trim = SpriteMaterial.FromBase(palette.Trim, gloss: 0.4f);
+        var boots = SpriteMaterial.FromBase(palette.Boots);
 
-        // Eyes, so the figure reads as facing the player even at a distance.
-        FillRect(pixels, 13, 8, 2, 2, new Color(28, 24, 22));
-        FillRect(pixels, 17, 8, 2, 2, new Color(28, 24, 22));
+        // Legs first and lowest, so everything laid down after sits in front of them.
+        forge.Begin();
+        forge.Capsule(13.2f, 30f, 12.8f, 41f, 2.5f, 2.2f);
+        forge.Capsule(18.8f, 30f, 19.2f, 41f, 2.5f, 2.2f);
+        forge.Fill(trim, roundness: 1.0f, cap: 2.6f);
+
+        forge.Begin();
+        forge.Ellipse(12.6f, 43.5f, 3.2f, 2.6f);
+        forge.Ellipse(19.4f, 43.5f, 3.2f, 2.6f);
+        forge.Fill(boots, roundness: 1.0f, cap: 2.8f, lift: 0.5f);
 
         // Torso, tapering to the waist.
-        for (var y = 15; y < 30; y++)
+        forge.Begin();
+        forge.Capsule(16f, 17f, 16f, 30f, 6.6f, 4.9f);
+        forge.Fill(garment, roundness: 0.62f, cap: 4.6f, lift: 1.4f);
+
+        forge.Begin();
+        forge.Capsule(11.5f, 28.6f, 20.5f, 28.6f, 1.7f, 1.7f);
+        forge.Fill(trim, roundness: 1.3f, cap: 2.0f, lift: 4.6f);
+
+        // Arms, hanging slightly clear of the body so the silhouette has gaps in it. A figure
+        // whose arms merge into its torso reads as a bottle at any distance.
+        forge.Begin();
+        forge.Capsule(10.4f, 17.5f, 8.6f, 28f, 2.3f, 1.8f);
+        forge.Capsule(21.6f, 17.5f, 23.4f, 28f, 2.3f, 1.8f);
+        forge.Fill(garment, roundness: 1.15f, cap: 2.6f, lift: 3.4f);
+
+        forge.Begin();
+        forge.Ellipse(8.4f, 30f, 2.1f, 2.3f);
+        forge.Ellipse(23.6f, 30f, 2.1f, 2.3f);
+        forge.Fill(skin, roundness: 1.2f, cap: 2.6f, lift: 3.8f);
+
+        // Neck, then head.
+        forge.Begin();
+        forge.Capsule(16f, 13f, 16f, 18f, 2.0f, 2.6f);
+        forge.Fill(skin, roundness: 1.1f, cap: 2.6f, lift: 1.8f);
+
+        forge.Begin();
+        forge.Ellipse(16f, 9f, 5.0f, 5.6f);
+        forge.Fill(skin, roundness: 0.95f, cap: 5.0f, lift: 3.2f);
+
+        // Hair as a cap over the crown, with the face cleared out from under it.
+        forge.Begin();
+        forge.Ellipse(16f, 7.6f, 5.6f, 5.4f);
+        forge.Erase(16f, 12.5f, 4.6f, 3.6f);
+        forge.Fill(hair, roundness: 1.0f, cap: 5.4f, lift: 4.2f);
+
+        // Eyes, so the figure reads as facing the player even at a distance. Lifted above
+        // everything else so no ordering accident can bury them.
+        forge.Begin();
+        forge.Ellipse(13.9f, 9.4f, 1.15f, 1.35f);
+        forge.Ellipse(18.1f, 9.4f, 1.15f, 1.35f);
+        forge.Fill(new SpriteMaterial
         {
-            var halfWidth = 7 - (y - 15) / 6;
-            FillRect(pixels, 16 - halfWidth, y, halfWidth * 2, 1, palette.Garment);
-        }
-
-        // Belt.
-        FillRect(pixels, 11, 28, 10, 2, palette.Trim);
-
-        // Arms.
-        FillRect(pixels, 7, 16, 3, 11, palette.Garment);
-        FillRect(pixels, 22, 16, 3, 11, palette.Garment);
-        FillRect(pixels, 7, 27, 3, 3, palette.Skin);
-        FillRect(pixels, 22, 27, 3, 3, palette.Skin);
-
-        // Legs and boots.
-        FillRect(pixels, 12, 30, 3, 11, palette.Trim);
-        FillRect(pixels, 17, 30, 3, 11, palette.Trim);
-        FillRect(pixels, 11, 41, 5, 4, palette.Boots);
-        FillRect(pixels, 16, 41, 5, 4, palette.Boots);
-
-        Outline(pixels);
+            Ramp = new[] { new Color(16, 14, 16), new Color(30, 27, 30), new Color(48, 44, 48) },
+            Outline = new Color(10, 9, 10)
+        }, roundness: 1.4f, cap: 3f, lift: 7.4f);
 
         var texture = new Texture2D(device, Width, Height);
-        texture.SetData(pixels);
+        texture.SetData(forge.Resolve(Key));
         return texture;
-    }
-
-    /// <summary>
-    /// A dark edge around the silhouette.
-    ///
-    /// Flat pigment with a drawn contour is the locked art direction, and it is also what
-    /// keeps a small sprite readable against scenery of a similar tone.
-    /// </summary>
-    private static void Outline(Color[] pixels)
-    {
-        var outlined = new Color[pixels.Length];
-        Array.Copy(pixels, outlined, pixels.Length);
-        var ink = new Color(22, 18, 20);
-
-        for (var y = 0; y < Height; y++)
-        for (var x = 0; x < Width; x++)
-        {
-            if (pixels[y * Width + x].A != 0) continue;
-            if (!HasSolidNeighbour(pixels, x, y)) continue;
-            outlined[y * Width + x] = ink;
-        }
-
-        Array.Copy(outlined, pixels, pixels.Length);
-    }
-
-    private static bool HasSolidNeighbour(Color[] pixels, int x, int y)
-    {
-        for (var dy = -1; dy <= 1; dy++)
-        for (var dx = -1; dx <= 1; dx++)
-        {
-            if (dx == 0 && dy == 0) continue;
-
-            var nx = x + dx;
-            var ny = y + dy;
-            if (nx < 0 || ny < 0 || nx >= Width || ny >= Height) continue;
-            if (pixels[ny * Width + nx].A != 0) return true;
-        }
-
-        return false;
-    }
-
-    private static void FillRect(Color[] pixels, int x, int y, int width, int height, Color colour)
-    {
-        for (var py = y; py < y + height; py++)
-        for (var px = x; px < x + width; px++)
-        {
-            if (px < 0 || py < 0 || px >= Width || py >= Height) continue;
-            pixels[py * Width + px] = colour;
-        }
-    }
-
-    private static void FillEllipse(Color[] pixels, int cx, int cy, int rx, int ry, Color colour)
-    {
-        for (var py = cy - ry; py <= cy + ry; py++)
-        for (var px = cx - rx; px <= cx + rx; px++)
-        {
-            if (px < 0 || py < 0 || px >= Width || py >= Height) continue;
-
-            var nx = (px - cx) / (float)rx;
-            var ny = (py - cy) / (float)ry;
-            if (nx * nx + ny * ny <= 1f) pixels[py * Width + px] = colour;
-        }
     }
 }

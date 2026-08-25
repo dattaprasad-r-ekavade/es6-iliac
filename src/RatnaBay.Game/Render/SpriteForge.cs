@@ -24,6 +24,52 @@ public sealed class SpriteMaterial
     /// <summary>Colour of that catch, when <see cref="Gloss"/> is above zero.</summary>
     public Color Highlight { get; init; } = Color.White;
 
+    /// <summary>
+    /// Build a ramp from one base colour.
+    ///
+    /// The existing character and weapon palettes are single flat colours, and there are a lot
+    /// of them; asking every one to be rewritten as a hand-picked ramp would be the real cost
+    /// of moving to the forge. This derives one instead, and derives it the way a painter
+    /// would rather than the way a computer would: shadows fall toward a cool blue and
+    /// highlights climb toward a warm white, so the ramp bends hue across its length.
+    ///
+    /// Multiplying a base colour up and down — the obvious approach — keeps hue constant and
+    /// is exactly what makes generated art look plastic. Skin shaded that way goes orange in
+    /// shadow instead of red-brown, and steel goes grey instead of blue.
+    /// </summary>
+    public static SpriteMaterial FromBase(Color baseColour, int steps = 5, float gloss = 0f)
+    {
+        var shadow = new Color(
+            (byte)(baseColour.R * 0.24f),
+            (byte)(baseColour.G * 0.28f + 6),
+            (byte)(baseColour.B * 0.46f + 14));
+
+        var highlight = new Color(255, 248, 232);
+
+        var ramp = new Color[Math.Max(3, steps)];
+        for (var i = 0; i < ramp.Length; i++)
+        {
+            // -1 at the darkest end, +1 at the brightest, base sitting a little above centre
+            // because most of a lit object is closer to its own colour than to either extreme.
+            var t = i / (float)(ramp.Length - 1) * 2f - 1f;
+
+            ramp[i] = t < 0f
+                ? Color.Lerp(baseColour, shadow, -t * 0.92f)
+                : Color.Lerp(baseColour, highlight, t * 0.46f);
+        }
+
+        return new SpriteMaterial
+        {
+            Ramp = ramp,
+            Outline = new Color(
+                (byte)(baseColour.R * 0.16f),
+                (byte)(baseColour.G * 0.16f + 4),
+                (byte)(baseColour.B * 0.22f + 8)),
+            Gloss = gloss,
+            Highlight = highlight
+        };
+    }
+
     public Color Shade(float light)
     {
         var index = (int)MathHelper.Clamp(light * Ramp.Length, 0f, Ramp.Length - 1);
@@ -267,6 +313,18 @@ public sealed class SpriteForge
         var light = Vector3.Normalize(lightDirection);
         var pixels = new Color[_surface.Length];
 
+        // Where a flat surface lands on the ramp.
+        //
+        // Without this every unsloped pixel — which is most of a sprite — sat wherever the
+        // lamp's Z component happened to put it, and with the light tilted toward the viewer
+        // that was three quarters of the way up the ramp. Whole figures came out bleached,
+        // and the brighter the ramp's top end the worse it was. Re-centring so an unsloped
+        // pixel is exactly the material's own colour makes the ramp mean what it says: base
+        // where the surface faces you, lighter where it tilts into the lamp, darker where it
+        // tilts away.
+        var flat = Vector3.Dot(Vector3.UnitZ, light) * 0.5f + 0.5f;
+        var recentre = flat - 0.5f;
+
         for (var y = 0; y < _height; y++)
         for (var x = 0; x < _width; x++)
         {
@@ -290,7 +348,7 @@ public sealed class SpriteForge
             // which is what a sprite this size needs — real-scale normals read as flat.
             var normal = Vector3.Normalize(new Vector3(-dx, -dy, 1.6f));
 
-            var diffuse = Vector3.Dot(normal, light) * 0.5f + 0.5f;
+            var diffuse = Vector3.Dot(normal, light) * 0.5f + 0.5f - recentre;
             var colour = material.Shade(diffuse);
 
             if (material.Gloss > 0f)

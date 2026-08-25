@@ -10,36 +10,59 @@ namespace RatnaBay.Client;
 /// The weapon in the player's hand, drawn in code.
 ///
 /// Same reasoning as the character sprites: a held weapon is a palette and a few proportions
-/// rather than a modelled asset. Every blade is drawn from one routine with different
-/// measurements, so a new tier is a row of numbers.
+/// rather than a modelled asset. Every blade comes out of one routine with different
+/// measurements, so a new tier is still a row of numbers.
+///
+/// Built on <see cref="SpriteForge"/>. The old version drew a blade as a stack of horizontal
+/// runs with a lighter strip down one side, which is a convincing edge from one angle and a
+/// painted-on stripe from any other. A blade here is a tapered plate with a raised spine down
+/// its middle, and the light breaking over that spine is what makes it read as a blade. The
+/// bright edge is a consequence of the form now rather than a decoration on top of it.
 /// </summary>
 public static class WeaponSprites
 {
     private const int Width = 96;
     private const int Height = 192;
 
+    /// <summary>The same lamp as the characters and the item icons.</summary>
+    private static readonly Vector3 Key = new(-0.55f, -0.68f, 0.5f);
+
     private static readonly Dictionary<string, Texture2D> Cache = new(StringComparer.Ordinal);
 
-    /// <summary>Metal, grip and trim for one weapon.</summary>
-    private readonly record struct Metal(Color Edge, Color Body, Color Grip, Color Fitting);
+    private static readonly SpriteMaterial Iron = new()
+    {
+        Ramp = new[]
+        {
+            new Color(34, 37, 48), new Color(58, 62, 76), new Color(88, 94, 108),
+            new Color(126, 133, 146), new Color(166, 174, 185), new Color(212, 219, 228)
+        },
+        Outline = new Color(18, 19, 26),
+        Gloss = 0.8f,
+        Highlight = new Color(248, 252, 255)
+    };
 
-    private static readonly Metal Iron = new(
-        Edge: new Color(198, 204, 212),
-        Body: new Color(142, 150, 160),
-        Grip: new Color(74, 52, 40),
-        Fitting: new Color(96, 82, 58));
+    private static readonly SpriteMaterial Steel = new()
+    {
+        Ramp = new[]
+        {
+            new Color(44, 50, 62), new Color(74, 82, 96), new Color(110, 120, 134),
+            new Color(150, 160, 174), new Color(192, 202, 214), new Color(238, 244, 250)
+        },
+        Outline = new Color(22, 25, 33),
+        Gloss = 1.0f,
+        Highlight = Color.White
+    };
 
-    private static readonly Metal Steel = new(
-        Edge: new Color(226, 232, 240),
-        Body: new Color(168, 178, 190),
-        Grip: new Color(58, 44, 38),
-        Fitting: new Color(150, 126, 78));
+    private static readonly SpriteMaterial Timber = SpriteMaterial.FromBase(new Color(112, 82, 54));
+    private static readonly SpriteMaterial Grip = SpriteMaterial.FromBase(new Color(70, 52, 38));
+    private static readonly SpriteMaterial Fitting = SpriteMaterial.FromBase(new Color(146, 118, 62), gloss: 0.7f);
+    private static readonly SpriteMaterial Skin = SpriteMaterial.FromBase(new Color(198, 152, 112));
 
-    private static readonly Metal Wood = new(
-        Edge: new Color(146, 110, 72),
-        Body: new Color(112, 82, 54),
-        Grip: new Color(70, 52, 38),
-        Fitting: new Color(120, 118, 112));
+    private static readonly SpriteMaterial Cord = new()
+    {
+        Ramp = new[] { new Color(126, 118, 100), new Color(178, 170, 148), new Color(224, 218, 198) },
+        Outline = new Color(64, 58, 48)
+    };
 
     public static Texture2D Get(GraphicsDevice device, WeaponDefinition weapon)
     {
@@ -58,133 +81,119 @@ public static class WeaponSprites
 
     private static Texture2D Build(GraphicsDevice device, WeaponDefinition weapon)
     {
-        var pixels = new Color[Width * Height];
+        var forge = new SpriteForge(Width, Height);
         var metal = weapon.Tier >= 2 ? Steel : Iron;
 
         switch (weapon.Class)
         {
             case WeaponClass.TwoHanded:
-                DrawBlade(pixels, metal, bladeHalfWidth: 14, bladeTop: 6, guardY: 140, guardHalf: 30);
+                Blade(forge, metal, halfWidth: 15f, tip: 6f, guardY: 138f, guardHalf: 31f);
                 break;
 
             case WeaponClass.Ranged:
-                DrawBow(pixels);
+                Bow(forge);
                 break;
 
             default:
-                if (weapon.Id == EquipmentCatalog.UnarmedId) DrawFist(pixels);
-                else DrawBlade(pixels, metal, bladeHalfWidth: 10, bladeTop: 26, guardY: 142, guardHalf: 22);
+                if (weapon.Id == EquipmentCatalog.UnarmedId) Fist(forge);
+                else Blade(forge, metal, halfWidth: 10f, tip: 26f, guardY: 142f, guardHalf: 22f);
                 break;
         }
 
-        Outline(pixels);
-
         var texture = new Texture2D(device, Width, Height);
-        texture.SetData(pixels);
+        texture.SetData(forge.Resolve(Key));
         return texture;
     }
 
-    /// <summary>A blade, tapering to a point, with a guard, grip and pommel below it.</summary>
-    private static void DrawBlade(Color[] pixels, Metal metal, int bladeHalfWidth, int bladeTop,
-        int guardY, int guardHalf)
+    /// <summary>A blade tapering to a point, with a guard, grip and pommel below it.</summary>
+    private static void Blade(SpriteForge forge, SpriteMaterial metal,
+        float halfWidth, float tip, float guardY, float guardHalf)
     {
-        const int centre = Width / 2;
+        const float Centre = Width / 2f;
+        var shoulder = tip + 24f;
 
-        for (var y = bladeTop; y < guardY; y++)
-        {
-            // The first few rows narrow to a tip rather than ending square.
-            var taper = MathF.Min(1f, (y - bladeTop) / 22f);
-            var half = MathF.Max(1f, bladeHalfWidth * taper);
+        // The plate: full width at the shoulder, drawn to a point at the tip.
+        forge.Begin();
+        forge.Polygon(
+            new Vector2(Centre, tip),
+            new Vector2(Centre + halfWidth, shoulder),
+            new Vector2(Centre + halfWidth, guardY),
+            new Vector2(Centre - halfWidth, guardY),
+            new Vector2(Centre - halfWidth, shoulder));
+        forge.Fill(metal, roundness: 0.5f, cap: 3.6f);
 
-            FillRect(pixels, centre - (int)half, y, (int)half * 2, 1, metal.Body);
+        // The spine. Everything the eye reads as "sharp" comes from this: the surface falls
+        // away from the ridge toward both edges, so the lit side and the shadowed side are
+        // produced by the form rather than painted on.
+        forge.Begin();
+        forge.Capsule(Centre, tip + 8f, Centre, guardY - 6f, halfWidth * 0.30f, halfWidth * 0.42f);
+        forge.Fill(metal, roundness: 1.5f, cap: 6.2f, lift: 1.2f);
 
-            // A bright edge down one side reads as a blade rather than a bar.
-            FillRect(pixels, centre - (int)half, y, 2, 1, metal.Edge);
-        }
+        forge.Begin();
+        forge.Capsule(Centre - guardHalf, guardY + 3f, Centre + guardHalf, guardY + 3f, 3.4f, 3.4f);
+        forge.Ellipse(Centre, guardY + 3f, 7f, 5f);
+        forge.Fill(Fitting, roundness: 1.15f, cap: 4.0f, lift: 5.2f);
 
-        // Fuller: a dark groove down the middle.
-        FillRect(pixels, centre - 1, bladeTop + 26, 2, guardY - bladeTop - 34,
-            new Color(metal.Body.R - 40, metal.Body.G - 40, metal.Body.B - 40));
+        forge.Begin();
+        forge.Capsule(Centre, guardY + 10f, Centre, guardY + 40f, 5.0f, 4.6f);
+        forge.Fill(Grip, roundness: 1.1f, cap: 4.6f, lift: 5.6f);
 
-        FillRect(pixels, centre - guardHalf, guardY, guardHalf * 2, 7, metal.Fitting);
-        FillRect(pixels, centre - 5, guardY + 7, 10, 34, metal.Grip);
-        FillRect(pixels, centre - 8, guardY + 41, 16, 8, metal.Fitting);
+        forge.Begin();
+        forge.Ellipse(Centre, guardY + 45f, 8f, 6f);
+        forge.Fill(Fitting, roundness: 1.2f, cap: 6.0f, lift: 6.0f);
     }
 
-    private static void DrawBow(Color[] pixels)
+    private static void Bow(SpriteForge forge)
     {
-        const int centre = Width / 2;
+        const float Centre = Width / 2f;
 
-        // A limb either side of the grip, bowed outward.
-        for (var y = 16; y < Height - 24; y++)
+        // The limbs, as a chain of short capsules following a sine. A bow is one curve, and
+        // approximating it in segments keeps the thickness taper honest along its length.
+        forge.Begin();
+
+        const int Segments = 22;
+        for (var i = 0; i < Segments; i++)
         {
-            var t = (y - 16) / (float)(Height - 40);
-            var bulge = (int)(MathF.Sin(t * MathF.PI) * 24f);
-            FillRect(pixels, centre + bulge - 3, y, 5, 1, Wood.Body);
-            FillRect(pixels, centre + bulge - 3, y, 2, 1, Wood.Edge);
+            var t0 = i / (float)Segments;
+            var t1 = (i + 1) / (float)Segments;
+
+            // Thickest at the grip, tapering to the nocks at both ends.
+            forge.Capsule(
+                LimbX(t0), LimbY(t0), LimbX(t1), LimbY(t1),
+                2.0f + MathF.Sin(t0 * MathF.PI) * 1.8f,
+                2.0f + MathF.Sin(t1 * MathF.PI) * 1.8f);
         }
 
-        // String.
-        for (var y = 16; y < Height - 24; y++)
-            FillRect(pixels, centre - 4, y, 1, 1, new Color(206, 198, 176));
+        forge.Fill(Timber, roundness: 1.2f, cap: 3.4f);
 
-        FillRect(pixels, centre - 4, Height / 2 - 16, 8, 32, Wood.Grip);
+        // The string, straight between the nocks.
+        forge.Begin();
+        forge.Capsule(Centre, 18f, Centre, Height - 26f, 0.9f, 0.9f);
+        forge.Fill(Cord, roundness: 1.6f, cap: 1.6f, lift: 3.8f);
+
+        forge.Begin();
+        forge.Capsule(Centre + 24f, Height / 2f - 18f, Centre + 24f, Height / 2f + 18f, 4.4f, 4.2f);
+        forge.Fill(Grip, roundness: 1.15f, cap: 4.4f, lift: 4.4f);
+
+        static float LimbX(float t) => Width / 2f + MathF.Sin(t * MathF.PI) * 26f;
+        static float LimbY(float t) => 18f + t * (Height - 44f);
     }
 
-    private static void DrawFist(Color[] pixels)
+    private static void Fist(SpriteForge forge)
     {
-        var skin = new Color(198, 152, 112);
-        var shade = new Color(168, 124, 90);
+        // Back of a closed hand: the mass of the fist, four knuckles proud of it, and the
+        // wrist below. The knuckles are lifted so they catch light as separate rounds, which
+        // is the only thing that stops a fist reading as a bag.
+        forge.Begin();
+        forge.Ellipse(48f, 116f, 20f, 17f);
+        forge.Fill(Skin, roundness: 0.72f, cap: 8f);
 
-        FillRect(pixels, 30, 96, 36, 34, skin);
-        FillRect(pixels, 30, 96, 36, 6, shade);
+        forge.Begin();
+        for (var i = 0; i < 4; i++) forge.Ellipse(33f + i * 10f, 103f, 5.2f, 5.6f);
+        forge.Fill(Skin, roundness: 1.25f, cap: 6.2f, lift: 5.4f);
 
-        // Knuckles.
-        for (var i = 0; i < 4; i++) FillRect(pixels, 32 + i * 9, 100, 6, 10, shade);
-
-        FillRect(pixels, 36, 130, 24, 30, shade);
-    }
-
-    private static void Outline(Color[] pixels)
-    {
-        var outlined = new Color[pixels.Length];
-        Array.Copy(pixels, outlined, pixels.Length);
-        var ink = new Color(20, 17, 19);
-
-        for (var y = 0; y < Height; y++)
-        for (var x = 0; x < Width; x++)
-        {
-            if (pixels[y * Width + x].A != 0) continue;
-            if (!HasSolidNeighbour(pixels, x, y)) continue;
-            outlined[y * Width + x] = ink;
-        }
-
-        Array.Copy(outlined, pixels, pixels.Length);
-    }
-
-    private static bool HasSolidNeighbour(Color[] pixels, int x, int y)
-    {
-        for (var dy = -1; dy <= 1; dy++)
-        for (var dx = -1; dx <= 1; dx++)
-        {
-            if (dx == 0 && dy == 0) continue;
-
-            var nx = x + dx;
-            var ny = y + dy;
-            if (nx < 0 || ny < 0 || nx >= Width || ny >= Height) continue;
-            if (pixels[ny * Width + nx].A != 0) return true;
-        }
-
-        return false;
-    }
-
-    private static void FillRect(Color[] pixels, int x, int y, int width, int height, Color colour)
-    {
-        for (var py = y; py < y + height; py++)
-        for (var px = x; px < x + width; px++)
-        {
-            if (px < 0 || py < 0 || px >= Width || py >= Height) continue;
-            pixels[py * Width + px] = colour;
-        }
+        forge.Begin();
+        forge.Capsule(48f, 132f, 48f, 164f, 12f, 13f);
+        forge.Fill(Skin, roundness: 0.8f, cap: 7f, lift: 0.4f);
     }
 }
