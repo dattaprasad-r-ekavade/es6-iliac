@@ -215,6 +215,15 @@ public sealed class Game1 : Game
     /// <summary>What the player did this sitting, for reading back afterwards.</summary>
     private readonly PlayRecorder _recorder = PlayRecorder.Start();
 
+    /// <summary>Whether this player has agreed to send recordings, and their anonymous name.</summary>
+    private readonly TelemetryConsent _consent = TelemetryConsent.Load();
+
+    private TelemetryUploader? _uploader;
+
+    /// <summary>True while the question is on screen, before anything has been sent.</summary>
+    private bool _askingConsent;
+    private int _consentSelection;
+
     /// <summary>True once the camp panel has been shown for the current door.</summary>
     private bool _decisionRecorded;
 
@@ -440,6 +449,13 @@ public sealed class Game1 : Game
         // descent waiting rather than a town.
         _suspendedDescentOnDisk = GameSession.PeekHasSuspendedDescent();
 
+        // Asked once, before a single byte leaves the machine. A game that uploads by default
+        // and mentions it in a settings menu is disclosed in the technical sense and not in
+        // any other, and the tester who finds out afterwards is right to be annoyed.
+        _uploader = new TelemetryUploader(_consent);
+        _askingConsent = !_consent.Asked && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
+        if (!_askingConsent) _uploader.SendPending();
+
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.
         if (_screen == GameScreen.WorldScene)
@@ -599,6 +615,15 @@ public sealed class Game1 : Game
         // make would quietly be worth nothing.
         TrackPanelTime();
 
+        // Nothing else is reachable until the question is answered. It is two keys and it is
+        // asked exactly once.
+        if (_askingConsent)
+        {
+            UpdateConsent(keyboard, mouse);
+            _previousMouse = mouse;
+            return;
+        }
+
         if (_screen == GameScreen.MainMenu)
             UpdateMenu(keyboard, mouse);
         else
@@ -700,14 +725,24 @@ public sealed class Game1 : Game
         UpdateUiTransform();
         UpdateCameraMatrices();
 
-        switch (_screen)
+        // The question owns the screen until it is answered.
+        if (_askingConsent)
         {
-            case GameScreen.MainMenu:
-                DrawMenu();
-                break;
-            case GameScreen.WorldScene:
-                DrawWorldScene();
-                break;
+            BeginUi();
+            DrawConsent();
+            EndUi();
+        }
+        else
+        {
+            switch (_screen)
+            {
+                case GameScreen.MainMenu:
+                    DrawMenu();
+                    break;
+                case GameScreen.WorldScene:
+                    DrawWorldScene();
+                    break;
+            }
         }
 
         base.Draw(gameTime);
@@ -789,6 +824,92 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>One of the two answers on the consent screen.</summary>
+    private static Rectangle ConsentButtonBounds(int index) =>
+        new(360 + index * 296, 534, 264, 46);
+
+    private void UpdateConsent(KeyboardState keyboard, MouseState mouse)
+    {
+        var pointer = LogicalMouse(mouse);
+        var chosen = -1;
+
+        for (var index = 0; index < 2; index++)
+        {
+            if (!ConsentButtonBounds(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
+
+            _consentSelection = index;
+            if (Clicked(mouse)) chosen = index;
+        }
+
+        if (Pressed(keyboard, Keys.Left)) _consentSelection = 0;
+        if (Pressed(keyboard, Keys.Right)) _consentSelection = 1;
+        if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
+            chosen = _consentSelection;
+
+        if (chosen < 0) return;
+
+        _consent.Asked = true;
+        _consent.Allowed = chosen == 0;
+        _consent.Save();
+
+        _askingConsent = false;
+        if (_consent.Allowed) _uploader?.SendPending();
+    }
+
+    /// <summary>
+    /// The question, in the words it deserves.
+    ///
+    /// Short enough to be read rather than dismissed, specific about what is sent, and honest
+    /// that the answer changes nothing about the game. "Yes" is not the default and is not
+    /// styled to look like the safe one.
+    /// </summary>
+    private void DrawConsent()
+    {
+        Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(6, 10, 16));
+
+        // Tall enough for the text and the two answers to be separate things. The first
+        // version put the buttons through the last three lines of the explanation, which
+        // is a poor look on the one screen that is asking permission.
+        var panel = new Rectangle(300, 120, 680, 484);
+        DrawPanel(panel, new Color(8, 16, 24, 250), new Color(151, 206, 210));
+
+        TextCentred("BEFORE YOU PLAY", panel.Center.X, panel.Y + 30f, 26, Color.White);
+        TextCentred("This is an alpha, and it is being tuned from how people actually play.",
+            panel.Center.X, panel.Y + 76f, 15, new Color(190, 203, 200));
+
+        var lines = new[]
+        {
+            "May the game send a record of your runs to its developer?",
+            "",
+            "What it sends:  rooms cleared, what killed what, how long you",
+            "spent deciding at a door, what you bought, when you died.",
+            "",
+            "What it never sends:  your name, your files, your location, or",
+            "anything you type. There is nothing to type.",
+            "",
+            "You are a random number to us, and deleting the game forgets it.",
+            "The game plays exactly the same either way, and you can change",
+            "this whenever you like in Settings."
+        };
+
+        for (var index = 0; index < lines.Length; index++)
+            TextCentred(lines[index], panel.Center.X, panel.Y + 128f + index * 24f, 14,
+                index == 0 ? new Color(214, 226, 226) : new Color(172, 186, 190));
+
+        string[] answers = { "Yes, send them", "No, keep them here" };
+        for (var index = 0; index < answers.Length; index++)
+        {
+            var bounds = ConsentButtonBounds(index);
+            var selected = index == _consentSelection;
+
+            DrawPanel(bounds,
+                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
+            TextCentred(answers[index], bounds.Center.X, bounds.Y + 14f, 16,
+                selected ? Color.White : new Color(192, 207, 205));
+        }
+    }
+
     private void UpdateMenu(KeyboardState keyboard, MouseState mouse)
     {
         if (_showSettings)
@@ -831,6 +952,18 @@ public sealed class Game1 : Game
 
         if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
             ActivateMenuItem();
+    }
+
+    /// <summary>What the telemetry row says, including what is still waiting to go.</summary>
+    private string SettingsTelemetryLine()
+    {
+        if (string.IsNullOrWhiteSpace(Telemetry.Endpoint))
+            return "Send recordings   not available in this build";
+
+        var waiting = _uploader?.PendingCount() ?? 0;
+        var queued = _consent.Allowed && waiting > 0 ? $"  ({waiting} waiting)" : string.Empty;
+
+        return $"Send recordings   {(_consent.Allowed ? "On" : "Off")}{queued}";
     }
 
     /// <summary>One settings row. Drawing and hit testing share it.</summary>
@@ -2989,7 +3122,8 @@ public sealed class Game1 : Game
         {
             $"Display mode     {(_borderlessFullscreen ? "Borderless fullscreen" : "Windowed 1280x720")}",
             $"UI scale          {_uiScalePreference:0.0}x",
-            "Bindings          WASD move | E interact | J journal | I character"
+            "Bindings          WASD move | E interact | J journal | I character",
+            SettingsTelemetryLine()
         };
         for (var index = 0; index < options.Length; index++)
         {
