@@ -47,5 +47,7 @@
     <None Include="Content\Feasibility\Fonts\NotoSans\DESCRIPTION.en_us.html" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\NotoSansDevanagari\NotoSansDevanagari-wght.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\NotoSansDevanagari\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Content\Feasibility\Fonts\NotoSansBrahmi\NotoSansBrahmi-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Content\Feasibility\Fonts\NotoSansBrahmi\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

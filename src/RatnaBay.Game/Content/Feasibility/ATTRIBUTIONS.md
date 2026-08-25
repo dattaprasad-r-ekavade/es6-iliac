@@ -30,3 +30,20 @@ The project keeps the downloaded source archive under `Content/Source/OnlineAsse
 - License: SIL Open Font License 1.1
 - Runtime file: `Fonts/NotoSans/NotoSans-wght.ttf`
 - The license and family description are kept beside the font for redistribution review.
+
+## Noto Sans Devanagari
+
+- Source: <https://github.com/google/fonts/tree/main/ofl/notosansdevanagari>
+- License: SIL Open Font License 1.1
+- Runtime file: `Fonts/NotoSansDevanagari/NotoSansDevanagari-wght.ttf`
+- Used for the readable master form of carved verses, and as the fallback carving script when
+  the Brahmi face is unavailable.
+
+## Noto Sans Brahmi
+
+- Source: <https://github.com/google/fonts/tree/main/ofl/notosansbrahmi>
+- License: SIL Open Font License 1.1
+- Runtime file: `Fonts/NotoSansBrahmi/NotoSansBrahmi-Regular.ttf`
+- The carving script of record. Verses are authored in Devanagari and transliterated to Brahmi
+  at rasterisation time by `RatnaBay.Domain.BrahmiTransliteration`.
+- The license is kept beside the font for redistribution review.

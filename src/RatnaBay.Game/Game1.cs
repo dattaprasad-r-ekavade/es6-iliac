@@ -37,8 +37,54 @@ public sealed class Game1 : Game
     private FontSystem _headingFontSystem = null!;
     private Texture2D _white = null!;
     private BasicEffect _primitiveEffect = null!;
+    /// <summary>The stone this room is cut from. One per cave theme, later.</summary>
+    private StoneTextures.StonePalette _stone = StoneTextures.StonePalette.Granite;
+
+    /// <summary>
+    /// The cave shader: a weak directional fill and up to eight real point lights.
+    ///
+    /// Null when the effect failed to load, in which case every surface falls back to
+    /// BasicEffect and the mine is flatly lit but entirely playable. A missing shader must
+    /// never be the difference between a game and a black screen.
+    /// </summary>
+    private Effect? _caveEffect;
+
+    /// <summary>One lamp in the world. Rebuilt every frame from whatever is currently burning.</summary>
+    private readonly record struct PointLight(Vector3 Position, Vector3 Colour, float Range);
+
+    /// <summary>
+    /// The lights affecting the current draw, nearest first.
+    ///
+    /// The shader takes four. A room with more torches than that is not a lighting problem,
+    /// it is a level design problem, and clamping quietly is the right response either way.
+    /// </summary>
+    private readonly List<PointLight> _lights = new();
+
+    /// <summary>Matches MAX_POINT_LIGHTS in CaveLighting.fx, and is capped by the shader model.</summary>
+    private const int MaxPointLights = 4;
+
+    private readonly Vector3[] _lightPositions = new Vector3[MaxPointLights];
+
+    /// <summary>Colour in xyz, range in w — packed to stay inside the constant register budget.</summary>
+    private readonly Vector4[] _lightColours = new Vector4[MaxPointLights];
+
     private VertexPositionNormalTexture[] _cubeVertices = null!;
     private short[] _cubeIndices = null!;
+
+    /// <summary>
+    /// A faceted solid for the jiva stone.
+    ///
+    /// The stone was a cube, and a cube cannot be a gem: every face catches the light equally,
+    /// so it reads as a lit box rather than something cut. An octahedron with flat per-face
+    /// normals gives eight facets at eight angles, which is the cheapest geometry that still
+    /// glitters when the light rakes across it.
+    /// </summary>
+    private VertexPositionNormalTexture[] _crystalVertices = null!;
+    private short[] _crystalIndices = null!;
+
+    /// <summary>One quad, rebuilt per call, for text carved onto a wall or a pillar face.</summary>
+    private readonly VertexPositionNormalTexture[] _faceQuad = new VertexPositionNormalTexture[4];
+    private readonly short[] _faceIndices = { 0, 1, 2, 0, 2, 3 };
     private KeyboardState _previousKeyboard;
     private MouseState _previousMouse;
 
@@ -141,6 +187,17 @@ public sealed class Game1 : Game
     private bool _stambhaPreview;
 
     /// <summary>
+    /// --moodboard: one room built to the target fidelity, to be argued with.
+    ///
+    /// Deliberately a separate scene rather than a change to the mine. It is a claim about what
+    /// the renderer can reach, and a claim should be cheap to reject.
+    /// </summary>
+    private bool _moodboard;
+
+    /// <summary>--assets: the generated item and creature sprites, over the moodboard room.</summary>
+    private bool _assetCase;
+
+    /// <summary>
     /// Bars that have just gone up, and for how much longer they say so.
     ///
     /// Tracked by watching the numbers rather than by listening for an event, so anything that
@@ -208,6 +265,15 @@ public sealed class Game1 : Game
     /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
     /// pixel so glyphs land 1:1 on the display instead of being resampled.
     /// </summary>
+    /// <summary>
+    /// Seconds since the game started, for anything that moves on its own.
+    ///
+    /// Deliberately not <c>gameTime.TotalGameTime</c>: a screenshot run advances a fixed number
+    /// of frames rather than real time, and a capture has to be reproducible. Accumulating the
+    /// same step the rest of the simulation uses keeps <c>--screenshot</c> deterministic.
+    /// </summary>
+    private float _clock;
+
     private float _uiScale = 1f;
     private float _uiScalePreference = 1f;
     private bool _showSettings;
@@ -254,6 +320,9 @@ public sealed class Game1 : Game
         // described. Screenshot mode only.
         _captureScreen = ParseOption(args, "--show");
         _stambhaPreview = HasArgument(args, "--stambha");
+        _moodboard = HasArgument(args, "--moodboard");
+        _assetCase = HasArgument(args, "--assets");
+        if (_assetCase) _moodboard = true;
         if (int.TryParse(ParseOption(args, "--mine"), out var mineSeed)) _mineSeed = mineSeed;
         if (int.TryParse(ParseOption(args, "--rooms"), out var mineRooms)) _mineRooms = mineRooms;
         if (int.TryParse(ParseOption(args, "--depth"), out var mineDepth)) _mineDepth = mineDepth;
@@ -331,6 +400,7 @@ public sealed class Game1 : Game
             200f);
 
         CreatePrimitiveCube();
+        CreatePrimitiveCrystal();
 
         // Read before anything is loaded, so the first menu already knows whether there is a
         // descent waiting rather than a town.
@@ -374,6 +444,15 @@ public sealed class Game1 : Game
         // Devanagari for the carved verses. Absent, the pillar simply stands blank.
         StambhaCarving.Load(fontsDirectory);
 
+        try
+        {
+            _caveEffect = Content.Load<Effect>("Effects/CaveLighting");
+        }
+        catch (Exception exception)
+        {
+            _assetErrors.Add($"cave lighting: {exception.GetType().Name}");
+        }
+
         _white = new Texture2D(GraphicsDevice, 1, 1);
         _white.SetData(new[] { Color.White });
 
@@ -415,6 +494,9 @@ public sealed class Game1 : Game
         _white.Dispose();
         _primitiveEffect.Dispose();
         _billboards.Dispose();
+        StoneTextures.Clear();
+        PropTextures.Clear();
+        ItemSprites.Clear();
         // A sitting that ends by closing the window is still a sitting worth reading back.
         _recorder.Flush();
 
@@ -439,6 +521,8 @@ public sealed class Game1 : Game
     {
         var keyboard = Keyboard.GetState();
         var mouse = Mouse.GetState();
+
+        _clock += StepSeconds(gameTime);
 
         if (Pressed(keyboard, Keys.F11))
             SetBorderlessFullscreen(!_borderlessFullscreen);
@@ -2709,11 +2793,17 @@ public sealed class Game1 : Game
 
     private void DrawWorldScene()
     {
+        if (_moodboard)
+        {
+            DrawMoodboard();
+            return;
+        }
+
         if (_stambhaPreview)
         {
             // Framed as the trailer's opening: close on the pillar, the stone low and left.
-            _cameraPosition = new Vector3(0f, 0.75f, 2.1f);
-            _cameraPitch = -0.02f;
+            _cameraPosition = new Vector3(0.35f, 0.45f, 3.15f);
+            _cameraPitch = 0.06f;
             _cameraYaw = 0f;
             UpdateCameraMatrices();
 
@@ -3167,6 +3257,12 @@ public sealed class Game1 : Game
     {
         if (_dialogue is null || _dialogue.Actors.Count == 0) return;
 
+        // The bracket the flame sits in. Small, dark, and entirely a silhouette at this scale.
+        DrawCube(new Vector3(-4.62f, 1.86f, -3.2f), new Vector3(0.5f, 0.16f, 0.34f),
+            new Color(52, 48, 46), 0f);
+        DrawCube(new Vector3(-4.72f, 1.62f, -3.2f), new Vector3(0.26f, 0.42f, 0.24f),
+            new Color(44, 41, 40), 0f);
+
         _billboards.Begin(_view, _projection);
         var sorted = new List<SpeakingActor>(_dialogue.Actors);
         sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
@@ -3462,11 +3558,30 @@ public sealed class Game1 : Game
     /// Drawn far to near so the alpha-tested cutouts never punch a hole in something behind
     /// them that has not been drawn yet.
     /// </summary>
+    /// <summary>
+    /// The sprite an enemy is drawn with.
+    ///
+    /// Every enemy used to be a bandit. That was survivable while there was one kind of thing
+    /// to fight and became untenable the moment depth started sending different ones: the
+    /// whole reason tiers exist is that a room announces how hard it is before the fight
+    /// starts, and it cannot do that if the hard thing looks like the easy thing.
+    /// </summary>
+    private Texture2D SpriteFor(Enemy enemy)
+    {
+        var id = enemy.Archetype.Id;
+
+        var risen = ItemSprites.Risen(GraphicsDevice, id);
+        if (risen is not null) return risen;
+
+        return id == EnemyCatalog.ArcherId
+            ? CharacterSprites.Get(GraphicsDevice, "bandit_archer", CharacterPalette.Guard)
+            : CharacterSprites.Get(GraphicsDevice, "bandit", CharacterPalette.Bandit);
+    }
+
     private void DrawEnemies()
     {
         if (_encounter is null || _encounter.Enemies.Count == 0) return;
 
-        var texture = CharacterSprites.Get(GraphicsDevice, "bandit", CharacterPalette.Bandit);
         _billboards.Begin(_view, _projection);
 
         var sorted = new List<Enemy>(_encounter.Enemies);
@@ -3477,10 +3592,11 @@ public sealed class Game1 : Game
             var feet = _encounter.DrawPositionOf(enemy);
             var tint = _encounter.TintOf(enemy);
 
-            // A chilled bandit is visibly cold, so frost reads as more than a slower walk.
+            // A chilled enemy is visibly cold, so frost reads as more than a slower walk.
             if (enemy.IsChilled) tint = new Color(tint.R / 2 + 90, tint.G / 2 + 110, tint.B);
 
-            _billboards.Draw(texture, feet, _encounter.DrawHeightOf(enemy), _cameraYaw, tint);
+            _billboards.Draw(SpriteFor(enemy), feet, _encounter.DrawHeightOf(enemy),
+                _cameraYaw, tint);
         }
 
         // The billboard pass leaves its own render state behind; the UI expects the default.
@@ -3595,48 +3711,106 @@ public sealed class Game1 : Game
         var keyDirection = _primitiveEffect.DirectionalLight0.Direction;
         var keyColour = _primitiveEffect.DirectionalLight0.DiffuseColor;
         var fillEnabled = _primitiveEffect.DirectionalLight1.Enabled;
+        var backEnabled = _primitiveEffect.DirectionalLight2.Enabled;
+        var perPixel = _primitiveEffect.PreferPerPixelLighting;
 
-        _primitiveEffect.AmbientLightColor = new Vector3(0.17f, 0.15f, 0.17f);
+        _primitiveEffect.AmbientLightColor = new Vector3(0.055f, 0.05f, 0.062f);
+
+        // Key: the stone. It sits on the floor to the left of the pillar, so its light travels
+        // up, to the right, and away from the camera — which is what puts the catch on the
+        // upper lip of every cut and throws the pillar's own shadow up the back wall.
+        _primitiveEffect.DirectionalLight0.Enabled = true;
         _primitiveEffect.DirectionalLight0.Direction =
-            Vector3.Normalize(new Vector3(0.62f, 0.66f, -0.42f));
-        _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(1.45f, 0.94f, 0.48f);
+            Vector3.Normalize(new Vector3(0.40f, 0.30f, -0.86f));
+        _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(1.30f, 0.82f, 0.40f);
+        _primitiveEffect.DirectionalLight0.SpecularColor = Vector3.Zero;
+
+        // Fill: cold, from the opposite side, at a tenth of the key. Without it the unlit half
+        // of the pillar is pure black and the silhouette dies against the cave.
         _primitiveEffect.DirectionalLight1.Enabled = true;
         _primitiveEffect.DirectionalLight1.Direction =
-            Vector3.Normalize(new Vector3(-0.3f, -0.5f, -1f));
-        _primitiveEffect.DirectionalLight1.DiffuseColor = new Vector3(0.10f, 0.13f, 0.20f);
+            Vector3.Normalize(new Vector3(-0.75f, -0.25f, -0.5f));
+        _primitiveEffect.DirectionalLight1.DiffuseColor = new Vector3(0.10f, 0.13f, 0.22f);
+        _primitiveEffect.DirectionalLight1.SpecularColor = Vector3.Zero;
+
+        // EnableDefaultLighting leaves a third grey light on, and nothing in this scene ever
+        // set it. It was washing a flat neutral over every surface the key was deliberately
+        // keeping dark, which is most of why the shot read as evenly lit rather than as one
+        // stone in a black cave.
+        _primitiveEffect.DirectionalLight2.Enabled = false;
+
+        // One hard source across faceted stone is exactly the case vertex lighting handles
+        // worst; the carved band is a single quad, so per-vertex it would have no gradient
+        // across it at all.
+        _primitiveEffect.PreferPerPixelLighting = true;
 
         // Cave floor and back wall, as low-poly and as flat as everything else.
-        DrawCube(new Vector3(0f, -1.4f, 0f), new Vector3(14f, 0.4f, 14f), new Color(58, 52, 46), 0f);
-        DrawCube(new Vector3(0f, 2.2f, -5.0f), new Vector3(11f, 7f, 0.4f), new Color(38, 35, 34), 0f);
-        DrawCube(new Vector3(-4.2f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 6f), new Color(33, 31, 30), 0f);
-        DrawCube(new Vector3(4.2f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 6f), new Color(33, 31, 30), 0f);
+        DrawCube(new Vector3(0f, -1.4f, 0f), new Vector3(16f, 0.4f, 16f), new Color(44, 39, 35), 0f);
+        DrawCube(new Vector3(0f, 2.2f, -5.6f), new Vector3(13f, 7f, 0.4f), new Color(24, 22, 22), 0f);
+        DrawCube(new Vector3(-5.4f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 7f), new Color(20, 19, 19), 0f);
+        DrawCube(new Vector3(5.4f, 2.2f, -2.2f), new Vector3(0.4f, 7f, 7f), new Color(20, 19, 19), 0f);
 
-        // The pillar: a tapering column, a dozen faces at most.
-        DrawCube(new Vector3(0f, -1.15f, -3.4f), new Vector3(3.3f, 0.4f, 1.7f), new Color(78, 72, 64), 0f);
-        DrawCube(new Vector3(0f, 0.8f, -3.4f), new Vector3(2.7f, 3.7f, 1.2f), new Color(104, 97, 87), 0f);
-        DrawCube(new Vector3(0f, 2.9f, -3.4f), new Vector3(3.0f, 0.34f, 1.45f), new Color(78, 72, 64), 0f);
+        // The pillar.
+        //
+        // It was three stacked boxes of almost the same width, which is a post rather than a
+        // stambha. The silhouette is the whole read at six seconds and muted, so it is built
+        // the way the real ones are: a rough footing the rock has half swallowed, a monolithic
+        // shaft that tapers as it rises, the inscription band at eye height, then the bell and
+        // the abacus flaring back out above it. The taper is faked in three courses because a
+        // cube is the only solid this renderer has, and at this distance three is enough.
+        const float ShaftZ = -3.4f;
+        const float ShaftDepth = 1.2f;
+        const float ShaftFrontZ = ShaftZ + ShaftDepth * 0.5f;
 
-        // The carved face, standing just proud of the shaft.
+        var stone = StambhaCarving.ShaftStone;
+        var stoneDeep = new Color(78, 72, 64);
+
+        // Footing: wider than the shaft, sunk into the floor, and rougher.
+        DrawCube(new Vector3(0f, -1.30f, ShaftZ), new Vector3(2.30f, 0.44f, 1.50f), stoneDeep, 0f);
+        DrawCube(new Vector3(0f, -1.00f, ShaftZ), new Vector3(1.94f, 0.26f, 1.28f), new Color(86, 80, 71), 0f);
+
+        // Shaft, in four tapering courses. A monolith has no joints, but four courses of a cube
+        // is the only taper this renderer can spell, and at this framing the silhouette is what
+        // carries — narrow, and rising out of the top of the frame.
+        DrawCube(new Vector3(0f, -0.30f, ShaftZ), new Vector3(1.54f, 1.20f, ShaftDepth), stone, 0f);
+        DrawCube(new Vector3(0f, 0.80f, ShaftZ), new Vector3(1.44f, 1.05f, ShaftDepth * 0.94f), stone, 0f);
+        DrawCube(new Vector3(0f, 1.85f, ShaftZ), new Vector3(1.34f, 1.05f, ShaftDepth * 0.88f), stone, 0f);
+        DrawCube(new Vector3(0f, 2.95f, ShaftZ), new Vector3(1.24f, 1.15f, ShaftDepth * 0.82f), stone, 0f);
+
+        // Bell capital and abacus, deliberately near the top of the frame — a hint of what the
+        // shaft carries rather than the whole capital, which would pull the eye off the verse.
+        DrawCube(new Vector3(0f, 3.62f, ShaftZ), new Vector3(1.44f, 0.20f, 1.02f), stoneDeep, 0f);
+        DrawCube(new Vector3(0f, 3.86f, ShaftZ), new Vector3(1.74f, 0.28f, 1.22f), new Color(96, 89, 79), 0f);
+        DrawCube(new Vector3(0f, 4.14f, ShaftZ), new Vector3(2.02f, 0.30f, 1.44f), stoneDeep, 0f);
+
+        // The verse, lying on the shaft's front face at eye height and lit with it.
         var carving = StambhaCarving.Get(GraphicsDevice, StambhaCarving.SurfaceVerse);
         if (carving is not null)
         {
-            _billboards.Begin(_view, _projection);
-            _billboards.Draw(carving, new Vector3(0f, 0.5f, -2.78f), 1.14f, 0f,
-                new Color(255, 226, 190));
-            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
-            GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+            // Exactly the width of the course it sits on, so its edges are the pillar's edges.
+            const float BandWidth = 1.54f;
+            var bandHeight = BandWidth * carving.Height / carving.Width;
+
+            DrawCarvedFace(
+                new Vector3(0f, -0.22f, ShaftFrontZ + 0.006f),
+                BandWidth,
+                bandHeight,
+                carving);
         }
 
-        // The jiva stone, low and to the left, so the light rakes up across the cuts.
-        // The stone emits rather than reflects, so it is drawn unlit — otherwise the light
-        // source is the darkest object in its own shot.
-        _primitiveEffect.EmissiveColor = new Vector3(0.95f, 0.62f, 0.30f);
-        DrawCube(new Vector3(-1.35f, -1.02f, -2.1f), new Vector3(0.34f, 0.34f, 0.34f),
-            new Color(255, 206, 132), 0.6f);
+        // The jiva stone, low and to the left, so the light rakes up across the cuts. It emits
+        // rather than reflects, so it is drawn emissive — otherwise the light source is the
+        // darkest object in its own shot.
+        var stonePosition = new Vector3(-1.28f, -1.18f, -1.55f);
 
-        _primitiveEffect.EmissiveColor = new Vector3(1f, 0.94f, 0.82f);
-        DrawCube(new Vector3(-1.35f, -1.0f, -2.1f), new Vector3(0.2f, 0.2f, 0.2f),
-            new Color(255, 250, 236), 0.6f);
+        // Turned off-axis so three facets face the camera at three angles. Square on, an
+        // octahedron presents one edge and two faces and reads as a flat kite.
+        const float StoneSpin = 0.42f;
+
+        DrawCrystal(stonePosition, 0.34f, new Color(255, 206, 132),
+            new Vector3(0.95f, 0.62f, 0.30f), StoneSpin);
+        DrawCrystal(stonePosition + new Vector3(0f, 0.02f, 0f), 0.17f, new Color(255, 250, 236),
+            new Vector3(1f, 0.94f, 0.82f), StoneSpin);
 
         _primitiveEffect.EmissiveColor = Vector3.Zero;
 
@@ -3644,15 +3818,251 @@ public sealed class Game1 : Game
         _primitiveEffect.DirectionalLight0.Direction = keyDirection;
         _primitiveEffect.DirectionalLight0.DiffuseColor = keyColour;
         _primitiveEffect.DirectionalLight1.Enabled = fillEnabled;
+        _primitiveEffect.DirectionalLight2.Enabled = backEnabled;
+        _primitiveEffect.PreferPerPixelLighting = perPixel;
 
         BeginUi();
         if (carving is null)
-            TextCentred("Devanagari font not loaded", LogicalWidth / 2f, 300f, 20,
+            TextCentred("No carving font loaded", LogicalWidth / 2f, 300f, 20,
                 new Color(228, 128, 118));
 
+        // The shot is meant to be cut in Brahmi. Falling back to Devanagari is legible and
+        // wrong by a thousand years, so it says so rather than passing silently — this frame
+        // is the microtrailer, and it should not ship in the fallback script by accident.
+        if (carving is not null && !StambhaCarving.IsPeriodScript)
+            TextCentred("Devanagari fallback — NotoSansBrahmi not installed",
+                LogicalWidth / 2f, 62f, 13, new Color(150, 126, 96));
+
+        // Lower third, and off to the right: centred, it sat on top of the jiva stone, which is
+        // the one thing in the frame that has to stay clean.
         TextCentred("\"Covet not \u2014 for whose is wealth?\"",
-            LogicalWidth / 2f, 596f, 20, new Color(214, 206, 190));
-        TextCentred("Isha Upanishad 1", LogicalWidth / 2f, 630f, 14, new Color(140, 132, 120));
+            LogicalWidth * 0.63f, 606f, 20, new Color(214, 206, 190));
+        TextCentred("Isha Upanishad 1", LogicalWidth * 0.63f, 640f, 14, new Color(140, 132, 120));
+        EndUi();
+    }
+
+    /// <summary>
+    /// One room at the fidelity being argued for.
+    ///
+    /// Every surface and every prop in here is generated from a palette and some numbers —
+    /// there is not one authored image in the scene. That is the point of it: the question is
+    /// not whether hand-drawn pixel art would look good, it is how far the existing pipeline
+    /// gets without hiring anyone.
+    /// </summary>
+    private void DrawMoodboard()
+    {
+        GraphicsDevice.Clear(new Color(10, 9, 11));
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+
+        _cameraPosition = new Vector3(0f, 1.65f, 6.4f);
+        _cameraPitch = -0.02f;
+        _cameraYaw = 0f;
+        UpdateCameraMatrices();
+
+        var ambient = _primitiveEffect.AmbientLightColor;
+        var keyDirection = _primitiveEffect.DirectionalLight0.Direction;
+        var keyColour = _primitiveEffect.DirectionalLight0.DiffuseColor;
+        var light2 = _primitiveEffect.DirectionalLight2.Enabled;
+
+        // Lit almost entirely by the torch. The directional pair only keeps the unlit half of
+        // the room from being pure black, which a screenshot needs and a moving camera does not.
+        _primitiveEffect.AmbientLightColor = new Vector3(0.20f, 0.18f, 0.19f);
+        _primitiveEffect.DirectionalLight0.Enabled = true;
+        _primitiveEffect.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(0.5f, 0.55f, -0.7f));
+        _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(0.85f, 0.72f, 0.55f);
+        _primitiveEffect.DirectionalLight0.SpecularColor = Vector3.Zero;
+        _primitiveEffect.DirectionalLight1.Enabled = true;
+        _primitiveEffect.DirectionalLight1.Direction = Vector3.Normalize(new Vector3(-0.6f, -0.3f, -0.5f));
+        _primitiveEffect.DirectionalLight1.DiffuseColor = new Vector3(0.16f, 0.17f, 0.26f);
+        _primitiveEffect.DirectionalLight2.Enabled = false;
+
+        // Real lights now, not smears on the wall. The torch is at the same place it was; the
+        // difference is that the wall beside it, the floor under it and the ceiling above it
+        // each work out their own share from their own normal and their own distance.
+        var torch = new Vector3(-4.5f, 2.05f, -3.2f);
+
+        _lights.Clear();
+        // The lamp flickers with the flame rather than independently of it. A steady light
+        // beside a moving fire is worse than both being still.
+        var flicker = 1f + MathF.Sin(_clock * 9.3f) * 0.05f + MathF.Sin(_clock * 21.7f) * 0.028f;
+
+        _lights.Add(new PointLight(torch + new Vector3(0.35f, 0f, 0f),
+            new Vector3(2.35f, 1.42f, 0.62f) * flicker, 13.5f));
+        _lights.Add(new PointLight(new Vector3(1.6f, 1.1f, -5.6f),
+            new Vector3(0.22f, 0.20f, 0.30f), 7.5f));
+
+        SetCaveAmbience(
+            ambient: new Vector3(0.075f, 0.072f, 0.086f),
+            keyDirection: new Vector3(0.4f, -0.75f, -0.5f),
+            keyColour: new Vector3(0.16f, 0.17f, 0.23f));
+
+        var wall = StoneTextures.Wall(GraphicsDevice, _stone);
+        var floor = StoneTextures.Floor(GraphicsDevice, _stone);
+        var tint = new Color(228, 224, 220);
+
+        const float Half = 5f;
+        const float Tall = 5.2f;
+
+        DrawTexturedCube(new Vector3(0f, -0.2f, 0f), new Vector3(Half * 2f, 0.4f, 14f), tint, floor, 2.0f);
+        DrawTexturedCube(new Vector3(0f, Tall, 0f), new Vector3(Half * 2f, 0.4f, 14f),
+            new Color(150, 146, 148), floor, 2.4f);
+        DrawTexturedCube(new Vector3(0f, 2.4f, -6.6f), new Vector3(Half * 2f, Tall, 0.5f), tint, wall, 2.2f);
+        DrawTexturedCube(new Vector3(-Half, 2.4f, 0f), new Vector3(0.5f, Tall, 14f), tint, wall, 2.2f);
+        DrawTexturedCube(new Vector3(Half, 2.4f, 0f), new Vector3(0.5f, Tall, 14f), tint, wall, 2.2f);
+
+        // The door, its own material, standing just proud of the wall it is set into.
+        DrawTexturedCube(new Vector3(1.35f, 1.45f, -6.32f), new Vector3(1.7f, 2.9f, 0.16f),
+            new Color(245, 238, 230), PropTextures.Door(GraphicsDevice), 2.9f);
+
+        _billboards.Begin(_view, _projection);
+
+        // Banner, torch bracket and flame are all cutout quads, which is what the whole art
+        // direction already is.
+        _billboards.Draw(PropTextures.Banner(GraphicsDevice),
+            new Vector3(-2.6f, 1.55f, -6.28f), 2.6f, 0f, new Color(236, 226, 214));
+
+        // Twelve frames a second. Fire read at sixty is a blur and at six is a strobe; this is
+        // the rate hand-drawn fire is almost always animated at, for the same reason.
+        var flameFrame = (int)(_clock * 12f);
+        _billboards.Draw(PropTextures.Flame(GraphicsDevice, flameFrame),
+            torch, 1.35f, _cameraYaw, Color.White);
+
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+
+        // One small glow left, tight around the flame itself. The shader lights the room;
+        // this is only the bloom around the fire, which no amount of surface lighting can
+        // produce because the flame is not a surface.
+        DrawGlow(torch, 1.15f * flicker, new Color(210, 148, 74, 255));
+
+        _primitiveEffect.AmbientLightColor = ambient;
+        _primitiveEffect.DirectionalLight0.Direction = keyDirection;
+        _primitiveEffect.DirectionalLight0.DiffuseColor = keyColour;
+        _primitiveEffect.DirectionalLight2.Enabled = light2;
+
+        DrawMoodboardUi();
+    }
+
+    /// <summary>
+    /// The generated-asset case, laid out as the shop it would actually be.
+    ///
+    /// Shown at two sizes on purpose. Icons are judged at the size they are used, and a sprite
+    /// that survives being doubled is one whose form is right rather than one whose noise
+    /// happens to be pleasing.
+    /// </summary>
+    private void DrawAssetCase()
+    {
+        var items = new (string Name, string Price, Texture2D Icon)[]
+        {
+            ("Pickaxe", "120", ItemSprites.Pickaxe(GraphicsDevice)),
+            ("Iron Sword", "150", ItemSprites.Sword(GraphicsDevice)),
+            ("Jiva Stone", "80", ItemSprites.JivaCrystal(GraphicsDevice)),
+            ("Gold Bars", "200", ItemSprites.GoldBars(GraphicsDevice))
+        };
+
+        var panel = new Rectangle(300, 74, 680, 468);
+        DrawFramedPanel(panel, Color.White);
+        TextCentred("MERCHANT", panel.Center.X, panel.Y + 18f, 20, new Color(238, 214, 158));
+
+        for (var i = 0; i < items.Length; i++)
+        {
+            var slot = new Rectangle(panel.X + 26 + i * 160, panel.Y + 56, 148, 168);
+            DrawFramedPanel(slot, new Color(210, 208, 206));
+
+            _spriteBatch.Draw(items[i].Icon,
+                new Rectangle(slot.X + 18, slot.Y + 14, 112, 112), Color.White);
+
+            TextCentred(items[i].Name, slot.Center.X, slot.Y + 128f, 15, new Color(240, 234, 222));
+            TextCentred(items[i].Price + " gold", slot.Center.X, slot.Y + 148f, 14,
+                new Color(232, 196, 112));
+        }
+
+        // The same four at inventory size, unscaled, beside the creature.
+        var strip = new Rectangle(panel.X + 26, panel.Y + 248, 420, 120);
+        DrawFramedPanel(strip, new Color(200, 198, 196));
+        Text("AT 48 PIXELS", new Vector2(strip.X + 16, strip.Y + 14), 12, new Color(196, 170, 120));
+
+        for (var i = 0; i < items.Length; i++)
+            _spriteBatch.Draw(items[i].Icon,
+                new Rectangle(strip.X + 20 + i * 100, strip.Y + 42, 48, 48), Color.White);
+
+        var creature = new Rectangle(panel.X + 466, panel.Y + 248, 188, 120);
+        DrawFramedPanel(creature, new Color(200, 198, 196));
+        Text("THE RISEN", new Vector2(creature.X + 16, creature.Y + 14), 12, new Color(196, 170, 120));
+
+        // The three tiers side by side, which is the only way to judge whether they read as
+        // one creature at three ages rather than as three unrelated things.
+        var tiers = new[]
+        {
+            ItemSprites.ChhayaSprite(GraphicsDevice),
+            ItemSprites.VetalaSprite(GraphicsDevice),
+            ItemSprites.KravyadaSprite(GraphicsDevice)
+        };
+
+        for (var i = 0; i < tiers.Length; i++)
+            _spriteBatch.Draw(tiers[i],
+                new Rectangle(creature.X + 14 + i * 56, creature.Y + 34, 52, 52), Color.White);
+
+        // And the flame, every frame of it, so the cycle can be read as a strip. Fire is the
+        // one thing a still sprite cannot be, and a strip is the only honest way to show that
+        // the frames actually differ rather than being one image nudged sideways.
+        var cycle = new Rectangle(panel.X + 26, panel.Y + 380, 628, 68);
+        DrawFramedPanel(cycle, new Color(200, 198, 196));
+        Text("FLAME CYCLE", new Vector2(cycle.X + 16, cycle.Y + 12), 12, new Color(196, 170, 120));
+
+        for (var i = 0; i < PropTextures.FlameFrames; i++)
+            _spriteBatch.Draw(PropTextures.Flame(GraphicsDevice, i),
+                new Rectangle(cycle.X + 150 + i * 74, cycle.Y + 12, 30, 44), Color.White);
+    }
+
+    /// <summary>The interface, drawn in the same ornament as the world.</summary>
+    private void DrawMoodboardUi()
+    {
+        BeginUi();
+
+        // Vignette first, under the interface: four bands is what DrawDamageFlash already does,
+        // and at this strength it is enough to pull the eye to the middle.
+        for (var i = 0; i < 5; i++)
+        {
+            var alpha = (byte)(20 + i * 12);
+            var inset = i * 14;
+            var shade = new Color((byte)8, (byte)7, (byte)9, alpha);
+
+            Fill(new Rectangle(0, inset, LogicalWidth, 14), shade);
+            Fill(new Rectangle(0, LogicalHeight - inset - 14, LogicalWidth, 14), shade);
+            Fill(new Rectangle(inset, 0, 14, LogicalHeight), shade);
+            Fill(new Rectangle(LogicalWidth - inset - 14, 0, 14, LogicalHeight), shade);
+        }
+
+        DrawFramedPanel(new Rectangle(392, 12, 496, 54), Color.White);
+        TextCentred("MINE 4211  ·  DEPTH 2", 640f, 28f, 22, new Color(238, 214, 158));
+
+        DrawFramedPanel(new Rectangle(906, 12, 174, 54), Color.White);
+        Text("AWARENESS", new Vector2(924, 22), 12, new Color(196, 170, 120));
+        Text("UNAWARE", new Vector2(924, 40), 15, new Color(238, 232, 220));
+
+        DrawFramedPanel(new Rectangle(1092, 12, 176, 54), Color.White);
+        Text("AT RISK", new Vector2(1110, 22), 12, new Color(196, 170, 120));
+        Text("0", new Vector2(1110, 40), 15, new Color(238, 232, 220));
+
+        if (_assetCase) DrawAssetCase();
+
+        DrawFramedBar(new Rectangle(24, 552, 330, 46), 1f, new Color(168, 44, 46), "HEALTH  100/100");
+        DrawFramedBar(new Rectangle(24, 606, 330, 46), 1f, new Color(48, 92, 172), "PRANA    80/80");
+        DrawFramedBar(new Rectangle(24, 660, 330, 46), 1f, new Color(64, 138, 66), "STAMINA 100/100");
+
+        DrawFramedPanel(new Rectangle(470, 590, 340, 116), Color.White);
+        TextCentred("READIED", 640f, 604f, 13, new Color(196, 170, 120));
+        TextCentred("Flame", 640f, 626f, 26, new Color(238, 178, 96));
+        TextCentred("16 prana", 640f, 660f, 16, new Color(150, 186, 232));
+        TextCentred("Q to cast", 640f, 682f, 14, new Color(214, 206, 192));
+
+        DrawFramedPanel(new Rectangle(926, 590, 330, 116), Color.White);
+        Text("LEVEL 1", new Vector2(950, 606), 20, new Color(238, 232, 220));
+        Text("Iron Sword", new Vector2(950, 642), 17, new Color(206, 198, 186));
+        Text("0 gold", new Vector2(950, 674), 17, new Color(226, 190, 108));
+
         EndUi();
     }
 
@@ -3740,6 +4150,11 @@ public sealed class Game1 : Game
     private void DrawPointer()
     {
         if (_mouseLook) return;
+
+        // Wherever the pointer happens to be resting is not part of the shot. A capture is
+        // meant to be reproducible, and a cursor in the frame makes it a photograph of this
+        // machine rather than of the game.
+        if (_screenshotPath is not null) return;
 
         var pointer = LogicalMouse(Mouse.GetState());
         if (pointer.X < -8f || pointer.Y < -8f
@@ -4340,6 +4755,25 @@ public sealed class Game1 : Game
         }
 
         GraphicsDevice.Clear(new Color(96, 121, 136));
+
+        // The manifest has carried a light per room since the generator was written, and
+        // nothing ever read them: BasicEffect had no point lights to put them in. They cost
+        // nothing to honour now.
+        _lights.Clear();
+        foreach (var light in _world.Manifest.Lights ?? new List<WorldLight>())
+        {
+            var position = light.Position.ToWorldPoint();
+            _lights.Add(new PointLight(
+                new Vector3(position.X, position.Y, position.Z),
+                ToXnaColor(light.Color).ToVector3() * MathHelper.Clamp(light.Intensity, 0f, 8f) * 2.1f,
+                MathF.Max(0.5f, light.Range)));
+        }
+
+        SetCaveAmbience(
+            ambient: new Vector3(0.10f, 0.10f, 0.12f),
+            keyDirection: new Vector3(-0.4f, -1f, -0.25f),
+            keyColour: new Vector3(0.20f, 0.20f, 0.26f));
+
         foreach (var geometry in _world.Manifest.Geometry ?? new List<WorldGeometry>())
         {
             if (!geometry.Visible) continue;
@@ -4392,6 +4826,9 @@ public sealed class Game1 : Game
         Fill(new Rectangle(cx - 1, cy - 1, 2, 2), new Color(20, 26, 27));
     }
 
+    /// <summary>Roughly two metres of wall per repeat of the block texture.</summary>
+    private const float StoneTileMetres = 2.2f;
+
     private void DrawWorldBox(WorldVector min, WorldVector max, Color color)
     {
         var centre = new Vector3(
@@ -4399,8 +4836,30 @@ public sealed class Game1 : Game
             (min.Y + max.Y) * 0.5f,
             (min.Z + max.Z) * 0.5f);
         var scale = new Vector3(max.X - min.X, max.Y - min.Y, max.Z - min.Z);
-        DrawCube(centre, scale, color, 0f);
+
+        // A slab is anything much wider than it is tall: floors, ceilings, and the lintels over
+        // doorways. Everything else is a wall. Getting this wrong is very visible — coursed
+        // blockwork laid across a floor reads immediately as a wall someone dropped.
+        var isSlab = scale.Y < scale.X * 0.5f && scale.Y < scale.Z * 0.5f;
+
+        var texture = isSlab
+            ? StoneTextures.Floor(GraphicsDevice, _stone)
+            : StoneTextures.Wall(GraphicsDevice, _stone);
+
+        // The authored colour stops being the surface and becomes a tint over it, so a cave
+        // theme still shifts the whole room by changing the same numbers it changes today.
+        DrawTexturedCube(centre, scale, TintFor(color), texture, StoneTileMetres);
     }
+
+    /// <summary>
+    /// The manifest's colour, pulled toward white so it modulates the texture instead of
+    /// drowning it. A mid-grey tint over mid-grey stone lands at quarter brightness otherwise,
+    /// and every room goes black the moment it is textured.
+    /// </summary>
+    private static Color TintFor(Color authored) => new(
+        (byte)(155 + authored.R * 0.39f),
+        (byte)(155 + authored.G * 0.39f),
+        (byte)(155 + authored.B * 0.39f));
 
     private static Color ToXnaColor(WorldColor color) => new(
         (byte)Math.Clamp(color.R, 0, 255),
@@ -4507,6 +4966,320 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>
+    /// A texture lying flat on a surface that faces the camera down -Z, lit like everything
+    /// else in the scene.
+    ///
+    /// The carved verse used to go through <see cref="BillboardRenderer"/>, and that was wrong
+    /// twice over. A billboard turns to face the camera, so the writing slid off a flat pillar
+    /// as the shot moved; and <c>AlphaTestEffect</c> is unlit, so the band stayed at full
+    /// brightness while the stone around it fell into shadow. The two together are exactly what
+    /// made it read as a tan plaque hung on the pillar. Drawn here through the same
+    /// <see cref="BasicEffect"/> as the stone, with the same normal as the face it lies on, it
+    /// takes the same raking light and the seam disappears.
+    /// </summary>
+    private void DrawCarvedFace(Vector3 centre, float width, float height, Texture2D texture)
+    {
+        var halfWidth = width * 0.5f;
+        var halfHeight = height * 0.5f;
+
+        // Backward, where the cube's camera-facing course uses Forward, because this quad is
+        // wound the opposite way round from the cube's faces. Matching the cube's *label*
+        // rather than its *winding* is what leaves the band unlit on a lit pillar; the pair
+        // below was settled by rendering the shot, not by reading the vectors.
+        var normal = Vector3.Backward;
+
+        _faceQuad[0] = new VertexPositionNormalTexture(
+            centre + new Vector3(-halfWidth, halfHeight, 0f), normal, new Vector2(0f, 0f));
+        _faceQuad[1] = new VertexPositionNormalTexture(
+            centre + new Vector3(halfWidth, halfHeight, 0f), normal, new Vector2(1f, 0f));
+        _faceQuad[2] = new VertexPositionNormalTexture(
+            centre + new Vector3(halfWidth, -halfHeight, 0f), normal, new Vector2(1f, 1f));
+        _faceQuad[3] = new VertexPositionNormalTexture(
+            centre + new Vector3(-halfWidth, -halfHeight, 0f), normal, new Vector2(0f, 1f));
+
+        var wasTextured = _primitiveEffect.TextureEnabled;
+        _primitiveEffect.World = Matrix.Identity;
+        _primitiveEffect.View = _view;
+        _primitiveEffect.Projection = _projection;
+
+        // The texture carries the stone's colour, so the diffuse term has to be neutral or it
+        // would be tinted twice.
+        _primitiveEffect.TextureEnabled = true;
+        _primitiveEffect.Texture = texture;
+        _primitiveEffect.DiffuseColor = Vector3.One;
+        _primitiveEffect.Alpha = 1f;
+
+        GraphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
+
+        foreach (var pass in _primitiveEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList, _faceQuad, 0, 4, _faceIndices, 0, 2);
+        }
+
+        _primitiveEffect.TextureEnabled = wasTextured;
+        _primitiveEffect.Texture = null;
+    }
+
+    /// <summary>A jiva stone: eight facets, drawn emissive because it is the light, not lit by it.</summary>
+    private void DrawCrystal(Vector3 centre, float radius, Color colour, Vector3 emissive, float spin)
+    {
+        var previousEmissive = _primitiveEffect.EmissiveColor;
+
+        _primitiveEffect.World = Matrix.CreateScale(radius)
+            * Matrix.CreateRotationZ(0.32f)
+            * Matrix.CreateRotationY(spin)
+            * Matrix.CreateTranslation(centre);
+        _primitiveEffect.View = _view;
+        _primitiveEffect.Projection = _projection;
+        _primitiveEffect.DiffuseColor = colour.ToVector3();
+        _primitiveEffect.EmissiveColor = emissive;
+        _primitiveEffect.Alpha = colour.A / 255f;
+
+        foreach (var pass in _primitiveEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList,
+                _crystalVertices,
+                0,
+                _crystalVertices.Length,
+                _crystalIndices,
+                0,
+                _crystalIndices.Length / 3);
+        }
+
+        _primitiveEffect.EmissiveColor = previousEmissive;
+    }
+
+    /// <summary>
+    /// An octahedron with flat shading: every triangle carries its own three vertices so each
+    /// facet gets one normal. Sharing vertices would average the normals and smooth the stone
+    /// back into a ball, which is the one thing it must not look like.
+    /// </summary>
+    private void CreatePrimitiveCrystal()
+    {
+        var top = new Vector3(0f, 1f, 0f);
+        var bottom = new Vector3(0f, -1f, 0f);
+        var waist = new[]
+        {
+            new Vector3(1f, 0f, 0f),
+            new Vector3(0f, 0f, 1f),
+            new Vector3(-1f, 0f, 0f),
+            new Vector3(0f, 0f, -1f)
+        };
+
+        var triangles = new List<(Vector3 A, Vector3 B, Vector3 C)>();
+        for (var i = 0; i < 4; i++)
+        {
+            var a = waist[i];
+            var b = waist[(i + 1) % 4];
+            triangles.Add((top, a, b));
+            triangles.Add((bottom, b, a));
+        }
+
+        _crystalVertices = new VertexPositionNormalTexture[triangles.Count * 3];
+        _crystalIndices = new short[triangles.Count * 3];
+
+        for (var t = 0; t < triangles.Count; t++)
+        {
+            var (a, b, c) = triangles[t];
+            var normal = Vector3.Normalize(Vector3.Cross(b - a, c - a));
+            var baseIndex = t * 3;
+
+            _crystalVertices[baseIndex] = new VertexPositionNormalTexture(a, normal, Vector2.Zero);
+            _crystalVertices[baseIndex + 1] = new VertexPositionNormalTexture(b, normal, Vector2.UnitX);
+            _crystalVertices[baseIndex + 2] = new VertexPositionNormalTexture(c, normal, Vector2.One);
+
+            _crystalIndices[baseIndex] = (short)baseIndex;
+            _crystalIndices[baseIndex + 1] = (short)(baseIndex + 1);
+            _crystalIndices[baseIndex + 2] = (short)(baseIndex + 2);
+        }
+    }
+
+    /// <summary>Scratch copy of the cube, rebuilt per draw when its UVs have to be scaled.</summary>
+    private readonly VertexPositionNormalTexture[] _texturedCube = new VertexPositionNormalTexture[24];
+
+    /// <summary>
+    /// A box wearing a tiling texture, with the tile held at a constant size in metres.
+    ///
+    /// The cube's own UVs run 0..1 across every face, so a texture applied to it stretches with
+    /// the box: a long wall gets long thin bricks and a short one gets squat bricks, and the
+    /// eye reads the difference instantly as wrongness. Each face therefore gets its own UV
+    /// scale, taken from that face's real dimensions. BasicEffect has no texture matrix, so the
+    /// scaling happens on the vertices, which is why this rebuilds them rather than reusing the
+    /// shared cube.
+    /// </summary>
+    private void DrawTexturedCube(Vector3 position, Vector3 scale, Color tint,
+        Texture2D texture, float metresPerTile)
+    {
+        Array.Copy(_cubeVertices, _texturedCube, _cubeVertices.Length);
+
+        // Face order matches CreatePrimitiveCube: +Z, -Z, -X, +X, +Y, -Y.
+        var faceSize = new[]
+        {
+            new Vector2(scale.X, scale.Y),
+            new Vector2(scale.X, scale.Y),
+            new Vector2(scale.Z, scale.Y),
+            new Vector2(scale.Z, scale.Y),
+            new Vector2(scale.X, scale.Z),
+            new Vector2(scale.X, scale.Z)
+        };
+
+        for (var face = 0; face < 6; face++)
+        {
+            var tiles = faceSize[face] / MathHelper.Max(0.01f, metresPerTile);
+            for (var vertex = 0; vertex < 4; vertex++)
+            {
+                var index = face * 4 + vertex;
+                _texturedCube[index].TextureCoordinate *= tiles;
+            }
+        }
+
+        var world = Matrix.CreateScale(scale) * Matrix.CreateTranslation(position);
+
+        // Wrap, or the UV scaling above simply clamps and every face becomes one stretched
+        // brick. Linear rather than point: at 720p a 256-pixel tile repeated down a corridor
+        // aliases into noise without it.
+        GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
+
+        if (_caveEffect is not null)
+        {
+            DrawWithCaveLighting(world, tint, texture, _texturedCube, _cubeIndices);
+            return;
+        }
+
+        _primitiveEffect.World = world;
+        _primitiveEffect.View = _view;
+        _primitiveEffect.Projection = _projection;
+        _primitiveEffect.TextureEnabled = true;
+        _primitiveEffect.Texture = texture;
+        _primitiveEffect.DiffuseColor = tint.ToVector3();
+        _primitiveEffect.Alpha = 1f;
+
+        foreach (var pass in _primitiveEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList, _texturedCube, 0, _texturedCube.Length,
+                _cubeIndices, 0, _cubeIndices.Length / 3);
+        }
+
+        _primitiveEffect.TextureEnabled = false;
+        _primitiveEffect.Texture = null;
+    }
+
+    /// <summary>
+    /// Draw geometry through the cave shader, with the eight nearest lights bound.
+    ///
+    /// The lights are chosen per draw rather than per frame because "nearest" is only
+    /// meaningful relative to something: a torch across the room matters to the wall beside it
+    /// and not at all to the wall behind the player.
+    /// </summary>
+    private void DrawWithCaveLighting(Matrix world, Color tint, Texture2D texture,
+        VertexPositionNormalTexture[] vertices, short[] indices)
+    {
+        var effect = _caveEffect!;
+        var centre = Vector3.Transform(Vector3.Zero, world);
+
+        _lights.Sort((a, b) =>
+            Vector3.DistanceSquared(a.Position, centre)
+                .CompareTo(Vector3.DistanceSquared(b.Position, centre)));
+
+        var count = Math.Min(MaxPointLights, _lights.Count);
+        for (var i = 0; i < count; i++)
+        {
+            _lightPositions[i] = _lights[i].Position;
+            _lightColours[i] = new Vector4(_lights[i].Colour, _lights[i].Range);
+        }
+
+        effect.Parameters["World"].SetValue(world);
+        effect.Parameters["View"].SetValue(_view);
+        effect.Parameters["Projection"].SetValue(_projection);
+        effect.Parameters["WorldInverseTranspose"].SetValue(
+            Matrix.Transpose(Matrix.Invert(world)));
+        effect.Parameters["DiffuseColour"].SetValue(tint.ToVector3());
+        effect.Parameters["Surface"].SetValue(texture);
+        effect.Parameters["CameraPosition"].SetValue(_cameraPosition);
+        effect.Parameters["PointCount"].SetValue(count);
+
+        if (count > 0)
+        {
+            effect.Parameters["PointPosition"].SetValue(_lightPositions);
+            effect.Parameters["PointColour"].SetValue(_lightColours);
+        }
+
+        foreach (var pass in effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList, vertices, 0, vertices.Length,
+                indices, 0, indices.Length / 3);
+        }
+    }
+
+    /// <summary>Set the shader's ambient and directional fill for the room being drawn.</summary>
+    private void SetCaveAmbience(Vector3 ambient, Vector3 keyDirection, Vector3 keyColour)
+    {
+        if (_caveEffect is null) return;
+
+        _caveEffect.Parameters["AmbientColour"].SetValue(ambient);
+        _caveEffect.Parameters["KeyDirection"].SetValue(Vector3.Normalize(keyDirection));
+        _caveEffect.Parameters["KeyColour"].SetValue(keyColour);
+    }
+
+    /// <summary>
+    /// An unlit additive quad, for the pool of light a flame throws onto the surface behind it.
+    ///
+    /// This is the honest stopgap for having no point lights. It is drawn after the geometry,
+    /// facing the camera, and it adds rather than replaces, so it brightens stone without
+    /// flattening the texture underneath.
+    /// </summary>
+    private void DrawGlow(Vector3 centre, float radius, Color colour)
+    {
+        var previousBlend = GraphicsDevice.BlendState;
+        var previousDepth = GraphicsDevice.DepthStencilState;
+
+        _primitiveEffect.World = Matrix.Identity;
+        _primitiveEffect.View = _view;
+        _primitiveEffect.Projection = _projection;
+        _primitiveEffect.TextureEnabled = true;
+        _primitiveEffect.Texture = StoneTextures.Glow(GraphicsDevice);
+        _primitiveEffect.LightingEnabled = false;
+        _primitiveEffect.DiffuseColor = colour.ToVector3();
+        _primitiveEffect.Alpha = colour.A / 255f;
+
+        GraphicsDevice.BlendState = BlendState.Additive;
+
+        // Reads depth so a glow behind a wall stays behind it, writes none so two overlapping
+        // torches do not punch holes in each other.
+        GraphicsDevice.DepthStencilState = DepthStencilState.DepthRead;
+        GraphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
+
+        var right = new Vector3(MathF.Cos(_cameraYaw), 0f, MathF.Sin(_cameraYaw)) * radius;
+        var up = Vector3.Up * radius;
+
+        _faceQuad[0] = new VertexPositionNormalTexture(centre - right + up, Vector3.Forward, new Vector2(0f, 0f));
+        _faceQuad[1] = new VertexPositionNormalTexture(centre + right + up, Vector3.Forward, new Vector2(1f, 0f));
+        _faceQuad[2] = new VertexPositionNormalTexture(centre + right - up, Vector3.Forward, new Vector2(1f, 1f));
+        _faceQuad[3] = new VertexPositionNormalTexture(centre - right - up, Vector3.Forward, new Vector2(0f, 1f));
+
+        foreach (var pass in _primitiveEffect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            GraphicsDevice.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList, _faceQuad, 0, 4, _faceIndices, 0, 2);
+        }
+
+        _primitiveEffect.LightingEnabled = true;
+        _primitiveEffect.TextureEnabled = false;
+        _primitiveEffect.Texture = null;
+        GraphicsDevice.BlendState = previousBlend;
+        GraphicsDevice.DepthStencilState = previousDepth;
+    }
+
     private void CreatePrimitiveCube()
     {
         _cubeVertices = new VertexPositionNormalTexture[24];
@@ -4521,6 +5294,15 @@ public sealed class Game1 : Game
             new Vector3(-0.5f, 0.5f, 0.5f), new Vector3(0.5f, 0.5f, 0.5f), new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
             new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, 0.5f), new Vector3(-0.5f, -0.5f, 0.5f)
         };
+        // Read with the winding, not against it. The vertex block above lists the +Z face
+        // first, so pairing it with Vector3.Forward — which is (0,0,-1) — looks inverted and
+        // is not: with this winding and CullCounterClockwise the face presented to a camera
+        // on the +Z side is the one these normals light. Swapping them to "agree" with the
+        // positions turns the lit side of every surface black, which the trailer's one-source
+        // shot shows immediately and the authored world's flat ambient hides.
+        //
+        // Anything drawing its own quad into this scene has to follow the same convention.
+        // See DrawCarvedFace.
         var normals = new[]
         {
             Vector3.Forward, Vector3.Backward, Vector3.Left, Vector3.Right, Vector3.Up, Vector3.Down
@@ -4723,6 +5505,83 @@ public sealed class Game1 : Game
     {
         Fill(bounds, fill);
         Border(bounds, border);
+    }
+
+    /// <summary>
+    /// Draw an ornate panel by nine-slicing <see cref="PropTextures.Frame"/>.
+    ///
+    /// Corners are blitted at their own size and never scaled; edges stretch along one axis;
+    /// the middle stretches both ways. Scaling the whole texture instead is the thing that
+    /// makes a framed panel look like a stretched JPEG, and it is the single most common way
+    /// an otherwise good interface gives itself away.
+    /// </summary>
+    private void DrawFramedPanel(Rectangle bounds, Color tint)
+    {
+        var frame = PropTextures.Frame(GraphicsDevice);
+        const int c = PropTextures.FrameCorner;
+        var far = frame.Width - c;
+
+        // source, destination
+        void Piece(Rectangle source, Rectangle destination) =>
+            _spriteBatch.Draw(frame, destination, source, tint);
+
+        var innerWidth = Math.Max(0, bounds.Width - c * 2);
+        var innerHeight = Math.Max(0, bounds.Height - c * 2);
+
+        Piece(new Rectangle(0, 0, c, c), new Rectangle(bounds.Left, bounds.Top, c, c));
+        Piece(new Rectangle(far, 0, c, c), new Rectangle(bounds.Right - c, bounds.Top, c, c));
+        Piece(new Rectangle(0, far, c, c), new Rectangle(bounds.Left, bounds.Bottom - c, c, c));
+        Piece(new Rectangle(far, far, c, c), new Rectangle(bounds.Right - c, bounds.Bottom - c, c, c));
+
+        Piece(new Rectangle(c, 0, far - c, c),
+            new Rectangle(bounds.Left + c, bounds.Top, innerWidth, c));
+        Piece(new Rectangle(c, far, far - c, c),
+            new Rectangle(bounds.Left + c, bounds.Bottom - c, innerWidth, c));
+        Piece(new Rectangle(0, c, c, far - c),
+            new Rectangle(bounds.Left, bounds.Top + c, c, innerHeight));
+        Piece(new Rectangle(far, c, c, far - c),
+            new Rectangle(bounds.Right - c, bounds.Top + c, c, innerHeight));
+
+        Piece(new Rectangle(c, c, far - c, far - c),
+            new Rectangle(bounds.Left + c, bounds.Top + c, innerWidth, innerHeight));
+    }
+
+    /// <summary>A bar inside a framed slot, drawn the way the mock-ups do it.</summary>
+    private void DrawFramedBar(Rectangle bounds, float fraction, Color fill, string label)
+    {
+        DrawFramedPanel(bounds, Color.White);
+
+        // Emblem first, and the bar starts where the emblem ends. Laying the bar across the
+        // whole panel and then putting the emblem on top of it is what made the first pass
+        // look like three things fighting for the same forty pixels.
+        var emblem = bounds.Height - 16;
+        _spriteBatch.Draw(PropTextures.Lotus(GraphicsDevice),
+            new Rectangle(bounds.X + 9, bounds.Y + 8, emblem, emblem),
+            new Color(255, 236, 196));
+
+        var track = new Rectangle(
+            bounds.X + emblem + 16,
+            bounds.Y + 10,
+            bounds.Width - emblem - 26,
+            bounds.Height - 20);
+
+        Fill(track, new Color(14, 11, 10));
+
+        var filled = track;
+        filled.Width = (int)(track.Width * MathHelper.Clamp(fraction, 0f, 1f));
+        Fill(filled, fill);
+
+        // A lit band across the top third, so the bar reads as a filled vessel rather than a
+        // rectangle of flat colour.
+        var sheen = filled;
+        sheen.Height = Math.Max(1, filled.Height / 3);
+        Fill(sheen, new Color(255, 255, 255, 44));
+        Border(track, new Color(12, 10, 9));
+
+        // Centred in the track by measured height, not by a guessed offset.
+        const float LabelSize = 15f;
+        var textY = track.Y + (track.Height - LabelSize) * 0.5f - 1f;
+        Text(label, new Vector2(track.X + 10, textY), LabelSize, new Color(248, 242, 230));
     }
 
     private void Fill(Rectangle bounds, Color color) => _spriteBatch.Draw(_white, bounds, color);
