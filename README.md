@@ -113,6 +113,8 @@ Supporting records:
   direction that follows from them
 - [`Docs/NAMES_AND_OFFICES.md`](Docs/NAMES_AND_OFFICES.md) — names, the offices of the state,
   its two court systems, and the proposed renames
+- [`Docs/STORY.md`](Docs/STORY.md) — the arc, how a roguelite delivers one, the trigger rules,
+  and the ending
 
 - [`Docs/PLAYTEST_NOTES.md`](Docs/PLAYTEST_NOTES.md) — what testers found, and what was done
 - [`Docs/STEAM_PRESENTATION_BASELINE.md`](Docs/STEAM_PRESENTATION_BASELINE.md) — display contract
