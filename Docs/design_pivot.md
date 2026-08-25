@@ -73,7 +73,27 @@ stones. So the two layers do different jobs:
 A run ends when you **camp** or when you **die**.
 
 Camp is available **at the exit of a cleared room, and nowhere else** — there is no camping
-mid-fight. Camping banks what you have and ends the run there. Pushing on is worth more: **the
+mid-fight. Camping banks what you have and ends the run there.
+
+**A camp is a place, not a button.** At a cleared room's exit a trader can be whistled down for
+stones out of the pot: the order clears the ground, and miners and traders follow cleared
+ground, because that is where the stones are. The fare is `5 x tier x calls` — five, ten,
+fifteen at the shallowest and fifteen, thirty, forty-five three tiers down — so the second
+trader always costs more than the first and depth charges in the same proportion it pays.
+
+Two rules keep this from unmaking the mechanic above it:
+
+1. **A camp trader deals only in what is spent before the run ends.** Consumables, never gear.
+   Permanent things stay at the surface stall. If at-risk stones could be turned into something
+   that survives a death, pressing on would become strictly *safer* — the pot would be
+   launderable and the decision this whole design rests on would quietly stop being one.
+2. **Everything at a camp is priced in the pot, and what is sold goes into the pot.** Down a
+   mine the pot is the purse. Loot sold at a camp is at risk exactly like the rest, so a camp
+   is never a way to bank early.
+
+What this buys, beyond the trade: loot finally has a use, spending the pot to survive deeper is
+a bet stacked on a bet, and there is somewhere a person can be met every single run — which is
+the natural home for story told in frequent pieces rather than rare ones. Pushing on is worth more: **the
 Nth room of a tier-T mine pays `N x T` stones**, not one.
 
 | Rooms cleared | Banked if you camp | Next room pays | You are risking |

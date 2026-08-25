@@ -53,6 +53,12 @@ public static class PlayEventKind
     /// <summary>Something was bought at the stall. The other half of the loop, finally.</summary>
     public const string ItemBought = "item.bought";
 
+    /// <summary>A trader was whistled down to a camp, and what the fare was.</summary>
+    public const string TraderCalled = "trader.called";
+
+    /// <summary>Loot sold at a camp, and what it fetched.</summary>
+    public const string LootSold = "trader.sold";
+
     /// <summary>
     /// A panel opened or closed, with Extra set to one or nought.
     ///

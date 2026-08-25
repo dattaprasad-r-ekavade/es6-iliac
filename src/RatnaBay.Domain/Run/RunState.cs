@@ -57,6 +57,9 @@ public sealed class RunState
 
     public RunOutcome Outcome { get; private set; } = RunOutcome.InProgress;
 
+    /// <summary>How many traders have been whistled down this descent. Each one costs more.</summary>
+    public int TradersCalled { get; private set; }
+
     /// <summary>True while the run can still be pressed or banked.</summary>
     public bool IsActive => Outcome == RunOutcome.InProgress;
 
@@ -138,6 +141,52 @@ public sealed class RunState
         return paid;
     }
 
+    /// <summary>
+    /// Spend out of the pot.
+    ///
+    /// The pot is the purse down here, not the pack. Spending banked wealth on help would be a
+    /// weaker decision entirely — it is the stones you have not carried out yet that make
+    /// paying for anything a gamble on getting further.
+    /// </summary>
+    public bool TrySpend(int stones)
+    {
+        if (!IsActive || stones < 0 || stones > Pending) return false;
+        if (stones == 0) return true;
+
+        Pending -= stones;
+        Changed?.Invoke();
+        return true;
+    }
+
+    /// <summary>Add to the pot from something other than clearing a room.</summary>
+    public void Collect(int stones)
+    {
+        if (!IsActive || stones <= 0) return;
+
+        Pending += stones;
+        Changed?.Invoke();
+    }
+
+    /// <summary>Note that a trader has come, so the next one costs more.</summary>
+    public void NoteTraderCalled()
+    {
+        if (!IsActive) return;
+
+        TradersCalled++;
+        Changed?.Invoke();
+    }
+
+    /// <summary>What calling a trader would cost right now.</summary>
+    public int TraderCallCost => CampTrader.CostToCall(Tier, TradersCalled);
+
+    /// <summary>
+    /// A trader can be whistled for at a cleared room's exit, if the pot covers it.
+    ///
+    /// Same place as the camp decision, because it is part of the same moment: what is in the
+    /// trader's pack is information the press-on choice needs.
+    /// </summary>
+    public bool CanCallTrader => IsActive && RoomIsClear && Pending >= TraderCallCost;
+
     /// <summary>Bank the pot and end the run here.</summary>
     public RunResult Camp()
     {
@@ -183,6 +232,7 @@ public sealed class RunState
         RoomsCleared = RoomsCleared,
         Pending = Pending,
         RoomIsClear = RoomIsClear,
+        TradersCalled = TradersCalled,
         Outcome = Outcome.ToString()
     };
 
@@ -200,6 +250,7 @@ public sealed class RunState
         RoomsCleared = Math.Clamp(saved.RoomsCleared, 0, Rooms);
         Pending = Math.Max(0, saved.Pending);
         RoomIsClear = saved.RoomIsClear;
+        TradersCalled = Math.Max(0, saved.TradersCalled);
         Outcome = Enum.TryParse<RunOutcome>(saved.Outcome, out var outcome)
             ? outcome
             : RunOutcome.InProgress;
@@ -215,6 +266,7 @@ public sealed class RunState
         run.RoomsCleared = Math.Clamp(saved.RoomsCleared, 0, run.Rooms);
         run.Pending = Math.Max(0, saved.Pending);
         run.RoomIsClear = saved.RoomIsClear;
+        run.TradersCalled = Math.Max(0, saved.TradersCalled);
         run.Outcome = Enum.TryParse<RunOutcome>(saved.Outcome, out var outcome)
             ? outcome
             : RunOutcome.InProgress;
@@ -252,5 +304,6 @@ public sealed class SavedRun
     public int RoomsCleared { get; init; }
     public int Pending { get; init; }
     public bool RoomIsClear { get; init; }
+    public int TradersCalled { get; init; }
     public string Outcome { get; init; } = nameof(RunOutcome.InProgress);
 }

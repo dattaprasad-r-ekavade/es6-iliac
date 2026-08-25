@@ -227,6 +227,10 @@ public sealed class Game1 : Game
     /// <summary>What the last death cost, shown beside the run summary.</summary>
     private SuccessionResult? _succession;
 
+    /// <summary>A trader has been whistled down and is unpacking.</summary>
+    private bool _campTraderOpen;
+    private int _campSelection;
+
     /// <summary>The shaft panel is open and a depth is being chosen.</summary>
     private bool _choosingDepth;
     private int _depthSelection = 1;
@@ -1006,6 +1010,77 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>A row of the camp trader's pack. Selling is row zero.</summary>
+    private static Rectangle CampRowBounds(int index) => new(360, 262 + index * 52, 560, 44);
+
+    /// <summary>
+    /// The trader at a cleared room's exit.
+    ///
+    /// Everything here is priced in the pot, because down a mine the pot is the purse: what is
+    /// spent was never carried out, and what is sold is at risk exactly like the rest. That is
+    /// what stops a camp being a way to bank early.
+    /// </summary>
+    private void UpdateCampTrader(KeyboardState keyboard, MouseState mouse)
+    {
+        if (_session is null || _run is null) { _campTraderOpen = false; return; }
+
+        var run = _run.Run;
+        var rows = CampRowCount();
+
+        if (Pressed(keyboard, Keys.Escape) || Pressed(keyboard, Keys.T))
+        {
+            _campTraderOpen = false;
+            SetMouseLook(true);
+            return;
+        }
+
+        if (Pressed(keyboard, Keys.Up)) _campSelection = (_campSelection + rows - 1) % rows;
+        if (Pressed(keyboard, Keys.Down)) _campSelection = (_campSelection + 1) % rows;
+
+        var chosen = false;
+        var pointer = LogicalMouse(mouse);
+        for (var index = 0; index < rows; index++)
+        {
+            if (!CampRowBounds(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
+
+            _campSelection = index;
+            chosen = Clicked(mouse);
+            break;
+        }
+
+        if (!chosen && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
+
+        if (_campSelection == 0)
+        {
+            var paid = CampTrader.SellLoot(_session.Player.Inventory, run);
+            _session.ShowToast(paid > 0
+                ? $"They take the lot. +{paid} stones, and the pot is {run.Pending}."
+                : "Nothing in your pack they want.");
+
+            if (paid > 0)
+                _recorder.Record(PlayEventKind.LootSold, "loot", paid, run.Pending,
+                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+
+            return;
+        }
+
+        var good = CampTrader.Stock[_campSelection - 1];
+        if (!run.TrySpend(good.Stones))
+        {
+            _session.ShowToast($"{good.Name} wants {good.Stones} stones. The pot holds {run.Pending}.");
+            return;
+        }
+
+        _session.Player.Inventory.Add(good.ItemId, good.Name, good.Count, good.Kind);
+        _recorder.Record(PlayEventKind.ItemBought, good.Name, good.Stones, run.Pending,
+            _session.Player.Vitals.Health, _session.Player.Vitals.Prana, "camp");
+
+        _session.ShowToast($"{good.Name}. {run.Pending} stones left in the pot.");
+    }
+
+    /// <summary>Sell everything, then one row for each thing on offer.</summary>
+    private static int CampRowCount() => 1 + CampTrader.Stock.Count;
+
     /// <summary>
     /// The shaft: choose a depth, pay for it, and go down.
     ///
@@ -1258,6 +1333,12 @@ public sealed class Game1 : Game
             return;
         }
 
+        if (_campTraderOpen)
+        {
+            UpdateCampTrader(keyboard, mouse);
+            return;
+        }
+
         if (_choosingDepth)
         {
             UpdateDepthChoice(keyboard, mouse);
@@ -1282,6 +1363,28 @@ public sealed class Game1 : Game
                 _recorder.Record(PlayEventKind.Camped, $"after {result.RoomsCleared} rooms",
                     result.StonesCarriedOut, 0f, _session.Player.Vitals.Health);
                 EndRun(result);
+                return;
+            }
+
+            // A trader can be whistled for at the same moment, because what is in their pack
+            // is information the press-on choice needs.
+            if (Pressed(keyboard, Keys.T) && decision.Run.CanCallTrader && _session is not null)
+            {
+                var fare = decision.Run.TraderCallCost;
+                if (decision.Run.TrySpend(fare))
+                {
+                    decision.Run.NoteTraderCalled();
+                    _campTraderOpen = true;
+                    _campSelection = 0;
+                    SetMouseLook(false, forPanel: true);
+
+                    _recorder.Record(PlayEventKind.TraderCalled,
+                        $"call {decision.Run.TradersCalled}", fare, decision.Run.Pending,
+                        _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+
+                    _session.ShowToast($"{fare} stones, and somebody comes down the ladder.");
+                }
+
                 return;
             }
 
@@ -1387,7 +1490,8 @@ public sealed class Game1 : Game
     /// </summary>
     private bool AnyPanelOpen =>
         _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp
-        || _showSettings || _paused || _choosingDepth || _runSummary is not null;
+        || _showSettings || _paused || _choosingDepth || _campTraderOpen
+        || _runSummary is not null;
 
     /// <summary>
     /// Close everything and give the camera straight back.
@@ -2882,6 +2986,7 @@ public sealed class Game1 : Game
         if (_showJournal) DrawJournal();
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
+        if (_campTraderOpen) DrawCampTrader();
         if (_choosingDepth) DrawDepthChoice();
         if (_paused && _runSummary is null) DrawPause();
         if (_runSummary is { } summary) DrawRunSummary(summary);
@@ -2901,7 +3006,7 @@ public sealed class Game1 : Game
         if (_run is not { AtDecision: true } decision) return;
 
         var run = decision.Run;
-        var panel = new Rectangle(360, 386, 560, 232);
+        var panel = new Rectangle(360, 358, 560, 260);
         DrawPanel(panel, new Color(6, 12, 19, 240), new Color(205, 157, 98));
 
         TextCentred("A CLEARED ROOM, AND A SHUT DOOR", panel.Center.X, panel.Y + 18f, 13,
@@ -2928,6 +3033,13 @@ public sealed class Game1 : Game
         if (!run.IsExhausted)
             TextCentred("Fall in there and you carry out nothing.",
                 panel.Center.X, panel.Y + 150f, 13, new Color(196, 118, 96));
+
+        if (run.CanCallTrader)
+            TextCentred($"T   whistle for a trader — {run.TraderCallCost} stones",
+                panel.Center.X, panel.Y + 168f, 14, new Color(196, 176, 210));
+        else if (run.TradersCalled > 0 || run.Pending > 0)
+            TextCentred($"a trader would want {run.TraderCallCost} stones",
+                panel.Center.X, panel.Y + 168f, 13, new Color(120, 116, 128));
 
         var camp = new Rectangle(panel.X + 24, panel.Bottom - 62, 248, 40);
         DrawPanel(camp, new Color(17, 34, 28, 235), new Color(120, 178, 132));
@@ -3023,6 +3135,67 @@ public sealed class Game1 : Game
 
         TextCentred("Click or arrows select      Enter confirm      Esc resume",
             panel.Center.X, panel.Bottom - 30f, 13, new Color(140, 156, 164));
+    }
+
+    /// <summary>
+    /// The trader's pack, priced in the pot.
+    ///
+    /// The pot is on the panel at all times, because every price here is a stone not carried
+    /// out, and that is the only thing that makes any of it a decision.
+    /// </summary>
+    private void DrawCampTrader()
+    {
+        if (_session is null || _run is null) return;
+
+        var run = _run.Run;
+        var (lootItems, lootStones) = CampTrader.ValueOfLoot(_session.Player.Inventory);
+        var panel = new Rectangle(320, 168, 640, 384);
+
+        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 214),
+            new Color(3, 6, 10, 0));
+        DrawPanel(panel, new Color(6, 12, 19, 246), new Color(205, 157, 98));
+
+        TextCentred("SOMEBODY CAME DOWN", panel.Center.X, panel.Y + 24f, 24,
+            new Color(214, 226, 226));
+        TextCentred($"{run.Pending} stones in the pot  ·  the next whistle costs {run.TraderCallCost}",
+            panel.Center.X, panel.Y + 58f, 14, new Color(151, 206, 210));
+
+        for (var index = 0; index < CampRowCount(); index++)
+        {
+            var row = CampRowBounds(index);
+            var selected = index == _campSelection;
+
+            var name = index == 0
+                ? lootItems > 0 ? $"Sell {lootItems} pieces of loot" : "Nothing to sell"
+                : CampTrader.Stock[index - 1].Name;
+
+            var price = index == 0
+                ? lootItems > 0 ? $"+{lootStones} stones" : "—"
+                : $"{CampTrader.Stock[index - 1].Stones} stones";
+
+            var affordable = index == 0
+                ? lootItems > 0
+                : run.Pending >= CampTrader.Stock[index - 1].Stones;
+
+            DrawPanel(row,
+                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
+                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
+
+            var ink = !affordable ? new Color(122, 112, 108)
+                : selected ? Color.White
+                : new Color(192, 207, 205);
+
+            Text(name, new Vector2(row.X + 18, row.Y + 12), 16, ink);
+            TextRight(price, row.Right - 18, row.Y + 12, 15,
+                index == 0
+                    ? new Color(151, 206, 210)
+                    : affordable ? new Color(214, 186, 120) : new Color(196, 118, 96));
+        }
+
+        TextCentred("Nothing here outlives the descent. Dying still costs you all of it.",
+            panel.Center.X, panel.Bottom - 52f, 13, new Color(196, 118, 96));
+        TextCentred("Click or arrows choose      Enter trade      Esc back to the door",
+            panel.Center.X, panel.Bottom - 28f, 13, new Color(140, 156, 164));
     }
 
     /// <summary>
