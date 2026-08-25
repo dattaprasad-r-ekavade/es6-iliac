@@ -1,0 +1,35 @@
+<p><strong>Windows 10 or 11, 64-bit.</strong> No installer and no .NET download &mdash; the runtime is bundled.</p>
+
+<ol>
+<li>Download the zip and extract it. <strong>Extract it properly</strong> &mdash; right-click, Extract All. Running straight out of the zip preview will fail, because the game needs the files next to it.</li>
+<li>Run <strong>RatnaBay.exe</strong> from the extracted folder.</li>
+</ol>
+
+<h3>Windows will warn you. This is expected.</h3>
+
+<p>You will see <em>"Windows protected your PC"</em> from SmartScreen. That warning means the executable is not code-signed, which is true &mdash; a signing certificate costs a few hundred a year and this is a free alpha.</p>
+
+<p>To run it anyway: click <strong>More info</strong>, then <strong>Run anyway</strong>.</p>
+
+<p>If you would rather not, that is a completely reasonable call and I would rather you skipped it than clicked through a security warning on my say-so. Installing through the itch.io desktop app avoids the prompt.</p>
+
+<h3>Where it puts things</h3>
+
+<p>Saves, settings, and recordings live in <code>%APPDATA%\RatnaBay</code>. Paste that into the address bar of any Explorer window to open it.</p>
+
+<p>Nothing is written to Program Files, nothing is added to the registry, and nothing runs at startup. <strong>To uninstall:</strong> delete the folder you extracted, and delete <code>%APPDATA%\RatnaBay</code> if you want the saves gone too.</p>
+
+<h3>If it will not start</h3>
+
+<ul>
+<li><strong>It opens and closes instantly.</strong> Almost always an incomplete extract. Delete the folder and extract the zip again.</li>
+<li><strong>An error about a missing DLL.</strong> Same cause &mdash; a file did not make it out of the zip. Some antivirus tools quietly quarantine files mid-extract; check the quarantine log.</li>
+<li><strong>A black window, or it will not go fullscreen.</strong> Press <strong>F11</strong> to toggle windowed mode.</li>
+<li><strong>Anything else.</strong> Tell me your Windows version and what you saw. If the game got as far as the menu, there will be a recording of the session in <code>%APPDATA%\RatnaBay\recordings</code> &mdash; attaching the newest one tells me far more than a description can.</li>
+</ul>
+
+<h3>Controls, if you want them before you start</h3>
+
+<p><strong>W A S D</strong> move, <strong>mouse</strong> look, <strong>left click</strong> attack, <strong>right click</strong> guard, <strong>E</strong> interact, <strong>I</strong> your pack, <strong>Q</strong> cast. Press <strong>F1</strong> in game for the full list, and <strong>Tab</strong> to release the mouse.</p>
+
+<p>The game explains itself as you go. You should not need to read anything before playing.</p>
