@@ -637,6 +637,16 @@ Genuinely unresolved:
 
 ## 4. Part three — getting the telemetry back
 
+This section is the decision. The options behind it — every hosting free tier, every analytics vendor,
+the .NET client details, and a consolidated free-tier table — are surveyed with sources in
+[`TELEMETRY_RETURN_RESEARCH.md`](TELEMETRY_RETURN_RESEARCH.md). Read that when choosing; read this
+when deciding whether to choose at all.
+
+One number frames the whole thing: **thirty testers at five sessions each is 150 files and about
+50,000 events, once.** Every free tier surveyed clears that by three to five orders of magnitude. So
+capacity is not a criterion, and anything that reads like a capacity argument is a distraction —
+the criteria are engineering cost and compliance surface.
+
 ### 4.1 What exists, and the exact size of the gap
 
 ```
@@ -664,8 +674,9 @@ The failure modes are real though: `%APPDATA%` is a hidden path most people cann
 they send the wrong file, or they send the *first* file rather than the newest. Two cheap mitigations
 that stay entirely offline:
 
-- A **"reveal recordings folder"** button in settings. On Windows that is a single shell open on
-  `PlayRecorder.Directory`. It converts "find AppData" into "click this".
+- A **"reveal recordings folder"** button in settings — `explorer.exe /select,<newest file>`, which
+  opens the folder *and* highlights the file. It converts "find AppData" into "click this", and
+  `%APPDATA%` being hidden by default is the single biggest failure mode here.
 - A **"copy summary to clipboard"** action that runs the existing `PlayReview` in-process and puts
   the report text on the clipboard. The tester pastes it into Discord. This is a genuinely good fit,
   because the thing being asked for is *tens of numbers*, not a file — and `PlayReview.Verdict`
@@ -674,6 +685,11 @@ that stay entirely offline:
 For a five-person first pass, rung 0 plus the clipboard button is very likely the right answer, and
 it has no legal surface at all: nothing is transmitted, so no lawful basis, no privacy policy, no IP
 address. **Start here.**
+
+One more free thing that belongs at this rung: **issue a named download key per tester** (§2.3). It
+takes minutes and it distinguishes *"didn't play"* from *"played but the data never arrived"* — the
+ambiguity that quietly ruins a small-sample playtest, because the two look identical from here and
+imply opposite next actions.
 
 **Rung 1 — one HTTP POST to an endpoint you own.** When the tester count or the round count makes
 asking too lossy. The payload is already JSON and already small.
@@ -694,29 +710,39 @@ R2 for whole-file drops, or D1 if the events should be queryable. The KV write l
 the only figure that could surprise anyone, and it is still three orders of magnitude clear of this
 workload.
 
-**Rung 2 — a hosted analytics product.** Worth knowing about, mostly worth skipping.
+**R2 is the right pick, and the reason is not capacity.** A Worker that does
+`env.BUCKET.put(uuid, body)` stores **the exact JSON `PlayRecording.TryLoad` already parses**. Download
+the bucket, point `RatnaBay.Tools review` at the folder, and everything `PlayReview` knows about forced
+camps and re-advertised doors keeps working. No schema, no mapping, no dashboard to learn. It is
+roughly fifteen lines of JavaScript and sixty of C#.
 
-- **Aptabase** is the closest fit in spirit: open source (AGPLv3, MIT SDKs), explicitly built for
-  desktop and mobile apps rather than websites, self-hostable, EU or US data residency, and
-  deliberately **no device identifiers, cookies, or fingerprinting**, which is exactly the posture
-  this game's data already has ([aptabase.com](https://aptabase.com/),
-  [GitHub](https://github.com/aptabase/aptabase)). The catch is the .NET story: the only .NET SDK is
-  `Aptabase.Maui`, which is MAUI-specific and targets .NET 8
-  ([NuGet](https://www.nuget.org/profiles/aptabase)). For MonoGame it would be a plain `HttpClient`
-  call against the HTTP API — at which point it is rung 1 with somebody else's dashboard.
-- **GameAnalytics** has no .NET-desktop SDK path worth the trouble and imposes a consent-before-any-
-  data requirement plus a right to audit
-  ([policy](https://www.gameanalytics.com/trust/privacy-faq)).
+**Rung 2 — a hosted analytics product.** Worth knowing about; still not the answer here.
 
-The decisive objection to all of them is not cost or compliance, it is fit. These products aggregate.
-This project needs *one specific derived number per door* — hesitation in seconds, classified reflex
-/ quick / weighed, with forced camps excluded — and `PlayReview` already computes it, with tests
+[`TELEMETRY_RETURN_RESEARCH.md`](TELEMETRY_RETURN_RESEARCH.md) surveys these properly, with verified
+free tiers for every provider and a consolidated table at the end. The short version:
+
+- **PostHog** is the strongest of them, and stronger than I first assumed: an **official MIT-licensed
+  .NET SDK that works in a plain console app**, 1M events/month free, EU (Frankfurt) hosting, and the
+  library explicitly disregards the server-side IP. If a dashboard were wanted without building one,
+  this is the one to pick.
+- **Aptabase** is the closest fit in spirit — desktop-first, privacy-first, EU residency, a DPA already
+  in its terms, self-hostable — and the worst fit technically, because the only .NET SDK is
+  `Aptabase.Maui`, which a MonoGame process cannot use, and the published package is 0.1.0 from
+  September 2024.
+- **GameAnalytics** is usable through its Collection API v2 if you write the client yourself, but its
+  500-events-per-active-user-per-day ceiling would bind on raw event timelines.
+- **Microsoft App Center is dead twice over** — retired March 2025, and its Analytics extension expired
+  June 2026. Ignore any guide that recommends it.
+
+The decisive objection is not cost or compliance, it is fit. These products aggregate across people.
+This project needs *one specific derived number per door* — hesitation in seconds, classified reflex /
+quick / weighed, with forced camps excluded — and `PlayReview` already computes it, with tests
 asserting the classification and a documented history of the recorder lying before those tests
-existed. Pushing raw events into a generic funnel dashboard would replace a purpose-built, tested
-reader with a worse one.
+existed. Reshaping the event timeline to fit a generic product-analytics model risks losing exactly the
+nuance that was expensive to get right.
 
-**Recommendation: rung 0 now, rung 1 when it hurts, rung 2 never — or at least not for this
-question.**
+**Recommendation: rung 0 now, rung 1 (Worker + R2) when asking gets lossy, rung 2 only if somebody
+wants a dashboard more than they want the answer.**
 
 ### 4.3 If rung 1 gets built, the implementation notes
 
@@ -726,11 +752,24 @@ Inherit `PlayRecorder`'s posture, and add:
   sockets.
 - **A short timeout, and treat every failure as success.** 5 seconds, catch everything, set a broken
   flag, move on. The game must not care whether the upload worked.
-- **Never on the game thread, and never awaited during a frame.** Upload on exit, or on run end,
-  which is a natural pause and is where `PlayEventKind.RunEnded` already fires.
-- **Queue offline.** The file is already on disk, which *is* the queue. Try to send unsent recordings
-  at next launch and mark them sent by renaming. A tester playing on a train should not lose the
-  session.
+- **Never on the game thread, and never awaited during a frame.**
+- **Do not upload on process exit.** `AppDomain.CurrentDomain.ProcessExit` looks like the obvious
+  hook and is a trap. .NET Framework capped all exit handlers at two seconds; that cap **does not
+  exist in .NET Core and .NET 5+**, so a network call there can hang the process on exit indefinitely
+  — a much worse bug than a lost upload. It also does not run on a kill, a power-off, or many crash
+  paths, which are precisely the sessions worth having. **Upload during play instead**, at the natural
+  pauses the recorder already marks: when a decision is answered, and when `RunEnded` fires. By the
+  time the tester alt-F4s, the data has already gone.
+- **Queue offline, using the disk you already write to.** On launch, list `play_*.json` in
+  `PlayRecorder.Directory`, POST anything without an `.uploaded` sidecar marker, write the marker on
+  2xx, leave it alone on anything else. That is offline support, retry across restarts and crash
+  resilience in about twenty lines, with no in-memory queue and no second persistence format —
+  and `PlayRecorder.Newest()` already demonstrates the directory-listing pattern to copy. Never
+  delete an uploaded file; the tester may still want to send it by hand and the disk cost is nil.
+- **Barely retry.** If a POST fails the file stays on disk and gets retried next launch, which is a
+  better backoff than any in-process loop. If you want in-session retry, two attempts a few seconds
+  apart, only for transient conditions, and never for a 4xx other than 429 — a 4xx means the payload
+  is wrong and retrying makes it wrong repeatedly.
 - **Accept that any key in the binary is public.** A shipped client cannot hold a secret. The
   mitigations are to make the endpoint write-only, rate-limit it, cap the body size, and be willing
   to rotate it. This is acceptable precisely because the data is not sensitive and the audience is
@@ -765,8 +804,10 @@ Nothing here needs new packages or a new subsystem, which is the point.
 1. **Keep the game free and the page Restricted**, with the password in the invite link. Treat every
    build pushed as permanent — the licence granted to anyone who downloads it is perpetual and
    survives you deleting the page.
-2. **Set up your own feedback channel and put it in the invitation.** itch.io cannot email people who
-   downloaded a free project, so without this there is no way to follow up, chase, or ask a question.
+2. **Set up your own feedback channel and put it in the invitation**, and **issue one named download
+   key per tester.** itch.io cannot email people who downloaded a free project, so without the channel
+   there is no way to follow up; without the keys you cannot tell "didn't play" from "played but no
+   data arrived".
 3. **Write the tester instructions around the itch.io app**, not the browser download, and **tell
    testers in advance what Windows might say.** SmartScreen's default answer is "don't run", Smart App
    Control on Windows 11 may refuse outright, and a lost tester is 20% of the sample.
@@ -782,8 +823,9 @@ Nothing here needs new packages or a new subsystem, which is the point.
 7. **Run one build end to end on a machine that is not the dev box** before sending it to anybody —
    that is the only way to find out whether Defender takes exception to the publish.
 8. **Run the playtest. Read the recordings by hand the first time.**
-9. Only if step 5 loses too much data: build the rung-1 uploader, default off, with a consent toggle
-   and a short privacy note linked from the page.
+9. Only if step 5 loses too much data: build the rung-1 uploader — a Cloudflare Worker writing whole
+   recordings to R2, the recordings folder as the queue — default off, with a consent toggle and a
+   short privacy note linked from the page. Upload at decision points, never on process exit.
 10. Revisit money, classification and code signing at iteration 21's slice lock, not before. Signing
     earns its cost when builds go out often to a growing audience, because unsigned reputation resets
     every build — not for one round with five named people.
