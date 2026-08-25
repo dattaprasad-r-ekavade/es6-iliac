@@ -32,6 +32,14 @@ reason written beside each one.
 | Feature | Why | When it might return |
 |---|---|---|
 | **Pickpocketing** | Built for a town full of people to move through. A descent has nothing with pockets in it and the yard has one trader you are meant to trade with. Testers never found it even when it was the only route to a key. | Iteration 19, the fort — ten rooms of occupants who will not talk to you yet is the situation it was written for. |
+| **Lockpicking**, and the Security skill | Already dormant by content before it was switched off: mine doors are shut rather than locked on purpose, and the yard has no doors. With picking and pickpocketing both parked, nothing anywhere trains Security. `Lockable` itself stays — every door is one. | The fort, or the first mine that wants a strongroom worth opening. |
+| **Sneaking**, and the Stealth skill | An observation rather than a decision. Stealth was read by the detection system and trained by nothing, and generated mines place no watchers to hide from. Crouching still works; only the skill is dead. | Watchers in the fort, or a mine with something asleep in it worth creeping past. |
+
+**Found while parking these:** `Skills.Block` appeared exactly once in the whole codebase — in
+the list of skills — and had never been trained since the day it was written. Blocking is the
+only defensive verb there is and it is used in every fight, so it was wired up rather than
+parked. Three of eight skills were dead; one was a gap, two were genuinely orphaned by the
+pivot.
 
 Parking is not deleting: the domain rules and their tests keep running, so a parked feature
 cannot rot and switching it back on is one line.

@@ -124,6 +124,17 @@ public sealed class PlayerCombat
     public float TakeHit(float amount)
     {
         EnterCombat();
+
+        // Guarding trains Block.
+        //
+        // It never did: Skills.Block existed in the list of skills and appeared nowhere else
+        // in the codebase, so a player could hold their guard for a hundred fights and the
+        // number beside it stayed where it started. Block is the one defensive verb there is,
+        // and it is used in every fight — a skill nothing trains is worse than no skill,
+        // because it looks like progress that is not happening.
+        if (IsBlocking && amount > 0f)
+            _skills.ReportUse(Skills.Block, amount * DamageMath.BlockReduction, amount);
+
         return _vitals.TakeDamage(amount, _equipment.ArmourValue, IsBlocking);
     }
 

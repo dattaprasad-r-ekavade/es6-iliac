@@ -36,4 +36,52 @@ public static class ParkedFeatures
     /// unreachable-code noise and buries the warnings that matter.
     /// </remarks>
     public static readonly bool Pickpocketing = false;
+
+    /// <summary>
+    /// Lockpicking, and the Security skill that exists only to serve it.
+    ///
+    /// **Parked 2026-08-25.** Nothing in the live game makes a lock worth picking. Mine doors
+    /// are shut rather than locked, deliberately — the gate on pressing deeper is meant to be
+    /// the player's nerve, not their Security skill — and the yard has no doors at all. The
+    /// one difficulty-fifteen door left in the game is in the authored world, which the run
+    /// loop no longer loads.
+    ///
+    /// So this was already dormant by content before it was ever switched off here. What the
+    /// switch does is stop the game showing a skill that cannot be trained: with picking and
+    /// pickpocketing both parked, nothing anywhere reports use of Security.
+    ///
+    /// **What stays:** <see cref="RatnaBay.Domain.Lockable"/> in full. Every door in the game
+    /// is one, locked or not, and the picking path still works if content ever asks for it.
+    ///
+    /// **When it might come back:** with the fort, alongside pickpocketing, or the first time
+    /// a mine wants a strongroom that costs something to open.
+    /// </summary>
+    public static readonly bool Lockpicking = false;
+
+    /// <summary>
+    /// Sneaking, and the Stealth skill.
+    ///
+    /// **Parked 2026-08-25.** Not a decision so much as an observation: Stealth is read by the
+    /// detection system and trained by nothing at all, and generated mines place no watchers
+    /// for it to hide from. Crouching still works and still makes the player harder to see —
+    /// it is only the skill that is dead, and it has been dead since it was written.
+    ///
+    /// **When it might come back:** watchers in the fort, or a mine that puts something asleep
+    /// in it worth creeping past.
+    /// </summary>
+    public static readonly bool Sneaking = false;
+
+    /// <summary>
+    /// Whether a skill is worth showing on the character sheet.
+    ///
+    /// A skill nothing trains is worse than no skill: it reads as progress that is not
+    /// happening, and a player who spends a run trying to raise it has been misled by the
+    /// interface rather than beaten by the game.
+    /// </summary>
+    public static bool SkillIsLive(string skillId) => skillId switch
+    {
+        RatnaBay.Domain.Skills.Security => Lockpicking || Pickpocketing,
+        RatnaBay.Domain.Skills.Stealth => Sneaking,
+        _ => true
+    };
 }

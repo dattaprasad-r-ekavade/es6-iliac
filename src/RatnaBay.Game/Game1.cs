@@ -3701,6 +3701,11 @@ public sealed class Game1 : Game
         var skillY = top + 34;
         foreach (var skillId in Skills.All)
         {
+            // Parked skills are not shown. Nothing trains Security or Stealth now that
+            // picking and sneaking are switched off, and a number that cannot move is a
+            // promise the interface is making on the game's behalf and not keeping.
+            if (!ParkedFeatures.SkillIsLive(skillId)) continue;
+
             TextFit(Skills.Label(skillId), new Vector2(skillsX, skillY), 205f, 16,
                 new Color(203, 216, 214));
             TextRight(player.Skills.LevelOf(skillId).ToString("0.0"), panel.Right - 34,

@@ -271,4 +271,32 @@ public class SkillProgressionTests
             _skills.EndEncounter();
         }
     }
+
+    [Test]
+    public void HoldingAGuardTrainsBlock()
+    {
+        // Block existed in the list of skills and appeared nowhere else in the codebase. A
+        // player could guard through a hundred fights and the number beside it never moved,
+        // which is worse than not having the skill: it reads as progress that is not
+        // happening.
+        var player = PlayerCharacter.NewGame();
+        var before = player.Skills.LevelOf(Skills.Block);
+
+        player.Combat.SetBlocking(true);
+        for (var hit = 0; hit < 12; hit++) player.Combat.TakeHit(14f);
+
+        Assert.That(player.Skills.LevelOf(Skills.Block), Is.GreaterThan(before));
+    }
+
+    [Test]
+    public void TakingAHitOnTheChinTrainsNothing()
+    {
+        var player = PlayerCharacter.NewGame();
+        var before = player.Skills.LevelOf(Skills.Block);
+
+        player.Combat.SetBlocking(false);
+        for (var hit = 0; hit < 12; hit++) player.Combat.TakeHit(14f);
+
+        Assert.That(player.Skills.LevelOf(Skills.Block), Is.EqualTo(before));
+    }
 }
