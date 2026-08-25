@@ -152,7 +152,7 @@ public static class Lessons
         Yard => "You clear the mines under Ratna Bay. Go down, kill what rises, "
             + "come back with more than you took.",
 
-        Shaft => "The shallow shaft is free. Deeper ones cost jiva stones — "
+        Shaft => "The first mine is free. Harder ones cost jiva stones — "
             + "the same stones you go down to fetch.",
 
         Stall => "Gold buys gear here, and gear is the only thing a death cannot take from you.",
@@ -167,7 +167,7 @@ public static class Lessons
         Trader => "Somebody will come down for the right money. It comes out of the pot, "
             + "and the next one costs more.",
 
-        Banked => "Those stones are yours now. Spend them on a deeper shaft, "
+        Banked => "Those stones are yours now. Spend them on a richer mine, "
             + "or on gear at the stall.",
 
         Died => "Someone else takes the lamp. They keep your rank and half your pack.",

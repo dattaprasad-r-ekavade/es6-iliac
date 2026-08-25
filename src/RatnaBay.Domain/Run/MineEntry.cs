@@ -65,14 +65,23 @@ public static class MineEntry
             && inventory.Consume(SoulCrystals.LesserId, cost);
     }
 
-    /// <summary>What the order says about a given depth, for the panel at the shaft.</summary>
+    /// <summary>
+    /// What the order says about a given mine, for the panel at the shaft.
+    ///
+    /// About danger and pay, never about distance. A tier is which mine you buy your way
+    /// into, not how far down you walk once you are inside — that is settled one door at a
+    /// time and has no ceiling. The old lines said "below the water table" and "nobody has
+    /// brought anything back from this depth", which taught a first-time player that the
+    /// number they were picking was depth. It is not, and the whole press-your-luck decision
+    /// stops making sense if they believe it is.
+    /// </summary>
     public static string DescriptionOf(int tier) => Clamp(tier) switch
     {
-        1 => "Worked out and shallow. Nothing down there has been dead long.",
-        2 => "Past the old workings. The stones are still warm.",
-        3 => "Below the water table. Bring more than one answer.",
-        4 => "Nobody has brought anything back from this depth in a season.",
-        _ => "The order does not write down what is at the bottom."
+        1 => "Picked over. Few of them, and slow.",
+        2 => "Worked until recently. Armed, and enough to matter.",
+        3 => "Abandoned for a reason. Archers across every room.",
+        4 => "The order stopped sending crews. What is left is what stopped them.",
+        _ => "Nobody writes down what holds this one. The pay is the whole argument."
     };
 
     /// <summary>The deepest mine these stones will open.</summary>

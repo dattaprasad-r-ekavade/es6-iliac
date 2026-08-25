@@ -1314,7 +1314,7 @@ public sealed class Game1 : Game
             ? $"The same shaft. {fallen!.Name} is still down there, in room {fallen.RoomIndex}."
             : cost > 0
                 ? $"{cost} stones, and the shaft opens. Tier {_depthSelection}."
-                : "The shallow workings. They cost nothing and pay like it.");
+                : "The picked-over workings. They cost nothing and pay like it.");
     }
 
     /// <summary>What the pause screen offers, which depends on whether a run is underway.</summary>
@@ -3487,13 +3487,15 @@ public sealed class Game1 : Game
         if (_session is null) return;
 
         var stones = _session.Player.Inventory.CountOf(SoulCrystals.LesserId);
-        var panel = new Rectangle(320, 148, 640, 424);
+        var panel = new Rectangle(320, 148, 640, 452);
 
         DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 214),
             new Color(3, 6, 10, 0));
         DrawPanel(panel, new Color(6, 12, 19, 246), new Color(205, 157, 98));
 
-        TextCentred("HOW DEEP", panel.Center.X, panel.Y + 24f, 24, new Color(214, 226, 226));
+        // "How deep" was the wrong question. You are picking which mine to buy into — how
+        // far you actually go is answered later, one door at a time.
+        TextCentred("WHICH MINE", panel.Center.X, panel.Y + 24f, 24, new Color(214, 226, 226));
         TextCentred($"{stones} jiva stones in hand", panel.Center.X, panel.Y + 58f, 14,
             new Color(151, 206, 210));
 
@@ -3523,10 +3525,13 @@ public sealed class Game1 : Game
         TextCentred(breakEven == 0
                 ? "Pays one stone a room. Nothing to make back."
                 : $"Pays {_depthSelection} a room, rising. {breakEven} rooms before the door pays for itself.",
-            panel.Center.X, panel.Bottom - 54f, 14, new Color(206, 212, 218));
+            panel.Center.X, panel.Bottom - 78f, 14, new Color(206, 212, 218));
+
+        TextCentred("A harder mine, not a longer one. How far you go is decided at each door.",
+            panel.Center.X, panel.Bottom - 52f, 13, new Color(151, 206, 210));
 
         TextCentred("Click or arrows choose      Enter descend      Esc step back",
-            panel.Center.X, panel.Bottom - 28f, 13, new Color(140, 156, 164));
+            panel.Center.X, panel.Bottom - 26f, 13, new Color(140, 156, 164));
     }
 
     /// <summary>The way out of the run summary, shared by the drawing and the pointer.</summary>
@@ -3629,10 +3634,10 @@ public sealed class Game1 : Game
         var next = Math.Min(MineEntry.MaxTier, deepest + 1);
 
         TextCentred(deepest >= MineEntry.MaxTier
-                ? $"{stones} stones. The order will sell you any depth it has.  {gold} gold."
+                ? $"{stones} stones. The order will sell you any mine it has.  {gold} gold."
                 : deepest > MineEntry.MinTier
                     ? $"{stones} stones opens tier {deepest}. Tier {next} wants {MineEntry.CostOf(next)}.  {gold} gold."
-                    : $"The shallow shaft is free. {MineEntry.CostOf(2)} stones opens a deeper one — you have {stones}.",
+                    : $"The first mine is free. {MineEntry.CostOf(2)} stones opens a richer one — you have {stones}.",
             LogicalWidth / 2f, 48f, 14, new Color(163, 191, 194));
 
         Sign("THE SHAFT", "go down", Surface.Shaft, 5.6f, new Color(214, 186, 120));
@@ -5234,44 +5239,75 @@ public sealed class Game1 : Game
     {
         Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 200));
 
-        var panel = new Rectangle(300, 30, 680, 660);
+        var panel = new Rectangle(300, 96, 680, 476);
         DrawPanel(panel, new Color(7, 14, 21, 244), new Color(91, 146, 159));
         TextCentred("CONTROLS", panel.X + panel.Width / 2f, panel.Y + 26, 24, Color.White);
 
-        (string Key, string Action)[] rows =
+        // Grouped and in two columns, because the flat list had grown to twenty-three rows —
+        // which ran a hundred and twenty pixels past the bottom of its own panel, listed E and
+        // I twice in different words, and advertised a crouch key that does nothing while
+        // sneaking is parked. This is the first screen a confused player opens.
+        (string Heading, (string Key, string Action)[] Rows)[] sections =
         {
-            ("W A S D", "move"),
-            ("Mouse", "look"),
-            ("Left click", "attack / talk / shop"),
-            ("Right click", "guard — one-handed only"),
-            ("Q", "cast the readied spell"),
-            ("I", "character and inventory — Enter to use an item"),
-            ("E", "talk, open, take"),
-            ("B", "trade with a merchant"),
-            ("4 5 6 7 8", "flame, rime, arc, mend, emberlight"),
-            ("Arrow keys", "look (keyboard)"),
-            ("Shift", "sprint — spends stamina"),
-            ("Space", "jump"),
-            ("Ctrl", "toggle crouch — reduces visibility"),
-            ("E", "talk / open / interact"),
-            ("J", "open the journal"),
-            ("I / K", "open inventory, equipment and skills"),
-            ("F5 / F9", "save / load"),
-            ("F1", "close this"),
-            ("F11", "windowed / fullscreen"),
-            ("Esc", "close what is open, then back to the menu"),
-            ("M", "back to the menu")
+            ("MOVING", new[]
+            {
+                ("W A S D", "move"),
+                ("Mouse", "look"),
+                ("Arrow keys", "look, without the mouse"),
+                ("Shift", "sprint — spends stamina"),
+                ("Space", "jump")
+            }),
+            ("FIGHTING", new[]
+            {
+                ("Left click", "attack"),
+                ("Right click", "guard — one-handed only"),
+                ("Q", "cast the readied spell"),
+                ("4 5 6 7 8", "flame, rime, arc, mend, emberlight")
+            }),
+            ("THE WORLD", new[]
+            {
+                ("E", "talk, open, take"),
+                ("B", "trade with a merchant"),
+                ("I", "character, pack and skills"),
+                ("J", "journal")
+            }),
+            ("THE GAME", new[]
+            {
+                ("Esc", "close what is open, then the menu"),
+                ("M", "back to the menu"),
+                ("Tab", "release the mouse"),
+                ("F5 / F9", "save / load"),
+                ("F11", "windowed / fullscreen"),
+                ("F1", "close this")
+            })
         };
 
-        var y = panel.Y + 72f;
-        foreach (var (key, action) in rows)
+        // Laid out down one column and then the next, so a section is never split in half.
+        var lines = new List<(string Heading, string Key, string Action)>();
+        foreach (var (heading, rows) in sections)
         {
-            Text(key, new Vector2(panel.X + 44, y), 17, new Color(232, 194, 116));
-            Text(action, new Vector2(panel.X + 250, y), 17, new Color(214, 226, 222));
-            y += 31f;
+            lines.Add((heading, string.Empty, string.Empty));
+            foreach (var (key, action) in rows) lines.Add((string.Empty, key, action));
         }
 
-        // Anyone being recorded should be told so without having to be told so.
+        var perColumn = (lines.Count + 1) / 2;
+        for (var index = 0; index < lines.Count; index++)
+        {
+            var (heading, key, action) = lines[index];
+            var column = index / perColumn;
+            var x = panel.X + 40f + column * 316f;
+            var y = panel.Y + 76f + index % perColumn * 30f;
+
+            if (heading.Length > 0)
+            {
+                Text(heading, new Vector2(x, y + 6f), 13, new Color(151, 206, 210));
+                continue;
+            }
+
+            Text(key, new Vector2(x, y), 16, new Color(232, 194, 116));
+            TextFit(action, new Vector2(x + 112f, y), 184f, 16, new Color(214, 226, 222));
+        }
+
         TextCentred($"This session is being recorded to {PlayRecorder.Directory}",
             panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, new Color(140, 156, 164));
     }
