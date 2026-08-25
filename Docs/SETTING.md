@@ -17,12 +17,18 @@ The game is set in a mining province of an empire modelled on the **Maurya, c. 3
 Not a fantasy kingdom with Indian decoration. A specific century, chosen because that century
 already contains the game's mechanics as documented fact:
 
-**The state owned the mines.** Kautilya's *Arthashastra* devotes chapters to them and to the
+**The state owned the mines.** The *Arthashastra* devotes chapters to them and to the
 officials who ran them — an **Akaradhyaksha**, superintendent of mines, alongside superintendents
 of gold, of metals, and of the mint. The text is explicit about why the crown cares: mines fill
 the treasury, the treasury pays the army, and the army is the state. That is not a theme somebody
-bolted onto a roguelike. It is a 2,300-year-old policy document that happens to describe Ratna
-Bay's economy exactly.
+bolted onto a roguelike. It is a surviving policy document that happens to describe Ratna Bay's
+economy exactly.
+
+> **One caveat, and it only affects what you may claim in public.** The *Arthashastra*'s date is
+> contested — current scholarship puts its composition well after the Maurya and reads it as
+> evidence for post-Mauryan practice. That is fine for a fictional province in a Mauryan-analogue
+> empire, and it is not fine in a store-page sentence beginning "historically accurate." Say
+> *inspired by*. See [`NAMES_AND_OFFICES.md`](NAMES_AND_OFFICES.md) §0.
 
 **The mining was real, deep, and lethal.** There is archaeological evidence of ancient workings
 in the goldfields of what is now Karnataka — Hutti and Kolar among them — with narrow shafts
