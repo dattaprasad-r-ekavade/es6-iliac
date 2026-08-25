@@ -110,6 +110,10 @@ Two documents, and no others:
 Supporting records:
 
 - [`Docs/PLAYTEST_NOTES.md`](Docs/PLAYTEST_NOTES.md) — what testers found, and what was done
+- [`Docs/PLAYTEST_DISTRIBUTION.md`](Docs/PLAYTEST_DISTRIBUTION.md) — shipping to testers on itch.io,
+  what that obliges, and how the recordings get back
+- [`Docs/ANDROID_FEASIBILITY.md`](Docs/ANDROID_FEASIBILITY.md) — whether the framework builds for
+  Android, answered with a build
 - [`Docs/STEAM_PRESENTATION_BASELINE.md`](Docs/STEAM_PRESENTATION_BASELINE.md) — display contract
 - [`Docs/COMMUNITY_TOOLS_BASELINE.md`](Docs/COMMUNITY_TOOLS_BASELINE.md) — pinned packages
 
