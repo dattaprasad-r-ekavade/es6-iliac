@@ -31,7 +31,7 @@ public sealed class PlayRecorder
     {
         _path = path;
         _recording.StartedUtc = _started.ToString("O");
-        _recording.Build = typeof(PlayRecorder).Assembly.GetName().Version?.ToString() ?? "dev";
+        _recording.Build = Telemetry.Version;
     }
 
     public static string Directory =>

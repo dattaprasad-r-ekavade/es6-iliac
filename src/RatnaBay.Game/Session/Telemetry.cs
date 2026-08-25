@@ -38,6 +38,42 @@ public static class Telemetry
 
     /// <summary>Largest recording that will ever be sent. A run makes a few hundred KB.</summary>
     public const int MaxUploadBytes = 4 * 1024 * 1024;
+
+    private static string? _version;
+
+    /// <summary>
+    /// Which release this is, in the same words itch.io shows the player.
+    ///
+    /// Written into the build folder by release.ps1 and read once. It rides inside every
+    /// recording so that a report saying "it crashed in the third room" can be traced to the
+    /// exact commit that player ran, which the assembly version -- forever 1.0.0.0 -- cannot
+    /// do. A build made by publish.ps1 alone has no file and honestly says so.
+    /// </summary>
+    public static string Version
+    {
+        get
+        {
+            if (_version is not null) return _version;
+
+            try
+            {
+                var path = Path.Combine(AppContext.BaseDirectory, "version.txt");
+                if (File.Exists(path))
+                {
+                    var text = File.ReadAllText(path).Trim();
+                    if (text.Length is > 0 and <= 64) return _version = text;
+                }
+            }
+            catch (Exception exception) when (exception is IOException
+                or UnauthorizedAccessException)
+            {
+                // Not knowing which build this is loses one line of context in a bug report.
+                // Refusing to record anything would lose the whole report.
+            }
+
+            return _version = "dev";
+        }
+    }
 }
 
 /// <summary>

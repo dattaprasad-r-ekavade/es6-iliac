@@ -14,3 +14,7 @@ build/
 
 # Generated mines are reproducible from their seed; keeping them would be checking in a build artefact.
 src/RatnaBay.Game/Content/World/Generated/
+
+# butler is fetched by release.ps1 rather than checked in; it is 26 MB of somebody else's binary.
+tools/butler/
+itch.target
