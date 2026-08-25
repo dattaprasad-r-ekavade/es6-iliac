@@ -328,6 +328,15 @@ static int RunReview(string[] arguments)
             Console.WriteLine($"  fought at: {run.MedianMeleeRange:0.0} m with steel, "
                 + $"{run.MedianSpellRange:0.0} m with spells");
 
+        var bought = recording.Events
+            .Where(item => item.Kind == PlayEventKind.ItemBought
+                && item.At >= run.StartedAt && item.At <= run.EndedAt)
+            .ToList();
+
+        if (bought.Count > 0)
+            Console.WriteLine($"  bought before going down: "
+                + string.Join(", ", bought.Select(item => $"{item.Detail} ({item.Value:0}g)")));
+
         if (run.ShareOfTimeInDoorways > 0f)
             Console.WriteLine($"  {run.ShareOfTimeInDoorways * 100:0}% of the run spent in or "
                 + "beside a doorway");

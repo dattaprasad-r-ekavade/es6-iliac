@@ -178,6 +178,52 @@ public class PlayReviewTests
     }
 
     [Test]
+    public void TimeSpentReadingYourPackIsNotDeliberation()
+    {
+        // Found in a real run: a twenty-three second pause at a door was reported as the
+        // longest deliberation ever measured, and the player had been in the inventory the
+        // whole time — re-equipping and drinking stones to top up prana before pressing on.
+        // Preparing at a threshold is good play; calling it agonising flatters every number
+        // this file exists to produce.
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine", 1, 1)
+            .At(PlayEventKind.RoomCleared, "", 1)
+            .At(PlayEventKind.DecisionOffered, "", 21, 7)
+            .Wait(1.5f)
+            .At(PlayEventKind.Panel, "open", 0f, 1f)
+            .Wait(20f)
+            .At(PlayEventKind.Panel, "closed", 0f, 0f)
+            .Wait(2f)
+            .At(PlayEventKind.PressedOn, "", 21, 7)
+            .Done();
+
+        Assert.That(PlayReview.AllDecisions(recording)[0].Hesitation,
+            Is.EqualTo(3.5f).Within(0.05f),
+            "twenty of those twenty-three seconds were spent in a menu");
+    }
+
+    [Test]
+    public void APanelOpenedBeforeTheDoorOnlyCountsFromTheOffer()
+    {
+        // Opening the pack mid-fight and still having it open when the room clears must not
+        // subtract time that was never part of the decision in the first place.
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine", 1, 1)
+            .At(PlayEventKind.Panel, "open", 0f, 1f)
+            .Wait(10f)
+            .At(PlayEventKind.RoomCleared, "", 1)
+            .At(PlayEventKind.DecisionOffered, "", 1, 2)
+            .Wait(4f)
+            .At(PlayEventKind.Panel, "closed", 0f, 0f)
+            .Wait(1f)
+            .At(PlayEventKind.Camped, "", 1)
+            .Done();
+
+        Assert.That(PlayReview.AllDecisions(recording)[0].Hesitation,
+            Is.EqualTo(1f).Within(0.05f));
+    }
+
+    [Test]
     public void WhatWasOnTheTableIsRememberedWithTheAnswer()
     {
         var third = PlayReview.AllDecisions(Descent(rooms: 3, hesitation: 1f))[2];

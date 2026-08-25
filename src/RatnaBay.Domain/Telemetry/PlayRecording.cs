@@ -49,6 +49,20 @@ public static class PlayEventKind
     public const string PlayerHurt = "player.hurt";
     public const string SpellCast = "spell.cast";
     public const string ItemUsed = "item.used";
+
+    /// <summary>Something was bought at the stall. The other half of the loop, finally.</summary>
+    public const string ItemBought = "item.bought";
+
+    /// <summary>
+    /// A panel opened or closed, with Extra set to one or nought.
+    ///
+    /// Recorded so menu time can be taken back out of the hesitation clock. A recorded run
+    /// showed a twenty-three second pause at a door and the report called it the longest
+    /// deliberation ever measured; the player had in fact been in the inventory, re-equipping
+    /// and drinking stones. Time spent reading a panel is preparation, not agonising, and
+    /// counting it as the latter would flatter every metric this file exists to produce.
+    /// </summary>
+    public const string Panel = "panel";
     public const string Died = "player.died";
 
 
@@ -292,6 +306,10 @@ public static class PlayReview
         PlayEvent? offered = null;
         float? roomStartedAt = null;
 
+        // Menu time since the current decision was offered, and when the open panel started.
+        var menuSinceOffer = 0f;
+        float? panelOpenedAt = null;
+
         // The room count of the last decision actually answered. A second offer at the same
         // count is the same door being re-advertised, not a new question — the panel can stay
         // up for a frame after the answer, and counting that would restart the clock at zero
@@ -323,6 +341,17 @@ public static class PlayReview
                     segmentStart = item.At;
                     break;
 
+                case PlayEventKind.Panel when item.Extra > 0f:
+                    panelOpenedAt ??= item.At;
+                    break;
+
+                case PlayEventKind.Panel:
+                    if (panelOpenedAt is { } opened && offeredAt is not null)
+                        menuSinceOffer += MathF.Max(0f, item.At - MathF.Max(opened, offeredAt.Value));
+
+                    panelOpenedAt = null;
+                    break;
+
                 case PlayEventKind.DecisionOffered:
                     // Only the first offer counts. Walking away from the door and back is
                     // still one decision, and re-arming the clock would flatter the number.
@@ -330,6 +359,7 @@ public static class PlayReview
                     {
                         offeredAt = item.At;
                         offered = item;
+                        menuSinceOffer = 0f;
                     }
 
                     break;
@@ -343,12 +373,15 @@ public static class PlayReview
                             Pending: (int)offered.Value,
                             NextPays: (int)offered.Extra,
                             Health: offered.Health,
-                            Hesitation: MathF.Max(0f, item.At - shown),
+                            // Menu time taken back out: standing at a door reading your pack
+                            // is preparing, not weighing.
+                            Hesitation: MathF.Max(0f, item.At - shown - menuSinceOffer),
                             PressedOn: item.Kind == PlayEventKind.PressedOn));
                     }
 
                     offeredAt = null;
                     offered = null;
+                    menuSinceOffer = 0f;
                     lastAnswered = roomsCleared;
                     if (item.Kind == PlayEventKind.Camped)
                     {

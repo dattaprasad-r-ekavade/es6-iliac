@@ -231,6 +231,9 @@ public sealed class Game1 : Game
     private bool _choosingDepth;
     private int _depthSelection = 1;
 
+    /// <summary>Whether a panel was open on the previous frame.</summary>
+    private bool _panelWasOpen;
+
     /// <summary>Seconds until the next stance sample is written down.</summary>
     private float _stanceCountdown;
 
@@ -558,6 +561,12 @@ public sealed class Game1 : Game
                 Pause();
             }
         }
+
+        // Before the screen dispatch, not inside it. An open inventory returns out of
+        // UpdateGameScreen long before the session is ticked, so a panel tracker living down
+        // there would never see the panel that was open — and the correction it exists to
+        // make would quietly be worth nothing.
+        TrackPanelTime();
 
         if (_screen == GameScreen.MainMenu)
             UpdateMenu(keyboard, mouse);
@@ -1972,6 +1981,22 @@ public sealed class Game1 : Game
     }
 
     /// <summary>
+    /// Note that a panel opened or closed.
+    ///
+    /// Watched rather than hooked into every panel, because there are nine of them and one
+    /// forgotten call site is a silently wrong number rather than a visible bug.
+    /// </summary>
+    private void TrackPanelTime()
+    {
+        var open = AnyPanelOpen;
+        if (open == _panelWasOpen) return;
+
+        _panelWasOpen = open;
+        _recorder.Record(PlayEventKind.Panel, open ? "open" : "closed", 0f, open ? 1f : 0f,
+            _session?.Player.Vitals.Health ?? 0f, _session?.Player.Vitals.Prana ?? 0f);
+    }
+
+    /// <summary>
     /// Note where the player is standing, once a second, while a descent is underway.
     ///
     /// Every other event in the log is something the player did. This is the only record of
@@ -2608,6 +2633,8 @@ public sealed class Game1 : Game
         if (result == ShopPurchaseResult.Bought && item is not null)
         {
             _session.Player.Story.MarkLooted($"shop.{_shop.Definition.Id}.{item.Id}");
+            _recorder.Record(PlayEventKind.ItemBought, item.Name, item.Price, 0f,
+                _session.Player.Vitals.Health, _session.Player.Vitals.Prana, item.Kind);
             _session.ShowToast($"Bought {item.Name}.");
         }
         else
