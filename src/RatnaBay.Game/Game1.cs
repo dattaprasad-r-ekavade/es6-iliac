@@ -3161,9 +3161,18 @@ public sealed class Game1 : Game
         var fade = MathHelper.Clamp((distance - 3f) / 5f, 0f, 1f);
         if (fade <= 0.02f) return;
 
-        TextCentred(title, screen.X + 2f, screen.Y + 2f, 17, new Color(0, 0, 0, 170) * fade);
+        // A heavier shadow than the mine needs. These sit against sunlit sandstone now, and a
+        // pale label on a pale wall is a label nobody reads.
+        for (var dx = -2; dx <= 2; dx += 2)
+        for (var dy = -2; dy <= 2; dy += 2)
+        {
+            if (dx == 0 && dy == 0) continue;
+            TextCentred(title, screen.X + dx, screen.Y + dy, 17, new Color(0, 0, 0, 190) * fade);
+        }
+
         TextCentred(title, screen.X, screen.Y, 17, colour * fade);
-        TextCentred(subtitle, screen.X, screen.Y + 20f, 12, new Color(150, 162, 170) * fade);
+        TextCentred(subtitle, screen.X + 1f, screen.Y + 21f, 12, new Color(0, 0, 0, 170) * fade);
+        TextCentred(subtitle, screen.X, screen.Y + 20f, 12, new Color(228, 232, 236) * fade);
     }
 
     private void DrawDoorPrompt()
@@ -4769,10 +4778,28 @@ public sealed class Game1 : Game
                 MathF.Max(0.5f, light.Range)));
         }
 
-        SetCaveAmbience(
-            ambient: new Vector3(0.10f, 0.10f, 0.12f),
-            keyDirection: new Vector3(-0.4f, -1f, -0.25f),
-            keyColour: new Vector3(0.20f, 0.20f, 0.26f));
+        // Daylight above ground, and the mine's dark below it.
+        //
+        // The cave lighting was applied to everywhere, so the yard came out lit and textured
+        // like an interior with a sky pasted over it. Coming up out of a mine should not look
+        // like walking into another room — that contrast is the entire reason the surface
+        // exists, and it is carried almost completely by the light.
+        if (OnTheSurface)
+        {
+            _stone = StoneTextures.StonePalette.Sandstone;
+            SetCaveAmbience(
+                ambient: new Vector3(0.52f, 0.54f, 0.60f),
+                keyDirection: new Vector3(-0.35f, -1f, -0.28f),
+                keyColour: new Vector3(0.86f, 0.78f, 0.62f));
+        }
+        else
+        {
+            _stone = StoneTextures.StonePalette.Granite;
+            SetCaveAmbience(
+                ambient: new Vector3(0.10f, 0.10f, 0.12f),
+                keyDirection: new Vector3(-0.4f, -1f, -0.25f),
+                keyColour: new Vector3(0.20f, 0.20f, 0.26f));
+        }
 
         foreach (var geometry in _world.Manifest.Geometry ?? new List<WorldGeometry>())
         {
@@ -4846,10 +4873,25 @@ public sealed class Game1 : Game
             ? StoneTextures.Floor(GraphicsDevice, _stone)
             : StoneTextures.Wall(GraphicsDevice, _stone);
 
+        // Something authored almost black is meant to be a hole, not a wall.
+        //
+        // TintFor pulls every colour toward white so it modulates the texture rather than
+        // drowning it, which turns a deliberate void into pale blockwork: the mouth of the
+        // shaft in the yard came out the same sandstone as the ground around it. A void gets
+        // drawn flat and dark, with no masonry on it at all.
+        if (color.R + color.G + color.B < VoidBrightness)
+        {
+            DrawCube(centre, scale, new Color(10, 10, 12), 0f);
+            return;
+        }
+
         // The authored colour stops being the surface and becomes a tint over it, so a cave
         // theme still shifts the whole room by changing the same numbers it changes today.
         DrawTexturedCube(centre, scale, TintFor(color), texture, StoneTileMetres);
     }
+
+    /// <summary>Below this total, an authored colour is a void rather than a surface.</summary>
+    private const int VoidBrightness = 96;
 
     /// <summary>
     /// The manifest's colour, pulled toward white so it modulates the texture instead of

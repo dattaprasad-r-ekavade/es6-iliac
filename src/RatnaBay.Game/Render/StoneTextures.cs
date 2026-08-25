@@ -33,6 +33,16 @@ public static class StoneTextures
         /// <summary>The default: cold grey blockwork, the mine as it is authored today.</summary>
         public static readonly StonePalette Granite =
             new("granite", new Color(86, 86, 92), new Color(34, 33, 36), new Color(120, 118, 122));
+
+        /// <summary>
+        /// Warm sandstone, for the yard above the mines.
+        ///
+        /// Coming up out of a mine has to look like arriving somewhere, and the same cold grey
+        /// blockwork under daylight simply reads as another room with a sky over it. Warmth is
+        /// doing the work the fiction needs at the cheapest possible price.
+        /// </summary>
+        public static readonly StonePalette Sandstone =
+            new("sandstone", new Color(146, 122, 92), new Color(96, 78, 58), new Color(178, 152, 116));
     }
 
     public static void Clear()
