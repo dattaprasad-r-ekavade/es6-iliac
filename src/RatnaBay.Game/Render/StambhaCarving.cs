@@ -195,7 +195,57 @@ public static class StambhaCarving
 
         var mask = new bool[raw.Length];
         for (var i = 0; i < raw.Length; i++) mask[i] = raw[i].A > 96;
-        return mask;
+        return Thicken(mask, ChiselWidth);
+    }
+
+    /// <summary>
+    /// How many pixels to grow every stroke by before it is cut.
+    ///
+    /// Noto Sans Brahmi is a text face, and text faces are drawn thin. A chisel is not thin:
+    /// carved at the font's own weight the verse reads as scratched into the stone rather than
+    /// cut out of it, and the groove is too narrow for its lit lip to show at all. Growing the
+    /// stroke is what turns a typeface into a mason's letter.
+    /// </summary>
+    private const int ChiselWidth = 3;
+
+    /// <summary>Grow a mask by <paramref name="radius"/> pixels in every direction.</summary>
+    private static bool[] Thicken(bool[] mask, int radius)
+    {
+        if (radius <= 0) return mask;
+
+        // Separable: a horizontal pass then a vertical one costs 2r per pixel instead of r
+        // squared, and for a box-shaped dilation the result is identical.
+        var horizontal = new bool[mask.Length];
+        for (var y = 0; y < Height; y++)
+        for (var x = 0; x < Width; x++)
+        {
+            for (var offset = -radius; offset <= radius; offset++)
+            {
+                var sample = x + offset;
+                if (sample < 0 || sample >= Width) continue;
+                if (!mask[y * Width + sample]) continue;
+
+                horizontal[y * Width + x] = true;
+                break;
+            }
+        }
+
+        var grown = new bool[mask.Length];
+        for (var y = 0; y < Height; y++)
+        for (var x = 0; x < Width; x++)
+        {
+            for (var offset = -radius; offset <= radius; offset++)
+            {
+                var sample = y + offset;
+                if (sample < 0 || sample >= Height) continue;
+                if (!horizontal[sample * Width + x]) continue;
+
+                grown[y * Width + x] = true;
+                break;
+            }
+        }
+
+        return grown;
     }
 
     /// <summary>Flat stone with a little tonal drift, so the face is not a single dead colour.</summary>

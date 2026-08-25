@@ -101,6 +101,7 @@ try {
     $checks = @(
         @{ Name = 'compiled content'; Path = Join-Path $buildDir 'Content\Feasibility' },
         @{ Name = 'bundled fonts'; Path = Join-Path $buildDir 'Content\Feasibility\Fonts\Cinzel\Cinzel-wght.ttf' },
+        @{ Name = 'carving font'; Path = Join-Path $buildDir 'Content\Feasibility\Fonts\NotoSansBrahmi\NotoSansBrahmi-Regular.ttf' },
         @{ Name = 'world manifest'; Path = Join-Path $buildDir 'Content\World\northwatch.json' },
         @{ Name = 'dialogue manifest'; Path = Join-Path $buildDir 'Content\Dialogue\northwatch.json' },
         @{ Name = 'quest manifest'; Path = Join-Path $buildDir 'Content\Quests\northwatch.json' },
