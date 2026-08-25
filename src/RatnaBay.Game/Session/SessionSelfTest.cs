@@ -577,7 +577,10 @@ public static class SessionSelfTest
             new ItemStack { Id = "test.purse", Name = "Test purse", Kind = "loot", Count = 1 });
         var outcome = Pickpocketing.TryTake(pocket, session.Player.Skills,
             session.Player.Inventory, session.Player.Detection);
-        Check(failures, "a witnessed pickpocket keeps the item but raises a caught result",
+        // Pickpocketing is parked — see ParkedFeatures. The rule is still checked because the
+        // code is still here: a parked feature that quietly stops working is one that cannot
+        // be switched back on, and this is what makes parking cheaper than deleting.
+        Check(failures, "the parked pickpocket rule still holds if it is ever switched on",
             outcome.Result == PickpocketResult.Caught
             && session.Player.Inventory.CountOf("test.purse") == 1);
     }

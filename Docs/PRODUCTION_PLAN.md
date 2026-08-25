@@ -24,6 +24,18 @@ failure most likely to end it.
 | **Levels are JSON manifests** | Generated mines emit the same format the game already loads and hot-reloads. |
 | **The publish gate is the definition of done** | `.\publish.ps1` runs the domain tests, the sim, and the published build's own self-test. A build that fails is not handed to anyone. |
 
+### Parked
+
+Built, tested, and deliberately unreachable. The switches live in `ParkedFeatures`, with the
+reason written beside each one.
+
+| Feature | Why | When it might return |
+|---|---|---|
+| **Pickpocketing** | Built for a town full of people to move through. A descent has nothing with pockets in it and the yard has one trader you are meant to trade with. Testers never found it even when it was the only route to a key. | Iteration 19, the fort — ten rooms of occupants who will not talk to you yet is the situation it was written for. |
+
+Parking is not deleting: the domain rules and their tests keep running, so a parked feature
+cannot rot and switching it back on is one line.
+
 ### Excluded from the first release
 
 Continent-scale world · authored open regions · sailing · day/night and weather · cutscene

@@ -1368,7 +1368,10 @@ public sealed class Game1 : Game
 
             // A trader can be whistled for at the same moment, because what is in their pack
             // is information the press-on choice needs.
-            if (Pressed(keyboard, Keys.T) && decision.Run.CanCallTrader && _session is not null)
+            // No null check on the session here: the enclosing branch already made it, and
+            // repeating it inside an && told the compiler the field might be null on the way
+            // past, which cost a warning further down for nothing.
+            if (Pressed(keyboard, Keys.T) && decision.Run.CanCallTrader)
             {
                 var fare = decision.Run.TraderCallCost;
                 if (decision.Run.TrySpend(fare))
@@ -2565,6 +2568,11 @@ public sealed class Game1 : Game
     private void LoadPockets()
     {
         _pockets.Clear();
+
+        // Parked. Building no targets is what switches the whole feature off: the prompt, the
+        // key and the action all read from this and all find nothing.
+        if (!ParkedFeatures.Pickpocketing) return;
+
         if (_session is null || _dialogue is null) return;
 
         foreach (var actor in _dialogue.Actors)
@@ -2628,10 +2636,12 @@ public sealed class Game1 : Game
 
     /// <summary>True when this actor is carrying something that has not been lifted yet.</summary>
     private bool HasPickablePocket(SpeakingActor actor) =>
-        _pockets.TryGetValue(actor.ActorId, out var target) && target.RemainingItems > 0;
+        ParkedFeatures.Pickpocketing
+        && _pockets.TryGetValue(actor.ActorId, out var target) && target.RemainingItems > 0;
 
     private void TryPickpocket(SpeakingActor actor)
     {
+        if (!ParkedFeatures.Pickpocketing) return;
         if (_session is null || !_pockets.TryGetValue(actor.ActorId, out var target)) return;
 
         var outcome = Pickpocketing.TryTake(target, _session.Player.Skills,
@@ -4871,7 +4881,6 @@ public sealed class Game1 : Game
             ("Q", "cast the readied spell"),
             ("I", "character and inventory — Enter to use an item"),
             ("E", "talk, open, take"),
-            ("P", "pick a pocket"),
             ("B", "trade with a merchant"),
             ("4 5 6 7 8", "flame, rime, arc, mend, emberlight"),
             ("Arrow keys", "look (keyboard)"),
@@ -4879,7 +4888,6 @@ public sealed class Game1 : Game
             ("Space", "jump"),
             ("Ctrl", "toggle crouch — reduces visibility"),
             ("E", "talk / open / interact"),
-            ("P", "pickpocket a facing NPC"),
             ("J", "open the journal"),
             ("I / K", "open inventory, equipment and skills"),
             ("F5 / F9", "save / load"),
