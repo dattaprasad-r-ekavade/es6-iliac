@@ -2931,8 +2931,15 @@ public sealed class Game1 : Game
 
         BeginUi();
         if (carving is null)
-            TextCentred("Devanagari font not loaded", LogicalWidth / 2f, 300f, 20,
+            TextCentred("No carving font loaded", LogicalWidth / 2f, 300f, 20,
                 new Color(228, 128, 118));
+
+        // The shot is meant to be cut in Brahmi. Falling back to Devanagari is legible and
+        // wrong by a thousand years, so it says so rather than passing silently — this frame
+        // is the microtrailer, and it should not ship in the fallback script by accident.
+        if (carving is not null && !StambhaCarving.IsPeriodScript)
+            TextCentred("Devanagari fallback — NotoSansBrahmi not installed",
+                LogicalWidth / 2f, 62f, 13, new Color(150, 126, 96));
 
         // Lower third, and off to the right: centred, it sat on top of the jiva stone, which is
         // the one thing in the frame that has to stay clean.
