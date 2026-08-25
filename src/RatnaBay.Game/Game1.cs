@@ -168,6 +168,16 @@ public sealed class Game1 : Game
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
 
+    /// <summary>
+    /// Set by --cover: render the store cover instead of the HUD, at itch.io's aspect.
+    ///
+    /// Drawn by the game rather than assembled in an image editor, so the cover cannot drift
+    /// away from what the game actually looks like. The backdrop is a real mine at a real
+    /// tier, and the numbers in the ladder are read out of MineEntry rather than typed in --
+    /// rebalance the entry costs and the cover reprints itself correctly.
+    /// </summary>
+    private bool _coverMode;
+
     /// <summary>Camera angles forced by --yaw / --pitch, for reproducible captures.</summary>
     private float? _startYaw;
     private float? _startPitch;
@@ -354,6 +364,14 @@ public sealed class Game1 : Game
 
         _screen = ParseMode(args);
         _screenshotPath = ParseOption(args, "--screenshot");
+
+        // --cover is --screenshot with a different composition and a different shape.
+        var coverPath = ParseOption(args, "--cover");
+        if (coverPath is not null)
+        {
+            _screenshotPath = coverPath;
+            _coverMode = true;
+        }
         _forceCrouch = HasArgument(args, "--sneak");
 
         // Deterministic camera for screenshots, so a change to look or movement can be
@@ -377,6 +395,18 @@ public sealed class Game1 : Game
         if (_mineSeed is not null) _screen = GameScreen.WorldScene;
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
+        if (_coverMode)
+        {
+            // itch.io wants 630x500 and displays it at 315x250. Rendered at double that so
+            // the type survives a high-density screen, and so the same file can be cropped
+            // for a banner later without going back to the game.
+            _mineSeed ??= 20789;
+            _mineDepth = 4;
+            _screen = GameScreen.WorldScene;
+            _startPitch ??= -0.06f;
+            if (_warmupFrames < 30) _warmupFrames = 30;
+        }
+
         if (_screenshotPath is not null)
         {
             // Deterministic capture: a fixed window, no vsync wait, and quit when done.
@@ -707,9 +737,25 @@ public sealed class Game1 : Game
     private bool Clicked(MouseState mouse) =>
         mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
 
+    /// <summary>
+    /// Where the cover is drawn, so its size does not depend on the monitor.
+    ///
+    /// Asking for a 1260x1000 window on a 1080p display silently gets a shorter one, and the
+    /// first cover came out 1260x845 -- the wrong shape for a store page, with the ladder
+    /// running over the tagline. An offscreen target is the exact size it says it is.
+    /// </summary>
+    private RenderTarget2D? _coverTarget;
+
     protected override void Draw(GameTime gameTime)
     {
         ApplyCaptureScreen();
+
+        if (_coverMode)
+        {
+            _coverTarget ??= new RenderTarget2D(GraphicsDevice, CoverWidth, CoverHeight, false,
+                SurfaceFormat.Color, DepthFormat.Depth24);
+            GraphicsDevice.SetRenderTarget(_coverTarget);
+        }
 
         _fpsFrames++;
         var elapsed = _fpsClock.Elapsed.TotalSeconds;
@@ -750,6 +796,15 @@ public sealed class Game1 : Game
 
         base.Draw(gameTime);
 
+        // Unbind before reading: a render target still bound as output cannot be read back.
+        // The back buffer then has nothing in it, so it is cleared rather than left undefined
+        // for the frame the driver is about to present.
+        if (_coverMode)
+        {
+            GraphicsDevice.SetRenderTarget(null);
+            GraphicsDevice.Clear(new Color(4, 8, 13));
+        }
+
         if (_screenshotPath is not null) CaptureAndExit();
     }
 
@@ -763,21 +818,123 @@ public sealed class Game1 : Game
     {
         if (++_framesDrawn <= _warmupFrames) return;
 
-        var viewport = GraphicsDevice.Viewport;
-        var pixels = new Color[viewport.Width * viewport.Height];
-        GraphicsDevice.GetBackBufferData(pixels);
+        // In cover mode the frame lives in the offscreen target, which is the exact size asked
+        // for; otherwise it is whatever the window ended up being.
+        var captureWidth = _coverMode ? CoverWidth : GraphicsDevice.Viewport.Width;
+        var captureHeight = _coverMode ? CoverHeight : GraphicsDevice.Viewport.Height;
 
-        using var texture = new Texture2D(GraphicsDevice, viewport.Width, viewport.Height);
+        var pixels = new Color[captureWidth * captureHeight];
+        if (_coverMode && _coverTarget is not null) _coverTarget.GetData(pixels);
+        else GraphicsDevice.GetBackBufferData(pixels);
+
+        using var texture = new Texture2D(GraphicsDevice, captureWidth, captureHeight);
         texture.SetData(pixels);
 
         var fullPath = Path.GetFullPath(_screenshotPath!);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 
         using (var stream = File.Create(fullPath))
-            texture.SaveAsPng(stream, viewport.Width, viewport.Height);
+            texture.SaveAsPng(stream, captureWidth, captureHeight);
 
-        Console.WriteLine($"Saved {viewport.Width}x{viewport.Height} screenshot to {fullPath}");
+        Console.WriteLine($"Saved {captureWidth}x{captureHeight} screenshot to {fullPath}");
         Exit();
+    }
+
+    /// <summary>itch.io's cover shape, at twice its stated size so the type stays sharp.</summary>
+    private const int CoverWidth = 1260;
+
+    private const int CoverHeight = 1000;
+
+    /// <summary>
+    /// The store cover, drawn over a real mine.
+    ///
+    /// A raw screenshot makes a poor cover: the game is a dark brick corridor, and what is
+    /// actually interesting about it is a decision, which does not photograph. So the mine is
+    /// pushed back into being a backdrop -- darkened, vignetted, lit from below as if by the
+    /// lamp -- and the thing on top is the choice the game is built on: five mines, each one
+    /// costing more to enter than the last.
+    ///
+    /// It has to survive being shrunk to 315x250 in a gallery, so there are exactly three
+    /// levels of information: the title, one line saying what it is, and a ladder of numbers
+    /// that reads as texture at thumbnail size and as the premise at full size.
+    ///
+    /// Drawn in raw device pixels rather than through the UI transform, which exists to letter
+    /// -box a 1280x720 layout and would leave bars down the sides of a 1260x1000 frame.
+    /// </summary>
+    private void DrawCoverArt()
+    {
+        var width = GraphicsDevice.Viewport.Width;
+        var height = GraphicsDevice.Viewport.Height;
+
+        // The UI transform assumes the 16:9 logical canvas. This composition is its own shape,
+        // so it is drawn 1:1 and the font picker is told the scale is honest.
+        _uiScale = 1f;
+        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp,
+            DepthStencilState.None, RasterizerState.CullNone);
+
+        // Push the mine back. It is scenery here, not the subject.
+        Fill(new Rectangle(0, 0, width, height), new Color(4, 8, 13, 132));
+
+        // A vignette in horizontal bands: cheap, and the only shape that matters is dark at
+        // the edges and open in the middle.
+        for (var band = 0; band < 40; band++)
+        {
+            var thickness = height / 40;
+            var y = band * thickness;
+            var toEdge = MathF.Abs(band - 19.5f) / 19.5f;
+            var strength = MathF.Pow(toEdge, 2.2f) * 0.86f;
+            Fill(new Rectangle(0, y, width, thickness + 1),
+                new Color(2, 5, 9) * strength);
+        }
+
+        // Lamplight from where the player's hand would be.
+        for (var ring = 12; ring > 0; ring--)
+        {
+            var radius = ring * 46;
+            Fill(new Rectangle(width / 2 - radius, height - 150 - radius / 3, radius * 2, radius / 2),
+                new Color(196, 140, 74) * 0.012f);
+        }
+
+        var centre = width / 2f;
+
+        TextCentred("RATNA BAY", centre, height * 0.20f, 116, new Color(243, 236, 224));
+
+        Fill(new Rectangle((int)(centre - 210), (int)(height * 0.335f), 420, 2),
+            new Color(205, 157, 98, 190));
+
+        TextCentred("AN ENDLESS MINE", centre, height * 0.355f, 27,
+            new Color(176, 205, 208));
+
+        // The premise, read out of the economy rather than typed in, so the cover cannot end
+        // up advertising prices the game no longer charges.
+        var ladderTop = (int)(height * 0.465f);
+        for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
+        {
+            var index = tier - MineEntry.MinTier;
+            var row = new Rectangle((int)(centre - 300), ladderTop + index * 74, 600, 62);
+            var cost = MineEntry.CostOf(tier);
+
+            // Each mine deeper in the ladder is drawn a shade hotter and a shade brighter, so
+            // at thumbnail size the block reads as something escalating.
+            var heat = index / (float)(MineEntry.MaxTier - MineEntry.MinTier);
+            var edge = new Color(
+                (int)MathHelper.Lerp(72, 214, heat),
+                (int)MathHelper.Lerp(104, 132, heat),
+                (int)MathHelper.Lerp(118, 84, heat));
+
+            Fill(row, new Color(8, 15, 23) * MathHelper.Lerp(0.62f, 0.86f, heat));
+            Border(row, edge);
+
+            Text($"TIER {tier}", new Vector2(row.X + 26, row.Y + 19), 24,
+                new Color(226, 233, 232));
+            TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 26, row.Y + 20, 22,
+                cost == 0 ? new Color(150, 200, 158) : new Color(232, 194, 116));
+        }
+
+        TextCentred("Every room pays more than the last. Every door asks if that is enough.",
+            centre, height - 92f, 25, new Color(198, 210, 210));
+
+        _spriteBatch.End();
     }
 
     /// <summary>
@@ -3225,6 +3382,12 @@ public sealed class Game1 : Game
         DrawEnemies();
         DrawBolts();
 
+        if (_coverMode)
+        {
+            DrawCoverArt();
+            return;
+        }
+
         BeginUi();
 
         // A full-screen panel owns the screen. Leaving the combat HUD drawing underneath it
@@ -3974,7 +4137,7 @@ public sealed class Game1 : Game
             skillY += 37;
         }
 
-        Text("Up / Down or hover to choose      Enter to use      I / K / Esc close",
+        Text("Arrows or hover to choose      Enter to use or equip      I / K / Esc close",
             new Vector2(panel.X + 30, panel.Bottom - 34), 13, new Color(163, 191, 194));
     }
 
@@ -4892,6 +5055,10 @@ public sealed class Game1 : Game
             case "inventory" or "character": _showCharacter = true; break;
             case "journal": _showJournal = true; break;
             case "help": _showHelp = true; break;
+            case "depth" or "shaft":
+                _depthSelection = 3;
+                _choosingDepth = true;
+                break;
             case "dialogue":
                 _conversationActor = _dialogue?.Actors.FirstOrDefault();
                 _dialogueOpen = _conversationActor is not null;
@@ -5139,14 +5306,16 @@ public sealed class Game1 : Game
                     new Color(150, 200, 158));
         }
 
+        var rowsUsed = (shown + InventoryColumns - 1) / InventoryColumns;
+        var belowPack = InventoryTop + rowsUsed * (InventoryTileHeight + 6);
+
         if (items.Count > shown)
-            TextRight($"+{items.Count - shown} more", InventoryLeft + 426,
-                InventoryTop + 4 * (InventoryTileHeight + 6) + 4, 12, new Color(142, 157, 157));
+            TextRight($"+{items.Count - shown} more", InventoryLeft + 426, belowPack + 4, 12,
+                new Color(142, 157, 157));
 
         // What it is, and what Enter does to it.
         var chosen = items[selection];
-        var detail = new Rectangle(InventoryLeft, InventoryTop + 4 * (InventoryTileHeight + 6) + 22,
-            426, 78);
+        var detail = new Rectangle(InventoryLeft, belowPack + 22, 426, 78);
 
         DrawPanel(detail, new Color(8, 16, 24, 232), new Color(72, 104, 118));
         TextFit(chosen.Name, new Vector2(detail.X + 14, detail.Y + 10), detail.Width - 28, 16,
@@ -5286,30 +5455,39 @@ public sealed class Game1 : Game
             })
         };
 
-        // Laid out down one column and then the next, so a section is never split in half.
-        var lines = new List<(string Heading, string Key, string Action)>();
+        // Whole sections are dealt to a column before moving to the next one. Splitting purely
+        // on line count orphaned a heading at the foot of the first column while its keys sat
+        // at the head of the second.
+        var total = sections.Sum(section => section.Rows.Length + 1);
+        var target = total / 2f;
+
+        var column = 0;
+        var placed = 0;
+        var line = 0;
+
         foreach (var (heading, rows) in sections)
         {
-            lines.Add((heading, string.Empty, string.Empty));
-            foreach (var (key, action) in rows) lines.Add((string.Empty, key, action));
-        }
-
-        var perColumn = (lines.Count + 1) / 2;
-        for (var index = 0; index < lines.Count; index++)
-        {
-            var (heading, key, action) = lines[index];
-            var column = index / perColumn;
-            var x = panel.X + 40f + column * 316f;
-            var y = panel.Y + 76f + index % perColumn * 30f;
-
-            if (heading.Length > 0)
+            // Move on once this column holds its share, but never leave the second one empty.
+            if (column == 0 && placed > 0 && placed + (rows.Length + 1) / 2f > target)
             {
-                Text(heading, new Vector2(x, y + 6f), 13, new Color(151, 206, 210));
-                continue;
+                column = 1;
+                line = 0;
             }
 
-            Text(key, new Vector2(x, y), 16, new Color(232, 194, 116));
-            TextFit(action, new Vector2(x + 112f, y), 184f, 16, new Color(214, 226, 222));
+            var x = panel.X + 40f + column * 316f;
+            Text(heading, new Vector2(x, panel.Y + 82f + line * 30f), 13,
+                new Color(151, 206, 210));
+            line++;
+            placed++;
+
+            foreach (var (key, action) in rows)
+            {
+                var y = panel.Y + 76f + line * 30f;
+                Text(key, new Vector2(x, y), 16, new Color(232, 194, 116));
+                TextFit(action, new Vector2(x + 112f, y), 184f, 16, new Color(214, 226, 222));
+                line++;
+                placed++;
+            }
         }
 
         TextCentred($"This session is being recorded to {PlayRecorder.Directory}",
