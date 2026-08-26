@@ -85,8 +85,7 @@ public sealed class Game1 : Game
     /// <summary>One quad, rebuilt per call, for text carved onto a wall or a pillar face.</summary>
     private readonly VertexPositionNormalTexture[] _faceQuad = new VertexPositionNormalTexture[4];
     private readonly short[] _faceIndices = { 0, 1, 2, 0, 2, 3 };
-    private KeyboardState _previousKeyboard;
-    private MouseState _previousMouse;
+    private readonly InputRouter _input = new();
 
     /// <summary>True while the pointer is captured for looking. Tab releases it.</summary>
     private bool _mouseLook;
@@ -646,8 +645,9 @@ public sealed class Game1 : Game
 
     protected override void Update(GameTime gameTime)
     {
-        var keyboard = Keyboard.GetState();
-        var mouse = Mouse.GetState();
+        _input.Sample();
+        var keyboard = _input.CurrentKeyboard;
+        var mouse = _input.CurrentMouse;
 
         // On real time, not simulation time: the fire has to keep moving during a hitstop or
         // the freeze looks like the game locked up rather than like a blow landing.
@@ -703,7 +703,7 @@ public sealed class Game1 : Game
         if (_askingConsent)
         {
             UpdateConsent(keyboard, mouse);
-            _previousMouse = mouse;
+            _input.CommitMouse();
             return;
         }
 
@@ -712,8 +712,7 @@ public sealed class Game1 : Game
         else
             UpdateGameScreen(gameTime, keyboard, mouse);
 
-        _previousKeyboard = keyboard;
-        _previousMouse = mouse;
+        _input.Commit();
         base.Update(gameTime);
     }
 
@@ -784,8 +783,7 @@ public sealed class Game1 : Game
         return new Vector2((mouse.X - offsetX) / _uiScale, (mouse.Y - offsetY) / _uiScale);
     }
 
-    private bool Clicked(MouseState mouse) =>
-        mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
+    private bool Clicked(MouseState mouse) => _input.Clicked(mouse);
 
     /// <summary>
     /// Where the cover is drawn, so its size does not depend on the monitor.
@@ -1190,7 +1188,7 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Down))
             _settingsSelection = (_settingsSelection + 1) % optionCount;
 
-        var mouse = Mouse.GetState();
+        var mouse = _input.CurrentMouse;
         var pointer = LogicalMouse(mouse);
         var clicked = Clicked(mouse);
         var hovered = -1;
@@ -2061,7 +2059,7 @@ public sealed class Game1 : Game
         // not also swing the sword.
         if (!_mouseLook || _showHelp) return;
 
-        var mouse = Mouse.GetState();
+        var mouse = _input.CurrentMouse;
         _session.Player.Combat.SetBlocking(mouse.RightButton == ButtonState.Pressed);
 
         // A click that arrives a fraction early is remembered rather than thrown away.
@@ -2455,7 +2453,7 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Down) || Pressed(keyboard, Keys.S))
             _inventorySelection = (_inventorySelection + InventoryColumns) % items.Count;
 
-        var mouse = Mouse.GetState();
+        var mouse = _input.CurrentMouse;
         var pointer = LogicalMouse(mouse);
         var hovered = -1;
         for (var index = 0; index < items.Count && index < InventoryRows; index++)
@@ -4080,7 +4078,7 @@ public sealed class Game1 : Game
 
         var button = SummaryButtonBounds();
         var hovered = button.Contains(
-            (int)LogicalMouse(Mouse.GetState()).X, (int)LogicalMouse(Mouse.GetState()).Y);
+            (int)LogicalMouse(_input.CurrentMouse).X, (int)LogicalMouse(_input.CurrentMouse).Y);
 
         DrawPanel(button,
             hovered ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
@@ -5322,7 +5320,7 @@ public sealed class Game1 : Game
         // machine rather than of the game.
         if (_screenshotPath is not null) return;
 
-        var pointer = LogicalMouse(Mouse.GetState());
+        var pointer = LogicalMouse(_input.CurrentMouse);
         if (pointer.X < -8f || pointer.Y < -8f
             || pointer.X > LogicalWidth + 8f || pointer.Y > LogicalHeight + 8f) return;
 
@@ -6943,5 +6941,5 @@ public sealed class Game1 : Game
             0);
     }
 
-    private bool Pressed(KeyboardState current, Keys key) => current.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);
+    private bool Pressed(KeyboardState current, Keys key) => _input.Pressed(current, key);
 }
