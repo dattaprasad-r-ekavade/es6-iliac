@@ -11,9 +11,11 @@ The current workspace is intentionally small and rebuildable:
 ```text
 src/RatnaBay.Domain          Engine-independent game rules and save contracts
 src/RatnaBay.Game            MonoGame WindowsDX client
+src/RatnaBay.Game/Ui         Screen and HUD renderers, shared canvas and layout
 tools/RatnaBay.Tools         Validators, world compiler, and authoring commands
 tests/RatnaBay.Domain.Tests  Headless domain tests
 Docs/                        Pivot plan and toolchain strategy
+AGENTS.md                    Where AI (and human) changes belong, and how to check them
 ```
 
 ## Build
@@ -23,7 +25,9 @@ Docs/                        Pivot plan and toolchain strategy
 ```
 
 The script restores the project-local MonoGame content tools, restores the solution,
-builds the game, and runs the domain tests.
+builds the game, and runs the domain tests. `.\verify.ps1` is the fuller gate (build, doctor,
+tests, content validation, simulation). See [`AGENTS.md`](AGENTS.md) for the map of where a
+change belongs.
 
 ## Run the shell
 

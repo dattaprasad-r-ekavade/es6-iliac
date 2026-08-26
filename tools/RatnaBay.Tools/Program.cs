@@ -29,6 +29,8 @@ static int RunDoctor(string root)
         "RatnaBay.sln",
         "global.json",
         "build.ps1",
+        "verify.ps1",
+        "AGENTS.md",
         "src/RatnaBay.Domain/RatnaBay.Domain.csproj",
         "src/RatnaBay.Game/RatnaBay.Game.csproj",
         "src/RatnaBay.Game/Content/Content.mgcb",
