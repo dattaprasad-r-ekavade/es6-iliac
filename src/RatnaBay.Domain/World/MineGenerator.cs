@@ -74,6 +74,17 @@ public static class MineGenerator
     /// so the three cannot drift apart again.
     /// </summary>
     private const float DoorwayHeight = 3.4f;
+
+    /// <summary>
+    /// How far a passage is buried into the rooms at each end.
+    ///
+    /// A corridor used to stop exactly on the plane of the wall it opened through, so the two
+    /// boxes met face to face with nothing between them. Coplanar faces fight for the depth
+    /// buffer, and the result was a bright sliver flickering at the doorway jamb -- reported
+    /// as "floating artifacts in rooms", and mistaken by me for a sprite, an arrow and a
+    /// rising enemy in turn before a per-pixel pick named the wall it was on.
+    /// </summary>
+    private const float SeamOverlap = 0.08f;
     private const float CeilingTop = 6.5f;
 
     /// <summary>Matches the authored world's spawn height; the player falls the last inch.</summary>
@@ -434,6 +445,19 @@ public static class MineGenerator
     private static void Passage(WorldManifest manifest, string prefix,
         float minX, float maxX, float minZ, float maxZ, bool alongZ, WorldColor colour)
     {
+        // Both ends pushed into the rooms, so no face of a passage is ever coplanar with a
+        // face of the wall it passes through.
+        if (alongZ)
+        {
+            minZ -= SeamOverlap;
+            maxZ += SeamOverlap;
+        }
+        else
+        {
+            minX -= SeamOverlap;
+            maxX += SeamOverlap;
+        }
+
         var floorMinX = alongZ ? minX - WallThickness : minX;
         var floorMaxX = alongZ ? maxX + WallThickness : maxX;
         var floorMinZ = alongZ ? minZ : minZ - WallThickness;

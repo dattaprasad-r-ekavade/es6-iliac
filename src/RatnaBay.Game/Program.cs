@@ -26,4 +26,8 @@ if (dumpIndex >= 0 && dumpIndex + 1 < args.Length)
 
 using var game = new Game1(args);
 game.Run();
-return 0;
+
+// A scripted run reports through the exit code, so an assert failure can gate a build.
+// Returning a literal here was overriding it: Main's return value wins over
+// Environment.ExitCode, so the process said success no matter what the script found.
+return game.ScriptExitCode;

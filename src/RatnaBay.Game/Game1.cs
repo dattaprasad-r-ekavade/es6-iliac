@@ -197,6 +197,9 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>Set by a failed 'assert'. Becomes the process exit code.</summary>
     private bool _scriptFailed;
 
+    /// <summary>1 when a scripted run found a failure, 0 otherwise. Read by Program.</summary>
+    public int ScriptExitCode => _scriptFailed ? 1 : 0;
+
     /// <summary>Set by 'quit', so a test script can end the run itself.</summary>
     private bool _scriptQuitWhenDone;
 
@@ -992,7 +995,6 @@ public sealed class Game1 : Game, IConsoleTarget
             {
                 _scriptQuitWhenDone = false;
                 Console.WriteLine(_scriptFailed ? "SCRIPT FAILED" : "SCRIPT PASSED");
-                Environment.ExitCode = _scriptFailed ? 1 : 0;
                 Exit();
             }
 
@@ -5488,15 +5490,37 @@ public sealed class Game1 : Game, IConsoleTarget
     /// almost every time. The geometry test is a plain ray march rather than a proper slab
     /// intersection: this is a debugging aid, and a metre of precision is enough to name a box.
     /// </summary>
-    string IConsoleTarget.PickUnderCrosshair()
+    string IConsoleTarget.PickAt(int? screenX, int? screenY)
     {
         if (_world is null) return "No world.";
 
         var origin = _cameraPosition;
-        var direction = Vector3.Normalize(new Vector3(
-            -MathF.Sin(_cameraYaw) * MathF.Cos(_cameraPitch),
-            MathF.Sin(_cameraPitch),
-            -MathF.Cos(_cameraYaw) * MathF.Cos(_cameraPitch)));
+        Vector3 direction;
+
+        if (screenX is { } px && screenY is { } py)
+        {
+            // A ray through one pixel, so a thing seen in a screenshot can be asked about by
+            // its coordinates rather than by nudging the camera until the crosshair lands on
+            // it. Unprojecting the near and far planes is the only way to get this right for
+            // an off-centre pixel; the crosshair formula below only holds at the centre.
+            var viewport = GraphicsDevice.Viewport;
+            var scale = viewport.Width / (float)LogicalWidth;
+            var device = new Vector3(px * scale, py * scale, 0f);
+
+            var near = viewport.Unproject(device, _projection, _view, Matrix.Identity);
+            var far = viewport.Unproject(new Vector3(device.X, device.Y, 1f), _projection, _view,
+                Matrix.Identity);
+
+            direction = Vector3.Normalize(far - near);
+            origin = near;
+        }
+        else
+        {
+            direction = Vector3.Normalize(new Vector3(
+                -MathF.Sin(_cameraYaw) * MathF.Cos(_cameraPitch),
+                MathF.Sin(_cameraPitch),
+                -MathF.Cos(_cameraYaw) * MathF.Cos(_cameraPitch)));
+        }
 
         if (_encounter is not null)
         {
@@ -5942,7 +5966,10 @@ public sealed class Game1 : Game, IConsoleTarget
                 PrimitiveType.TriangleList, vertices, 0, vertices.Length,
                 indices, 0, indices.Length / 3);
         }
+
     }
+
+
 
     /// <summary>Set the shader's ambient and directional fill for the room being drawn.</summary>
     private void SetCaveAmbience(Vector3 ambient, Vector3 keyDirection, Vector3 keyColour)

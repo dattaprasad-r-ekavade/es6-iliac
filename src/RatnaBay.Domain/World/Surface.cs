@@ -147,6 +147,8 @@ public static class Surface
         const float shaftFloor = -9f;
         var lining = new WorldColor(62, 58, 54);
 
+        // NOTE: this still reads far too bright for nine metres underground. Darkening it
+        // needs a change to the cave shader, not to this file -- see WorldMaterials.
         Box(manifest, "surface.shaft.line.n", -2.1f, shaftFloor, -11.1f, 2.1f, FloorTop, -10.8f, lining);
         Box(manifest, "surface.shaft.line.s", -2.1f, shaftFloor, -7.2f, 2.1f, FloorTop, -6.9f, lining);
         Box(manifest, "surface.shaft.line.w", -2.1f, shaftFloor, -10.8f, -1.8f, FloorTop, -7.2f, lining);

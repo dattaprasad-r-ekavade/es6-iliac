@@ -69,8 +69,13 @@ internal interface IConsoleTarget
     /// <summary>Take a picture now, from wherever the camera is.</summary>
     string Capture(string path);
 
-    /// <summary>What the crosshair is pointing at, and how far away it is.</summary>
-    string PickUnderCrosshair();
+    /// <summary>
+    /// What is under the crosshair, or under one screen pixel when given.
+    ///
+    /// The pixel form is what makes a screenshot answerable: something odd in a captured
+    /// frame can be named by its coordinates instead of by nudging the camera at it.
+    /// </summary>
+    string PickAt(int? screenX, int? screenY);
 
     void Say(string message);
 }
@@ -553,9 +558,11 @@ internal static class GameConsole
             });
 
         console.Register("pick",
-            "pick",
-            "Say what the crosshair is pointing at.",
-            _ => game.PickUnderCrosshair());
+            "pick [x y]",
+            "Say what the crosshair is on, or what is at a screen pixel of the last frame.",
+            args => args.Count >= 2 && args.TryInteger(0, out var px) && args.TryInteger(1, out var py)
+                ? game.PickAt(px, py)
+                : game.PickAt(null, null));
 
         console.Register("time",
             "time [scale]",

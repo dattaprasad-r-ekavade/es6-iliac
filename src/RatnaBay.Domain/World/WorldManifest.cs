@@ -256,6 +256,19 @@ public static class WorldMaterials
     public const string Timber = "timber";
     public const string Cloth = "cloth";
     public const string Earth = "earth";
+
+
+    // There is deliberately no "unlit" here yet.
+    //
+    // The inside of the shaft is lit like the yard it is a hole in, nine metres down, and an
+    // unlit material was the obvious fix. It was built, and it changed the mean brightness of
+    // the frame from 82.8 to 83.1 -- which is to say nothing at all. The cause is that the
+    // cave shader ignores DiffuseColour for world geometry: a wall tinted magenta renders
+    // brown. Every surface is its texture times its light, and the authored colour has not
+    // reached the glass since the shader replaced BasicEffect.
+    //
+    // So darkening a surface is a shader change, not a manifest one, and a switch that
+    // reports success while changing nothing is worse than no switch at all.
 }
 
 public sealed class WorldProp
