@@ -214,6 +214,21 @@ public sealed class StoryDirector
 
     public void MarkOpened(string? id) => AddUnique(_state.OpenedLocks, id);
     public void MarkLooted(string? id) => AddUnique(_state.LootedObjects, id);
+
+    /// <summary>
+    /// Forget that something was taken.
+    ///
+    /// Looting is permanent for a chest in the ground, which is why this did not exist. A
+    /// shelf in a shop is the other case: it is marked with the same mechanism so that a sale
+    /// survives a save, but it has to be forgettable or restocking cannot work.
+    /// </summary>
+    public bool ForgetLooted(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || !_state.LootedObjects.Remove(id)) return false;
+
+        Changed?.Invoke();
+        return true;
+    }
     public void MarkCinematicSkipped(string? id) => AddUnique(_state.SkippedCinematics, id);
 
     public void AddChanneled(float amount)

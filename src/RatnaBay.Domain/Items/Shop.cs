@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace RatnaBay.Domain;
 
 public sealed class ShopItemDefinition
@@ -64,10 +68,18 @@ public sealed class Shop
     /// out permanently would mean a player who lost a weapon could never replace it — a
     /// dead end reachable only by the players already having the worst time.
     /// </summary>
-    public void Restock()
+    /// <returns>
+    /// The item ids that were sold out and are now back on the shelf, so a caller holding
+    /// persisted state can forget them too. Clearing only this set was the bug: the sale is
+    /// also written to the save, and every reload put it straight back.
+    /// </returns>
+    public IReadOnlyList<string> Restock()
     {
-        if (_soldOut.Count == 0) return;
+        if (_soldOut.Count == 0) return Array.Empty<string>();
+
+        var cleared = _soldOut.ToList();
         _soldOut.Clear();
+        return cleared;
     }
 
     /// <summary>Things bought over and over, as opposed to gear bought once.</summary>

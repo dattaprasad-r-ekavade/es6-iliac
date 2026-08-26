@@ -2746,7 +2746,12 @@ public sealed class Game1 : Game
         // A descent is a supply run for the stall as much as for the player. Restocking here
         // is also what keeps a death from being unrecoverable: half the pack is gone, and the
         // shelf that could replace it has to have something on it.
-        _shop?.Restock();
+        //
+        // The sale is written to the save as a looted object so that it survives a reload, so
+        // restocking has to unwrite it. Clearing only the shop's own set looked right and did
+        // nothing: LoadShop re-reads those marks on every descent and every load, so the
+        // shelf emptied permanently the first time the player went back down.
+        RestockTheStall();
 
         _coach.Teach(result.Survived ? Lessons.Banked : Lessons.Died,
             Lessons.TextOf(result.Survived ? Lessons.Banked : Lessons.Died));
@@ -3146,6 +3151,23 @@ public sealed class Game1 : Game
     {
         if (_session is null) return;
 
+        // Nobody is standing about in a generated mine.
+        //
+        // The dialogue manifest carries its own actor positions, authored against the
+        // Northwatch scene, and it was loaded on entering any world at all. Those fixed
+        // coordinates then landed wherever they happened to land inside a cave, so Mara and
+        // Vesa were waiting underground offering to talk about the old road -- the pivot left
+        // them behind and nothing ever told them to go home.
+        //
+        // The yard is built in code and has its own trader, so a descent needs no actors at
+        // all. Cleared rather than left stale, because a mine entered from the surface would
+        // otherwise inherit whoever was loaded up there.
+        if (_mineSeed is not null)
+        {
+            _dialogue = null;
+            return;
+        }
+
         var path = Path.Combine(AppContext.BaseDirectory, "Content", "Dialogue", "northwatch.json");
         if (!DialogueRuntime.TryLoad(path, _session.Player.Dialogue, out var dialogue, out var error))
         {
@@ -3209,6 +3231,15 @@ public sealed class Game1 : Game
 
             _pickups.Add(pickup);
         }
+    }
+
+    /// <summary>Put the gear back on the shelf, in memory and in the save.</summary>
+    private void RestockTheStall()
+    {
+        if (_shop is null || _session is null) return;
+
+        foreach (var itemId in _shop.Restock())
+            _session.Player.Story.ForgetLooted($"shop.{_shop.Definition.Id}.{itemId}");
     }
 
     private void LoadShop()
