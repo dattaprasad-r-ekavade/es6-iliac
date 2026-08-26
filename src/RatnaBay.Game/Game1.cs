@@ -191,6 +191,7 @@ public sealed class Game1 : Game
 
     /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
     private readonly WeaponView _weaponView = new();
+    private readonly HudRenderer _hud;
 
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
@@ -454,6 +455,8 @@ public sealed class Game1 : Game
             _graphics.IsFullScreen = false;
             Window.IsBorderless = false;
         }
+
+        _hud = new HudRenderer(DrawPanel, Text, TextCentred, TextRight);
     }
 
     private static bool HasArgument(string[] args, string argument)
@@ -3737,10 +3740,10 @@ public sealed class Game1 : Game
             DrawEnemyNameplates();
             DrawObjective();
             DrawVitals();
-            DrawStatusStrip();
+            _hud.DrawStatusStrip(_session, _framesPerSecond);
         }
 
-        DrawToasts();
+        _hud.DrawToasts(_session);
         DrawContentErrors();
 
         if (_showHelp) DrawHelpOverlay();
@@ -5928,44 +5931,6 @@ public sealed class Game1 : Game
             : Color.White;
         TextRight($"{value:0} / {max:0}", bounds.Right - 10, bounds.Y + 5,
             pulse > 0f ? 16 : 14, readout);
-    }
-
-    /// <summary>Domain events, rendered above the vitals. Newest last, fading as they expire.</summary>
-    private void DrawToasts()
-    {
-        if (_session is null || _session.Toasts.Count == 0) return;
-
-        var y = LogicalHeight - 196f - _session.Toasts.Count * 28f;
-        foreach (var toast in _session.Toasts)
-        {
-            var alpha = MathHelper.Clamp(toast.Remaining, 0f, 1f);
-            TextCentred(toast.Message, LogicalWidth / 2f, y, 17, new Color(240, 230, 202) * alpha);
-            y += 28f;
-        }
-    }
-
-    /// <summary>Level, gold and the one key that opens the rest. Bottom-right, compact.</summary>
-    private void DrawStatusStrip()
-    {
-        if (_session is null) return;
-
-        var vitals = _session.Player.Vitals;
-        var panel = new Rectangle(LogicalWidth - 264, LogicalHeight - 88, 240, 64);
-        DrawPanel(panel, new Color(6, 13, 20, 226), new Color(76, 101, 116));
-
-        Text($"LEVEL {vitals.Level}", new Vector2(panel.X + 18, panel.Y + 12), 16, Color.White);
-        TextRight($"{vitals.Gold} gold", panel.Right - 18, panel.Y + 12, 16, new Color(228, 197, 122));
-        var combat = _session.Player.Combat;
-        Text(combat.ActiveWeapon.DisplayName, new Vector2(panel.X + 18, panel.Y + 38), 13,
-            combat.IsBlocking ? new Color(232, 194, 116) : new Color(203, 216, 214));
-        // Blank until the first averaging window closes: the counter used to show whatever
-        // the opening, texture-generating window computed, so a build running at 700 fps
-        // could report 4. A misleading diagnostic is worse than none.
-        TextRight(_framesPerSecond > 0f ? $"{_framesPerSecond:0} fps" : "— fps",
-            panel.Right - 18, panel.Y + 38, 13,
-            _framesPerSecond is > 0f and < 50f
-                ? new Color(228, 128, 118)
-                : new Color(146, 174, 178));
     }
 
     /// <summary>
