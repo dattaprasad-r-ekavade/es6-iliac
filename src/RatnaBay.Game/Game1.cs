@@ -192,6 +192,7 @@ public sealed class Game1 : Game
     /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
     private readonly WeaponView _weaponView = new();
     private readonly HudRenderer _hud;
+    private readonly OverlayRenderer _overlay;
 
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
@@ -457,6 +458,7 @@ public sealed class Game1 : Game
         }
 
         _hud = new HudRenderer(DrawPanel, Text, TextFit, TextCentred, TextRight, Fill, Border);
+        _overlay = new OverlayRenderer(DrawPanel, Text, TextFit, TextCentred, Fill);
     }
 
     private static bool HasArgument(string[] args, string argument)
@@ -3635,7 +3637,7 @@ public sealed class Game1 : Game
             new Vector2(98, 610), 14, new Color(163, 191, 194));
         if (!string.IsNullOrWhiteSpace(_menuStatus))
             TextFit(_menuStatus, new Vector2(592, 542), 520f, 14, new Color(228, 128, 118));
-        if (_showSettings) DrawSettings();
+        if (_showSettings) _overlay.DrawSettings(BuildOverlayState());
         EndUi();
     }
 
@@ -3644,37 +3646,6 @@ public sealed class Game1 : Game
     {
         if (_sfx is null || !_sfx.IsAvailable) return "unavailable on this machine";
         return _sfx.Volume <= 0f ? "off" : $"{_sfx.Volume * 100f:0}%";
-    }
-
-    private void DrawSettings()
-    {
-        Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 214));
-        var panel = new Rectangle(260, 92, 760, 536);
-        DrawPanel(panel, new Color(7, 14, 21, 248), new Color(91, 146, 159));
-        Text("SETTINGS", new Vector2(panel.X + 32, panel.Y + 28), 28, Color.White);
-        Text("Display, interface and current bindings", new Vector2(panel.X + 34, panel.Y + 70), 15,
-            new Color(163, 191, 194));
-
-        var options = new[]
-        {
-            $"Display mode     {(_borderlessFullscreen ? "Borderless fullscreen" : "Windowed 1280x720")}",
-            $"UI scale          {_uiScalePreference:0.0}x",
-            $"Sound             {SoundVolumeLine()}",
-            "Bindings          WASD move | E interact | J journal | I character",
-            SettingsTelemetryLine()
-        };
-        for (var index = 0; index < options.Length; index++)
-        {
-            var selected = index == _settingsSelection;
-            var row = SettingsRowBounds(index);
-            DrawPanel(row, selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
-            TextFit(options[index], new Vector2(row.X + 16, row.Y + 10), row.Width - 32, 16,
-                selected ? Color.White : new Color(203, 216, 214));
-        }
-
-        Text("Up / Down select   Left / Right change value   Enter toggle display   Esc close",
-            new Vector2(panel.X + 32, panel.Bottom - 38), 13, new Color(163, 191, 194));
     }
 
     /// <summary>
@@ -3731,6 +3702,28 @@ public sealed class Game1 : Game
             Health: health,
             Prana: prana,
             Stamina: stamina);
+    }
+
+    /// <summary>Copies modal-screen state into the renderer-facing overlay snapshot.</summary>
+    private OverlayState BuildOverlayState()
+    {
+        var activeRun = _run is { Run.IsActive: true } run ? run.Run : null;
+        return new OverlayState(
+            InRun: activeRun is not null,
+            RoomsCleared: activeRun?.RoomsCleared ?? 0,
+            PendingStones: activeRun?.Pending ?? 0,
+            PauseItems: PauseItems,
+            PauseSelection: _pauseSelection,
+            SettingsOptions: new[]
+            {
+                $"Display mode     {(_borderlessFullscreen ? "Borderless fullscreen" : "Windowed 1280x720")}",
+                $"UI scale          {_uiScalePreference:0.0}x",
+                $"Sound             {SoundVolumeLine()}",
+                "Bindings          WASD move | E interact | J journal | I character",
+                SettingsTelemetryLine()
+            },
+            SettingsSelection: _settingsSelection,
+            RecordingDirectory: PlayRecorder.Directory);
     }
 
     private void DrawWorldScene()
@@ -3803,14 +3796,14 @@ public sealed class Game1 : Game
         _hud.DrawToasts(_session);
         DrawContentErrors();
 
-        if (_showHelp) DrawHelpOverlay();
+        if (_showHelp) _overlay.DrawHelpOverlay(BuildOverlayState());
         if (_dialogueOpen) DrawDialogue();
         if (_showJournal) DrawJournal();
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
         if (_campTraderOpen) DrawCampTrader();
         if (_choosingDepth) DrawDepthChoice();
-        if (_paused && _runSummary is null) DrawPause();
+        if (_paused && _runSummary is null) _overlay.DrawPause(BuildOverlayState());
         if (_runSummary is { } summary) DrawRunSummary(summary);
 
         EndUi();
@@ -3906,57 +3899,6 @@ public sealed class Game1 : Game
         Text($"{run.Pending}", new Vector2(panel.Right - 44, panel.Y + 8), 18, Color.White);
         Text($"room {run.RoomsCleared}  ·  {run.Pending * SoulCrystals.LesserBasePrice} gold",
             new Vector2(panel.X + 14, panel.Y + 34), 12, new Color(150, 162, 170));
-    }
-
-    /// <summary>What the descent was worth, once it is over either way.</summary>
-    /// <summary>
-    /// The pause screen.
-    ///
-    /// It exists because Escape used to go straight to the main menu and take the descent with
-    /// it. What is at stake is spelled out here rather than assumed: a player deciding whether
-    /// to stop should be able to see what stopping costs.
-    /// </summary>
-    private void DrawPause()
-    {
-        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 214),
-            new Color(3, 6, 10, 0));
-
-        var inRun = _run is { Run.IsActive: true };
-        var panel = new Rectangle(400, 196, 480, inRun ? 332 : 268);
-        DrawPanel(panel, new Color(6, 12, 19, 246), new Color(151, 206, 210));
-
-        TextCentred("PAUSED", panel.Center.X, panel.Y + 26f, 24, new Color(214, 226, 226));
-
-        var top = panel.Y + 78f;
-        if (inRun && _run is not null)
-        {
-            var run = _run.Run;
-            TextCentred($"{run.RoomsCleared} rooms cleared  ·  {run.Pending} stones at risk",
-                panel.Center.X, panel.Y + 62f, 14, new Color(151, 206, 210));
-            TextCentred("Setting it aside keeps all of it. Giving up keeps none.",
-                panel.Center.X, panel.Y + 84f, 13, new Color(150, 162, 170));
-            top = panel.Y + 118f;
-        }
-
-        var items = PauseItems;
-        for (var index = 0; index < items.Length; index++)
-        {
-            var bounds = PauseItemBounds(index);
-            var selected = index == _pauseSelection;
-            var giveUp = items[index].StartsWith("Give up", StringComparison.Ordinal);
-
-            DrawPanel(bounds,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected
-                    ? giveUp ? new Color(214, 118, 96) : new Color(224, 181, 88)
-                    : new Color(54, 82, 91));
-
-            TextCentred(items[index], bounds.Center.X, bounds.Y + 10f, 16,
-                selected ? Color.White : new Color(192, 207, 205));
-        }
-
-        TextCentred("Click or arrows select      Enter confirm      Esc resume",
-            panel.Center.X, panel.Bottom - 30f, 13, new Color(140, 156, 164));
     }
 
     /// <summary>
@@ -5701,96 +5643,6 @@ public sealed class Game1 : Game
                 : $"Enter or click to {verb.ToLowerInvariant()}",
             new Vector2(detail.X + 14, detail.Y + 56), detail.Width - 28, 13,
             verb == "—" ? new Color(142, 157, 157) : new Color(232, 194, 116));
-    }
-
-    /// <summary>
-    /// The control list, on demand. It used to be a permanent full-width bar across the
-    /// bottom of the screen, which is developer scaffolding rather than a HUD.
-    /// </summary>
-    private void DrawHelpOverlay()
-    {
-        Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 200));
-
-        var panel = new Rectangle(300, 96, 680, 476);
-        DrawPanel(panel, new Color(7, 14, 21, 244), new Color(91, 146, 159));
-        TextCentred("CONTROLS", panel.X + panel.Width / 2f, panel.Y + 26, 24, Color.White);
-
-        // Grouped and in two columns, because the flat list had grown to twenty-three rows —
-        // which ran a hundred and twenty pixels past the bottom of its own panel, listed E and
-        // I twice in different words, and advertised a crouch key that does nothing while
-        // sneaking is parked. This is the first screen a confused player opens.
-        (string Heading, (string Key, string Action)[] Rows)[] sections =
-        {
-            ("MOVING", new[]
-            {
-                ("W A S D", "move"),
-                ("Mouse", "look"),
-                ("Arrow keys", "look, without the mouse"),
-                ("Shift", "sprint — spends stamina"),
-                ("Space", "jump")
-            }),
-            ("FIGHTING", new[]
-            {
-                ("Left click", "attack"),
-                ("Right click", "guard — one-handed only"),
-                ("Q", "cast the readied spell"),
-                ("4 5 6 7 8", "flame, rime, arc, mend, emberlight")
-            }),
-            ("THE WORLD", new[]
-            {
-                ("E", "talk, open, take"),
-                ("B", "trade with a merchant"),
-                ("I", "character, pack and skills"),
-                ("J", "journal")
-            }),
-            ("THE GAME", new[]
-            {
-                ("Esc", "close what is open, then the menu"),
-                ("M", "back to the menu"),
-                ("Tab", "release the mouse"),
-                ("F5 / F9", "save / load"),
-                ("F11", "windowed / fullscreen"),
-                ("F1", "close this")
-            })
-        };
-
-        // Whole sections are dealt to a column before moving to the next one. Splitting purely
-        // on line count orphaned a heading at the foot of the first column while its keys sat
-        // at the head of the second.
-        var total = sections.Sum(section => section.Rows.Length + 1);
-        var target = total / 2f;
-
-        var column = 0;
-        var placed = 0;
-        var line = 0;
-
-        foreach (var (heading, rows) in sections)
-        {
-            // Move on once this column holds its share, but never leave the second one empty.
-            if (column == 0 && placed > 0 && placed + (rows.Length + 1) / 2f > target)
-            {
-                column = 1;
-                line = 0;
-            }
-
-            var x = panel.X + 40f + column * 316f;
-            Text(heading, new Vector2(x, panel.Y + 82f + line * 30f), 13,
-                new Color(151, 206, 210));
-            line++;
-            placed++;
-
-            foreach (var (key, action) in rows)
-            {
-                var y = panel.Y + 76f + line * 30f;
-                Text(key, new Vector2(x, y), 16, new Color(232, 194, 116));
-                TextFit(action, new Vector2(x + 112f, y), 184f, 16, new Color(214, 226, 222));
-                line++;
-                placed++;
-            }
-        }
-
-        TextCentred($"This session is being recorded to {PlayRecorder.Directory}",
-            panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, new Color(140, 156, 164));
     }
 
     private void DrawAuthoredWorld()

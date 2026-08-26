@@ -39,6 +39,8 @@ self-test. Do not commit `build/`, `bin/`, `obj/`, captures or generated world o
   but should not sample the device directly.
 - Build world-HUD presentation data in `WorldHudState` and keep layout/drawing in
   `HudRenderer`; `Game1` should only collect state and coordinate draw order.
+- Keep pause, help and settings layout in `OverlayRenderer` from an `OverlayState` snapshot;
+  input and flow decisions remain in `Game1`.
 - UI coordinates use the 1280x720 logical canvas and must account for letterboxing.
 - Save/load changes require a round-trip test and must preserve backward-compatible defaults.
 - Generated mines are deterministic from their seed and should not be written into installed
