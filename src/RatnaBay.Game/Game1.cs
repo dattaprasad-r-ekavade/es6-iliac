@@ -456,7 +456,7 @@ public sealed class Game1 : Game
             Window.IsBorderless = false;
         }
 
-        _hud = new HudRenderer(DrawPanel, Text, TextCentred, TextRight);
+        _hud = new HudRenderer(DrawPanel, Text, TextFit, TextCentred, TextRight, Fill, Border);
     }
 
     private static bool HasArgument(string[] args, string argument)
@@ -3677,6 +3677,62 @@ public sealed class Game1 : Game
             new Vector2(panel.X + 32, panel.Bottom - 38), 13, new Color(163, 191, 194));
     }
 
+    /// <summary>
+    /// Copies the live session into the small set of values the world HUD presents.
+    ///
+    /// Keeping this snapshot at the game/render boundary means HudRenderer never needs to
+    /// know about save files, quest services, or the rest of Game1's orchestration state.
+    /// </summary>
+    private WorldHudState BuildWorldHudState()
+    {
+        var detection = _session?.Player.Detection;
+        var objective = _session?.Player.Objective;
+        var vitals = _session?.Player.Vitals;
+        var feedback = _encounter?.Feedback;
+
+        var health = vitals is null
+            ? default
+            : new VitalBarState(vitals.Health, vitals.MaxHealth, _healthPulse);
+        var prana = vitals is null
+            ? default
+            : new VitalBarState(vitals.Prana, vitals.MaxPrana, _pranaPulse);
+        var stamina = vitals is null
+            ? default
+            : new VitalBarState(vitals.Stamina, vitals.MaxStamina);
+
+        var activeObjective = objective is { HasObjective: true } objectiveValue
+            ? objectiveValue
+            : null;
+        var objectiveTitle = activeObjective?.Title;
+        var objectiveDirections = activeObjective?.Directions ?? string.Empty;
+        var objectiveBearing = activeObjective is null || _session is null
+            ? string.Empty
+            : activeObjective.BearingLine(_session.Position);
+
+        return new WorldHudState(
+            HasSession: _session is not null,
+            IsCrouching: detection?.IsCrouching == true,
+            Awareness: detection?.Awareness ?? AwarenessLevel.Unaware,
+            Suspicion: detection?.Suspicion ?? 0f,
+            DamageFlash: _encounter is { DamageFlash: > 0f } encounter
+                ? encounter.DamageFlash / Encounter.DamageFlashSeconds
+                : 0f,
+            HitMarker: feedback?.HitMarker ?? 0f,
+            KillMarker: feedback?.KillMarker ?? 0f,
+            DamageDirections: feedback?.Directions.ToArray() ?? Array.Empty<DamageDirection>(),
+            CastBanner: feedback?.CastBanner ?? 0f,
+            CastTint: feedback?.CastTint ?? Color.Transparent,
+            CastColour: feedback?.CastColour ?? Color.White,
+            CastLine: feedback?.CastLine ?? string.Empty,
+            LocationCaption: LocationCaption(),
+            ObjectiveTitle: objectiveTitle,
+            ObjectiveDirections: objectiveDirections,
+            ObjectiveBearing: objectiveBearing,
+            Health: health,
+            Prana: prana,
+            Stamina: stamina);
+    }
+
     private void DrawWorldScene()
     {
         if (_moodboard)
@@ -3714,32 +3770,33 @@ public sealed class Game1 : Game
         // A full-screen panel owns the screen. Leaving the combat HUD drawing underneath it
         // was most of why testers called the inventory cluttered.
         var panelOpen = _showHelp || _showJournal || _showCharacter || _showShop;
+        var hudState = BuildWorldHudState();
 
         if (!panelOpen)
         {
             DrawWeapon();
-            DrawDamageFlash();
+            _hud.DrawDamageFlash(hudState);
             // Both of these report on a system with nothing to report: no live world places
             // a watcher, so the awareness meter has read UNAWARE in every screenshot ever
             // taken of this game. Crouching still works; it just no longer pretends.
-            if (ParkedFeatures.Sneaking) DrawSneakOverlay();
+            if (ParkedFeatures.Sneaking) _hud.DrawSneakOverlay(hudState);
             DrawThreatArrows();
             DrawFloatingNumbers();
-            DrawCrosshair();
-            DrawHitMarker();
-            DrawDamageDirections();
+            _hud.DrawCrosshair(hudState);
+            _hud.DrawHitMarker(hudState);
+            _hud.DrawDamageDirections(hudState);
             DrawSpellBar();
-            DrawCastBanner();
+            _hud.DrawCastBanner(hudState);
             DrawSurfaceSigns();
             DrawCoach();
             DrawCampDecision();
             DrawDoorPrompt();
             DrawRunLedger();
-            DrawLocationBanner();
-            if (ParkedFeatures.Sneaking) DrawAwareness();
+            _hud.DrawLocationBanner(hudState);
+            if (ParkedFeatures.Sneaking) _hud.DrawAwareness(hudState);
             DrawEnemyNameplates();
-            DrawObjective();
-            DrawVitals();
+            _hud.DrawObjective(hudState);
+            _hud.DrawVitals(hudState);
             _hud.DrawStatusStrip(_session, _framesPerSecond);
         }
 
@@ -5186,48 +5243,6 @@ public sealed class Game1 : Game
         EndUi();
     }
 
-    /// <summary>A red vignette while the player is being hurt.</summary>
-    private void DrawDamageFlash()
-    {
-        if (_encounter is null || _encounter.DamageFlash <= 0f) return;
-
-        var strength = _encounter.DamageFlash / Encounter.DamageFlashSeconds;
-        var tint = new Color(150, 24, 28) * (strength * 0.45f);
-        const int band = 90;
-
-        Fill(new Rectangle(0, 0, LogicalWidth, band), tint);
-        Fill(new Rectangle(0, LogicalHeight - band, LogicalWidth, band), tint);
-        Fill(new Rectangle(0, 0, band, LogicalHeight), tint);
-        Fill(new Rectangle(LogicalWidth - band, 0, band, LogicalHeight), tint);
-    }
-
-    /// <summary>
-    /// Skyrim-style stealth feedback: the eye replaces the ordinary crosshair and a quiet
-    /// vignette makes the stance readable without taking the player's eyes off the world.
-    /// The awareness panel still supplies the exact state and suspicion amount.
-    /// </summary>
-    private void DrawSneakOverlay()
-    {
-        if (_session?.Player.Detection.IsCrouching != true) return;
-
-        var awareness = _session.Player.Detection.Awareness;
-        var edge = awareness switch
-        {
-            AwarenessLevel.Alerted => new Color(108, 30, 28),
-            AwarenessLevel.Suspicious => new Color(104, 76, 31),
-            _ => new Color(13, 25, 32)
-        };
-
-        // Two bands approximate a soft vignette using the existing 1x1 UI texture. The
-        // centre remains clear so sneaking never hides the thing being tested.
-        Fill(new Rectangle(0, 0, LogicalWidth, 30), edge * 0.66f);
-        Fill(new Rectangle(0, LogicalHeight - 30, LogicalWidth, 30), edge * 0.66f);
-        Fill(new Rectangle(0, 0, 42, LogicalHeight), edge * 0.54f);
-        Fill(new Rectangle(LogicalWidth - 42, 0, 42, LogicalHeight), edge * 0.54f);
-        Fill(new Rectangle(0, 30, 16, LogicalHeight - 60), edge * 0.28f);
-        Fill(new Rectangle(LogicalWidth - 16, 30, 16, LogicalHeight - 60), edge * 0.28f);
-    }
-
     /// <summary>
     /// A nameplate over each enemy: name, level, health, and whatever is currently wrong with it.
     ///
@@ -5348,78 +5363,6 @@ public sealed class Game1 : Game
         }
     }
 
-    private void DrawCrosshair()
-    {
-        const int cx = LogicalWidth / 2;
-        const int cy = LogicalHeight / 2;
-
-        if (_session?.Player.Detection.IsCrouching == true)
-        {
-            var colour = _session.Player.Detection.Awareness switch
-            {
-                AwarenessLevel.Alerted => new Color(238, 91, 78, 240),
-                AwarenessLevel.Suspicious => new Color(239, 190, 91, 240),
-                _ => new Color(220, 235, 226, 240)
-            };
-            DrawSneakEye(cx, cy, colour);
-            TextCentred("SNEAK", cx, cy + 22, 11, colour);
-            return;
-        }
-
-        var shadow = new Color(0, 0, 0, 165);
-        var ink = new Color(244, 248, 246, 225);
-
-        // Drawn twice: a dark pass one pixel out, then the light pass. A single-colour
-        // crosshair disappears whenever the scenery happens to match it.
-        foreach (var (colour, grow) in new[] { (shadow, 1), (ink, 0) })
-        {
-            Fill(new Rectangle(cx - 10 - grow, cy - grow, 7 + grow * 2, 2 + grow * 2), colour);
-            Fill(new Rectangle(cx + 3 - grow, cy - grow, 7 + grow * 2, 2 + grow * 2), colour);
-            Fill(new Rectangle(cx - grow, cy - 10 - grow, 2 + grow * 2, 7 + grow * 2), colour);
-            Fill(new Rectangle(cx - grow, cy + 3 - grow, 2 + grow * 2, 7 + grow * 2), colour);
-        }
-    }
-
-    /// <summary>Where you are. Top-centre, out of the way of everything you look at.</summary>
-    /// <summary>
-    /// A tick on the crosshair the instant a blow lands.
-    ///
-    /// Playtesters could not tell a hit from a miss. This is the smallest possible answer:
-    /// four strokes that only appear when the domain says something was struck.
-    /// </summary>
-    private void DrawHitMarker()
-    {
-        if (_encounter is null) return;
-
-        var strength = MathF.Max(_encounter.Feedback.HitMarker, _encounter.Feedback.KillMarker);
-        if (strength <= 0f) return;
-
-        const int cx = LogicalWidth / 2;
-        const int cy = LogicalHeight / 2;
-
-        // A kill reads gold; an ordinary hit reads white.
-        var colour = (_encounter.Feedback.KillMarker > 0f
-            ? new Color(255, 214, 122)
-            : new Color(255, 252, 246)) * strength;
-
-        // Spread outward as it fades, so the marker feels like an impact.
-        var spread = (int)(6f + (1f - strength) * 7f);
-        var length = 7;
-
-        for (var i = 0; i < 4; i++)
-        {
-            var dx = i < 2 ? (i == 0 ? -1 : 1) : 0;
-            var dz = i < 2 ? 0 : (i == 2 ? -1 : 1);
-
-            for (var step = 0; step < length; step++)
-            {
-                var x = cx + dx * (spread + step);
-                var y = cy + dz * (spread + step);
-                Fill(new Rectangle(x - 1, y - 1, 2, 2), colour);
-            }
-        }
-    }
-
     /// <summary>Damage and status, floating up from where it happened.</summary>
     private void DrawFloatingNumbers()
     {
@@ -5454,39 +5397,6 @@ public sealed class Game1 : Game
             TextCentred(number.Text, position.X + 2f, position.Y + 2f, size,
                 new Color(0, 0, 0, 190) * fade);
             TextCentred(number.Text, position.X, position.Y, size, number.Colour * fade);
-        }
-    }
-
-    /// <summary>
-    /// An arc pointing at whatever just hit the player.
-    ///
-    /// Being hit from behind was previously indistinguishable from being hit from in front:
-    /// the screen reddened and that was all.
-    /// </summary>
-    private void DrawDamageDirections()
-    {
-        if (_encounter is null) return;
-
-        const float centreX = LogicalWidth / 2f;
-        const float centreY = LogicalHeight / 2f;
-        const float radius = 132f;
-
-        foreach (var direction in _encounter.Feedback.Directions)
-        {
-            var fade = direction.Duration <= 0f ? 0f : direction.Remaining / direction.Duration;
-            var colour = new Color(232, 96, 88) * (fade * 0.9f);
-
-            // Screen space: bearing zero is up, positive is clockwise.
-            for (var offset = -0.34f; offset <= 0.34f; offset += 0.02f)
-            {
-                var angle = direction.Bearing + offset;
-                var thickness = 5f - MathF.Abs(offset) * 8f;
-                var x = centreX + MathF.Sin(angle) * radius;
-                var y = centreY - MathF.Cos(angle) * radius;
-
-                Fill(new Rectangle((int)x - 2, (int)y - 2, (int)MathF.Max(2f, thickness),
-                    (int)MathF.Max(2f, thickness)), colour);
-            }
         }
     }
 
@@ -5639,37 +5549,6 @@ public sealed class Game1 : Game
     }
 
     /// <summary>
-    /// What was just cast, and what it did.
-    ///
-    /// A brief tint in the element's colour makes the cast itself unmissable, and the line
-    /// underneath names the spell and its result, so a cast that found nothing is clearly a
-    /// miss rather than a spell that silently failed to fire.
-    /// </summary>
-    private void DrawCastBanner()
-    {
-        if (_encounter is null) return;
-
-        var strength = _encounter.Feedback.CastBanner;
-        if (strength <= 0f) return;
-
-        // The tint fades faster than the words, so it reads as the moment of casting.
-        var tintStrength = MathF.Max(0f, strength - 0.55f) / 0.45f;
-        if (tintStrength > 0f)
-        {
-            var tint = _encounter.Feedback.CastTint * (tintStrength * 0.2f);
-            const int band = 72;
-            Fill(new Rectangle(0, 0, LogicalWidth, band), tint);
-            Fill(new Rectangle(0, LogicalHeight - band, LogicalWidth, band), tint);
-            Fill(new Rectangle(0, 0, band, LogicalHeight), tint);
-            Fill(new Rectangle(LogicalWidth - band, 0, band, LogicalHeight), tint);
-        }
-
-        var fade = MathHelper.Clamp(strength * 1.6f, 0f, 1f);
-        TextCentred(_encounter.Feedback.CastLine, LogicalWidth / 2f, LogicalHeight / 2f + 118f,
-            19, _encounter.Feedback.CastColour * fade);
-    }
-
-    /// <summary>
     /// World position to logical UI pixels. False when the point is behind the camera, which
     /// would otherwise project to a mirrored position in front of it.
     /// </summary>
@@ -5711,81 +5590,6 @@ public sealed class Game1 : Game
             TextFit(error, new Vector2(panel.X + 16, y), 648f, 13, new Color(240, 208, 202));
             y += 22f;
         }
-    }
-
-    private void DrawLocationBanner()
-    {
-        TextCentred(LocationCaption(), LogicalWidth / 2f, 24f, 15, new Color(196, 214, 214));
-    }
-
-    private void DrawAwareness()
-    {
-        if (_session is null) return;
-
-        var detection = _session.Player.Detection;
-        var panel = new Rectangle(LogicalWidth - 264, 24, 240, 48);
-        var colour = detection.Awareness switch
-        {
-            AwarenessLevel.Alerted => new Color(188, 65, 68),
-            AwarenessLevel.Suspicious => new Color(205, 157, 98),
-            _ => new Color(76, 101, 116)
-        };
-        DrawPanel(panel, new Color(6, 13, 20, 226), colour);
-        Text("AWARENESS", new Vector2(panel.X + 14, panel.Y + 8), 12, Color.White);
-        TextRight(detection.Awareness.ToString().ToUpperInvariant(), panel.Right - 14,
-            panel.Y + 8, 12, colour == new Color(76, 101, 116) ? new Color(180, 196, 194) : colour);
-        Fill(new Rectangle(panel.X + 14, panel.Y + 29, panel.Width - 28, 7), new Color(20, 27, 33));
-        Fill(new Rectangle(panel.X + 14, panel.Y + 29,
-            (int)((panel.Width - 28) * MathHelper.Clamp(detection.Suspicion, 0f, 1f)), 7), colour);
-    }
-
-    /// <summary>
-    /// The objective, with a live compass bearing generated from where the player actually
-    /// is — which is what replaces a marker.
-    /// </summary>
-    private void DrawObjective()
-    {
-        if (_session?.Player.Objective is not { HasObjective: true } objective) return;
-
-        var panel = new Rectangle(24, 24, 360, 116);
-        DrawPanel(panel, new Color(7, 15, 22, 226), new Color(182, 137, 71));
-
-        Text("OBJECTIVE", new Vector2(panel.X + 18, panel.Y + 14), 13, new Color(239, 196, 111));
-        TextFit(objective.Title!, new Vector2(panel.X + 18, panel.Y + 36), 324f, 20, Color.White);
-        TextFit(objective.Directions ?? string.Empty, new Vector2(panel.X + 18, panel.Y + 64),
-            324f, 15, new Color(206, 220, 212));
-
-        var bearing = objective.BearingLine(_session.Position);
-        if (bearing.Length > 0)
-            TextFit(bearing, new Vector2(panel.X + 18, panel.Y + 88), 324f, 15,
-                new Color(232, 194, 116));
-    }
-
-    /// <summary>
-    /// The player's real numbers, bottom-left where a HUD belongs.
-    ///
-    /// Labels sit *on* their bar rather than underneath it: the previous layout put an 11 px
-    /// caption in the gap between two bars, which read as belonging to the wrong one.
-    /// </summary>
-    private void DrawVitals()
-    {
-        if (_session is null) return;
-
-        var vitals = _session.Player.Vitals;
-        var panel = new Rectangle(24, LogicalHeight - 164, 344, 140);
-        DrawPanel(panel, new Color(6, 13, 20, 232), new Color(78, 128, 148));
-
-        var barX = panel.X + 18;
-        var barWidth = panel.Width - 36;
-
-        DrawVitalBar(new Rectangle(barX, panel.Y + 20, barWidth, 26), "HEALTH",
-            vitals.Health, vitals.MaxHealth, new Color(198, 68, 74), _healthPulse);
-
-        DrawVitalBar(new Rectangle(barX, panel.Y + 58, barWidth, 26), "PRANA",
-            vitals.Prana, vitals.MaxPrana, new Color(74, 134, 216), _pranaPulse);
-
-        DrawVitalBar(new Rectangle(barX, panel.Y + 96, barWidth, 26), "STAMINA",
-            vitals.Stamina, vitals.MaxStamina, new Color(98, 172, 106));
     }
 
     /// <summary>
@@ -5897,40 +5701,6 @@ public sealed class Game1 : Game
                 : $"Enter or click to {verb.ToLowerInvariant()}",
             new Vector2(detail.X + 14, detail.Y + 56), detail.Width - 28, 13,
             verb == "—" ? new Color(142, 157, 157) : new Color(232, 194, 116));
-    }
-
-    /// <summary>One labelled bar. The label and the value live inside it, vertically centred.</summary>
-    private void DrawVitalBar(Rectangle bounds, string label, float value, float max, Color colour,
-        float pulse = 0f)
-    {
-        var fraction = max <= 0f ? 0f : MathHelper.Clamp(value / max, 0f, 1f);
-
-        Fill(bounds, new Color(20, 27, 33));
-        Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * fraction), bounds.Height), colour);
-
-        // A bar that just changed says so. Using an item used to alter a number in the corner
-        // of the screen and nothing else, so it was easy to believe nothing had happened.
-        if (pulse > 0f)
-        {
-            Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * fraction), bounds.Height),
-                new Color(255, 255, 255) * (pulse * 0.42f));
-            Border(bounds, new Color(226, 240, 255) * pulse);
-            Border(new Rectangle(bounds.X - 2, bounds.Y - 2, bounds.Width + 4, bounds.Height + 4),
-                new Color(226, 240, 255) * (pulse * 0.7f));
-        }
-        else
-        {
-            Border(bounds, new Color(0, 0, 0, 110));
-        }
-
-        // A dark scrim behind the text keeps it legible over both the filled and empty halves.
-        Text(label, new Vector2(bounds.X + 10, bounds.Y + 5), 14, Color.White);
-
-        var readout = pulse > 0f
-            ? Color.Lerp(Color.White, new Color(198, 232, 255), pulse)
-            : Color.White;
-        TextRight($"{value:0} / {max:0}", bounds.Right - 10, bounds.Y + 5,
-            pulse > 0f ? 16 : 14, readout);
     }
 
     /// <summary>
@@ -6096,29 +5866,6 @@ public sealed class Game1 : Game
             DrawModel(pickup.Model, new Vector3(position.X, position.Y, position.Z),
                 pickup.Scale, 0f);
         }
-    }
-
-    private void DrawSneakEye(int cx, int cy, Color colour)
-    {
-        var shadow = new Color(0, 0, 0, 190);
-
-        // Block-built eye: it remains crisp at every supported UI scale and is legible over
-        // both the bright ground and the dark dungeon walls.
-        Fill(new Rectangle(cx - 17, cy - 9, 34, 3), shadow);
-        Fill(new Rectangle(cx - 17, cy + 6, 34, 3), shadow);
-        Fill(new Rectangle(cx - 13, cy - 6, 6, 3), shadow);
-        Fill(new Rectangle(cx + 7, cy - 6, 6, 3), shadow);
-        Fill(new Rectangle(cx - 13, cy + 3, 6, 3), shadow);
-        Fill(new Rectangle(cx + 7, cy + 3, 6, 3), shadow);
-
-        Fill(new Rectangle(cx - 14, cy - 7, 28, 2), colour);
-        Fill(new Rectangle(cx - 14, cy + 5, 28, 2), colour);
-        Fill(new Rectangle(cx - 10, cy - 5, 5, 2), colour);
-        Fill(new Rectangle(cx + 5, cy - 5, 5, 2), colour);
-        Fill(new Rectangle(cx - 10, cy + 3, 5, 2), colour);
-        Fill(new Rectangle(cx + 5, cy + 3, 5, 2), colour);
-        Fill(new Rectangle(cx - 4, cy - 4, 8, 8), colour);
-        Fill(new Rectangle(cx - 1, cy - 1, 2, 2), new Color(20, 26, 27));
     }
 
     /// <summary>Roughly two metres of wall per repeat of the block texture.</summary>
