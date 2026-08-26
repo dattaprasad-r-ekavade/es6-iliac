@@ -73,10 +73,9 @@ acting.
 Plus **134 checks** in the published build's own self-test, which is what the release gate
 actually runs.
 
-`.erify.ps1` is now the one command that proves a change: Release build, tool doctor,
+`.\verify.ps1` is now the one command that proves a change: Release build, tool doctor,
 domain tests, content validation, and the simulation. `.\publish.ps1` remains the packaging
-gate, and `.
-elease.ps1` pushes to itch.io on top of it.
+gate, and `.\release.ps1` pushes to itch.io on top of it.
 
 ### The loop, end to end
 
@@ -376,7 +375,7 @@ One board. Work in progress limit: **one**.
 - **Push a current build, and let a stranger play it.** The alpha is live at
   `datathecodie.itch.io/ratna-bay`, but the uploaded build is `alpha-2026.08.25-1277591` —
   which predates audio, maces, shields, bows and the whole stones system. Anyone downloading
-  today plays a materially worse game than the one in the repository. `.elease.ps1` is one
+  today plays a materially worse game than the one in the repository. `.\release.ps1` is one
   command and butler ships a patch of a few hundred KB.
 - **Iteration 17 — the ratchet.** Amulets that survive death, and levels that grant points
   rather than numbers. The natural follow-on now that in-run variety exists: 16 made a single
