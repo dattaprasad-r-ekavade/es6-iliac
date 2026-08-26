@@ -27,6 +27,15 @@ public interface IAttackable
     float TakeDamage(float amount);
 
     /// <summary>
+    /// Leave this helpless for a moment. A no-op for anything that cannot be staggered.
+    ///
+    /// Defaulted rather than required because most things a swing can land on are not
+    /// enemies, and forcing every one of them to implement a combat verb they do not have is
+    /// how an interface stops describing anything.
+    /// </summary>
+    void ApplyStagger(float seconds) { }
+
+    /// <summary>
     /// Apply damage and remember what did it.
     ///
     /// Attribution exists so a recording can answer questions about *how* a fight was won —
@@ -49,10 +58,19 @@ public static class DamageMath
     /// <summary>A hit always lands for at least this much, so armour is never invulnerability.</summary>
     public const float MinimumDamage = 1f;
 
-    public static float Resolve(float amount, float armour, bool blocking)
+    public static float Resolve(float amount, float armour, bool blocking) =>
+        Resolve(amount, armour, blocking ? BlockReduction : 1f);
+
+    /// <summary>
+    /// The same rule with the guard's quality passed in rather than assumed.
+    ///
+    /// A bare guard halves a blow; a shield takes it further. Expressing it as the whole
+    /// factor means there is one number to read and no second place for the two to disagree —
+    /// which is exactly how a "block bonus" and a "block reduction" end up drifting apart.
+    /// </summary>
+    public static float Resolve(float amount, float armour, float blockFactor)
     {
-        var incoming = amount;
-        if (blocking) incoming *= BlockReduction;
+        var incoming = amount * MathF.Max(0f, blockFactor);
         incoming -= armour;
         return MathF.Max(MinimumDamage, incoming);
     }

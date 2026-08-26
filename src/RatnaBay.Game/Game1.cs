@@ -2366,7 +2366,15 @@ public sealed class Game1 : Game
         // Weight comes from the weapon's class, so a greatsword drops in pitch and gains
         // volume against a knife without either being written out separately. That is the
         // whole reason the sounds take a weight rather than being one file each.
-        if (outcome.Swung) _sfx?.Play(Sfx.Swing, SwingWeight(), volumeScale: 0.75f);
+        if (outcome.Swung)
+        {
+            _sfx?.Play(Sfx.Swing, SwingWeight(), volumeScale: 0.75f);
+
+            // A swing puts the weapon in the way. Two-handed costs the most, blunt some, a
+            // blade nothing — which is the whole reason a mage would carry a blade.
+            _session?.Player.Spells.Encumber(
+                _session.Player.Equipment.Weapon.CastDelaySeconds);
+        }
 
         if (outcome.Result != AttackResult.Hit) return;
 
@@ -2390,6 +2398,10 @@ public sealed class Game1 : Game
         {
             case CastResult.NoCharge:
                 _session.ShowToast("No prana, and no jiva stone to draw on.");
+                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+                break;
+            case CastResult.Shouldering:
+                _session.ShowToast($"Both hands are on the {_session.Player.Equipment.Weapon.DisplayName}.");
                 _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
                 break;
             case CastResult.Landed when outcome.Spell?.Effect == SpellEffect.Heal:

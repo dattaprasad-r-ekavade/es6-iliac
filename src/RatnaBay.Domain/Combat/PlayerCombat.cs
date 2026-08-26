@@ -122,6 +122,13 @@ public sealed class PlayerCombat
         var opening = target.IsVulnerable;
         var damage = opening ? WeaponDamage * OpeningStrikeMultiplier : WeaponDamage;
         var dealt = target.TakeDamage(damage, ActiveWeapon.DisplayName);
+
+        // A blunt weapon leaves the target unable to answer, which the domain already rewards:
+        // the next blow lands on something vulnerable at double. That loop — stagger, then
+        // strike the opening — is the mace's whole reason to exist, and it is why it does not
+        // also need to bleed.
+        if (weapon.StaggerSeconds > 0f) target.ApplyStagger(weapon.StaggerSeconds);
+
         EnterCombat();
 
         // Advancement is use-based, so the swing trains the weapon's skill rather than paying
@@ -182,9 +189,10 @@ public sealed class PlayerCombat
         // and it is used in every fight — a skill nothing trains is worse than no skill,
         // because it looks like progress that is not happening.
         if (IsBlocking && amount > 0f)
-            _skills.ReportUse(Skills.Block, amount * DamageMath.BlockReduction, amount);
+            _skills.ReportUse(Skills.Block, amount * (1f - _equipment.BlockFactor), amount);
 
-        return _vitals.TakeDamage(amount, _equipment.ArmourValue, IsBlocking);
+        return _vitals.TakeDamage(amount, _equipment.ArmourValue,
+            IsBlocking ? _equipment.BlockFactor : 1f);
     }
 
     public void EnterCombat()

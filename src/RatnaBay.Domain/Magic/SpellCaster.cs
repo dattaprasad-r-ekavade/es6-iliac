@@ -32,7 +32,16 @@ public enum CastResult
     NoCharge,
 
     /// <summary>The id is not a spell.</summary>
-    UnknownSpell
+    UnknownSpell,
+
+    /// <summary>
+    /// The weapon is still in the way.
+    ///
+    /// A separate result from <see cref="NoCharge"/> on purpose: both refuse the cast, and
+    /// they are refused for opposite reasons. One says find prana, the other says put the
+    /// greatsword down — and a player told the wrong one goes looking for the wrong fix.
+    /// </summary>
+    Shouldering
 }
 
 public readonly record struct CastOutcome(CastResult Result, SpellDefinition? Spell, float Cost)
@@ -87,9 +96,32 @@ public sealed class SpellCaster
         if (SpellCatalog.Exists(spellId)) SelectedSpellId = spellId!;
     }
 
+    /// <summary>
+    /// Seconds until a spell can be cast, because a weapon is still being shouldered.
+    ///
+    /// Set by the game layer from the equipped weapon's <see cref="WeaponDefinition.CastDelaySeconds"/>
+    /// when a swing happens. The countdown and the refusal live here so the rule is testable
+    /// without a renderer, which is the only reason it is in the domain at all.
+    /// </summary>
+    public float ShoulderRemaining { get; private set; }
+
+    public bool IsShouldering => ShoulderRemaining > 0f;
+
+    /// <summary>Put the weapon in the way for a moment. Never shortens an existing delay.</summary>
+    public void Encumber(float seconds)
+    {
+        if (seconds <= 0f) return;
+        ShoulderRemaining = MathF.Max(ShoulderRemaining, seconds);
+    }
+
     public void Tick(float deltaSeconds)
     {
-        if (deltaSeconds <= 0f || LightRemaining <= 0f) return;
+        if (deltaSeconds <= 0f) return;
+
+        if (ShoulderRemaining > 0f)
+            ShoulderRemaining = MathF.Max(0f, ShoulderRemaining - deltaSeconds);
+
+        if (LightRemaining <= 0f) return;
         LightRemaining = MathF.Max(0f, LightRemaining - deltaSeconds);
     }
 
@@ -111,6 +143,10 @@ public sealed class SpellCaster
     /// </param>
     public CastOutcome Cast(string? spellId, IEnemy? target = null, IEnemy? chainTarget = null)
     {
+        // Checked before paying, so a refused cast never costs prana.
+        if (IsShouldering)
+            return new CastOutcome(CastResult.Shouldering, SpellCatalog.Get(spellId), 0f);
+
         var paid = Pay(spellId);
         if (!paid.WasCast) return paid;
 

@@ -1,3 +1,4 @@
+using System;
 using RatnaBay.Domain;
 
 namespace RatnaBay.Domain.Tests;
@@ -49,10 +50,13 @@ public class EquipmentCatalogTests
     }
 
     [Test]
-    public void OnlyOneHandedWeaponsCanBlock()
+    public void OnlyAFreeHandCanBlock()
     {
+        // The rule is about hands, not about class. Blunt joined one-handed when maces were
+        // added: a mace leaves a hand free exactly as a blade does, and a greatsword or a bow
+        // does not.
         foreach (var weapon in EquipmentCatalog.AllWeapons)
-            Assert.That(weapon.CanBlock, Is.EqualTo(weapon.Class == WeaponClass.OneHanded),
+            Assert.That(weapon.CanBlock, Is.EqualTo(!weapon.IsTwoHanded),
                 $"{weapon.Id} blocks against its class contract");
     }
 
@@ -63,17 +67,22 @@ public class EquipmentCatalogTests
     }
 
     [Test]
-    public void EachWeaponClassTrainsItsOwnSkill()
+    public void EachWeaponTrainsTheDisciplineItBelongsTo()
     {
+        // Four classes, three disciplines, and that is deliberate. Blunt and two-handed both
+        // train Heavy because a mace and a greatsword are the same discipline — weight, swung
+        // — against Blade's finesse and Marksman's range. Giving blunt a ninth skill of its
+        // own would have split that training in two and quietly devalued both halves, and the
+        // design settled on eight skills for reasons that have not changed.
         foreach (var weapon in EquipmentCatalog.AllWeapons)
         {
             var expected = weapon.Class switch
             {
                 WeaponClass.OneHanded => Skills.Blade,
-                WeaponClass.TwoHanded => Skills.Heavy,
+                WeaponClass.TwoHanded or WeaponClass.Blunt => Skills.Heavy,
                 _ => Skills.Marksman
             };
-            Assert.That(weapon.SkillId, Is.EqualTo(expected));
+            Assert.That(weapon.SkillId, Is.EqualTo(expected), weapon.Id);
         }
     }
 
@@ -85,10 +94,12 @@ public class EquipmentCatalogTests
     }
 
     [Test]
-    public void AllThreeWeaponClassesAreRepresented()
+    public void EveryWeaponClassIsRepresented()
     {
-        Assert.That(EquipmentCatalog.AllWeapons.Select(w => w.Class).Distinct().ToList(),
-            Has.Count.EqualTo(3));
+        // Asserted against the enum rather than a literal, so adding a class without adding a
+        // weapon for it fails here instead of shipping an option nobody can pick.
+        Assert.That(EquipmentCatalog.AllWeapons.Select(w => w.Class).Distinct(),
+            Is.EquivalentTo(Enum.GetValues<WeaponClass>()));
     }
 
     [Test]
