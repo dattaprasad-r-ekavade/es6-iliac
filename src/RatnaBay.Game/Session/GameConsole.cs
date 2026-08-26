@@ -3,6 +3,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 
 namespace RatnaBay.Client;
@@ -44,6 +45,32 @@ internal interface IConsoleTarget
 
     /// <summary>Hide every panel and marker, for a clean picture.</summary>
     bool HideInterface { get; set; }
+
+    /// <summary>How fast simulated time runs. 1 is normal, 0 freezes, 0.2 is slow motion.</summary>
+    float TimeScale { get; set; }
+
+    /// <summary>Hold the rest of a script for this much simulated time.</summary>
+    void WaitSeconds(float seconds);
+
+    /// <summary>Record that an assertion failed, so the process can exit non-zero.</summary>
+    void FailScript(string why);
+
+    /// <summary>Ask to quit once the script runs out.</summary>
+    void QuitWhenDone();
+
+    /// <summary>Pin a command to the screen, re-run every frame. Empty clears them.</summary>
+    void Watch(string? command);
+
+    IReadOnlyList<string> Watches { get; }
+
+    /// <summary>Queue more statements, for 'script' reading a file.</summary>
+    void Queue(string statements);
+
+    /// <summary>Take a picture now, from wherever the camera is.</summary>
+    string Capture(string path);
+
+    /// <summary>What the crosshair is pointing at, and how far away it is.</summary>
+    string PickUnderCrosshair();
 
     void Say(string message);
 }
@@ -339,7 +366,13 @@ internal static class GameConsole
                     .OrderBy(enemy => enemy.Position.FlatDistanceTo(here))
                     .Select(enemy =>
                         $"{enemy.DisplayName,-16} {enemy.Health:0} hp  "
-                        + $"{enemy.Position.FlatDistanceTo(here):0.0} m"));
+                        + $"{enemy.Position.FlatDistanceTo(here):0.0} m  "
+                        // Rousing is worth naming: a body still coming up out of the floor is
+                        // drawn sunk into it, so one stuck part-way reads as a sliver of colour
+                        // lying on the stone rather than as an enemy.
+                        + (enemy.IsRousing ? $"rising {enemy.RousedFraction:0.00}  " : "")
+                        + (enemy.IsStaggered ? "staggered  " : "")
+                        + $"y {enemy.Position.Y:0.00}"));
             });
 
         console.Register("doors",
@@ -407,6 +440,155 @@ internal static class GameConsole
             "echo <text>",
             "Say something back. Useful for marking a spot in a script's output.",
             args => args.Rest(0));
+
+        // ------------------------------------------------------------------ scripting
+
+        console.Register("wait",
+            "wait [seconds]",
+            "Hold the rest of the script while the game runs. Default 1 second.",
+            args =>
+            {
+                // Seconds, not frames: capture mode runs uncapped, so a frame count buys an
+                // unpredictable and usually tiny amount of game time.
+                var seconds = Math.Clamp(args.Number(0, 1f), 0.01f, 120f);
+                game.WaitSeconds(seconds);
+                return $"Waiting {seconds:0.00}s.";
+            });
+
+        console.Register("assert",
+            "assert <command> has <text>   |   assert <command> not <text>",
+            "Run a command and check its answer. A failure makes the process exit non-zero.",
+            args =>
+            {
+                // Split on the keyword rather than by position, so the command being checked
+                // can itself take arguments.
+                var words = Enumerable.Range(0, args.Count)
+                    .Select(index => args.Text(index)).ToList();
+                var at = words.FindIndex(word =>
+                    string.Equals(word, "has", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(word, "not", StringComparison.OrdinalIgnoreCase));
+
+                if (at <= 0 || at == words.Count - 1)
+                    return "assert <command> has <text>   |   assert <command> not <text>";
+
+                var wantPresent = string.Equals(words[at], "has", StringComparison.OrdinalIgnoreCase);
+                var statement = string.Join(' ', words.Take(at));
+                var needle = string.Join(' ', words.Skip(at + 1));
+
+                var answer = console.RunQuiet(statement);
+                var present = answer.Contains(needle, StringComparison.OrdinalIgnoreCase);
+
+                if (present == wantPresent) return $"ok   {statement} {words[at]} {needle}";
+
+                // The answer is included because "it did not contain X" is not enough to fix
+                // anything; what it contained instead is the useful half.
+                var why = $"FAIL {statement} {words[at]} {needle}"
+                    + $"\n     got: {answer.Replace('\n', '/')}";
+
+                game.FailScript(why);
+                return why;
+            });
+
+        console.Register("script",
+            "script <path>",
+            "Read a file of commands and queue them. One statement per line; # is a comment.",
+            args =>
+            {
+                var path = args.Rest(0);
+                if (string.IsNullOrWhiteSpace(path)) return "script what?";
+                if (!File.Exists(path)) return $"No file '{path}'.";
+
+                var lines = File.ReadAllLines(path)
+                    .Select(line => line.Trim())
+                    .Where(line => line.Length > 0 && !line.StartsWith('#'))
+                    .ToList();
+
+                game.Queue(string.Join(';', lines));
+                return $"{lines.Count} statements queued from {Path.GetFileName(path)}.";
+            });
+
+        console.Register("quit",
+            "quit",
+            "Leave once the script is done, exiting non-zero if any assert failed.",
+            _ =>
+            {
+                game.QuitWhenDone();
+                return "Quitting when the script runs out.";
+            },
+            "exit");
+
+        console.Register("shot",
+            "shot <path>",
+            "Save a picture now, without ending the run.",
+            args =>
+            {
+                var path = args.Rest(0);
+                return string.IsNullOrWhiteSpace(path) ? "shot where?" : game.Capture(path);
+            },
+            "capture");
+
+        // ------------------------------------------------------------------ live debugging
+
+        console.Register("watch",
+            "watch <command>  |  watch off",
+            "Pin a command to the screen and re-run it every frame.",
+            args =>
+            {
+                var what = args.Rest(0);
+
+                if (what.Length == 0)
+                    return game.Watches.Count == 0
+                        ? "Nothing watched."
+                        : "Watching: " + string.Join(" | ", game.Watches);
+
+                if (string.Equals(what, "off", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(what, "clear", StringComparison.OrdinalIgnoreCase))
+                {
+                    game.Watch(null);
+                    return "Watches cleared.";
+                }
+
+                game.Watch(what);
+                return $"Watching '{what}'.";
+            });
+
+        console.Register("pick",
+            "pick",
+            "Say what the crosshair is pointing at.",
+            _ => game.PickUnderCrosshair());
+
+        console.Register("time",
+            "time [scale]",
+            "Slow the simulation down. 1 is normal, 0.2 is slow motion, 0 freezes it.",
+            args =>
+            {
+                if (args.Count == 0) return $"Time runs at {game.TimeScale:0.00}.";
+
+                game.TimeScale = Math.Clamp(args.Number(0, 1f), 0f, 4f);
+                return $"Time runs at {game.TimeScale:0.00}.";
+            });
+
+        console.Register("hurt",
+            "hurt [amount]",
+            "Take damage, to see what being hit looks like.",
+            args =>
+            {
+                if (game.Session is not { } session) return "No session.";
+
+                var amount = args.Number(0, 20f);
+                var dealt = session.Player.Combat.TakeHit(amount);
+                return $"Took {dealt:0}. {session.Player.Vitals.Health:0} health left.";
+            });
+
+        console.Register("clear",
+            "clear",
+            "Empty the console log.",
+            _ =>
+            {
+                game.Say(string.Empty);
+                return "\x0c";
+            },
+            "cls");
 
         console.Register("help",
             "help [command]",

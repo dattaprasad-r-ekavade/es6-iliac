@@ -187,6 +187,30 @@ public sealed class ConsoleRouter
         return output;
     }
 
+    /// <summary>
+    /// Run one statement and return only what it said.
+    ///
+    /// No echo, no history, no error decoration -- for commands built out of other commands.
+    /// 'assert' needs to read a command's answer rather than show it, and 'watch' re-runs one
+    /// every frame, neither of which should fill the log.
+    /// </summary>
+    public string RunQuiet(string statement)
+    {
+        var tokens = Tokenise(statement);
+        if (tokens.Count == 0) return string.Empty;
+
+        if (!_commands.TryGetValue(tokens[0], out var command)) return Unknown(tokens[0]);
+
+        try
+        {
+            return command.Run(new ConsoleArgs(tokens[0], tokens.Skip(1).ToList()));
+        }
+        catch (Exception exception)
+        {
+            return $"{tokens[0]} failed: {exception.Message}";
+        }
+    }
+
     /// <summary>Command names starting with this, for tab completion.</summary>
     public IReadOnlyList<string> Complete(string prefix)
     {

@@ -1,0 +1,61 @@
+# A scripted playtest.
+#
+# Run it with:
+#     build\RatnaBay.exe --script Docs\scripts\smoke.rbs
+#
+# Every line is one console statement. Blank lines and # comments are ignored.
+# The process exits 1 if any assert fails, so this can gate a build.
+#
+# 'wait' takes SECONDS of simulated time, not frames. Capture mode runs uncapped,
+# so a frame count buys an unpredictable and usually tiny amount of game time --
+# which once made a still-rising enemy look like a rendering fault.
+
+echo === the yard ===
+
+assert where has yard
+assert geo has surface.ground
+
+# The mouth of the mine has to be a hole you can see down, and the path must not
+# be laid across it. Both of those were wrong at once, and neither was visible
+# from the spawn point.
+goto shaft
+look at shaft -0.6
+assert pick has shaft
+shot captures/script-1-shaft.png
+
+echo === buying in ===
+
+gold 500
+stones 40
+assert where has yard
+
+echo === a descent ===
+
+descend 3 20789
+wait 0.5
+assert where has room
+
+# Walk in far enough for the room to notice, then let the bodies finish standing
+# up. Asking before they have is how the rise animation gets mistaken for a bug.
+noclip on
+god on
+goto 0 -30
+wait 3
+
+assert enemies has Bandit
+assert enemies not rising
+shot captures/script-2-room.png
+
+echo === clearing it ===
+
+kill all
+wait 0.5
+assert enemies has clear
+
+echo === back up ===
+
+surface
+wait 0.5
+assert where has yard
+
+quit

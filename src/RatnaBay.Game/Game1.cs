@@ -169,8 +169,45 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>Where the player is in their own history, walking back with Up.</summary>
     private int _consoleHistory = -1;
 
-    /// <summary>--exec: commands to run once the world exists, before anything is captured.</summary>
+    /// <summary>--exec / --script: commands to run once the world exists.</summary>
     private string? _consoleScript;
+
+    /// <summary>
+    /// Statements still to run, and the frames to let pass before the next one.
+    ///
+    /// A script cannot be run all at once. --exec used to execute inside LoadContent, before a
+    /// single Update had happened, so anything that asked about the simulation got the state
+    /// the world was built with: 'descend; enemies' reported an empty room because nothing had
+    /// yet ticked to notice the player was standing in it. Statements are pumped one per frame
+    /// instead, and 'wait' holds the rest of the script while the game runs.
+    /// </summary>
+    private readonly Queue<string> _scriptQueue = new();
+
+    /// <summary>
+    /// Simulated seconds still to let pass before the next statement.
+    ///
+    /// Seconds rather than frames, and this is not a detail. Capture mode runs uncapped, so
+    /// "wait 120 frames" was about a tenth of a second of game time -- long enough to make a
+    /// script look like it had waited and short enough that an enemy was still coming up out
+    /// of the floor. It read as a rendering bug for an hour. A script asks for time; how many
+    /// frames that takes is the machine's business.
+    /// </summary>
+    private float _scriptWaitSeconds;
+
+    /// <summary>Set by a failed 'assert'. Becomes the process exit code.</summary>
+    private bool _scriptFailed;
+
+    /// <summary>Set by 'quit', so a test script can end the run itself.</summary>
+    private bool _scriptQuitWhenDone;
+
+    /// <summary>Commands re-run every frame and pinned to the screen, for watching a value move.</summary>
+    private readonly List<string> _watches = new();
+
+    /// <summary>How fast simulated time runs. Set by 'time'; 1 is normal.</summary>
+    private float _timeScale = 1f;
+
+    /// <summary>A picture asked for by 'shot', taken at the end of the next frame.</summary>
+    private string? _pendingCapture;
 
     private bool _noClip;
     private bool _invulnerable;
@@ -452,6 +489,19 @@ public sealed class Game1 : Game, IConsoleTarget
         // takes a picture of a thing nobody could previously walk to.
         _consoleScript = ParseOption(args, "--exec");
 
+        // A file of them, for a test that is longer than a command line. Read here and folded
+        // into the same queue, so --script and --exec behave identically from then on.
+        var scriptFile = ParseOption(args, "--script");
+        if (scriptFile is not null && File.Exists(scriptFile))
+        {
+            var statements = File.ReadAllLines(scriptFile)
+                .Select(line => line.Trim())
+                .Where(line => line.Length > 0 && !line.StartsWith('#'));
+
+            var joined = string.Join(';', statements);
+            _consoleScript = _consoleScript is null ? joined : _consoleScript + ";" + joined;
+        }
+
         // --yard opens on the surface rather than the menu, so the one place the player
         // starts and returns to can be looked at rather than described.
         _startOnTheSurface = HasArgument(args, "--yard");
@@ -656,14 +706,8 @@ public sealed class Game1 : Game, IConsoleTarget
         // --exec runs against a world that now exists, and before the first frame is drawn,
         // so a capture taken after it sees where the commands put the player.
         if (_consoleScript is not null)
-        {
-            RunConsole(_consoleScript);
-
-            // Echoed to stdout as well as to the overlay: a scripted run has nobody watching
-            // the screen, and a command that failed silently would be read as one that worked.
-            foreach (var line in _consoleOutput)
-                Console.WriteLine((line.Tone == ConsoleTone.Error ? "[!] " : "    ") + line.Text);
-        }
+            foreach (var statement in ConsoleRouter.SplitStatements(_consoleScript))
+                _scriptQueue.Enqueue(statement);
     }
 
     protected override void UnloadContent()
@@ -705,8 +749,15 @@ public sealed class Game1 : Game, IConsoleTarget
     /// presses a key during those four frames should still be heard, or the freeze reads as
     /// dropped input rather than as impact.
     /// </summary>
+    /// <summary>
+    /// Simulated seconds this frame.
+    ///
+    /// Scaled by the console's 'time', which is what makes a fight watchable: at 0.2 a swing
+    /// can be followed through, and at 0 the frame holds still while the camera is moved.
+    /// Real time is untouched, so fire keeps flickering and the console stays responsive.
+    /// </summary>
     private float StepSeconds(GameTime gameTime) =>
-        _hitstop > 0f ? 0f : RealSeconds(gameTime);
+        _hitstop > 0f ? 0f : RealSeconds(gameTime) * _timeScale;
 
     protected override void Update(GameTime gameTime)
     {
@@ -721,6 +772,9 @@ public sealed class Game1 : Game, IConsoleTarget
 
         if (_hitstop > 0f) _hitstop = MathF.Max(0f, _hitstop - real);
         if (_shake > 0f) _shake = MathF.Max(0f, _shake - real);
+
+        PumpScript(RealSeconds(gameTime) * _timeScale);
+        UpdateWatches();
 
         // First, and it swallows the frame when it is open: a console you cannot type an S
         // into without walking backwards is not a console.
@@ -917,6 +971,87 @@ public sealed class Game1 : Game, IConsoleTarget
         }
     }
 
+    /// <summary>
+    /// Run one queued statement per frame, so the game keeps simulating between them.
+    ///
+    /// One per frame rather than all at once is the whole point: a script that descends and
+    /// then asks what is in the room has to let the room notice it has been walked into.
+    /// </summary>
+    private void PumpScript(float simulatedSeconds)
+    {
+        if (_scriptWaitSeconds > 0f)
+        {
+            _scriptWaitSeconds = MathF.Max(0f, _scriptWaitSeconds - simulatedSeconds);
+            return;
+        }
+
+        if (_scriptQueue.Count == 0)
+        {
+            // A script that asked to quit does so once it has run out of things to say.
+            if (_scriptQuitWhenDone)
+            {
+                _scriptQuitWhenDone = false;
+                Console.WriteLine(_scriptFailed ? "SCRIPT FAILED" : "SCRIPT PASSED");
+                Environment.ExitCode = _scriptFailed ? 1 : 0;
+                Exit();
+            }
+
+            return;
+        }
+
+        var statement = _scriptQueue.Dequeue();
+        var before = _consoleOutput.Count;
+        RunConsole(statement);
+
+        // Echoed to stdout as well as to the overlay: a scripted run has nobody watching the
+        // screen, and a command that failed silently reads as one that worked.
+        for (var index = before; index < _consoleOutput.Count; index++)
+        {
+            var line = _consoleOutput[index];
+            Console.WriteLine((line.Tone == ConsoleTone.Error ? "[!] " : "    ") + line.Text);
+        }
+    }
+
+    /// <summary>Re-run the pinned commands, so their answers are current when drawn.</summary>
+    private void UpdateWatches()
+    {
+        _watchOutput.Clear();
+        if (_watches.Count == 0 || _console is null) return;
+
+        foreach (var watch in _watches)
+            foreach (var line in _console.RunQuiet(watch)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                _watchOutput.Add(line.TrimEnd());
+    }
+
+    private readonly List<string> _watchOutput = new();
+
+    /// <summary>
+    /// The watch panel: whatever 'watch' was pointed at, updated every frame.
+    ///
+    /// This is the live-debugging half. Typing 'enemies' tells you what is in the room now;
+    /// watching it tells you what happens to them while you fight, which is the question that
+    /// actually comes up.
+    /// </summary>
+    private void DrawWatches()
+    {
+        if (_watchOutput.Count == 0) return;
+
+        var height = 26 + _watchOutput.Count * 18;
+        var panel = new Rectangle(LogicalWidth - 430, 150, 410, height);
+
+        Fill(panel, new Color(4, 8, 13, 214));
+        Border(panel, new Color(96, 132, 142));
+
+        var y = panel.Y + 12f;
+        foreach (var line in _watchOutput)
+        {
+            TextFit(line, new Vector2(panel.X + 12, y), panel.Width - 24, 13,
+                new Color(196, 214, 212));
+            y += 18f;
+        }
+    }
+
     private void WalkHistory(int direction)
     {
         var history = _console?.History;
@@ -933,7 +1068,18 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         _console ??= GameConsole.Build(this);
 
-        foreach (var output in _console.Execute(line)) _consoleOutput.Add(output);
+        foreach (var output in _console.Execute(line))
+        {
+            // A form feed from 'clear' empties the log rather than printing.
+            if (output.Text == "")
+            {
+                _consoleOutput.Clear();
+                continue;
+            }
+
+            _consoleOutput.Add(output);
+        }
+
         while (_consoleOutput.Count > 200) _consoleOutput.RemoveAt(0);
     }
 
@@ -1022,6 +1168,13 @@ public sealed class Game1 : Game, IConsoleTarget
 
         base.Draw(gameTime);
 
+        // A picture asked for by 'shot', saved without ending the run.
+        if (_pendingCapture is { } wanted)
+        {
+            _pendingCapture = null;
+            SaveFrame(wanted);
+        }
+
         // Unbind before reading: a render target still bound as output cannot be read back.
         // The back buffer then has nothing in it, so it is cleared rather than left undefined
         // for the frame the driver is about to present.
@@ -1044,6 +1197,24 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (++_framesDrawn <= _warmupFrames) return;
 
+        // A script gets to finish before the picture is taken. Otherwise the two are racing:
+        // the capture fires on a frame count while 'wait' asks for seconds, and which one wins
+        // depends on how fast the machine happens to be rendering.
+        if (_scriptQueue.Count > 0 || _scriptWaitSeconds > 0f) return;
+
+        SaveFrame(_screenshotPath!);
+        Exit();
+    }
+
+    /// <summary>
+    /// Write the frame just drawn to a PNG.
+    ///
+    /// Split out from CaptureAndExit so 'shot' can take a picture mid-script without ending
+    /// the run -- a test that walks somewhere, photographs it, walks on and photographs that
+    /// is worth far more than one that can only ever produce a single frame.
+    /// </summary>
+    private void SaveFrame(string path)
+    {
         // In cover mode the frame lives in the offscreen target, which is the exact size asked
         // for; otherwise it is whatever the window ended up being.
         var captureWidth = _coverMode ? CoverWidth : GraphicsDevice.Viewport.Width;
@@ -1056,14 +1227,13 @@ public sealed class Game1 : Game, IConsoleTarget
         using var texture = new Texture2D(GraphicsDevice, captureWidth, captureHeight);
         texture.SetData(pixels);
 
-        var fullPath = Path.GetFullPath(_screenshotPath!);
+        var fullPath = Path.GetFullPath(path);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 
         using (var stream = File.Create(fullPath))
             texture.SaveAsPng(stream, captureWidth, captureHeight);
 
         Console.WriteLine($"Saved {captureWidth}x{captureHeight} screenshot to {fullPath}");
-        Exit();
     }
 
     /// <summary>itch.io's cover shape, at twice its stated size so the type stays sharp.</summary>
@@ -3852,6 +4022,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_paused && _runSummary is null) _screens.Overlay.DrawPause(BuildOverlayState());
         if (_runSummary is { } summary) DrawRunSummary(summary);
 
+        if (!_hideInterface) DrawWatches();
         DrawConsole();
 
         EndUi();
@@ -5271,6 +5442,116 @@ public sealed class Game1 : Game, IConsoleTarget
 
         if (_session is not null) StartSession(_session);
         ResetCamera();
+    }
+
+    float IConsoleTarget.TimeScale
+    {
+        get => _timeScale;
+        set => _timeScale = value;
+    }
+
+    void IConsoleTarget.WaitSeconds(float seconds) => _scriptWaitSeconds = seconds;
+
+    void IConsoleTarget.FailScript(string why)
+    {
+        _scriptFailed = true;
+        Console.WriteLine("[!] " + why);
+    }
+
+    void IConsoleTarget.QuitWhenDone() => _scriptQuitWhenDone = true;
+
+    void IConsoleTarget.Watch(string? command)
+    {
+        if (string.IsNullOrWhiteSpace(command)) _watches.Clear();
+        else _watches.Add(command);
+    }
+
+    IReadOnlyList<string> IConsoleTarget.Watches => _watches;
+
+    void IConsoleTarget.Queue(string statements)
+    {
+        foreach (var statement in ConsoleRouter.SplitStatements(statements))
+            _scriptQueue.Enqueue(statement);
+    }
+
+    /// <summary>Save a frame without ending the run, unlike --screenshot.</summary>
+    string IConsoleTarget.Capture(string path)
+    {
+        _pendingCapture = path;
+        return $"Saving {path}.";
+    }
+
+    /// <summary>
+    /// What the crosshair is on.
+    ///
+    /// Enemies first, then geometry, because a body in front of a wall is the answer wanted
+    /// almost every time. The geometry test is a plain ray march rather than a proper slab
+    /// intersection: this is a debugging aid, and a metre of precision is enough to name a box.
+    /// </summary>
+    string IConsoleTarget.PickUnderCrosshair()
+    {
+        if (_world is null) return "No world.";
+
+        var origin = _cameraPosition;
+        var direction = Vector3.Normalize(new Vector3(
+            -MathF.Sin(_cameraYaw) * MathF.Cos(_cameraPitch),
+            MathF.Sin(_cameraPitch),
+            -MathF.Cos(_cameraYaw) * MathF.Cos(_cameraPitch)));
+
+        if (_encounter is not null)
+        {
+            foreach (var enemy in _encounter.Enemies.Where(enemy => enemy.IsAlive))
+            {
+                var to = new Vector3(enemy.Position.X, enemy.Position.Y + 0.9f, enemy.Position.Z)
+                    - origin;
+                var along = Vector3.Dot(to, direction);
+                if (along <= 0f) continue;
+
+                var miss = (to - direction * along).Length();
+                if (miss < 0.9f)
+                    return $"{enemy.DisplayName}  {enemy.Health:0} hp  {along:0.0} m";
+            }
+        }
+
+        // Projectiles and spent arrows are billboards too, and they are the likeliest thing
+        // a small bright artifact on a wall turns out to be.
+        if (_encounter is not null)
+        {
+            foreach (var (position, _) in _encounter.Shots)
+                if (NearlyUnder(position, origin, direction, 0.5f, out var range))
+                    return $"a spent arrow  {range:0.0} m  at {position.X:0.0},{position.Y:0.0},{position.Z:0.0}";
+
+            foreach (var bolt in _encounter.Bolts)
+                if (NearlyUnder(bolt.Position, origin, direction, 0.6f, out var range))
+                    return $"a bolt in flight  {range:0.0} m";
+        }
+
+        for (var step = 0.25f; step < 60f; step += 0.25f)
+        {
+            var at = origin + direction * step;
+
+            foreach (var box in _world.Manifest.Geometry)
+            {
+                if (!box.Visible) continue;
+                if (at.X < box.Min.X || at.X > box.Max.X) continue;
+                if (at.Y < box.Min.Y || at.Y > box.Max.Y) continue;
+                if (at.Z < box.Min.Z || at.Z > box.Max.Z) continue;
+
+                return $"{box.Id}  {box.Material}  {step:0.0} m";
+            }
+        }
+
+        return "Nothing within 60 m.";
+    }
+
+    /// <summary>Is this point close to the line the crosshair is on?</summary>
+    private static bool NearlyUnder(Vector3 point, Vector3 origin, Vector3 direction,
+        float tolerance, out float range)
+    {
+        var to = point - origin;
+        range = Vector3.Dot(to, direction);
+
+        return range > 0f && (to - direction * range).Length() < tolerance;
     }
 
     void IConsoleTarget.Say(string message) => _session?.ShowToast(message);
