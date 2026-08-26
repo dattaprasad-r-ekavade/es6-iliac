@@ -16,7 +16,7 @@ public sealed class PlayerCharacter
         LifePath = new LifePath();
         Vitals = new PlayerVitals(Inventory);
         Equipment = new PlayerEquipment(Inventory);
-        Combat = new PlayerCombat(Vitals, Equipment, Skills, LifePath);
+        Combat = new PlayerCombat(Vitals, Equipment, Skills, LifePath, Inventory);
         Spells = new SpellCaster(Vitals, Skills, LifePath);
         Detection = new Detection(Skills);
         Story = new StoryDirector();

@@ -12,7 +12,10 @@ public enum AttackResult
     OnCooldown,
 
     /// <summary>Not enough stamina to swing.</summary>
-    Exhausted
+    Exhausted,
+
+    /// <summary>A bow, and no arrows. Costs nothing — not the stamina, not the cooldown.</summary>
+    NoAmmunition
 }
 
 public readonly record struct AttackOutcome(AttackResult Result, float Damage,
@@ -40,13 +43,23 @@ public sealed class PlayerCombat
     private float _cooldown;
     private float _combatTimer;
 
+    /// <summary>
+    /// The pack, so a bow can spend from it.
+    ///
+    /// Optional so that every existing test that builds a combat component in isolation keeps
+    /// working — without one, a ranged weapon simply never runs out, which is the behaviour
+    /// those tests were written against.
+    /// </summary>
+    private readonly Inventory? _inventory;
+
     public PlayerCombat(PlayerVitals vitals, PlayerEquipment equipment, SkillProgression skills,
-        LifePath? path = null)
+        LifePath? path = null, Inventory? inventory = null)
     {
         _vitals = vitals;
         _equipment = equipment;
         _skills = skills;
         _path = path ?? new LifePath();
+        _inventory = inventory;
     }
 
     /// <summary>What the equipped weapon lands for, after the life path's gift.</summary>
@@ -102,8 +115,19 @@ public sealed class PlayerCombat
         if (!IsReady) return new AttackOutcome(AttackResult.OnCooldown, 0f);
 
         var weapon = ActiveWeapon;
+
+        // Checked before stamina, so a shot that cannot be taken costs nothing at all. The
+        // opposite order would spend the breath and then refuse to loose the arrow.
+        if (weapon.NeedsAmmunition && _inventory is not null
+            && !_inventory.Has(EquipmentCatalog.ArrowId))
+            return new AttackOutcome(AttackResult.NoAmmunition, 0f);
+
         if (!_vitals.SpendStamina(weapon.StaminaCost))
             return new AttackOutcome(AttackResult.Exhausted, 0f);
+
+        // Spent on the swing, not on the hit. A missed arrow is gone, which is the whole
+        // reason a bow asks the player to aim.
+        if (weapon.NeedsAmmunition) _inventory?.Consume(EquipmentCatalog.ArrowId);
 
         // Attacking drops the guard, so a block cannot be held through a swing.
         SetBlocking(false);

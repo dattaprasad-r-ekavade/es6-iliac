@@ -2359,6 +2359,13 @@ public sealed class Game1 : Game
             return;
         }
 
+        if (outcome.Result == AttackResult.NoAmmunition)
+        {
+            _session?.ShowToast("Out of arrows.");
+            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            return;
+        }
+
         // The swing plays on every swing, landed or not, because it is the sound of the input
         // being received. A game that is silent when you miss feels unresponsive rather than
         // feeling like you missed.
@@ -3679,7 +3686,7 @@ public sealed class Game1 : Game
             DrawRunLedger();
             DrawLocationBanner();
             if (ParkedFeatures.Sneaking) DrawAwareness();
-            DrawEnemyHealth();
+            DrawEnemyNameplates();
             DrawObjective();
             DrawVitals();
             DrawStatusStrip();
@@ -4544,8 +4551,32 @@ public sealed class Game1 : Game
             _weaponView.Update(castProgress, moving: false, guarding: false);
         }
 
-        var texture = WeaponSprites.Get(GraphicsDevice, weapon);
+        // The hand replaces the weapon while a spell is going off. The player's hand is the
+        // only part of them they ever see, and showing the sword through a cast made the most
+        // distinctive thing a mage does look like the most ordinary thing a warrior does.
+        var texture = _weaponView.IsCasting
+            ? WeaponSprites.CastingHand(GraphicsDevice)
+            : WeaponSprites.Get(GraphicsDevice, weapon);
+
         var pose = _weaponView.Pose();
+
+        // The off hand, behind the weapon, and only while it is actually raised. A shield
+        // painted on screen at all times is furniture; one that appears when the guard goes up
+        // is feedback.
+        if (_session.Player.Equipment.Shield is { } shield && _session.Player.Combat.IsBlocking)
+        {
+            var shieldTexture = WeaponSprites.Shield(GraphicsDevice, shield);
+            _spriteBatch.Draw(
+                shieldTexture,
+                new Vector2(LogicalWidth * 0.22f, LogicalHeight + 44f),
+                null,
+                Color.White,
+                -0.12f,
+                new Vector2(shieldTexture.Width / 2f, shieldTexture.Height),
+                pose.Scale * 1.55f,
+                SpriteEffects.None,
+                0f);
+        }
 
         // The grip, not the corner: rotating about the hand is what makes it swing rather
         // than spin.
@@ -5020,35 +5051,106 @@ public sealed class Game1 : Game
     }
 
     /// <summary>
-    /// The health of whatever the crosshair is over. Shown only while something is actually
-    /// in reach, so it doubles as the answer to "will this swing connect?".
+    /// A nameplate over each enemy: name, level, health, and whatever is currently wrong with it.
+    ///
+    /// This used to be one bar pinned to the middle of the player's screen, showing only
+    /// whatever the crosshair was over. Moving it onto the enemies themselves does three things
+    /// the centred bar could not: it says which of five things in a room is hurt, it stops the
+    /// interface sitting between the player and the fight, and it puts the information where
+    /// the player is already looking.
+    ///
+    /// Drawn in the UI pass rather than as a billboard, so the text stays crisp at any distance
+    /// and is never clipped into a wall.
     /// </summary>
-    private void DrawEnemyHealth()
+    private void DrawEnemyNameplates()
     {
-        if (_encounter?.Focused is not { } enemy) return;
+        if (_encounter is null || _encounter.Enemies.Count == 0) return;
 
-        var bar = new Rectangle(LogicalWidth / 2 - 150, 96, 300, 24);
+        // Far ones first, so a nearer plate overlaps a further one rather than the reverse.
+        var sorted = new List<Enemy>(_encounter.Enemies);
+        sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
+
+        foreach (var enemy in sorted)
+        {
+            if (!enemy.IsAlive) continue;
+
+            var distance = DistanceToCamera(enemy);
+            if (distance > NameplateRange) continue;
+
+            var feet = _encounter.DrawPositionOf(enemy);
+            var head = feet + Vector3.Up * (_encounter.DrawHeightOf(enemy) + 0.34f);
+            if (!TryProject(head, out var anchor)) continue;
+
+            // Shrink with distance, but never past readable. A plate that scales all the way
+            // down is unreadable exactly when a player most wants to know what is coming.
+            var scale = MathHelper.Clamp(1.25f - distance / NameplateRange, 0.62f, 1f);
+            DrawNameplate(enemy, anchor, scale, focused: ReferenceEquals(_encounter.Focused, enemy));
+        }
+    }
+
+    /// <summary>Past this, a nameplate is clutter rather than information.</summary>
+    private const float NameplateRange = 26f;
+
+    /// <summary>
+    /// World point to logical UI point.
+    ///
+    /// Returns false for anything behind the camera. Without that check a point behind you
+    /// projects to a mirrored position in front, and enemies you have walked past sprout
+    /// nameplates in the middle of the screen.
+    /// </summary>
+    private bool TryProject(Vector3 world, out Vector2 screen)
+    {
+        var viewport = GraphicsDevice.Viewport;
+        var projected = viewport.Project(world, _projection, _view, Matrix.Identity);
+
+        screen = Vector2.Zero;
+        if (projected.Z is < 0f or > 1f) return false;
+
+        // Into the 1280x720 logical canvas the rest of the UI is authored against, so a
+        // nameplate lands in the same place at every resolution.
+        screen = new Vector2(
+            projected.X / viewport.Width * LogicalWidth,
+            projected.Y / viewport.Height * LogicalHeight);
+
+        return true;
+    }
+
+    private void DrawNameplate(Enemy enemy, Vector2 anchor, float scale, bool focused)
+    {
+        var width = (int)(150 * scale);
+        var barHeight = (int)(7 * scale);
+        var nameSize = 13f * scale;
+
+        var bar = new Rectangle((int)(anchor.X - width / 2f), (int)anchor.Y, width, barHeight);
         var fraction = MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f);
 
-        Fill(bar, new Color(16, 20, 24, 226));
+        // Name and level above the bar; the level is the only warning a player gets that this
+        // room is deeper than the last one.
+        var label = enemy.Archetype.Level > 1
+            ? $"{enemy.DisplayName}  ·  {enemy.Archetype.Level}"
+            : enemy.DisplayName;
+
+        TextCentred(label, anchor.X, bar.Y - nameSize - 3f * scale, nameSize,
+            focused ? Color.White : new Color(214, 206, 194));
+
+        Fill(bar, new Color(12, 10, 12, 220));
         Fill(new Rectangle(bar.X, bar.Y, (int)(bar.Width * fraction), bar.Height),
-            new Color(178, 62, 66));
-        Border(bar, new Color(0, 0, 0, 140));
+            enemy.IsVulnerable ? new Color(232, 186, 96) : new Color(178, 62, 66));
 
-        Text(enemy.DisplayName, new Vector2(bar.X + 10, bar.Y + 4), 14, Color.White);
-        TextRight($"{enemy.Health:0} / {enemy.MaxHealth:0}", bar.Right - 10, bar.Y + 4, 14,
-            Color.White);
-
-        if (_encounter.IsLunging(enemy))
-            TextCentred("striking", LogicalWidth / 2f, bar.Y - 26f, 15, new Color(236, 148, 122));
+        // The focused enemy gets a brighter rule, so "will this swing connect?" is still
+        // answered — that was the one thing the centred bar was genuinely good at.
+        Border(bar, focused ? new Color(238, 226, 200, 210) : new Color(0, 0, 0, 150));
 
         var status = enemy.IsStaggered ? "staggered"
             : enemy.IsBurning ? "burning"
             : enemy.IsChilled ? "chilled"
+            : _encounter is not null && _encounter.IsLunging(enemy) ? "striking"
             : string.Empty;
 
-        if (status.Length > 0)
-            TextCentred(status, LogicalWidth / 2f, bar.Bottom + 6, 13, new Color(232, 194, 116));
+        if (status.Length == 0) return;
+
+        TextCentred(status, anchor.X, bar.Bottom + 2f * scale, 12f * scale,
+            status == "striking" ? new Color(236, 148, 122) : new Color(232, 194, 116));
     }
 
     /// <summary>Where a swing or a spell will go. Small, and always centred.</summary>

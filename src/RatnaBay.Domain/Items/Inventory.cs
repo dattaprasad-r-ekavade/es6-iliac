@@ -32,6 +32,11 @@ public sealed class Inventory
         inventory.Add("health_potion", "Health Potion", 3, "potion");
         inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 3, SoulCrystals.ItemKind);
         inventory.Add("torch", "Torch", 1, "misc");
+
+        // Enough to try the bow with, not enough to live on. A player who wants to shoot has
+        // to decide to buy more, which is the point of ammunition existing at all.
+        inventory.Add(EquipmentCatalog.ArrowId, EquipmentCatalog.ArrowName, 12,
+            EquipmentCatalog.ArrowKind);
         return inventory;
     }
 

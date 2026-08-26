@@ -94,6 +94,10 @@ public static class WeaponSprites
                 Bow(forge);
                 break;
 
+            case WeaponClass.Blunt:
+                Mace(forge, metal);
+                break;
+
             default:
                 if (weapon.Id == EquipmentCatalog.UnarmedId) Fist(forge);
                 else Blade(forge, metal, halfWidth: 10f, tip: 26f, guardY: 142f, guardHalf: 22f);
@@ -141,6 +145,130 @@ public static class WeaponSprites
         forge.Begin();
         forge.Ellipse(Centre, guardY + 45f, 8f, 6f);
         forge.Fill(Fitting, roundness: 1.2f, cap: 6.0f, lift: 6.0f);
+    }
+
+    /// <summary>
+    /// A flanged mace: a haft, a collar, and a head that is unmistakably not a blade.
+    ///
+    /// The silhouette is doing the work. A player has to know from the viewmodel alone that
+    /// this swing staggers and the last one did not, and the only thing they see of their own
+    /// weapon is its outline against the floor.
+    /// </summary>
+    private static void Mace(SpriteForge forge, SpriteMaterial metal)
+    {
+        const float Centre = Width / 2f;
+
+        forge.Begin();
+        forge.Capsule(Centre, 74f, Centre, 168f, 5.0f, 4.4f);
+        forge.Fill(Grip, roundness: 1.05f, cap: 5.0f);
+
+        // Collar where the head is seated, so the head does not appear to float on the haft.
+        forge.Begin();
+        forge.Capsule(Centre, 68f, Centre, 78f, 7.4f, 6.6f);
+        forge.Fill(Fitting, roundness: 1.15f, cap: 5.2f, lift: 2.2f);
+
+        // The head: a core with four flanges radiating from it. Flanges rather than a ball,
+        // because a ball at this size reads as a lollipop.
+        forge.Begin();
+        forge.Ellipse(Centre, 46f, 13f, 15f);
+        forge.Fill(metal, roundness: 0.8f, cap: 9f, lift: 3.4f);
+
+        forge.Begin();
+        for (var i = 0; i < 4; i++)
+        {
+            var angle = MathF.PI * (0.25f + i * 0.5f);
+            forge.Capsule(
+                Centre + MathF.Cos(angle) * 6f, 46f + MathF.Sin(angle) * 7f,
+                Centre + MathF.Cos(angle) * 19f, 46f + MathF.Sin(angle) * 21f,
+                5.5f, 2.2f);
+        }
+        forge.Fill(metal, roundness: 0.95f, cap: 7f, lift: 6.5f);
+
+        forge.Begin();
+        forge.Ellipse(Centre, 30f, 4.2f, 5.0f);
+        forge.Fill(metal, roundness: 1.2f, cap: 8f, lift: 8.5f);
+
+        forge.Begin();
+        forge.Ellipse(Centre, 172f, 6.6f, 5.2f);
+        forge.Fill(Fitting, roundness: 1.2f, cap: 6f, lift: 4f);
+    }
+
+    /// <summary>
+    /// The shield, seen edge-on from behind as the off hand raises it.
+    ///
+    /// Drawn as its own sprite rather than as part of the weapon, because it is worn with any
+    /// one-handed weapon and duplicating it into every blade would be four copies of the same
+    /// picture that could drift apart.
+    /// </summary>
+    public static Texture2D Shield(GraphicsDevice device, ShieldDefinition shield)
+    {
+        if (Cache.TryGetValue("shield:" + shield.Id, out var cached)) return cached;
+
+        var forge = new SpriteForge(Width, Height);
+        var face = shield.Tier >= 2 ? Fitting : Timber;
+
+        // The boards, as a tall oval. Period shields are hide over wood, not steel plate.
+        forge.Begin();
+        forge.Ellipse(Width / 2f, Height / 2f, 40f, 62f);
+        forge.Fill(face, roundness: 0.34f, cap: 7f);
+
+        // Rim, laid on top so it catches light along the edge and reads as a bound border.
+        forge.Begin();
+        forge.Ellipse(Width / 2f, Height / 2f, 40f, 62f);
+        forge.Erase(Width / 2f, Height / 2f, 34f, 55f);
+        forge.Fill(Iron, roundness: 1.2f, cap: 4.2f, lift: 4f);
+
+        // The boss: the one thing that makes a shield read as a shield in silhouette.
+        forge.Begin();
+        forge.Ellipse(Width / 2f, Height / 2f, 13f, 13f);
+        forge.Fill(Iron, roundness: 1.05f, cap: 9f, lift: 5.5f);
+
+        var texture = new Texture2D(device, Width, Height);
+        texture.SetData(forge.Resolve(Key));
+        Cache["shield:" + shield.Id] = texture;
+        return texture;
+    }
+
+    /// <summary>
+    /// An open hand, for the moment a spell leaves it.
+    ///
+    /// The player's own hand is the only part of them they ever see, and until now casting
+    /// showed the sword instead — so the most distinctive thing a mage does looked exactly
+    /// like the most ordinary thing a warrior does.
+    /// </summary>
+    public static Texture2D CastingHand(GraphicsDevice device)
+    {
+        if (Cache.TryGetValue("hand", out var cached)) return cached;
+
+        var forge = new SpriteForge(Width, Height);
+
+        // Palm, then four fingers spread and a thumb across. Seen from behind and below, as a
+        // hand held up in front of you actually is.
+        forge.Begin();
+        forge.Ellipse(48f, 118f, 19f, 21f);
+        forge.Fill(Skin, roundness: 0.7f, cap: 8f);
+
+        forge.Begin();
+        for (var i = 0; i < 4; i++)
+        {
+            var x = 33f + i * 10f;
+            var lean = (i - 1.5f) * 3.4f;
+            forge.Capsule(x, 106f, x + lean, 72f + MathF.Abs(i - 1.5f) * 7f, 5.0f, 3.8f);
+        }
+        forge.Fill(Skin, roundness: 1.0f, cap: 6.4f, lift: 2.6f);
+
+        forge.Begin();
+        forge.Capsule(32f, 124f, 16f, 106f, 5.4f, 4.2f);
+        forge.Fill(Skin, roundness: 1.05f, cap: 6.6f, lift: 3.4f);
+
+        forge.Begin();
+        forge.Capsule(48f, 136f, 48f, 168f, 13f, 14f);
+        forge.Fill(Skin, roundness: 0.8f, cap: 7f, lift: 0.4f);
+
+        var texture = new Texture2D(device, Width, Height);
+        texture.SetData(forge.Resolve(Key));
+        Cache["hand"] = texture;
+        return texture;
     }
 
     private static void Bow(SpriteForge forge)

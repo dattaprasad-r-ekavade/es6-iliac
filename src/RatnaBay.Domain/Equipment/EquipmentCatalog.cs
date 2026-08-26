@@ -59,6 +59,16 @@ public sealed class WeaponDefinition
     /// <summary>True when the weapon occupies both hands, and so refuses a shield.</summary>
     public bool IsTwoHanded => Class is WeaponClass.TwoHanded or WeaponClass.Ranged;
 
+    /// <summary>
+    /// True when a swing spends an arrow.
+    ///
+    /// The bow's cost was stamina, exactly like a sword's, which made a weapon that outranges
+    /// everything strictly better at no price. Ammunition is the price: reach is now something
+    /// bought in town and carried down, and a run that leans on the bow is a run that has to
+    /// budget for it.
+    /// </summary>
+    public bool NeedsAmmunition => Class == WeaponClass.Ranged;
+
     public bool CanBlock => Class is WeaponClass.OneHanded or WeaponClass.Blunt;
 
     public string SkillId => Class switch
@@ -116,6 +126,12 @@ public sealed class ArmourDefinition
 public static class EquipmentCatalog
 {
     public const string UnarmedId = "unarmed";
+
+    /// <summary>What a bow spends. One id for every bow, so a tier is never also an ammo type.</summary>
+    public const string ArrowId = "arrow";
+
+    public const string ArrowName = "Arrows";
+    public const string ArrowKind = "ammunition";
 
     public static readonly WeaponDefinition Unarmed = new()
     {

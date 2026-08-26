@@ -239,6 +239,82 @@ public sealed class WeaponIdentityTests
         Assert.That(Blocked("bronze_shield"), Is.LessThan(Blocked(null)));
     }
 
+    // ------------------------------------------------------------------ ammunition
+
+    [Test]
+    public void OnlyBowsSpendArrows()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(Weapon("hunting_bow").NeedsAmmunition, Is.True);
+            Assert.That(Weapon("iron_sword").NeedsAmmunition, Is.False);
+            Assert.That(Weapon("iron_mace").NeedsAmmunition, Is.False);
+            Assert.That(Weapon("iron_greatsword").NeedsAmmunition, Is.False);
+        });
+    }
+
+    [Test]
+    public void LoosingAnArrowSpendsOne()
+    {
+        var player = NewPlayer();
+        Wield(player, "hunting_bow", "weapon");
+
+        var before = player.Inventory.CountOf(EquipmentCatalog.ArrowId);
+        Assert.That(before, Is.GreaterThan(0), "a new character should start with some arrows");
+
+        player.Combat.TryAttack(Spawn());
+
+        Assert.That(player.Inventory.CountOf(EquipmentCatalog.ArrowId), Is.EqualTo(before - 1));
+    }
+
+    [Test]
+    public void AMissedArrowIsStillGone()
+    {
+        // Spent on the swing rather than on the hit. It is the whole reason a bow asks the
+        // player to aim, and refunding a miss would make the bow free again.
+        var player = NewPlayer();
+        Wield(player, "hunting_bow", "weapon");
+
+        var before = player.Inventory.CountOf(EquipmentCatalog.ArrowId);
+        player.Combat.TryAttack(null);
+
+        Assert.That(player.Inventory.CountOf(EquipmentCatalog.ArrowId), Is.EqualTo(before - 1));
+    }
+
+    [Test]
+    public void ASwordSpendsNoArrows()
+    {
+        var player = NewPlayer();
+        Wield(player, "iron_sword", "weapon");
+
+        var before = player.Inventory.CountOf(EquipmentCatalog.ArrowId);
+        player.Combat.TryAttack(Spawn());
+
+        Assert.That(player.Inventory.CountOf(EquipmentCatalog.ArrowId), Is.EqualTo(before));
+    }
+
+    [Test]
+    public void AnEmptyQuiverCostsNothingToDiscover()
+    {
+        var player = NewPlayer();
+        Wield(player, "hunting_bow", "weapon");
+        player.Inventory.Consume(EquipmentCatalog.ArrowId,
+            player.Inventory.CountOf(EquipmentCatalog.ArrowId));
+
+        var stamina = player.Vitals.Stamina;
+        var outcome = player.Combat.TryAttack(Spawn());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(outcome.Result, Is.EqualTo(AttackResult.NoAmmunition));
+
+            // Not the stamina and not the cooldown. Checked before either is spent, or the
+            // player pays their breath for a shot that was never loosed.
+            Assert.That(player.Vitals.Stamina, Is.EqualTo(stamina));
+            Assert.That(player.Combat.IsReady, Is.True);
+        });
+    }
+
     // ------------------------------------------------------------------ the roster
 
     [Test]
