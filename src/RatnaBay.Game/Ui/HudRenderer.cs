@@ -48,6 +48,13 @@ internal sealed class HudRenderer
         // Blank until the first averaging window closes: the counter used to show whatever
         // the opening, texture-generating window computed, so a build running at 700 fps
         // could report 4. A misleading diagnostic is worse than none.
+        //
+        // A capture is that same wrong number with an audience. --screenshot draws a few
+        // frames and exits, so the averaging window closes on the startup frames, the rate
+        // reads about 1, and it gets the red reserved for a build in trouble. That was the
+        // first hard number a stranger read about how the game runs, on the store page.
+        if (!state.ShowFrameRate) return;
+
         _ui.TextRight(state.FramesPerSecond > 0f ? $"{state.FramesPerSecond:0} fps" : "— fps",
             panel.Right - 18, panel.Y + 38, 13,
             state.FramesPerSecond is > 0f and < 50f

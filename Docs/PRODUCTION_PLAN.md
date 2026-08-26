@@ -60,18 +60,23 @@ acting.
 
 ## 2. Where the project is
 
-**Checkpoint: 2026-08-25.** Written at a deliberate pause, from the repository rather than
-from memory.
+**Checkpoint: 2026-08-26.** Written from the repository rather than from memory.
 
 | | Lines | State |
 |---|---:|---|
-| `RatnaBay.Domain` | ~7,400 | Tested game rules, engine-free |
-| `RatnaBay.Domain.Tests` | ~7,200 | **537 tests, ~450 ms** |
-| `RatnaBay.Game` | ~12,000 | Renderer, HUD, session, world and run runtime, combat |
-| `RatnaBay.Tools` | ~550 | `doctor`, `validate`, `sim`, `mine`, `review` |
+| `RatnaBay.Domain` | ~8,100 | Tested game rules, engine-free |
+| `RatnaBay.Domain.Tests` | ~8,100 | **595 tests, ~530 ms** |
+| `RatnaBay.Game` | ~14,600 | Client: lifecycle, world draw, audio, session, run runtime |
+| `RatnaBay.Game/Ui` | ~1,300 | Nine named screen renderers, shared canvas, shared hit-tests |
+| `RatnaBay.Tools` | ~540 | `doctor`, `validate`, `sim`, `mine`, `review` |
 
-Plus **132 checks** in the published build's own self-test, which is what the release gate
+Plus **134 checks** in the published build's own self-test, which is what the release gate
 actually runs.
+
+`.erify.ps1` is now the one command that proves a change: Release build, tool doctor,
+domain tests, content validation, and the simulation. `.\publish.ps1` remains the packaging
+gate, and `.
+elease.ps1` pushes to itch.io on top of it.
 
 ### The loop, end to end
 
@@ -248,17 +253,28 @@ rounded up, so a single potion is a single potion lost.
 
 ---
 
-### Iteration 16 — Stones and slots (2 weeks)
+### Iteration 16 — Stones and slots ✅ built, not yet judged
 
 **Risk retired:** is in-run variety readable inside five to eight minutes?
 
-- Sockets on weapons and armour; stones found below, never carried down.
-- A small set of stone effects that change how a weapon or spell behaves, not how large it is.
-- Socketing UI in the existing inventory screen.
+Six stones, and every one alters a verb rather than a number. That was the constraint the run
+length forced: a stone worth fifteen percent damage cannot be noticed inside six minutes,
+because there is no baseline to compare against and no time to average out the variance. A
+stone that makes a blade sweep is obvious on the first swing.
 
-**Playable:** find a stone mid-run, socket it, and fight differently for the rest of the run.
+- **Splitting** makes any weapon sweep. **Cinder** ignites, **Rime** chills, **Thunder**
+  staggers — three verbs that belonged only to spells, handed to melee.
+- **Vessel** pays for casting with kills instead of with gold spent in town.
+- **Ward** turns the guard into a way of creating an opening rather than only losing less.
+- Sockets come from tier, so gold spent in town buys room as well as damage.
 
-**Done when:** two runs with different stones feel like different runs.
+**The rule the system stands on:** stones do not survive a descent. If they ever do, the
+tactical and progression layers collapse into one and every run becomes the same run with
+better numbers. Cleared on *entering* rather than leaving, because a run ends in ways nobody
+gets to run code for — dying, quitting, closing the window.
+
+**Still to judge:** whether two runs with different stones actually feel like different runs.
+That is a question for a recording, not for the author.
 
 ---
 
@@ -353,17 +369,21 @@ One board. Work in progress limit: **one**.
 
 ### In progress
 
-- None. Paused deliberately at a good place: gate green, everything pushed.
+- None. Gate green at `9f13305` plus two ported store-page fixes.
 
 ### Next — pick one
 
-- **A stranger plays it.** Nothing on this list replaces it, and it has been the top item for
-  three checkpoints. The loop is closed, the recorder captures a session unattended, and
-  `Docs/PLAYTEST_DISTRIBUTION.md` already says how to get a build out and the recordings back.
-- **Iteration 16 — stones and slots.** In-run variety. Sockets found below, never carried down.
+- **Push a current build, and let a stranger play it.** The alpha is live at
+  `datathecodie.itch.io/ratna-bay`, but the uploaded build is `alpha-2026.08.25-1277591` —
+  which predates audio, maces, shields, bows and the whole stones system. Anyone downloading
+  today plays a materially worse game than the one in the repository. `.elease.ps1` is one
+  command and butler ships a patch of a few hundred KB.
+- **Iteration 17 — the ratchet.** Amulets that survive death, and levels that grant points
+  rather than numbers. The natural follow-on now that in-run variety exists: 16 made a single
+  run varied, 17 makes a *lost* run still worth something.
 - **Iteration 18 — cave themes.** Pulled forward in thinking once, then held: the sameness was
-  mechanical rather than visual, and three of its causes have since been fixed. Worth
-  re-judging against a fresh recording rather than the one that prompted it.
+  mechanical rather than visual, and its causes have since been fixed. Worth re-judging
+  against a fresh recording rather than the one that prompted it.
 
 ### Ready
 
@@ -380,12 +400,15 @@ One board. Work in progress limit: **one**.
   person is met every single run, which makes it the natural home for story in frequent pieces.
 - **The stall restocks after each completed descent.** Bought rows are gone for the current
   stock cycle and a fresh stock is generated when the player returns.
+- **The store page has no cover or screenshots yet.** `build\RatnaBay.exe --cover` and
+  `--screenshot` produce them; uploading them is a manual step in the itch page editor, which
+  butler cannot do.
 - **Gold pacing is a guess.** Roughly 250 a run against a 450 sword, never measured.
 - **Two cave themes, one fort room, and the preta rise** — the remaining trailer build list.
 
 ### Done this stretch
 
-Forty-nine commits, iterations 13 through 15, plus two branches merged.
+Iterations 13 through 16, the alpha published, and the client reorganised.
 
 - **Iteration 13** — the mine generator. A seed in, a `WorldManifest` out, in the format the
   game already loads.
@@ -398,6 +421,16 @@ Forty-nine commits, iterations 13 through 15, plus two branches merged.
 - **The camp trader** — whistled down for `5 x tier x calls`, dealing only in what is spent
   before the run ends.
 - **The recorder** — every session written down, and `RatnaBay.Tools review` to read it back.
+- **The alpha shipped** — telemetry to a self-hosted endpoint behind a consent prompt, butler
+  wired up in `release.ps1`, a version stamp that ties any recording back to its commit, and a
+  coach that teaches the first descent one line at a time.
+- **Iteration 16** — stones and slots. Six verbs, none of which survive a descent.
+- **Combat feel** — footsteps and landings, weapons that sound like their weight, maces with a
+  stagger, shields with a block factor, bows with arrows to run out of, nameplates.
+- **The client reorganised for AI work** — nine screen renderers under `Ui/`, one `UiCanvas`,
+  one `UiLayout` so drawing and hit-testing cannot drift apart, `InputRouter` as the only
+  device-sampling seam, `AGENTS.md`, and `verify.ps1`. `Game1` fell from ~13,000 lines to
+  ~5,700. Tracked in [`AI_READINESS_ROADMAP.md`](AI_READINESS_ROADMAP.md).
 - **Suspend and resume** — a descent can be set aside and walked back into, once.
 - **Art, setting and story** — merged from `trailer-shot-one`: generated masonry and props, a
   cave lighting shader, three tiers of risen dead, the Stambha carved in Brahmi, and

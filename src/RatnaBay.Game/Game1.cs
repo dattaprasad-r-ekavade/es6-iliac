@@ -3519,6 +3519,7 @@ public sealed class Game1 : Game
             WeaponName: _session?.Player.Combat.ActiveWeapon.DisplayName ?? string.Empty,
             IsBlocking: _session?.Player.Combat.IsBlocking == true,
             FramesPerSecond: _framesPerSecond,
+            ShowFrameRate: _screenshotPath is null,
             Spell: BuildSpellHud());
     }
 
@@ -3569,7 +3570,7 @@ public sealed class Game1 : Game
                 SettingsTelemetryLine()
             },
             SettingsSelection: _settingsSelection,
-            RecordingDirectory: PlayRecorder.Directory);
+            RecordingDirectory: PlayRecorder.DisplayDirectory);
     }
 
     private void DrawWorldScene()

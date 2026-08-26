@@ -52,4 +52,5 @@ internal sealed record WorldHudState(
     string WeaponName,
     bool IsBlocking,
     float FramesPerSecond,
+    bool ShowFrameRate,
     SpellHudState Spell);
