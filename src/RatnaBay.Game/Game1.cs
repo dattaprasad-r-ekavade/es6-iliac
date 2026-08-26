@@ -160,6 +160,24 @@ public sealed class Game1 : Game
     private readonly List<WorldPickup> _pickups = new();
     private AmbientAudio? _ambientAudio;
 
+    /// <summary>Every sound effect in the game, synthesised at startup.</summary>
+    private SoundBank? _sfx;
+
+    /// <summary>
+    /// Seconds of frozen simulation still owed to a landed blow.
+    ///
+    /// The cheapest and most effective trick in melee combat: on impact, stop the world for
+    /// four or five frames. It reads as the blow having mass — the swing meets resistance
+    /// instead of passing through — and it does more for how a hit feels than any amount of
+    /// particles or numbers. Held to a few frames because past about 120ms it stops reading as
+    /// impact and starts reading as the game stuttering.
+    /// </summary>
+    private float _hitstop;
+
+    /// <summary>How far the camera is still owed a shake, and how hard.</summary>
+    private float _shake;
+    private float _shakeStrength;
+
     private BillboardRenderer _billboards = null!;
 
     /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
@@ -167,6 +185,7 @@ public sealed class Game1 : Game
 
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
+
 
     /// <summary>
     /// Set by --cover: render the store cover instead of the HUD, at itch.io's aspect.
@@ -543,6 +562,9 @@ public sealed class Game1 : Game
             && !string.IsNullOrWhiteSpace(ambientError))
             _assetErrors.Add(ambientError);
 
+        _sfx = SoundBank.Create(out var sfxError);
+        if (!string.IsNullOrWhiteSpace(sfxError)) _assetErrors.Add(sfxError);
+
         _primitiveEffect = new BasicEffect(GraphicsDevice)
         {
             VertexColorEnabled = false,
@@ -584,6 +606,7 @@ public sealed class Game1 : Game
         _recorder.Flush();
 
         _ambientAudio?.Dispose();
+        _sfx?.Dispose();
         CharacterSprites.Clear();
         WeaponSprites.Clear();
         BoltSprites.Clear();
@@ -597,15 +620,32 @@ public sealed class Game1 : Game
     /// </summary>
     private const float MaxFrameSeconds = 0.1f;
 
-    private static float StepSeconds(GameTime gameTime) =>
+    private static float RealSeconds(GameTime gameTime) =>
         MathF.Min((float)gameTime.ElapsedGameTime.TotalSeconds, MaxFrameSeconds);
+
+    /// <summary>
+    /// The step the simulation is allowed this frame, which is zero while a hit is landing.
+    ///
+    /// Everything that moves reads this rather than the clock, so hitstop freezes the world
+    /// without any of it knowing why. The input layer deliberately does not: a player who
+    /// presses a key during those four frames should still be heard, or the freeze reads as
+    /// dropped input rather than as impact.
+    /// </summary>
+    private float StepSeconds(GameTime gameTime) =>
+        _hitstop > 0f ? 0f : RealSeconds(gameTime);
 
     protected override void Update(GameTime gameTime)
     {
         var keyboard = Keyboard.GetState();
         var mouse = Mouse.GetState();
 
-        _clock += StepSeconds(gameTime);
+        // On real time, not simulation time: the fire has to keep moving during a hitstop or
+        // the freeze looks like the game locked up rather than like a blow landing.
+        var real = RealSeconds(gameTime);
+        _clock += real;
+
+        if (_hitstop > 0f) _hitstop = MathF.Max(0f, _hitstop - real);
+        if (_shake > 0f) _shake = MathF.Max(0f, _shake - real);
 
         if (Pressed(keyboard, Keys.F11))
             SetBorderlessFullscreen(!_borderlessFullscreen);
@@ -1132,7 +1172,9 @@ public sealed class Game1 : Game
 
     private void UpdateSettings(KeyboardState keyboard)
     {
-        const int optionCount = 3;
+        // Four rows now: display, UI scale, volume, bindings. The count was already one short
+        // of what DrawSettings lists, so the telemetry row could never be reached by keyboard.
+        const int optionCount = 5;
         if (Pressed(keyboard, Keys.Up))
             _settingsSelection = (_settingsSelection + optionCount - 1) % optionCount;
         if (Pressed(keyboard, Keys.Down))
@@ -1153,20 +1195,32 @@ public sealed class Game1 : Game
         if (_settingsSelection == 0 && toggled)
             SetBorderlessFullscreen(!_borderlessFullscreen);
 
-        // The scale row is a slider: clicking its left half steps down, its right half up.
+        // The scale and volume rows are sliders: clicking the left half steps down, the right
+        // half up.
         var nudge = 0f;
-        if (Pressed(keyboard, Keys.Right)) nudge = 0.1f;
-        else if (Pressed(keyboard, Keys.Left)) nudge = -0.1f;
-        else if (clicked && hovered == 1)
+        if (Pressed(keyboard, Keys.Right)) nudge = 1f;
+        else if (Pressed(keyboard, Keys.Left)) nudge = -1f;
+        else if (clicked && (hovered == 1 || hovered == 2))
         {
-            var row = SettingsRowBounds(1);
-            nudge = pointer.X < row.Center.X ? -0.1f : 0.1f;
+            var row = SettingsRowBounds(hovered);
+            nudge = pointer.X < row.Center.X ? -1f : 1f;
         }
 
-        if (_settingsSelection != 1 || nudge == 0f) return;
+        if (nudge == 0f) return;
 
-        _uiScalePreference = MathHelper.Clamp(_uiScalePreference + nudge, 0.8f, 1.2f);
-        UpdateUiTransform();
+        if (_settingsSelection == 1)
+        {
+            _uiScalePreference = MathHelper.Clamp(_uiScalePreference + nudge * 0.1f, 0.8f, 1.2f);
+            UpdateUiTransform();
+        }
+        else if (_settingsSelection == 2 && _sfx is not null)
+        {
+            _sfx.Volume = MathHelper.Clamp(_sfx.Volume + nudge * 0.1f, 0f, 1f);
+
+            // Play the thing being adjusted, so the number is not the only feedback. A volume
+            // slider that makes no sound is guesswork.
+            _sfx.Play(Sfx.Coin, 0.5f);
+        }
     }
 
     /// <summary>
@@ -2204,6 +2258,14 @@ public sealed class Game1 : Game
             LockResult.Failed => $"The lock resists. Security {door.Definition.Difficulty:0} required.",
             _ => "The door is already open."
         });
+
+        _sfx?.Play(result switch
+        {
+            LockResult.Opened or LockResult.Unlocked => Sfx.Door,
+            LockResult.Failed => Sfx.Denied,
+            _ => Sfx.Denied
+        }, 0.6f);
+
         return true;
     }
 
@@ -2272,17 +2334,41 @@ public sealed class Game1 : Game
     /// <summary>Only the outcomes the player cannot see for themselves are worth saying.</summary>
     private void ReportAttack(AttackOutcome outcome)
     {
-        if (outcome.Result == AttackResult.Exhausted) _session?.ShowToast("Too exhausted.");
+        if (outcome.Result == AttackResult.Exhausted)
+        {
+            _session?.ShowToast("Too exhausted.");
+            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            return;
+        }
+
+        // The swing plays on every swing, landed or not, because it is the sound of the input
+        // being received. A game that is silent when you miss feels unresponsive rather than
+        // feeling like you missed.
+        if (outcome.Swung) _sfx?.Play(Sfx.Swing, 0.35f, volumeScale: 0.75f);
+
+        if (outcome.Result != AttackResult.Hit) return;
+
+        // Landing is the sound and the freeze together. Weight comes from the damage actually
+        // dealt, so a greatsword lands heavier than a knife without either being special-cased.
+        var weight = MathHelper.Clamp(outcome.Damage / 45f, 0.25f, 1f);
+        if (outcome.WasOpening) weight = MathF.Min(1f, weight * 1.4f);
+
+        _sfx?.Play(Sfx.HitFlesh, weight);
+        Impact(weight);
     }
 
     private void ReportCast(CastOutcome outcome)
     {
         if (_session is null) return;
 
+        if (outcome.Result == CastResult.Landed || outcome.Result == CastResult.Missed)
+            _sfx?.Play(Sfx.Cast, 0.5f, volumeScale: 0.85f);
+
         switch (outcome.Result)
         {
             case CastResult.NoCharge:
                 _session.ShowToast("No prana, and no jiva stone to draw on.");
+                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
                 break;
             case CastResult.Landed when outcome.Spell?.Effect == SpellEffect.Heal:
                 _session.ShowToast($"{outcome.Spell.DisplayName} — restored.");
@@ -2547,6 +2633,84 @@ public sealed class Game1 : Game
     /// only listens. Nothing in the game asks whether it is recording, which is what keeps it
     /// impossible for telemetry to change how the game plays.
     /// </summary>
+    /// <summary>
+    /// Freeze the world briefly, and shove the camera.
+    ///
+    /// Called from wherever a blow lands. <paramref name="weight"/> is 0 for a graze and 1 for
+    /// a killing blow on something large, and everything else scales off it — a light hit gets
+    /// two frames and a nudge, a heavy one gets six and a jolt.
+    /// </summary>
+    private void Impact(float weight)
+    {
+        var w = MathHelper.Clamp(weight, 0f, 1f);
+
+        // Take the longer of the two rather than adding, or a flurry stacks into a lockup.
+        _hitstop = MathF.Max(_hitstop, 0.030f + 0.055f * w);
+
+        _shake = MathF.Max(_shake, 0.10f + 0.14f * w);
+        _shakeStrength = MathF.Max(_shakeStrength, 0.0022f + 0.0075f * w);
+    }
+
+    /// <summary>
+    /// The rotational offset a running shake adds to the view, in yaw and pitch.
+    ///
+    /// Rotation rather than translation, because the camera is the player's head: moving the
+    /// eye through the world clips it into geometry, and turning it does not. Two frequencies
+    /// that do not divide into each other, so a long shake never repeats visibly.
+    ///
+    /// Returned rather than applied. Adding it to <c>_cameraYaw</c> would be simpler and would
+    /// be a bug: those fields persist, so every shake would leave the player aiming somewhere
+    /// slightly different from where they were, and a long fight would walk the view away by
+    /// degrees with nobody able to say why.
+    /// </summary>
+    private (float Yaw, float Pitch) ShakeOffset()
+    {
+        if (_shake <= 0f) return (0f, 0f);
+
+        var falloff = _shake * _shake;
+        var strength = _shakeStrength * falloff * 60f;
+
+        return (MathF.Sin(_clock * 71f) * strength,
+                MathF.Sin(_clock * 53f) * strength * 0.75f);
+    }
+
+    /// <summary>Wire the session's own good news to a sound.</summary>
+    private void WatchSessionForTheFeel(GameSession session)
+    {
+        session.Player.Vitals.LevelGained += _ => _sfx?.Play(Sfx.Chime, 0.5f);
+    }
+
+    /// <summary>Wire the encounter's events to what the player hears and feels.</summary>
+    private void WatchForTheFeel(Encounter encounter)
+    {
+        encounter.EnemyDefeated += enemy =>
+        {
+            _sfx?.Play(Sfx.Death, Weight(enemy));
+            Impact(0.85f);
+        };
+
+        encounter.SpellLanded += (_, _, _) =>
+        {
+            _sfx?.Play(Sfx.HitFlesh, 0.45f, volumeScale: 0.8f);
+            Impact(0.35f);
+        };
+
+        encounter.PlayerStruck += (damage, guarded) =>
+        {
+            var weight = MathHelper.Clamp(damage / 30f, 0.2f, 1f);
+
+            _sfx?.Play(guarded ? Sfx.Block : Sfx.Hurt, weight);
+
+            // Being hit shakes harder than hitting. The player should not have to read the
+            // health bar to know something went wrong.
+            Impact(guarded ? weight * 0.5f : MathF.Min(1f, weight * 1.15f));
+        };
+
+        // Bigger things land heavier, which is most of what makes a kravyada feel like one.
+        static float Weight(Enemy enemy) =>
+            MathHelper.Clamp(enemy.Archetype.MaxHealth / 260f, 0.35f, 1f);
+    }
+
     private void WatchForTheRecord(Encounter encounter, GameSession session)
     {
         encounter.EnemyDefeated += enemy => _recorder.Record(PlayEventKind.EnemyKilled,
@@ -2564,6 +2728,9 @@ public sealed class Game1 : Game
 
         encounter.PlayerStruck += (damage, guarded) => _recorder.Record(PlayEventKind.PlayerHurt,
             guarded ? "guarded" : "clean", damage, 0f, session.Player.Vitals.Health);
+
+        WatchForTheFeel(encounter);
+        WatchSessionForTheFeel(session);
     }
 
     /// <summary>Start the ledger for this descent, if the loaded world is a mine at all.</summary>
@@ -2596,6 +2763,10 @@ public sealed class Game1 : Game
         _run.RoomCleared += paid =>
         {
             _session?.ShowToast($"Room clear.  +{paid} stones held  ({_run.Run.Pending} at risk)");
+
+            // The pot growing is the thing the whole loop turns on, so it gets its own sound
+            // rather than sharing the kill that happened to end the room.
+            _sfx?.Play(Sfx.Coin, MathHelper.Clamp(paid / 12f, 0.3f, 1f));
             _recorder.Record(PlayEventKind.RoomCleared, $"room {_run.DeepestRoom}", paid,
                 _run.Run.Pending, _session?.Player.Vitals.Health ?? 0f,
                 _session?.Player.Vitals.Prana ?? 0f);
@@ -2836,7 +3007,20 @@ public sealed class Game1 : Game
 
     private void UpdateCameraMatrices()
     {
-        _view = Matrix.CreateLookAt(_cameraPosition, _cameraPosition + Forward, Vector3.Up);
+        var (yaw, pitch) = ShakeOffset();
+
+        // Built from the shaken angles directly rather than from Forward, so the offset lives
+        // only in this matrix and nothing downstream — aim, movement, the weapon — sees it.
+        var shakenPitch = MathHelper.Clamp(_cameraPitch + pitch, -PitchLimit, PitchLimit);
+        var shakenYaw = _cameraYaw + yaw;
+
+        // The same transform the Forward property uses, so the shaken view and the unshaken
+        // aim cannot disagree about which way is which.
+        var forward = Vector3.Transform(
+            Vector3.Forward,
+            Matrix.CreateRotationX(shakenPitch) * Matrix.CreateRotationY(-shakenYaw));
+
+        _view = Matrix.CreateLookAt(_cameraPosition, _cameraPosition + forward, Vector3.Up);
     }
 
     /// <summary>
@@ -3169,6 +3353,7 @@ public sealed class Game1 : Game
             _recorder.Record(PlayEventKind.ItemBought, item.Name, item.Price, 0f,
                 _session.Player.Vitals.Health, _session.Player.Vitals.Prana, item.Kind);
             _session.ShowToast($"Bought {item.Name}.");
+            _sfx?.Play(Sfx.Coin, 0.55f);
         }
         else
         {
@@ -3326,6 +3511,13 @@ public sealed class Game1 : Game
         EndUi();
     }
 
+    /// <summary>The volume row's value, or why there isn't one.</summary>
+    private string SoundVolumeLine()
+    {
+        if (_sfx is null || !_sfx.IsAvailable) return "unavailable on this machine";
+        return _sfx.Volume <= 0f ? "off" : $"{_sfx.Volume * 100f:0}%";
+    }
+
     private void DrawSettings()
     {
         Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 214));
@@ -3339,6 +3531,7 @@ public sealed class Game1 : Game
         {
             $"Display mode     {(_borderlessFullscreen ? "Borderless fullscreen" : "Windowed 1280x720")}",
             $"UI scale          {_uiScalePreference:0.0}x",
+            $"Sound             {SoundVolumeLine()}",
             "Bindings          WASD move | E interact | J journal | I character",
             SettingsTelemetryLine()
         };
@@ -3352,7 +3545,7 @@ public sealed class Game1 : Game
                 selected ? Color.White : new Color(203, 216, 214));
         }
 
-        Text("Up / Down select   Left / Right change UI scale   Enter toggle display   Esc close",
+        Text("Up / Down select   Left / Right change value   Enter toggle display   Esc close",
             new Vector2(panel.X + 32, panel.Bottom - 38), 13, new Color(163, 191, 194));
     }
 
