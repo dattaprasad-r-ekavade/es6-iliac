@@ -5256,7 +5256,7 @@ public sealed class Game1 : Game
 
             var feet = _encounter.DrawPositionOf(enemy);
             var head = feet + Vector3.Up * (_encounter.DrawHeightOf(enemy) + 0.34f);
-            if (!TryProject(head, out var anchor)) continue;
+            if (!TryProjectToScreen(head, out var anchor)) continue;
 
             // Shrink with distance, but never past readable. A plate that scales all the way
             // down is unreadable exactly when a player most wants to know what is coming.
@@ -5267,30 +5267,6 @@ public sealed class Game1 : Game
 
     /// <summary>Past this, a nameplate is clutter rather than information.</summary>
     private const float NameplateRange = 26f;
-
-    /// <summary>
-    /// World point to logical UI point.
-    ///
-    /// Returns false for anything behind the camera. Without that check a point behind you
-    /// projects to a mirrored position in front, and enemies you have walked past sprout
-    /// nameplates in the middle of the screen.
-    /// </summary>
-    private bool TryProject(Vector3 world, out Vector2 screen)
-    {
-        var viewport = GraphicsDevice.Viewport;
-        var projected = viewport.Project(world, _projection, _view, Matrix.Identity);
-
-        screen = Vector2.Zero;
-        if (projected.Z is < 0f or > 1f) return false;
-
-        // Into the 1280x720 logical canvas the rest of the UI is authored against, so a
-        // nameplate lands in the same place at every resolution.
-        screen = new Vector2(
-            projected.X / viewport.Width * LogicalWidth,
-            projected.Y / viewport.Height * LogicalHeight);
-
-        return true;
-    }
 
     private void DrawNameplate(Enemy enemy, Vector2 anchor, float scale, bool focused)
     {
@@ -6084,59 +6060,6 @@ public sealed class Game1 : Game
             panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, new Color(140, 156, 164));
     }
 
-    private void DrawGallery()
-    {
-        DrawWorldBase(new Color(56, 82, 100), new Color(52, 64, 70));
-
-        DrawModel("tree", new Vector3(-5f, 0f, -2f), 1.8f, 0.15f);
-        DrawModel("rock", new Vector3(-2.3f, 0f, -1.8f), 1.4f, 0.4f);
-        DrawModel("tent", new Vector3(1.2f, 0f, -2.2f), 1.7f, -0.3f);
-        DrawModel("bridge", new Vector3(4.3f, 0f, -1.5f), 1.6f, 0.5f);
-        DrawModel("campfire", new Vector3(-3.4f, 0f, 2.1f), 1.6f, 0f);
-        DrawModel("bush", new Vector3(0.2f, 0f, 2.2f), 1.6f, 0.3f);
-        DrawModel("cheeseBox", new Vector3(3.3f, 0.55f, 2.0f), 1.2f, -0.2f);
-
-        BeginUi();
-        DrawPanel(new Rectangle(24, 86, 374, 132), new Color(5, 10, 16, 220), new Color(78, 155, 185));
-        Text("Imported assets", new Vector2(44, 104), 22, Color.White);
-        Text("7 Kenney FBX models + 1 Poly Haven textured FBX", new Vector2(44, 139), 15, new Color(184, 214, 225));
-        Text("WASD move | Arrow keys look | 1/2/3 switch tests", new Vector2(44, 171), 14, new Color(130, 169, 185));
-        if (_assetErrors.Count > 0)
-        {
-            Text("Load issues: " + string.Join(", ", _assetErrors), new Vector2(44, 196), 12, Color.OrangeRed);
-        }
-        EndUi();
-    }
-
-    private void DrawPhotoScene(bool drawStudyOverlay)
-    {
-        DrawWorldBase(new Color(96, 121, 136), new Color(58, 70, 74));
-
-        DrawCube(new Vector3(0f, -0.35f, 0f), new Vector3(24f, 0.4f, 24f), new Color(104, 112, 96), 0f);
-        DrawCube(new Vector3(0f, 3.5f, -9f), new Vector3(22f, 7f, 0.3f), new Color(96, 110, 116), 0f);
-        DrawCube(new Vector3(-9f, 2.8f, 0f), new Vector3(0.3f, 5.6f, 18f), new Color(82, 98, 96), 0f);
-
-        DrawModel("ground", new Vector3(-1f, 0f, -1f), 2.8f, 0f);
-        DrawModel("tree", new Vector3(-5.8f, 0f, -2.4f), 2.1f, 0.2f);
-        DrawModel("tree", new Vector3(5.7f, 0f, -4.8f), 2.3f, -0.15f);
-        DrawModel("rock", new Vector3(-4.2f, 0f, 2.7f), 1.4f, 0.1f);
-        DrawModel("bush", new Vector3(4.4f, 0f, 1.8f), 1.4f, 0.4f);
-        DrawModel("tent", new Vector3(1.5f, 0f, -3.9f), 1.7f, -0.2f);
-        DrawModel("campfire", new Vector3(2.4f, 0f, 1.2f), 1.4f, 0f);
-        DrawModel("cheeseBox", new Vector3(-0.2f, 0.45f, 2.3f), 1.3f, 0.3f);
-
-        if (drawStudyOverlay)
-        {
-            BeginUi();
-            DrawPanel(new Rectangle(24, 86, 438, 134), new Color(6, 12, 18, 205), new Color(205, 157, 98));
-            Text("Photo-realism feasibility study", new Vector2(44, 104), 22, Color.White);
-            Text("Current pass: textured prop + lit geometry", new Vector2(44, 139), 15, new Color(232, 205, 164));
-            Text("This is a renderer test, not final PBR quality.", new Vector2(44, 171), 14, new Color(173, 188, 191));
-            Text("WASD move | Arrow keys look | 3 opens UI stress", new Vector2(44, 196), 14, new Color(140, 165, 171));
-            EndUi();
-        }
-    }
-
     private void DrawAuthoredWorld()
     {
         if (_world is null)
@@ -6750,160 +6673,6 @@ public sealed class Game1 : Game
             _cubeIndices[index + 3] = (short)vertexIndex;
             _cubeIndices[index + 4] = (short)(vertexIndex + 2);
             _cubeIndices[index + 5] = (short)(vertexIndex + 3);
-        }
-    }
-
-    private void DrawModeHeader(string title, string subtitle)
-    {
-        BeginUi();
-        DrawPanel(new Rectangle(0, 0, 1280, 64), new Color(4, 8, 13, 236), new Color(75, 129, 150));
-        Text("RATNA BAY / FEASIBILITY LAB", new Vector2(26, 12), 17, new Color(165, 212, 224));
-        TextFit(title, new Vector2(350, 9), 500f, 20, Color.White);
-        TextFit(subtitle, new Vector2(350, 37), 500f, 12, new Color(153, 174, 181));
-        TextFit("[1] Assets   [2] Photo Study   [3] UI Stress   [Esc] Exit", new Vector2(902, 22), 350f, 12, new Color(194, 208, 207));
-        EndUi();
-    }
-
-    private void DrawComplexUi()
-    {
-        BeginUi();
-
-        DrawPanel(new Rectangle(24, 84, 270, 300), new Color(9, 16, 24, 236), new Color(79, 141, 164));
-        Text("CHARACTER", new Vector2(44, 102), 13, new Color(145, 198, 210));
-        TextFit("RATNA BAY EXPLORER", new Vector2(44, 123), 226f, 18, Color.White);
-        DrawPortrait(new Rectangle(44, 160, 86, 104), new Color(72, 56, 45));
-        TextFit("Level 4  |  Wayfarer", new Vector2(146, 168), 130f, 14, new Color(216, 225, 219));
-        DrawBar(new Rectangle(146, 198, 120, 12), 0.72f, new Color(194, 66, 72), "HP  72 / 100");
-        DrawBar(new Rectangle(146, 228, 120, 12), 0.48f, new Color(70, 130, 212), "MP  24 / 50");
-        Text("STR  12     AGI  15", new Vector2(44, 285), 13, new Color(178, 192, 189));
-        Text("WIL  11     LCK  09", new Vector2(44, 306), 13, new Color(178, 192, 189));
-        Text("FATIGUE  34%", new Vector2(44, 339), 13, new Color(215, 176, 111));
-
-        DrawPanel(new Rectangle(314, 84, 582, 146), new Color(10, 18, 23, 239), new Color(182, 137, 71));
-        Text("ACTIVE QUEST", new Vector2(336, 102), 13, new Color(239, 196, 111));
-        TextFit("The Lantern Under the Hill", new Vector2(336, 123), 528f, 21, Color.White);
-        TextFit("Find the sealed stair beneath the old watch road.", new Vector2(336, 158), 528f, 14, new Color(211, 219, 210));
-        DrawQuestStep(new Vector2(340, 190), "1", "Speak to gatekeeper", true, 178f);
-        DrawQuestStep(new Vector2(530, 190), "2", "Inspect lantern", true, 178f);
-        DrawQuestStep(new Vector2(720, 190), "3", "Open sealed stair", false, 166f);
-
-        DrawPanel(new Rectangle(916, 84, 340, 300), new Color(7, 16, 22, 235), new Color(89, 167, 177));
-        Text("REGION MAP", new Vector2(938, 102), 13, new Color(152, 213, 211));
-        DrawMap(new Rectangle(938, 132, 296, 196));
-        TextFit("Northwatch / 1.4 km", new Vector2(938, 341), 296f, 13, new Color(192, 207, 202));
-        TextFit("Weather: clear  |  Visibility: good", new Vector2(938, 360), 296f, 12, new Color(136, 169, 170));
-
-        DrawPanel(new Rectangle(314, 248, 582, 338), new Color(9, 15, 22, 242), new Color(87, 112, 128));
-        Text("INVENTORY", new Vector2(336, 266), 13, new Color(163, 190, 197));
-        Text("Field pack", new Vector2(336, 287), 20, Color.White);
-        TextRight("12 / 24 slots", 856f, 294f, 13, new Color(178, 199, 198));
-        DrawInventoryGrid(new Rectangle(336, 328, 520, 226));
-
-        DrawPanel(new Rectangle(916, 402, 340, 184), new Color(8, 14, 21, 240), new Color(97, 114, 134));
-        Text("EQUIPMENT", new Vector2(938, 420), 13, new Color(169, 190, 203));
-        DrawEquipmentRow(new Vector2(938, 448), "MAIN HAND", "Ashwood sabre", new Color(180, 139, 83));
-        DrawEquipmentRow(new Vector2(938, 486), "OFF HAND", "Traveler's lantern", new Color(212, 173, 90));
-        DrawEquipmentRow(new Vector2(938, 524), "ARMOR", "Riveted leather", new Color(115, 129, 130));
-
-        DrawPanel(new Rectangle(24, 404, 270, 182), new Color(9, 15, 22, 238), new Color(101, 135, 156));
-        Text("NOTIFICATIONS", new Vector2(44, 422), 13, new Color(154, 194, 207));
-        TextFit("A distant bell rings.", new Vector2(44, 454), 226f, 14, new Color(216, 226, 216));
-        TextFit("Discovered: Northwatch", new Vector2(44, 482), 226f, 13, new Color(201, 176, 113));
-        TextFit("Campfire warmth  +4 HP", new Vector2(44, 510), 226f, 13, new Color(166, 198, 175));
-        TextFit("[I] Inventory  [J] Journal  [M] Map", new Vector2(44, 552), 226f, 12, new Color(131, 158, 165));
-
-        DrawPanel(new Rectangle(24, 610, 1232, 78), new Color(4, 8, 13, 244), new Color(76, 101, 116));
-        DrawQuickSlots(new Vector2(46, 626));
-        Text("Frame: 60 fps", new Vector2(1048, 632), 12, new Color(120, 149, 155));
-        Text("Mode 3 / UI stress", new Vector2(1048, 652), 12, new Color(120, 149, 155));
-
-        EndUi();
-    }
-
-    private void DrawPortrait(Rectangle bounds, Color color)
-    {
-        Fill(bounds, color);
-        Fill(new Rectangle(bounds.X + 18, bounds.Y + 16, bounds.Width - 36, 38), new Color(108, 80, 60));
-        Fill(new Rectangle(bounds.X + 25, bounds.Y + 51, bounds.Width - 50, 42), new Color(45, 59, 75));
-        Border(bounds, new Color(206, 166, 102));
-    }
-
-    private void DrawBar(Rectangle bounds, float amount, Color color, string label)
-    {
-        Fill(bounds, new Color(26, 34, 40));
-        Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * amount), bounds.Height), color);
-        TextFit(label, new Vector2(bounds.X, bounds.Y + 15), bounds.Width, 11, new Color(182, 197, 194));
-    }
-
-    private void DrawQuestStep(Vector2 position, string number, string label, bool complete, float maxWidth)
-    {
-        var color = complete ? new Color(101, 183, 135) : new Color(145, 153, 158);
-        Fill(new Rectangle((int)position.X, (int)position.Y, 22, 22), color);
-        Text(number, position + new Vector2(7, 2), 13, new Color(7, 16, 20));
-        TextFit(label, position + new Vector2(30, 4), maxWidth - 30f, 12, complete ? new Color(197, 220, 204) : new Color(150, 161, 163));
-    }
-
-    private void DrawMap(Rectangle bounds)
-    {
-        Fill(bounds, new Color(18, 45, 48));
-        for (var x = bounds.X + 20; x < bounds.Right; x += 35)
-            Fill(new Rectangle(x, bounds.Y, 1, bounds.Height), new Color(47, 87, 83, 180));
-        for (var y = bounds.Y + 20; y < bounds.Bottom; y += 32)
-            Fill(new Rectangle(bounds.X, y, bounds.Width, 1), new Color(47, 87, 83, 180));
-        Fill(new Rectangle(bounds.X + 24, bounds.Y + 138, 174, 5), new Color(97, 125, 104));
-        Fill(new Rectangle(bounds.X + 156, bounds.Y + 44, 5, 126), new Color(97, 125, 104));
-        Fill(new Rectangle(bounds.X + 214, bounds.Y + 76, 10, 10), new Color(222, 168, 75));
-        Fill(new Rectangle(bounds.X + 91, bounds.Y + 117, 10, 10), new Color(198, 83, 86));
-        Fill(new Rectangle(bounds.X + 156, bounds.Y + 43, 8, 8), new Color(102, 188, 205));
-        Border(bounds, new Color(74, 124, 127));
-    }
-
-    private void DrawInventoryGrid(Rectangle bounds)
-    {
-        var columns = 6;
-        var rows = 3;
-        var gap = 8;
-        var slotWidth = (bounds.Width - gap * (columns - 1)) / columns;
-        var slotHeight = (bounds.Height - gap * (rows - 1)) / rows;
-        var items = new[] { "SABRE", "LANTERN", "HERB", "ROPE", "KEY", "GEM", "BREAD", "BANDAGE", "MAP", "TORCH", "RING", "EMPTY" };
-
-        for (var row = 0; row < rows; row++)
-        {
-            for (var column = 0; column < columns; column++)
-            {
-                var index = row * columns + column;
-                var x = bounds.X + column * (slotWidth + gap);
-                var y = bounds.Y + row * (slotHeight + gap);
-                var selected = index == 0;
-                Fill(new Rectangle(x, y, slotWidth, slotHeight), selected ? new Color(69, 67, 47) : new Color(24, 31, 38));
-                Border(new Rectangle(x, y, slotWidth, slotHeight), selected ? new Color(218, 176, 90) : new Color(67, 83, 94));
-                if (index < items.Length - 1)
-                {
-                    Fill(new Rectangle(x + 28, y + 18, 34, 28), new Color(83 + index * 5, 83 + index * 3, 76));
-                    TextFit(items[index], new Vector2(x + 8, y + slotHeight - 24), slotWidth - 16f, 11, new Color(181, 194, 192));
-                }
-                Text((index + 1).ToString(), new Vector2(x + 6, y + 6), 11, new Color(113, 137, 143));
-            }
-        }
-    }
-
-    private void DrawEquipmentRow(Vector2 position, string slot, string item, Color color)
-    {
-        Fill(new Rectangle((int)position.X, (int)position.Y, 28, 28), new Color(37, 46, 53));
-        Border(new Rectangle((int)position.X, (int)position.Y, 28, 28), color);
-        Text(slot, position + new Vector2(40, 0), 10, new Color(117, 143, 151));
-        TextFit(item, position + new Vector2(40, 12), 250f, 13, Color.White);
-    }
-
-    private void DrawQuickSlots(Vector2 position)
-    {
-        for (var index = 0; index < 8; index++)
-        {
-            var slot = new Rectangle((int)position.X + index * 48, (int)position.Y, 38, 38);
-            Fill(slot, index == 0 ? new Color(73, 67, 43) : new Color(26, 34, 41));
-            Border(slot, index == 0 ? new Color(221, 177, 88) : new Color(75, 91, 99));
-            Text((index + 1).ToString(), new Vector2(slot.X + 6, slot.Y + 4), 11, new Color(140, 165, 166));
-            Fill(new Rectangle(slot.X + 13, slot.Y + 16, 14, 12), new Color(121 + index * 8, 94 + index * 4, 60));
         }
     }
 

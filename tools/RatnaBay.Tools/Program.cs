@@ -33,7 +33,6 @@ static int RunDoctor(string root)
         "src/RatnaBay.Game/RatnaBay.Game.csproj",
         "src/RatnaBay.Game/Content/Content.mgcb",
         "src/RatnaBay.Game/.config/dotnet-tools.json",
-        "src/RatnaBay.Game/pipeline-references/MonoGame.Extended.Content.Pipeline.dll",
         "tests/RatnaBay.Domain.Tests/RatnaBay.Domain.Tests.csproj"
     };
 
@@ -56,13 +55,7 @@ static int RunDoctor(string root)
 
     var packageChecks = new[]
     {
-        ("game", "MonoGame.Extended"),
-        ("game", "Gum.MonoGame"),
-        ("game", "ImGui.NET"),
         ("game", "FontStashSharp.MonoGame"),
-        ("game", "BepuPhysics"),
-        ("game", "DotRecast.Recast"),
-        ("game", "Ink"),
         ("tools", "SharpGLTF.Core"),
         ("tools", "SharpGLTF.Toolkit")
     };
@@ -85,7 +78,7 @@ static int RunDoctor(string root)
         return 1;
     }
 
-    Console.WriteLine("Toolchain and community package baseline is valid.");
+    Console.WriteLine("Toolchain package baseline is valid.");
     return 0;
 }
 

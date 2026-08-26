@@ -6,18 +6,6 @@ namespace RatnaBay.Domain;
 /// </summary>
 public interface IEnemy : IAttackable
 {
-    /// <summary>Damage that keeps ticking after the hit — the reason fire beats groups.</summary>
-    void ApplyBurn(float damagePerSecond, float duration);
-
-    /// <summary>Burn, remembering which spell lit it.</summary>
-    void ApplyBurn(float damagePerSecond, float duration, string? source) =>
-        ApplyBurn(damagePerSecond, duration);
-
-    /// <summary>Slow. Beats chargers.</summary>
-    void ApplyChill(float slowFactor, float duration);
-
-    /// <summary>Interrupt. Beats anything mid-action.</summary>
-    void ApplyStagger(float duration);
 }
 
 public enum CastResult

@@ -15,7 +15,10 @@ These assets are included only to test MonoGame’s model import and rendering p
 - Author credit: Gabriel Radić / Poly Haven
 - Used files: 1K FBX model and 1K diffuse texture
 
-The project keeps the downloaded source archive under `Content/Source/OnlineAssets` and uses a small copied subset under `Content/Feasibility` for the test scene. The feasibility code is not a commitment to these assets’ final visual style or production pipeline.
+The project keeps only the selected files under `Content/Feasibility`; the downloaded source
+archives are not part of the repository. The feasibility code is not a commitment to these
+assets’ final visual style or production pipeline. The upstream license notices are kept beside
+the selected model folders.
 
 ## Cinzel
 
