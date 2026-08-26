@@ -17,7 +17,7 @@ namespace RatnaBay.Client;
 /// <c>Input/InputRouter</c>. Game rules live in <c>RatnaBay.Domain</c>. New work belongs in
 /// one of those, not in this class, unless it is genuinely a lifecycle concern.
 /// </summary>
-public sealed class Game1 : Game
+public sealed class Game1 : Game, IConsoleTarget
 {
     private const int LogicalWidth = UiLayout.Width;
     private const int LogicalHeight = UiLayout.Height;
@@ -153,6 +153,28 @@ public sealed class Game1 : Game
 
     /// <summary>The live character. Null until a game is started or loaded.</summary>
     private GameSession? _session;
+
+    /// <summary>
+    /// The developer console, and what it has said.
+    ///
+    /// Kept here rather than in a screen renderer because it acts on the game rather than
+    /// drawing it: everything it can reach is on IConsoleTarget, implemented below.
+    /// </summary>
+    private ConsoleRouter? _console;
+
+    private readonly List<ConsoleLine> _consoleOutput = new();
+    private string _consoleInput = string.Empty;
+    private bool _consoleOpen;
+
+    /// <summary>Where the player is in their own history, walking back with Up.</summary>
+    private int _consoleHistory = -1;
+
+    /// <summary>--exec: commands to run once the world exists, before anything is captured.</summary>
+    private string? _consoleScript;
+
+    private bool _noClip;
+    private bool _invulnerable;
+    private bool _hideInterface;
 
     /// <summary>The enemies in the scene and the fight with them.</summary>
     private Encounter? _encounter;
@@ -425,6 +447,11 @@ public sealed class Game1 : Game
         _captureScreen = ParseOption(args, "--show");
         _stambhaPreview = HasArgument(args, "--stambha");
 
+        // Commands to run once there is a world to run them against. This is what makes the
+        // game inspectable from outside: --yard --exec "goto shaft; look at shaft" --screenshot
+        // takes a picture of a thing nobody could previously walk to.
+        _consoleScript = ParseOption(args, "--exec");
+
         // --yard opens on the surface rather than the menu, so the one place the player
         // starts and returns to can be looked at rather than described.
         _startOnTheSurface = HasArgument(args, "--yard");
@@ -625,6 +652,18 @@ public sealed class Game1 : Game
         // Done here rather than at parse time: the surface needs the device, the fonts and
         // the models, and none of those exist when the command line is read.
         if (_startOnTheSurface) EnterWorld(null, newCharacter: true);
+
+        // --exec runs against a world that now exists, and before the first frame is drawn,
+        // so a capture taken after it sees where the commands put the player.
+        if (_consoleScript is not null)
+        {
+            RunConsole(_consoleScript);
+
+            // Echoed to stdout as well as to the overlay: a scripted run has nobody watching
+            // the screen, and a command that failed silently would be read as one that worked.
+            foreach (var line in _consoleOutput)
+                Console.WriteLine((line.Tone == ConsoleTone.Error ? "[!] " : "    ") + line.Text);
+        }
     }
 
     protected override void UnloadContent()
@@ -682,6 +721,15 @@ public sealed class Game1 : Game
 
         if (_hitstop > 0f) _hitstop = MathF.Max(0f, _hitstop - real);
         if (_shake > 0f) _shake = MathF.Max(0f, _shake - real);
+
+        // First, and it swallows the frame when it is open: a console you cannot type an S
+        // into without walking backwards is not a console.
+        UpdateConsole(keyboard);
+        if (_consoleOpen)
+        {
+            _input.Commit();
+            return;
+        }
 
         if (Pressed(keyboard, Keys.F11))
             SetBorderlessFullscreen(!_borderlessFullscreen);
@@ -807,6 +855,110 @@ public sealed class Game1 : Game
         var offsetX = (viewport.Width - LogicalWidth * _uiScale) * 0.5f;
         var offsetY = (viewport.Height - LogicalHeight * _uiScale) * 0.5f;
         return new Vector2((mouse.X - offsetX) / _uiScale, (mouse.Y - offsetY) / _uiScale);
+    }
+
+    /// <summary>
+    /// The console owns the keyboard while it is open.
+    ///
+    /// Typing has to be read from key transitions rather than from a text-input event, because
+    /// MonoGame's TextInput is not wired here and the rest of the game samples keys through
+    /// InputRouter. It is enough for a command line: letters, digits, and the handful of
+    /// punctuation a command needs.
+    /// </summary>
+    private void UpdateConsole(KeyboardState keyboard)
+    {
+        if (Pressed(keyboard, Keys.OemTilde) || Pressed(keyboard, Keys.Oem8))
+        {
+            _consoleOpen = !_consoleOpen;
+            SetMouseLook(!_consoleOpen, forPanel: true);
+            return;
+        }
+
+        if (!_consoleOpen) return;
+
+        if (Pressed(keyboard, Keys.Escape))
+        {
+            _consoleOpen = false;
+            SetMouseLook(true);
+            return;
+        }
+
+        if (Pressed(keyboard, Keys.Enter))
+        {
+            RunConsole(_consoleInput);
+            _consoleInput = string.Empty;
+            _consoleHistory = -1;
+        }
+        else if (Pressed(keyboard, Keys.Back) && _consoleInput.Length > 0)
+        {
+            _consoleInput = _consoleInput[..^1];
+        }
+        else if (Pressed(keyboard, Keys.Tab))
+        {
+            // Completing the command word only. Arguments differ per command and guessing at
+            // them would be worse than not offering.
+            var candidates = _console?.Complete(_consoleInput) ?? new List<string>();
+            if (candidates.Count == 1) _consoleInput = candidates[0] + " ";
+            else if (candidates.Count > 1)
+                _consoleOutput.Add(new ConsoleLine(string.Join("  ", candidates), ConsoleTone.Info));
+        }
+        else if (Pressed(keyboard, Keys.Up)) WalkHistory(-1);
+        else if (Pressed(keyboard, Keys.Down)) WalkHistory(1);
+        else
+        {
+            foreach (var key in keyboard.GetPressedKeys())
+            {
+                if (_input.WasDown(key)) continue;
+
+                var shift = keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift);
+                var character = CharacterFor(key, shift);
+                if (character != '\0' && _consoleInput.Length < 160) _consoleInput += character;
+            }
+        }
+    }
+
+    private void WalkHistory(int direction)
+    {
+        var history = _console?.History;
+        if (history is null || history.Count == 0) return;
+
+        if (_consoleHistory < 0) _consoleHistory = history.Count;
+        _consoleHistory = Math.Clamp(_consoleHistory + direction, 0, history.Count);
+
+        _consoleInput = _consoleHistory >= history.Count ? string.Empty : history[_consoleHistory];
+    }
+
+    /// <summary>Run a line and keep the output, bounded so a loop cannot eat the frame.</summary>
+    private void RunConsole(string line)
+    {
+        _console ??= GameConsole.Build(this);
+
+        foreach (var output in _console.Execute(line)) _consoleOutput.Add(output);
+        while (_consoleOutput.Count > 200) _consoleOutput.RemoveAt(0);
+    }
+
+    /// <summary>What a key types. Only what a command line needs.</summary>
+    private static char CharacterFor(Keys key, bool shift)
+    {
+        if (key is >= Keys.A and <= Keys.Z)
+        {
+            var letter = (char)('a' + (key - Keys.A));
+            return shift ? char.ToUpperInvariant(letter) : letter;
+        }
+
+        if (key is >= Keys.D0 and <= Keys.D9 && !shift) return (char)('0' + (key - Keys.D0));
+        if (key is >= Keys.NumPad0 and <= Keys.NumPad9) return (char)('0' + (key - Keys.NumPad0));
+
+        return key switch
+        {
+            Keys.Space => ' ',
+            Keys.OemPeriod or Keys.Decimal => '.',
+            Keys.OemMinus or Keys.Subtract => '-',
+            Keys.OemQuotes => '"',
+            Keys.OemSemicolon => shift ? ':' : ';',
+            Keys.OemComma => ',',
+            _ => '\0'
+        };
     }
 
     private bool Clicked(MouseState mouse) => _input.Clicked(mouse);
@@ -2997,7 +3149,7 @@ public sealed class Game1 : Game
         {
             movement.Normalize();
             var delta = movement * speed * seconds;
-            if (_screen == GameScreen.WorldScene && _world is not null)
+            if (_screen == GameScreen.WorldScene && _world is not null && !_noClip)
             {
                 var current = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
                 var resolved = _world.Move(current,
@@ -3651,7 +3803,9 @@ public sealed class Game1 : Game
 
         // A full-screen panel owns the screen. Leaving the combat HUD drawing underneath it
         // was most of why testers called the inventory cluttered.
-        var panelOpen = _showHelp || _showJournal || _showCharacter || _showShop;
+        // 'hud off' counts as a panel owning the screen here: it is a request for a clean
+        // picture, and a clean picture has no vitals in the corner of it.
+        var panelOpen = _showHelp || _showJournal || _showCharacter || _showShop || _hideInterface;
         var hudState = BuildWorldHudState();
 
         if (!panelOpen)
@@ -3682,8 +3836,11 @@ public sealed class Game1 : Game
             _screens.Hud.DrawStatusStrip(hudState);
         }
 
-        _screens.Hud.DrawToasts(hudState);
-        DrawContentErrors();
+        if (!_hideInterface)
+        {
+            _screens.Hud.DrawToasts(hudState);
+            DrawContentErrors();
+        }
 
         if (_showHelp) _screens.Overlay.DrawHelpOverlay(BuildOverlayState());
         if (_dialogueOpen) DrawDialogue();
@@ -3694,6 +3851,8 @@ public sealed class Game1 : Game
         if (_choosingDepth) DrawDepthChoice();
         if (_paused && _runSummary is null) _screens.Overlay.DrawPause(BuildOverlayState());
         if (_runSummary is { } summary) DrawRunSummary(summary);
+
+        DrawConsole();
 
         EndUi();
     }
@@ -3822,6 +3981,57 @@ public sealed class Game1 : Game
 
         TextFitCentred(_coach.Line, panel.Center.X, panel.Y + 17f, width - 40f, 15,
             new Color(226, 232, 232) * fade);
+    }
+
+    /// <summary>
+    /// The console: a band of output, and a line to type into.
+    ///
+    /// Top of the screen rather than bottom, because the bottom is where the vitals are and
+    /// the one time anybody opens this is when they want to see what is happening to them
+    /// while they type.
+    /// </summary>
+    private void DrawConsole()
+    {
+        if (!_consoleOpen) return;
+
+        var panel = new Rectangle(0, 0, LogicalWidth, 330);
+        Fill(panel, new Color(4, 8, 13, 242));
+        Fill(new Rectangle(0, panel.Bottom - 2, LogicalWidth, 2), new Color(151, 206, 210));
+
+        // Newest at the bottom, next to the prompt, so the eye does not have to travel.
+        var y = panel.Bottom - 62f;
+        for (var index = _consoleOutput.Count - 1; index >= 0 && y > 8f; index--)
+        {
+            var line = _consoleOutput[index];
+            var colour = line.Tone switch
+            {
+                ConsoleTone.Echo => new Color(151, 206, 210),
+                ConsoleTone.Error => new Color(228, 128, 118),
+                _ => new Color(206, 216, 214)
+            };
+
+            TextFit(line.Text, new Vector2(16, y), LogicalWidth - 32, 14, colour);
+            y -= 20f;
+        }
+
+        var prompt = new Rectangle(8, panel.Bottom - 44, LogicalWidth - 16, 30);
+        Fill(prompt, new Color(12, 22, 30, 250));
+        Border(prompt, new Color(76, 112, 124));
+
+        Text(">", new Vector2(prompt.X + 10, prompt.Y + 6), 15, new Color(232, 194, 116));
+        TextFit(_consoleInput, new Vector2(prompt.X + 28, prompt.Y + 6), prompt.Width - 48, 15,
+            Color.White);
+
+        // A caret that blinks, so an empty prompt still looks alive.
+        if ((int)(_clock * 2f) % 2 == 0)
+        {
+            var width = _consoleInput.Length * 7.4f;
+            Fill(new Rectangle((int)(prompt.X + 30 + width), prompt.Y + 7, 2, 17),
+                new Color(232, 194, 116));
+        }
+
+        TextRight("~ or Esc closes   ·   Tab completes   ·   Up walks back",
+            prompt.Right - 12, prompt.Y + 8, 12, new Color(120, 140, 148));
     }
 
     private void DrawDoorPrompt()
@@ -4867,9 +5077,15 @@ public sealed class Game1 : Game
         foreach (var light in _world.Manifest.Lights ?? new List<WorldLight>())
         {
             var position = light.Position.ToWorldPoint();
+            // Lanterns are for a mine, where they are the only light there is. In the yard
+            // they sit on top of daylight and a warm key, and at full strength they burned the
+            // ground under the player to flat white -- which is why the camp looked washed out
+            // and why the bottom of the shaft glowed. A quarter is enough to say a lamp is lit.
+            var strength = MathHelper.Clamp(light.Intensity, 0f, 8f) * (OnTheSurface ? 0.5f : 2.1f);
+
             _lights.Add(new PointLight(
                 new Vector3(position.X, position.Y, position.Z),
-                ToXnaColor(light.Color).ToVector3() * MathHelper.Clamp(light.Intensity, 0f, 8f) * 2.1f,
+                ToXnaColor(light.Color).ToVector3() * strength,
                 MathF.Max(0.5f, light.Range)));
         }
 
@@ -4974,7 +5190,7 @@ public sealed class Game1 : Game
         // drawn flat and dark, with no masonry on it at all.
         if (color.R + color.G + color.B < VoidBrightness)
         {
-            DrawCube(centre, scale, new Color(10, 10, 12), 0f);
+            DrawVoid(centre, scale);
             return;
         }
 
@@ -4982,6 +5198,82 @@ public sealed class Game1 : Game
         // theme still shifts the whole room by changing the same numbers it changes today.
         DrawTexturedCube(centre, scale, painted, texture, tiling);
     }
+
+    // ------------------------------------------------------------------ the console's reach
+
+    GameSession? IConsoleTarget.Session => _session;
+    Encounter? IConsoleTarget.Encounter => _encounter;
+    RunRuntime? IConsoleTarget.Run => _run;
+    WorldRuntime? IConsoleTarget.World => _world;
+
+    Vector3 IConsoleTarget.CameraPosition => _cameraPosition;
+    float IConsoleTarget.CameraYaw => _cameraYaw;
+    float IConsoleTarget.CameraPitch => _cameraPitch;
+
+    bool IConsoleTarget.NoClip
+    {
+        get => _noClip;
+        set => _noClip = value;
+    }
+
+    bool IConsoleTarget.Invulnerable
+    {
+        get => _invulnerable;
+        set
+        {
+            _invulnerable = value;
+
+            // The flag lives on combat, which is what actually decides whether a blow lands.
+            // Keeping a second copy here that nothing reads is how 'hud off' came to print a
+            // cheerful message and do nothing at all.
+            if (_session is not null) _session.Player.Combat.Invulnerable = value;
+        }
+    }
+
+    bool IConsoleTarget.HideInterface
+    {
+        get => _hideInterface;
+        set => _hideInterface = value;
+    }
+
+    /// <summary>
+    /// Put the player somewhere, camera and session together.
+    ///
+    /// Both, because they are two records of the same fact: the camera is what is drawn from
+    /// and the session is what is saved and what the world asks about. Moving one without the
+    /// other produces a player who is in two places, which is worse than not moving at all.
+    /// </summary>
+    void IConsoleTarget.PlaceAt(Vector3 position)
+    {
+        _cameraPosition = position;
+        _verticalVelocity = 0f;
+
+        if (_session is not null)
+            _session.Position = new WorldPoint(position.X, position.Y, position.Z);
+    }
+
+    void IConsoleTarget.LookAt(float yaw, float pitch)
+    {
+        _cameraYaw = yaw;
+        _cameraPitch = MathHelper.Clamp(pitch, -1.45f, 1.45f);
+    }
+
+    void IConsoleTarget.Descend(int tier, int? seed) =>
+        EnterMine(seed ?? Environment.TickCount, tier);
+
+    void IConsoleTarget.Surface()
+    {
+        _mineSeed = null;
+        _world = null;
+        _run = null;
+        _runSummary = null;
+        _succession = null;
+
+        if (_session is not null) StartSession(_session);
+        ResetCamera();
+    }
+
+    void IConsoleTarget.Say(string message) => _session?.ShowToast(message);
 
     /// <summary>Below this total, an authored colour is a void rather than a surface.</summary>
     private const int VoidBrightness = 96;
@@ -5075,6 +5367,22 @@ public sealed class Game1 : Game
         var halfSize = (maximum - minimum) * 0.5f;
         var extent = MathF.Max(halfSize.X, MathF.Max(halfSize.Y, halfSize.Z));
         return (center, MathF.Max(extent, 0.001f));
+    }
+
+    /// <summary>
+    /// A hole: drawn with the lighting switched off entirely.
+    ///
+    /// Painting it near-black was not enough. The bottom of the shaft sits thirteen metres
+    /// under a lantern with a twenty-six metre range, and a lit surface takes that light
+    /// whatever colour it was authored — so looking down the mine showed a bright yellow
+    /// floor, which is the exact opposite of what a void is for. Found by standing over it
+    /// and looking down, which was not possible until the console existed.
+    /// </summary>
+    private void DrawVoid(Vector3 centre, Vector3 scale)
+    {
+        _primitiveEffect.LightingEnabled = false;
+        DrawCube(centre, scale, new Color(9, 9, 11), 0f);
+        _primitiveEffect.LightingEnabled = true;
     }
 
     private void DrawCube(Vector3 position, Vector3 scale, Color color, float rotation)

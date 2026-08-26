@@ -92,6 +92,18 @@ public sealed class Lockable
         return LockResult.Opened;
     }
 
+    /// <summary>
+    /// Open it regardless, with no key, no skill and no crime.
+    ///
+    /// The counterpart to Relock, and the one the console needs: opening a door to look at
+    /// what is behind it should not depend on a skill the game has parked.
+    /// </summary>
+    public void ForceOpen()
+    {
+        IsLocked = false;
+        IsOpen = true;
+    }
+
     /// <summary>Re-lock, for world reset and for testing.</summary>
     public void Relock()
     {

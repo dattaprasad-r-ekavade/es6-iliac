@@ -26,6 +26,15 @@ internal sealed class InputRouter
     public bool Pressed(KeyboardState current, Keys key) =>
         current.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);
 
+    /// <summary>
+    /// Was this key already down last frame?
+    ///
+    /// The console types from key transitions -- there is no TextInput path here -- and it
+    /// needs to ask about keys it cannot name in advance, which Pressed cannot answer because
+    /// it takes one key at a time.
+    /// </summary>
+    public bool WasDown(Keys key) => _previousKeyboard.IsKeyDown(key);
+
     public bool Clicked(MouseState current) =>
         current.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
 

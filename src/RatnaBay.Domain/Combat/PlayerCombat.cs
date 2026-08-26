@@ -231,6 +231,12 @@ public sealed class PlayerCombat
     }
 
     /// <summary>Take a hit, applying worn armour and the current guard.</summary>
+    /// <summary>
+    /// Set by the console's 'god'. The blow still lands, still counts and still trains, so a
+    /// fight can be watched through without the watcher dying halfway.
+    /// </summary>
+    public bool Invulnerable { get; set; }
+
     public float TakeHit(float amount)
     {
         EnterCombat();
@@ -244,6 +250,10 @@ public sealed class PlayerCombat
         // because it looks like progress that is not happening.
         if (IsBlocking && amount > 0f)
             _skills.ReportUse(Skills.Block, amount * (1f - _equipment.BlockFactor), amount);
+
+        // Reported as though it landed, because a console flag that also silences the
+        // feedback would hide the very thing somebody turned it on to watch.
+        if (Invulnerable) return amount;
 
         return _vitals.TakeDamage(amount, _equipment.ArmourValue,
             IsBlocking ? _equipment.BlockFactor : 1f);
