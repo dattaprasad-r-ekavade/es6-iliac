@@ -131,6 +131,16 @@ public sealed class Game1 : Game
     private float _verticalOffset;
     private float _verticalVelocity;
     private bool _grounded = true;
+
+    /// <summary>
+    /// Metres walked since the last footstep.
+    ///
+    /// Paced by distance rather than by a timer, which is the only version that stays honest:
+    /// a timer keeps stepping when the player walks into a wall, and goes out of step the
+    /// moment they sprint. Distance is also free — the collision resolver already reports how
+    /// far the body actually moved, which is not the same as how far it tried to.
+    /// </summary>
+    private float _stride;
     private bool _crouching;
     private bool _crouchToggled;
     private bool _forceCrouch;
@@ -2332,6 +2342,14 @@ public sealed class Game1 : Game
     }
 
     /// <summary>Only the outcomes the player cannot see for themselves are worth saying.</summary>
+    /// <summary>How heavy the equipped weapon sounds. Two-handed is slow and low; a bow is neither.</summary>
+    private float SwingWeight() => _session?.Player.Equipment.Weapon.Class switch
+    {
+        WeaponClass.TwoHanded => 0.9f,
+        WeaponClass.Ranged => 0.15f,
+        _ => 0.35f
+    };
+
     private void ReportAttack(AttackOutcome outcome)
     {
         if (outcome.Result == AttackResult.Exhausted)
@@ -2344,7 +2362,11 @@ public sealed class Game1 : Game
         // The swing plays on every swing, landed or not, because it is the sound of the input
         // being received. A game that is silent when you miss feels unresponsive rather than
         // feeling like you missed.
-        if (outcome.Swung) _sfx?.Play(Sfx.Swing, 0.35f, volumeScale: 0.75f);
+        //
+        // Weight comes from the weapon's class, so a greatsword drops in pitch and gains
+        // volume against a knife without either being written out separately. That is the
+        // whole reason the sounds take a weight rather than being one file each.
+        if (outcome.Swung) _sfx?.Play(Sfx.Swing, SwingWeight(), volumeScale: 0.75f);
 
         if (outcome.Result != AttackResult.Hit) return;
 
@@ -2922,6 +2944,34 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>Roughly a pace. Shorter crouching, longer at a sprint.</summary>
+    private const float StrideMetres = 1.9f;
+
+    /// <summary>
+    /// Advance the stride by how far the body actually moved, and step when it comes due.
+    ///
+    /// Deliberately silent outside the world scene, and silent while airborne — a player who
+    /// jumps should not be taking paces in mid-air, and that is exactly what a distance-based
+    /// pacer does if nobody stops it.
+    /// </summary>
+    private void Stride(float metres, KeyboardState keyboard)
+    {
+        if (_screen != GameScreen.WorldScene || !_grounded) return;
+
+        _stride += metres;
+
+        var sprinting = keyboard.IsKeyDown(Keys.LeftShift);
+        var length = StrideMetres * (_crouching ? 0.72f : sprinting ? 1.25f : 1f);
+        if (_stride < length) return;
+
+        _stride = 0f;
+
+        // Quiet, and quieter still when crouching: the sneak is a promise the audio has to
+        // keep, or the stealth read is a lie the moment anybody has headphones on.
+        _sfx?.Play(Sfx.Step, sprinting ? 0.55f : 0.3f,
+            volumeScale: _crouching ? 0.28f : 0.5f);
+    }
+
     private void UpdateCamera(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         var seconds = StepSeconds(gameTime);
@@ -2972,6 +3022,10 @@ public sealed class Game1 : Game
         _verticalOffset = MathF.Max(0f, _verticalOffset + _verticalVelocity * seconds);
         if (_verticalOffset <= 0.0001f)
         {
+            // Only on the frame the ground is reached, not every frame spent standing on it.
+            if (!_grounded && _screen == GameScreen.WorldScene)
+                _sfx?.Play(Sfx.Land, 0.5f, volumeScale: 0.8f);
+
             _verticalOffset = 0f;
             _verticalVelocity = 0f;
             _grounded = true;
@@ -2991,12 +3045,16 @@ public sealed class Game1 : Game
                 var current = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
                 var resolved = _world.Move(current,
                     new WorldPoint(delta.X, 0f, delta.Z), PlayerCollisionRadius);
+
+                var moved = new Vector2(resolved.X - current.X, resolved.Z - current.Z).Length();
                 _cameraPosition = new Vector3(resolved.X, nextEyeY + _verticalOffset, resolved.Z);
+                Stride(moved, keyboard);
             }
             else
             {
                 _cameraPosition = new Vector3(_cameraPosition.X + delta.X,
                     nextEyeY + _verticalOffset, _cameraPosition.Z + delta.Z);
+                Stride(new Vector2(delta.X, delta.Z).Length(), keyboard);
             }
         }
         else

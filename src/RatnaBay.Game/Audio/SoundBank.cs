@@ -37,7 +37,13 @@ public enum Sfx
     Chime,
 
     /// <summary>Refused: no stamina, no prana, locked.</summary>
-    Denied
+    Denied,
+
+    /// <summary>A boot on stone. The most frequently played sound in the game by far.</summary>
+    Step,
+
+    /// <summary>Landing after a jump or a drop.</summary>
+    Land
 }
 
 /// <summary>
@@ -101,6 +107,8 @@ public sealed class SoundBank : IDisposable
             Add(Sfx.Coin, variant, Coin);
             Add(Sfx.Chime, variant, Chime);
             Add(Sfx.Denied, variant, Denied);
+            Add(Sfx.Step, variant, Step);
+            Add(Sfx.Land, variant, Land);
         }
     }
 
@@ -167,7 +175,8 @@ public sealed class SoundBank : IDisposable
         {
             (Sfx.Swing, Swing), (Sfx.HitFlesh, HitFlesh), (Sfx.Block, Block),
             (Sfx.Death, Death), (Sfx.Hurt, Hurt), (Sfx.Cast, Cast),
-            (Sfx.Door, Door), (Sfx.Coin, Coin), (Sfx.Chime, Chime), (Sfx.Denied, Denied)
+            (Sfx.Door, Door), (Sfx.Coin, Coin), (Sfx.Chime, Chime), (Sfx.Denied, Denied),
+            (Sfx.Step, Step), (Sfx.Land, Land)
         };
 
         foreach (var (id, build) in builders)
@@ -334,6 +343,35 @@ public sealed class SoundBank : IDisposable
         forge.Tone(0f, 0.40f, 0.34f, 523f, 523f, decay: 4.2f);
         forge.Tone(0.11f, 0.56f, 0.36f, 784f, 784f, decay: 3.4f);
         forge.Tone(0.11f, 0.52f, 0.16f, 1568f, 1568f, decay: 4.8f);
+
+        return forge;
+    }
+
+    /// <summary>
+    /// A boot on stone.
+    ///
+    /// Short, dry and quiet, because this plays roughly twice a second for the entire game. A
+    /// footstep that is interesting is a footstep that becomes unbearable in ninety seconds;
+    /// the job is to be *present* rather than to be heard. Grit on top of a small body thump is
+    /// the whole recipe.
+    /// </summary>
+    private static SoundForge Step(int variant)
+    {
+        var forge = new SoundForge(0.13f, 3100 + variant);
+
+        forge.Noise(0f, 0.055f, 0.34f, cutoffHz: 1700f + variant * 220f, decay: 26f);
+        forge.Tone(0f, 0.05f, 0.24f, fromHz: 120f, toHz: 72f, decay: 24f);
+
+        return forge;
+    }
+
+    /// <summary>Landing. The same idea as a step, with the weight of a body behind it.</summary>
+    private static SoundForge Land(int variant)
+    {
+        var forge = new SoundForge(0.26f, 3700 + variant);
+
+        forge.Tone(0f, 0.13f, 0.62f, fromHz: 132f, toHz: 52f, decay: 13f);
+        forge.Noise(0f, 0.09f, 0.34f, cutoffHz: 1300f, decay: 17f);
 
         return forge;
     }
