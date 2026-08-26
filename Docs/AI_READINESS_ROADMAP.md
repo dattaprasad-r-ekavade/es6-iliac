@@ -3,24 +3,24 @@
 This document describes how ready the Ratna Bay repository is for ongoing work with AI coding
 tools, and the next changes that will make that work safer and more predictable.
 
-Assessment date: 2026-08-26
+Assessment date: 2026-08-26 (updated after the Ui/ extraction)
 
 ## Current assessment
 
-The repository is approximately **60% complete** for AI-friendly architecture.
+The repository is approximately **75% complete** for AI-friendly architecture.
 
 | Area | Done | Pending |
 | --- | ---: | ---: |
 | Asset and dependency cleanup | 100% | Maintenance only |
-| Build and test reproducibility | 85% | CI and one unified verification command |
-| Contributor guidance | 70% | More change recipes and architecture mapping |
+| Build and test reproducibility | 95% | Packaged self-test still Windows-only |
+| Contributor guidance | 95% | Keep recipes in `AGENTS.md` current |
 | Input boundary | 100% | Minor future refinements |
-| HUD and rendering boundaries | 45% | Remaining world and screen renderers |
-| Client-layer testability | 35% | State and layout tests outside the domain |
-| `Game1` decomposition | 30% | Still roughly 6,500 lines |
+| HUD and rendering boundaries | 80% | Nameplates, floating numbers, door prompts, weapon |
+| Client-layer testability | 40% | Layout is shared; still no headless Game tests |
+| `Game1` decomposition | 55% | Lifecycle, world draw, and input handlers remain |
 
-Current repository hygiene: **8/10**  
-Current AI-readiness: **6/10**
+Current repository hygiene: **8/10**
+Current AI-readiness: **7.5/10**
 
 These are engineering estimates based on boundary coverage, testability, and the amount of
 unrelated work still concentrated in `Game1`; they are not product-quality ratings.
@@ -29,63 +29,42 @@ unrelated work still concentrated in `Game1`; they are not product-quality ratin
 
 - Removed unused downloaded assets and obsolete package dependencies.
 - Standardized the solution on the .NET 9 SDK selected by `global.json`.
-- Added [`AGENTS.md`](../AGENTS.md) with project boundaries, invariants, and required checks.
-- Centralized keyboard and mouse sampling in `InputRouter`.
-- Added `WorldHudState` and `HudRenderer` for world-HUD presentation.
-- Added `OverlayState` and `OverlayRenderer` for pause, help, and settings screens.
-- Kept the repository clean after each change with focused commits.
-- Maintained a warning-free Release build, 595 passing tests, tool validation, and a deterministic
-  gameplay simulation.
+- Added [`AGENTS.md`](../AGENTS.md) with project boundaries, recipes, and required checks.
+- Added `.cursor/rules/ratnabay.mdc` so Cursor agents load the same boundaries automatically.
+- Added `verify.ps1` as the single Windows verification entry point.
+- Centralized keyboard and mouse sampling in `Input/InputRouter`.
+- Shared drawing through `Ui/UiCanvas` and hit-test rectangles through `Ui/UiLayout`.
+- World HUD, overlays, menu, character, dialogue, shop, journal, consent, and descent
+  screens each have a named renderer under `Ui/`.
+- `HudRenderer` no longer receives `GameSession`; it paints from `WorldHudState` only.
 
 ## Next changes
 
-### 1. Share the UI drawing boundary
+### 1. Extract remaining world presentation
 
-Add a shared `UiCanvas` abstraction for `HudRenderer`, `OverlayRenderer`, and future screen
-renderers. This removes repeated callback wiring and gives AI one consistent API for panels,
-fills, borders, and text.
+Move enemy nameplates, floating combat numbers, threat arrows, door prompts, and content-error
+display behind the rendering boundary. World projection should be supplied as a narrow
+callback, not by exposing all of `Game1`.
 
-### 2. Extract the character and inventory screen
+### 2. Separate update logic from the game shell
 
-Create `CharacterRenderer` and `CharacterScreenState`. Keep item selection and input handling in
-`Game1`, while moving layout and presentation into the renderer.
+Split input and simulation coordination into focused controllers that return explicit commands
+to `Game1`. The game class should eventually coordinate lifecycle, device state, and draw
+order — not contain every gameplay decision. Screen handlers already interpret `InputRouter`
+snapshots; they can move out next.
 
-### 3. Extract the remaining screens
+### 3. Add client-layer tests
 
-Move dialogue, journal, shop, camp trader, depth choice, and run-summary rendering into focused
-renderer classes with explicit state snapshots.
+Add headless tests for snapshot creation, screen visibility rules, selection bounds, and
+layout invariants. `UiLayout` is the seam: bounds are already shared, but they still live in
+the WindowsDX project. A net9.0 layout helper would let `RatnaBay.Domain.Tests` (or a new
+test project) assert that a clickable row is the row on screen without a graphics device.
 
-### 4. Extract remaining world presentation
+### 4. Keep `Game1` shrinking
 
-Move enemy nameplates, floating combat numbers, threat arrows, the spell bar, and content-error
-display behind the rendering boundary. World projection should be supplied as a narrow callback,
-not by exposing all of `Game1`.
-
-### 5. Separate update logic from the game shell
-
-Split input and simulation coordination into focused controllers that return explicit commands to
-`Game1`. The game class should eventually coordinate lifecycle, device state, and draw order—not
-contain every gameplay decision.
-
-### 6. Add client-layer tests
-
-Add headless tests for state snapshot creation, screen visibility rules, selection bounds, and
-layout invariants. The current 595 tests primarily cover the engine-independent domain.
-
-### 7. Add one verification entry point
-
-Create `verify.ps1` to run the Release build, tool doctor, domain tests, deterministic simulation,
-content validation, and packaging checks in one command.
-
-### 8. Expand contributor recipes
-
-Extend `AGENTS.md` with short recipes for:
-
-- adding a domain rule;
-- adding a screen or renderer;
-- changing content manifests;
-- changing input bindings;
-- validating and committing a change.
+World draw, camera, combat feel (hitstop, shake, stride), and capture flags remain in
+`Game1`. Extract those as named types when a change needs to touch them, not as a
+speculative rewrite.
 
 ## Definition of done
 
