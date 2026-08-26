@@ -47,9 +47,32 @@ public sealed class Shop
         if (!vitals.SpendGold(PriceFor(item, path))) return ShopPurchaseResult.TooExpensive;
 
         inventory.Add(item.Id, item.Name, item.Count, item.Kind);
-        _soldOut.Add(item.Id);
+
+        // Consumables never sell out. Arrows, potions and jiva stones are the things a player
+        // comes back for, and a stall that sells one potion per save is a stall that stops
+        // being a shop after the first visit.
+        if (!IsConsumable(item)) _soldOut.Add(item.Id);
+
         return ShopPurchaseResult.Bought;
     }
+
+    /// <summary>
+    /// Restocked between descents.
+    ///
+    /// Gear is one to a shelf while the player is in town, so buying the steel sword is a
+    /// decision and not a shopping list. But death takes half the pack, and a stall that sold
+    /// out permanently would mean a player who lost a weapon could never replace it — a
+    /// dead end reachable only by the players already having the worst time.
+    /// </summary>
+    public void Restock()
+    {
+        if (_soldOut.Count == 0) return;
+        _soldOut.Clear();
+    }
+
+    /// <summary>Things bought over and over, as opposed to gear bought once.</summary>
+    public static bool IsConsumable(ShopItemDefinition item) =>
+        item.Kind is "potion" or "crystal" or "ammunition" or "misc";
 
     public void MarkSoldOut(string? itemId)
     {

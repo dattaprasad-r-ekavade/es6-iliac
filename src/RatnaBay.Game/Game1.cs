@@ -2133,7 +2133,9 @@ public sealed class Game1 : Game
             // The arm moves whenever the swing actually happened — a hit and a miss look the
             // same from behind the weapon, which is what makes missing feel like missing
             // rather than like the button not working.
-            if (outcome.Swung) _weaponView.Swing(_session.Player.Combat.ActiveWeapon);
+            if (outcome.Swung)
+                _weaponView.Swing(_session.Player.Combat.ActiveWeapon,
+                    _session.Player.Combat.WeaponSweeps);
             ReportAttack(outcome);
         }
         if (Pressed(keyboard, Keys.Q))
@@ -2868,6 +2870,11 @@ public sealed class Game1 : Game
         _runSummary = result;
         if (result.Survived) _succession = null;
         SetMouseLook(false, forPanel: true);
+
+        // A descent is a supply run for the stall as much as for the player. Restocking here
+        // is also what keeps a death from being unrecoverable: half the pack is gone, and the
+        // shelf that could replace it has to have something on it.
+        _shop?.Restock();
 
         _coach.Teach(result.Survived ? Lessons.Banked : Lessons.Died,
             Lessons.TextOf(result.Survived ? Lessons.Banked : Lessons.Died));
@@ -4673,6 +4680,14 @@ public sealed class Game1 : Game
             var tint = _encounter.TintOf(enemy);
 
             // A chilled enemy is visibly cold, so frost reads as more than a slower walk.
+            // Burning had no tint at all, which was a gap for Flame long before Cinder
+            // existed: a spell whose whole identity is "lowest burst, highest total once it
+            // burns" was invisible for the entire part that matters.
+            if (enemy.IsBurning)
+                tint = new Color(Math.Min(255, tint.R / 2 + 160), tint.G / 2 + 78, tint.B / 3);
+
+            // Chill wins when both apply. Two tints averaged is a third colour that means
+            // neither, and frost is the one the player has to react to.
             if (enemy.IsChilled) tint = new Color(tint.R / 2 + 90, tint.G / 2 + 110, tint.B);
 
             _billboards.Draw(SpriteFor(enemy), feet, _encounter.DrawHeightOf(enemy),
@@ -4703,7 +4718,7 @@ public sealed class Game1 : Game
 
         if (_captureSwing is { } progress)
         {
-            _weaponView.Swing(weapon);
+            _weaponView.Swing(weapon, _session.Player.Combat.WeaponSweeps);
             _weaponView.Update(progress, moving: false, guarding: false);
         }
 
@@ -5566,6 +5581,54 @@ public sealed class Game1 : Game
         if (caster.LightActive)
             TextCentred($"Emberlight {caster.LightRemaining:0}s",
                 LogicalWidth / 2f, panel.Y - 24f, 13, new Color(232, 194, 116));
+
+        DrawSocketedStones(panel);
+    }
+
+    /// <summary>
+    /// What is socketed, on the HUD, all the time.
+    ///
+    /// Without this the player has to remember. A stone changes how a swing behaves for the
+    /// rest of a descent, and the only place that was written down was a screen they have to
+    /// stop and open — so the effect was real and the knowledge of it was not, which is the
+    /// same as the effect not existing.
+    ///
+    /// Beside the readied spell rather than in a corner, because it belongs with the other
+    /// answer to "what will happen when I press the button".
+    /// </summary>
+    private void DrawSocketedStones(Rectangle spellPanel)
+    {
+        if (_session is null) return;
+
+        var socketed = _session.Player.Stones.Socketed;
+        if (socketed.Count == 0) return;
+
+        const int Cell = 34;
+        var width = socketed.Count * (Cell + 4) + 12;
+        var panel = new Rectangle(spellPanel.Right + 12, spellPanel.Y + 8, width, Cell + 16);
+
+        DrawPanel(panel, new Color(14, 8, 22, 214), new Color(122, 88, 168));
+
+        for (var index = 0; index < socketed.Count; index++)
+        {
+            var stone = StoneCatalog.Find(socketed[index]);
+            if (stone is null) continue;
+
+            var cell = new Rectangle(panel.X + 8 + index * (Cell + 4), panel.Y + 8, Cell, Cell);
+            _spriteBatch.Draw(ItemSprites.JivaCrystal(GraphicsDevice), cell, Color.White);
+
+            // The name under the icon rather than a tooltip: a tooltip needs a pointer, and
+            // the pointer is being used to look around.
+            TextCentred(ShortNameOf(stone), cell.Center.X, cell.Bottom - 2f, 10,
+                new Color(214, 184, 244));
+        }
+    }
+
+    /// <summary>"Cinder Stone" is too long under a 34-pixel icon; "Cinder" is not.</summary>
+    private static string ShortNameOf(StoneDefinition stone)
+    {
+        var space = stone.DisplayName.IndexOf(' ');
+        return space > 0 ? stone.DisplayName[..space] : stone.DisplayName;
     }
 
     /// <summary>

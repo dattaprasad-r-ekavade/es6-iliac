@@ -615,13 +615,22 @@ public static class SessionSelfTest
             && session.Player.Inventory.CountOf(SoulCrystals.LesserId) == carried + (bought?.Count ?? 0)
             && session.Player.Vitals.Gold == purse - (bought?.Price ?? 0));
 
-        while (shop.Buy(stoneRow, session.Player.Vitals, session.Player.Inventory, out _)
-            == ShopPurchaseResult.Bought) { }
-
-        Check(failures, "and runs out of them", shop.IsSoldOut(SoulCrystals.LesserId));
+        // Consumables no longer sell out, so a second purchase must still succeed. The stall
+        // used to mark everything gone for the rest of the save, which made it a shop you
+        // could visit once — and, far worse, meant a death that took your weapon left the
+        // shelf that could replace it empty forever.
+        Check(failures, "and never runs out of them",
+            shop.Buy(stoneRow, session.Player.Vitals, session.Player.Inventory, out _)
+                == ShopPurchaseResult.Bought
+            && !shop.IsSoldOut(SoulCrystals.LesserId));
 
         // Gear the stall did not used to carry, which is the point of the surface existing.
         var steel = RowOf(definition, "steel_sword");
+
+        // Topped up first: the crystal purchases above are deliberately unbounded now, and a
+        // test that runs out of gold before reaching the interesting assertion is a test that
+        // fails for a reason nobody wrote down.
+        session.Player.Vitals.AddGold(2000);
 
         Check(failures, "the stall carries a weapon worth saving for",
             steel >= 0
@@ -630,6 +639,17 @@ public static class SessionSelfTest
             && ItemUse.Use("steel_sword", session.Player) == ItemUseResult.Equipped
             && session.Player.Combat.ActiveWeapon.Damage
                 > EquipmentCatalog.GetWeapon("iron_sword").Damage);
+
+        // Gear is one to a shelf while the player is in town, and comes back after a descent.
+        Check(failures, "gear is gone until the next descent",
+            shop.IsSoldOut("steel_sword")
+            && shop.Buy(steel, session.Player.Vitals, session.Player.Inventory, out _)
+                == ShopPurchaseResult.SoldOut);
+
+        shop.Restock();
+
+        Check(failures, "and the stall has another by the time you are back",
+            !shop.IsSoldOut("steel_sword"));
     }
 
     /// <summary>Where a given item sits on the stall, or -1 when it is not stocked.</summary>
