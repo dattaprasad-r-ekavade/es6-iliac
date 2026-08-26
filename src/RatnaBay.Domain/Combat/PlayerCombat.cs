@@ -52,15 +52,22 @@ public sealed class PlayerCombat
     /// </summary>
     private readonly Inventory? _inventory;
 
+    /// <summary>Sockets, when there are any. Null in the isolated tests that predate them.</summary>
+    private readonly StoneSlots? _stones;
+
     public PlayerCombat(PlayerVitals vitals, PlayerEquipment equipment, SkillProgression skills,
-        LifePath? path = null, Inventory? inventory = null)
+        LifePath? path = null, Inventory? inventory = null, StoneSlots? stones = null)
     {
         _vitals = vitals;
         _equipment = equipment;
         _skills = skills;
         _path = path ?? new LifePath();
         _inventory = inventory;
+        _stones = stones;
     }
+
+    /// <summary>True when a stone with this effect is socketed right now.</summary>
+    public bool HasStone(StoneEffect effect) => _stones?.Has(effect) ?? false;
 
     /// <summary>What the equipped weapon lands for, after the life path's gift.</summary>
     public float WeaponDamage => ActiveWeapon.Damage * _path.WeaponMultiplier;
@@ -151,7 +158,23 @@ public sealed class PlayerCombat
         // the next blow lands on something vulnerable at double. That loop — stagger, then
         // strike the opening — is the mace's whole reason to exist, and it is why it does not
         // also need to bleed.
-        if (weapon.StaggerSeconds > 0f) target.ApplyStagger(weapon.StaggerSeconds);
+        // The weapon's own stagger, then whatever the stones add. Longest wins rather than
+        // stacking, so a mace with a Thunder stone is a mace rather than a lockdown.
+        var stagger = weapon.StaggerSeconds;
+        if (HasStone(StoneEffect.Thunder))
+            stagger = MathF.Max(stagger, StoneCatalog.ThunderSeconds);
+
+        if (stagger > 0f) target.ApplyStagger(stagger);
+
+        // Cinder and Rime hand melee the verbs that were previously only a spell's. That is
+        // the point of them: a warrior who finds one fights the way a mage does for a run,
+        // without the prana.
+        if (HasStone(StoneEffect.Cinder))
+            target.ApplyBurn(StoneCatalog.CinderDamagePerSecond, StoneCatalog.CinderSeconds,
+                ActiveWeapon.DisplayName);
+
+        if (HasStone(StoneEffect.Rime))
+            target.ApplyChill(StoneCatalog.RimeSpeedFactor, StoneCatalog.RimeSeconds);
 
         EnterCombat();
 
@@ -167,8 +190,15 @@ public sealed class PlayerCombat
     /// <summary>What everything else in the arc takes from a two-handed sweep.</summary>
     public const float CleaveFactor = 0.6f;
 
-    /// <summary>True when the equipped weapon sweeps rather than stabs.</summary>
-    public bool WeaponSweeps => ActiveWeapon.Class == WeaponClass.TwoHanded;
+    /// <summary>
+    /// True when the equipped weapon sweeps rather than stabs.
+    ///
+    /// A Splitting stone grants it to anything, which is the clearest stone in the set: the
+    /// first swing after socketing it hits three things instead of one, and the player changes
+    /// where they stand for the rest of the run.
+    /// </summary>
+    public bool WeaponSweeps =>
+        ActiveWeapon.Class == WeaponClass.TwoHanded || HasStone(StoneEffect.Splitting);
 
     /// <summary>
     /// Carry the swing through everything else in the arc.

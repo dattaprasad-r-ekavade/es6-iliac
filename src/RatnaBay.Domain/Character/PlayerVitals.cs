@@ -191,6 +191,18 @@ public sealed class PlayerVitals
     }
 
     /// <summary>
+    /// Give charge back, capped at the reserve. Never announced as a drawn stone, because
+    /// nothing was spent to produce it.
+    /// </summary>
+    public void RestorePrana(float amount)
+    {
+        if (amount <= 0f || Prana >= MaxPrana) return;
+
+        Prana = MathF.Min(MaxPrana, Prana + amount);
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     /// Draw one jiva stone for charge. Deliberately announced: the player should feel every
     /// one of these, because the whole arc is an argument about what they cost.
     /// </summary>

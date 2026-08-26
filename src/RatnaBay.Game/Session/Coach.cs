@@ -146,6 +146,7 @@ public static class Lessons
     public const string Banked = "run.banked";
     public const string Died = "run.died";
     public const string Body = "run.body";
+    public const string Stones = "mine.stones";
 
     public static string TextOf(string id) => id switch
     {
@@ -160,6 +161,9 @@ public static class Lessons
         FirstRoom => "The door shut behind you. A room pays when nothing in it is standing.",
 
         Rising => "They are still getting up. A blow now lands for double.",
+
+        Stones => "Socket it in your character screen. Stones stay in the mountain — "
+            + "whatever you find down here is gone when you leave.",
 
         FirstDoor => "Bank what you are holding and the run ends here. Open the door and "
             + "the next room pays more — but dying loses every stone.",

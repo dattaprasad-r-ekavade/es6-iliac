@@ -2431,6 +2431,8 @@ public sealed class Game1 : Game
     {
         if (_session is null) return;
 
+        UpdateStoneInput(keyboard);
+
         var items = _session.Player.Inventory.Items;
         if (items.Count == 0)
         {
@@ -2775,6 +2777,36 @@ public sealed class Game1 : Game
     }
 
     /// <summary>Start the ledger for this descent, if the loaded world is a mine at all.</summary>
+    /// <summary>The stream that decides what a cleared room gives up. Seeded from the mine.</summary>
+    private Random _stoneDrops = new(0);
+
+    /// <summary>
+    /// A cleared room sometimes gives up a stone.
+    ///
+    /// Not every room, because a stone in every room means the sockets are full by room three
+    /// and the rest of the descent has no decisions left in it. Not payout-scaled either: a
+    /// stone is variety rather than reward, and tying it to depth would make the deep rooms
+    /// the only ones worth clearing for reasons that have nothing to do with the stones.
+    /// </summary>
+    private void OfferStone()
+    {
+        if (_session is null || _run is null) return;
+        if (_stoneDrops.NextDouble() > StoneDropChance) return;
+
+        var available = StoneCatalog.AvailableAt(_mineDepth);
+        if (available.Count == 0) return;
+
+        var stone = available[_stoneDrops.Next(available.Count)];
+        _session.Player.Stones.Found(stone.Id);
+
+        _session.ShowToast($"{stone.DisplayName} found.  {stone.Description}");
+        _sfx?.Play(Sfx.Chime, 0.4f);
+        _coach.Teach(Lessons.Stones, Lessons.TextOf(Lessons.Stones));
+    }
+
+    /// <summary>Roughly one room in two.</summary>
+    private const double StoneDropChance = 0.5;
+
     private void StartRun()
     {
         _run = null;
@@ -2784,6 +2816,15 @@ public sealed class Game1 : Game
         if (_world.Manifest.Rooms.Count < 2) return;
 
         _run = new RunRuntime(_world.Manifest, seed, _mineDepth, _mineRooms);
+
+        // Stones are found below and never carried down. Cleared on entry rather than on exit,
+        // because a run can end in ways nobody gets to run code for — dying, quitting, closing
+        // the window — and only clearing here cannot leave last run's stones in the sockets.
+        _session?.Player.Stones.ClearForDescent();
+
+        // A deterministic stream per mine, so the same seed gives the same stones. A run worth
+        // reporting can be asked for again exactly, which the recorder depends on.
+        _stoneDrops = new Random(seed * 397 + _mineDepth);
         _decisionRecorded = false;
 
         _recorder.Record(PlayEventKind.RunStarted, _world.Manifest.Id, seed, _mineDepth,
@@ -2811,6 +2852,8 @@ public sealed class Game1 : Game
             _recorder.Record(PlayEventKind.RoomCleared, $"room {_run.DeepestRoom}", paid,
                 _run.Run.Pending, _session?.Player.Vitals.Health ?? 0f,
                 _session?.Player.Vitals.Prana ?? 0f);
+
+            OfferStone();
         };
     }
 
@@ -4388,6 +4431,7 @@ public sealed class Game1 : Game
         Text($"Jiva stones drawn: {vitals.Channeled}",
             new Vector2(leftX, top + 182), 15, new Color(174, 188, 186));
 
+        DrawStoneSlots(player, leftX, top + 224);
         DrawEquippedSlots(player);
         DrawPack(player);
 
@@ -4407,8 +4451,126 @@ public sealed class Game1 : Game
             skillY += 37;
         }
 
-        Text("Arrows or hover to choose      Enter to use or equip      I / K / Esc close",
+        Text("Arrows or hover to choose      Enter to use or equip      1-6 socket a stone      I / K / Esc close",
             new Vector2(panel.X + 30, panel.Bottom - 34), 13, new Color(163, 191, 194));
+    }
+
+    /// <summary>
+    /// The sockets and whatever the mountain has given up this run.
+    ///
+    /// Put on the character screen rather than in its own window because it is read mid-run,
+    /// between rooms, with a decision waiting at a door — and a second screen to open is a
+    /// second reason not to bother. Socketing is number keys for the same reason: it has to be
+    /// doable in the two seconds a player is willing to spend on it.
+    /// </summary>
+    private void DrawStoneSlots(PlayerCharacter player, int x, int y)
+    {
+        var stones = player.Stones;
+
+        Text("STONES", new Vector2(x, y), 13, new Color(151, 206, 210));
+
+        var capacity = stones.Capacity;
+        if (capacity == 0)
+        {
+            Text("Nothing you hold has a socket.", new Vector2(x, y + 28), 14,
+                new Color(150, 160, 162));
+            return;
+        }
+
+        // Sockets as a row of cells, filled or empty, so the number of them is countable at a
+        // glance rather than being a sentence the player has to read.
+        for (var slot = 0; slot < capacity; slot++)
+        {
+            var cell = new Rectangle(x + slot * 46, y + 26, 40, 40);
+            var filled = slot < stones.Socketed.Count;
+
+            DrawPanel(cell,
+                filled ? new Color(52, 34, 74, 240) : new Color(14, 22, 30, 220),
+                filled ? new Color(178, 132, 226) : new Color(58, 78, 88));
+
+            if (!filled) continue;
+
+            var stone = StoneCatalog.Find(stones.Socketed[slot]);
+            if (stone is null) continue;
+
+            _spriteBatch.Draw(ItemSprites.JivaCrystal(GraphicsDevice),
+                new Rectangle(cell.X + 4, cell.Y + 4, 32, 32), Color.White);
+        }
+
+        var listY = y + 76;
+
+        if (stones.Socketed.Count > 0)
+        {
+            foreach (var id in stones.Socketed)
+            {
+                var stone = StoneCatalog.Find(id);
+                if (stone is null) continue;
+
+                TextFit($"{stone.DisplayName} — {stone.Description}",
+                    new Vector2(x, listY), 430f, 13, new Color(214, 184, 244));
+                listY += 22;
+            }
+
+            listY += 6;
+        }
+
+        if (stones.Loose.Count == 0)
+        {
+            Text(stones.Socketed.Count > 0 ? "Nothing else found." : "Nothing found yet.",
+                new Vector2(x, listY), 13, new Color(150, 160, 162));
+            return;
+        }
+
+        Text("FOUND — press the number to socket", new Vector2(x, listY), 12,
+            new Color(196, 170, 120));
+        listY += 22;
+
+        for (var index = 0; index < stones.Loose.Count && index < 6; index++)
+        {
+            var stone = StoneCatalog.Find(stones.Loose[index]);
+            if (stone is null) continue;
+
+            TextFit($"{index + 1}.  {stone.DisplayName} — {stone.Description}",
+                new Vector2(x, listY), 430f, 13,
+                stones.HasRoom ? new Color(226, 220, 208) : new Color(140, 132, 126));
+            listY += 22;
+        }
+
+        if (!stones.HasRoom)
+            Text("Every socket is full. Press 0 to empty the last one.",
+                new Vector2(x, listY + 4), 12, new Color(214, 150, 120));
+    }
+
+    /// <summary>Number keys socket a found stone; zero takes the last one back out.</summary>
+    private void UpdateStoneInput(KeyboardState keyboard)
+    {
+        if (_session is null) return;
+
+        var stones = _session.Player.Stones;
+
+        if (Pressed(keyboard, Keys.D0) && stones.Socketed.Count > 0)
+        {
+            if (stones.Unsocket(stones.Socketed[^1])) _sfx?.Play(Sfx.Coin, 0.3f);
+            return;
+        }
+
+        for (var index = 0; index < 6 && index < stones.Loose.Count; index++)
+        {
+            if (!Pressed(keyboard, Keys.D1 + index)) continue;
+
+            var id = stones.Loose[index];
+            if (stones.Socket(id))
+            {
+                _session.ShowToast($"{StoneCatalog.Find(id)?.DisplayName} socketed.");
+                _sfx?.Play(Sfx.Chime, 0.35f);
+            }
+            else
+            {
+                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            }
+
+            return;
+        }
     }
 
     private void DrawShop()

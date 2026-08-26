@@ -16,7 +16,8 @@ public sealed class PlayerCharacter
         LifePath = new LifePath();
         Vitals = new PlayerVitals(Inventory);
         Equipment = new PlayerEquipment(Inventory);
-        Combat = new PlayerCombat(Vitals, Equipment, Skills, LifePath, Inventory);
+        Stones = new StoneSlots(Equipment);
+        Combat = new PlayerCombat(Vitals, Equipment, Skills, LifePath, Inventory, Stones);
         Spells = new SpellCaster(Vitals, Skills, LifePath);
         Detection = new Detection(Skills);
         Story = new StoryDirector();
@@ -36,6 +37,9 @@ public sealed class PlayerCharacter
     }
 
     public Inventory Inventory { get; }
+
+    /// <summary>Sockets and what is in them. Emptied at the start of every descent.</summary>
+    public StoneSlots Stones { get; }
     public SkillProgression Skills { get; }
 
     /// <summary>Which of the three paths this character walks, and what it is worth.</summary>
@@ -109,6 +113,11 @@ public sealed class PlayerCharacter
     /// </summary>
     public void NotifyEnemyKilled(Enemy enemy)
     {
+        // A Vessel stone turns the prana economy inside out for a run: casting is normally
+        // paid for with gold spent in town, and this pays for it with kills instead.
+        if (Stones.Has(StoneEffect.Vessel))
+            Vitals.RestorePrana(StoneCatalog.VesselPrana);
+
         Vitals.AddXp(enemy.Archetype.XpReward);
         Quests.NotifyEnemyKilled(enemy.DisplayName);
         World.MarkKilled(enemy.SpawnId);

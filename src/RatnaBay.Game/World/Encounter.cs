@@ -281,6 +281,13 @@ public sealed class Encounter
 
                     var guarded = _session.Player.Combat.IsBlocking;
                     var landed = _session.Player.Combat.TakeHit(damage);
+
+                    // A Ward stone turns the guard from a way of losing less into a way of
+                    // creating an opening. Melee only: an arrow has nobody standing in front
+                    // of you to reel.
+                    if (guarded && _session.Player.Combat.HasStone(StoneEffect.Ward))
+                        enemy.ApplyStagger(StoneCatalog.WardSeconds);
+
                     PlayerStruck?.Invoke(landed, guarded);
                     Feedback.PlayerHurt(landed,
                         Targeting.RelativeBearing(player, playerYaw, enemy.Position), guarded);

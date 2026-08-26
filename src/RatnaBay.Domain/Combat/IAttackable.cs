@@ -35,6 +35,12 @@ public interface IAttackable
     /// </summary>
     void ApplyStagger(float seconds) { }
 
+    /// <summary>Set alight. A no-op for anything that does not burn.</summary>
+    void ApplyBurn(float damagePerSecond, float seconds, string? source) { }
+
+    /// <summary>Slow down. A no-op for anything that does not chill.</summary>
+    void ApplyChill(float speedFactor, float seconds) { }
+
     /// <summary>
     /// Apply damage and remember what did it.
     ///
