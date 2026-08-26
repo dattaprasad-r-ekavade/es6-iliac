@@ -37,6 +37,29 @@ public sealed class PlayRecorder
     public static string Directory =>
         System.IO.Path.Combine(GameSession.SaveDirectory, "recordings");
 
+    /// <summary>
+    /// The recordings folder as it should be shown to a player, rather than as it is on disk.
+    ///
+    /// The expanded path names whoever is running the build, and the screen it appears on is
+    /// the help screen — which is exactly the screen that ends up in a store screenshot.
+    /// <c>%APPDATA%</c> is also the form that can be pasted straight into an Explorer address
+    /// bar, so the string that keeps the account name off the glass is the more useful one too.
+    /// </summary>
+    public static string DisplayDirectory
+    {
+        get
+        {
+            var full = Directory;
+            if (!OperatingSystem.IsWindows()) return full;
+
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return !string.IsNullOrEmpty(appData)
+                   && full.StartsWith(appData, StringComparison.OrdinalIgnoreCase)
+                ? "%APPDATA%" + full[appData.Length..]
+                : full;
+        }
+    }
+
     public string FilePath => _path;
     public int Count => _recording.Events.Count;
 
