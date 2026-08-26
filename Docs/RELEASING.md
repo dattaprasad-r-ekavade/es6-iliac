@@ -111,21 +111,38 @@ dotnet run --project tools\RatnaBay.Tools -- review <recording.json>
 
 ---
 
-## Suggested page text
+## The page text
 
-> **Ratna Bay** — an endless-mine roguelike.
->
-> Go down. Kill what rises out of the floor. Every room you clear is worth more than the
-> last, and every shut door asks the same question: bank what you are holding, or open it.
->
-> Die and the stones are gone — but the next one down keeps your rank, half your pack, and
-> knows where your body is.
->
-> Early alpha. Around twenty minutes. Windows only. Feedback is the entire point.
+Two files, pasted into the two fields itch.io gives you:
 
-Ask for one thing specifically, or you will get "it was fun". The question worth asking:
+| File | itch.io field |
+| --- | --- |
+| [`itch-description.html`](itch-description.html) | the project description |
+| [`itch-install.html`](itch-install.html) | Install instructions |
+
+They live here rather than only in the browser so the page can be reviewed in a diff like
+anything else, and so a claim it makes about the game can be checked against the code that
+has to keep it true.
+
+**One thing must be edited before pasting.** The description carries a placeholder address,
+`you@example.com`, on a reserved domain that reaches nobody. Replace it — in both the
+`mailto:` and the visible link text — with a channel you own. The warning lives here rather
+than in a comment inside the HTML, because a comment is one sanitiser's whitelist away from
+being published on the page it was meant to keep clean.
+
+This is not optional: a free download makes nobody an *owner* on itch.io and the
+mass-email tool is gated on having made a sale, so **itch.io gives you no way whatsoever to
+contact anybody who plays this**. See [PLAYTEST_DISTRIBUTION.md](PLAYTEST_DISTRIBUTION.md)
+§2.3. Comments are the fallback, but they need the reader to hold an account, and the person
+whose answer is worth most — the one who bounced off in room two — is exactly the person who
+will not make one.
+
+The description asks for one thing specifically, because a page that asks for feedback in
+general gets "it was fun":
 
 > **At the shut door — did you ever actually hesitate?**
 
 That is the decision the whole game is built on, and it is the one thing the recordings can
-measure but not explain.
+measure but not explain. It sits directly under the pitch rather than below the controls,
+which is where it used to be — most readers never reach the bottom of a store page, and this
+question is the reason the page exists.
