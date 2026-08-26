@@ -5397,11 +5397,18 @@ public sealed class Game1 : Game
         // Blank until the first averaging window closes: the counter used to show whatever
         // the opening, texture-generating window computed, so a build running at 700 fps
         // could report 4. A misleading diagnostic is worse than none.
-        TextRight(_framesPerSecond > 0f ? $"{_framesPerSecond:0} fps" : "— fps",
-            panel.Right - 18, panel.Y + 38, 13,
-            _framesPerSecond is > 0f and < 50f
-                ? new Color(228, 128, 118)
-                : new Color(146, 174, 178));
+        //
+        // A capture is that same wrong number with an audience. --screenshot draws four frames
+        // and exits, so the rate reads about 1 and gets the red reserved for a build in
+        // trouble -- which is then what a stranger sees on the store page.
+        if (_screenshotPath is null)
+        {
+            TextRight(_framesPerSecond > 0f ? $"{_framesPerSecond:0} fps" : "— fps",
+                panel.Right - 18, panel.Y + 38, 13,
+                _framesPerSecond is > 0f and < 50f
+                    ? new Color(228, 128, 118)
+                    : new Color(146, 174, 178));
+        }
     }
 
     /// <summary>
@@ -5490,7 +5497,7 @@ public sealed class Game1 : Game
             }
         }
 
-        TextCentred($"This session is being recorded to {PlayRecorder.Directory}",
+        TextCentred($"This session is being recorded to {PlayRecorder.DisplayDirectory}",
             panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, new Color(140, 156, 164));
     }
 
