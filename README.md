@@ -110,6 +110,8 @@ Two documents, and no others:
 
 - **[`Docs/TRAILER.md`](Docs/TRAILER.md)** — the 45 seconds that sell it, which doubles as the
   scope contract for what the slice must be able to show.
+- **[`Docs/AI_READINESS_ROADMAP.md`](Docs/AI_READINESS_ROADMAP.md)** — the current repository
+  assessment and the ordered plan for making AI-assisted changes safer and easier.
 
 Supporting records:
 

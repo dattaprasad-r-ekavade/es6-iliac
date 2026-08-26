@@ -6,17 +6,111 @@
       "id": "shop.mara",
       "displayName": "The yard stall",
       "items": [
-        { "id": "health_potion", "name": "Health Potion", "kind": "potion", "price": 12, "count": 1 },
-        { "id": "soul_crystal_lesser", "name": "Lesser Jiva Stone", "kind": "crystal", "price": 25, "count": 1 },
-        { "id": "torch_bundle", "name": "Torch Bundle", "kind": "misc", "price": 8, "count": 2 },
-
-        { "id": "padded_jerkin", "name": "Padded Jerkin", "kind": "armour", "price": 180, "count": 1 },
-        { "id": "iron_greatsword", "name": "Iron Greatsword", "kind": "weapon", "price": 380, "count": 1 },
-        { "id": "hunting_bow", "name": "Hunting Bow", "kind": "weapon", "price": 300, "count": 1 },
-        { "id": "steel_sword", "name": "Steel Sword", "kind": "weapon", "price": 450, "count": 1 },
-        { "id": "mail_hauberk", "name": "Mail Hauberk", "kind": "armour", "price": 520, "count": 1 },
-        { "id": "steel_greatsword", "name": "Steel Greatsword", "kind": "weapon", "price": 900, "count": 1 },
-        { "id": "war_bow", "name": "War Bow", "kind": "weapon", "price": 780, "count": 1 }
+        {
+          "id": "arrow",
+          "name": "Arrows",
+          "kind": "ammunition",
+          "price": 14,
+          "count": 20
+        },
+        {
+          "id": "iron_mace",
+          "name": "Iron Mace",
+          "kind": "weapon",
+          "price": 260,
+          "count": 1
+        },
+        {
+          "id": "wicker_shield",
+          "name": "Wicker Shield",
+          "kind": "shield",
+          "price": 150,
+          "count": 1
+        },
+        {
+          "id": "bronze_shield",
+          "name": "Bronze Shield",
+          "kind": "shield",
+          "price": 420,
+          "count": 1
+        },
+        {
+          "id": "health_potion",
+          "name": "Health Potion",
+          "kind": "potion",
+          "price": 12,
+          "count": 1
+        },
+        {
+          "id": "soul_crystal_lesser",
+          "name": "Lesser Jiva Stone",
+          "kind": "crystal",
+          "price": 25,
+          "count": 1
+        },
+        {
+          "id": "torch_bundle",
+          "name": "Torch Bundle",
+          "kind": "misc",
+          "price": 8,
+          "count": 2
+        },
+        {
+          "id": "padded_jerkin",
+          "name": "Padded Jerkin",
+          "kind": "armour",
+          "price": 180,
+          "count": 1
+        },
+        {
+          "id": "iron_greatsword",
+          "name": "Iron Greatsword",
+          "kind": "weapon",
+          "price": 380,
+          "count": 1
+        },
+        {
+          "id": "hunting_bow",
+          "name": "Hunting Bow",
+          "kind": "weapon",
+          "price": 300,
+          "count": 1
+        },
+        {
+          "id": "steel_sword",
+          "name": "Steel Sword",
+          "kind": "weapon",
+          "price": 450,
+          "count": 1
+        },
+        {
+          "id": "mail_hauberk",
+          "name": "Mail Hauberk",
+          "kind": "armour",
+          "price": 520,
+          "count": 1
+        },
+        {
+          "id": "steel_greatsword",
+          "name": "Steel Greatsword",
+          "kind": "weapon",
+          "price": 900,
+          "count": 1
+        },
+        {
+          "id": "war_bow",
+          "name": "War Bow",
+          "kind": "weapon",
+          "price": 780,
+          "count": 1
+        },
+        {
+          "id": "steel_mace",
+          "name": "Steel Mace",
+          "kind": "weapon",
+          "price": 640,
+          "count": 1
+        }
       ]
     }
   ]

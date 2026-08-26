@@ -12,7 +12,10 @@ public enum AttackResult
     OnCooldown,
 
     /// <summary>Not enough stamina to swing.</summary>
-    Exhausted
+    Exhausted,
+
+    /// <summary>A bow, and no arrows. Costs nothing — not the stamina, not the cooldown.</summary>
+    NoAmmunition
 }
 
 public readonly record struct AttackOutcome(AttackResult Result, float Damage,
@@ -40,14 +43,31 @@ public sealed class PlayerCombat
     private float _cooldown;
     private float _combatTimer;
 
+    /// <summary>
+    /// The pack, so a bow can spend from it.
+    ///
+    /// Optional so that every existing test that builds a combat component in isolation keeps
+    /// working — without one, a ranged weapon simply never runs out, which is the behaviour
+    /// those tests were written against.
+    /// </summary>
+    private readonly Inventory? _inventory;
+
+    /// <summary>Sockets, when there are any. Null in the isolated tests that predate them.</summary>
+    private readonly StoneSlots? _stones;
+
     public PlayerCombat(PlayerVitals vitals, PlayerEquipment equipment, SkillProgression skills,
-        LifePath? path = null)
+        LifePath? path = null, Inventory? inventory = null, StoneSlots? stones = null)
     {
         _vitals = vitals;
         _equipment = equipment;
         _skills = skills;
         _path = path ?? new LifePath();
+        _inventory = inventory;
+        _stones = stones;
     }
+
+    /// <summary>True when a stone with this effect is socketed right now.</summary>
+    public bool HasStone(StoneEffect effect) => _stones?.Has(effect) ?? false;
 
     /// <summary>What the equipped weapon lands for, after the life path's gift.</summary>
     public float WeaponDamage => ActiveWeapon.Damage * _path.WeaponMultiplier;
@@ -102,8 +122,19 @@ public sealed class PlayerCombat
         if (!IsReady) return new AttackOutcome(AttackResult.OnCooldown, 0f);
 
         var weapon = ActiveWeapon;
+
+        // Checked before stamina, so a shot that cannot be taken costs nothing at all. The
+        // opposite order would spend the breath and then refuse to loose the arrow.
+        if (weapon.NeedsAmmunition && _inventory is not null
+            && !_inventory.Has(EquipmentCatalog.ArrowId))
+            return new AttackOutcome(AttackResult.NoAmmunition, 0f);
+
         if (!_vitals.SpendStamina(weapon.StaminaCost))
             return new AttackOutcome(AttackResult.Exhausted, 0f);
+
+        // Spent on the swing, not on the hit. A missed arrow is gone, which is the whole
+        // reason a bow asks the player to aim.
+        if (weapon.NeedsAmmunition) _inventory?.Consume(EquipmentCatalog.ArrowId);
 
         // Attacking drops the guard, so a block cannot be held through a swing.
         SetBlocking(false);
@@ -122,6 +153,29 @@ public sealed class PlayerCombat
         var opening = target.IsVulnerable;
         var damage = opening ? WeaponDamage * OpeningStrikeMultiplier : WeaponDamage;
         var dealt = target.TakeDamage(damage, ActiveWeapon.DisplayName);
+
+        // A blunt weapon leaves the target unable to answer, which the domain already rewards:
+        // the next blow lands on something vulnerable at double. That loop — stagger, then
+        // strike the opening — is the mace's whole reason to exist, and it is why it does not
+        // also need to bleed.
+        // The weapon's own stagger, then whatever the stones add. Longest wins rather than
+        // stacking, so a mace with a Thunder stone is a mace rather than a lockdown.
+        var stagger = weapon.StaggerSeconds;
+        if (HasStone(StoneEffect.Thunder))
+            stagger = MathF.Max(stagger, StoneCatalog.ThunderSeconds);
+
+        if (stagger > 0f) target.ApplyStagger(stagger);
+
+        // Cinder and Rime hand melee the verbs that were previously only a spell's. That is
+        // the point of them: a warrior who finds one fights the way a mage does for a run,
+        // without the prana.
+        if (HasStone(StoneEffect.Cinder))
+            target.ApplyBurn(StoneCatalog.CinderDamagePerSecond, StoneCatalog.CinderSeconds,
+                ActiveWeapon.DisplayName);
+
+        if (HasStone(StoneEffect.Rime))
+            target.ApplyChill(StoneCatalog.RimeSpeedFactor, StoneCatalog.RimeSeconds);
+
         EnterCombat();
 
         // Advancement is use-based, so the swing trains the weapon's skill rather than paying
@@ -136,8 +190,15 @@ public sealed class PlayerCombat
     /// <summary>What everything else in the arc takes from a two-handed sweep.</summary>
     public const float CleaveFactor = 0.6f;
 
-    /// <summary>True when the equipped weapon sweeps rather than stabs.</summary>
-    public bool WeaponSweeps => ActiveWeapon.Class == WeaponClass.TwoHanded;
+    /// <summary>
+    /// True when the equipped weapon sweeps rather than stabs.
+    ///
+    /// A Splitting stone grants it to anything, which is the clearest stone in the set: the
+    /// first swing after socketing it hits three things instead of one, and the player changes
+    /// where they stand for the rest of the run.
+    /// </summary>
+    public bool WeaponSweeps =>
+        ActiveWeapon.Class == WeaponClass.TwoHanded || HasStone(StoneEffect.Splitting);
 
     /// <summary>
     /// Carry the swing through everything else in the arc.
@@ -182,9 +243,10 @@ public sealed class PlayerCombat
         // and it is used in every fight — a skill nothing trains is worse than no skill,
         // because it looks like progress that is not happening.
         if (IsBlocking && amount > 0f)
-            _skills.ReportUse(Skills.Block, amount * DamageMath.BlockReduction, amount);
+            _skills.ReportUse(Skills.Block, amount * (1f - _equipment.BlockFactor), amount);
 
-        return _vitals.TakeDamage(amount, _equipment.ArmourValue, IsBlocking);
+        return _vitals.TakeDamage(amount, _equipment.ArmourValue,
+            IsBlocking ? _equipment.BlockFactor : 1f);
     }
 
     public void EnterCombat()

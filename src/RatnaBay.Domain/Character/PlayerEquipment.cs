@@ -21,6 +21,7 @@ public sealed class PlayerEquipment
 
     public string WeaponId { get; private set; } = EquipmentCatalog.UnarmedId;
     public string ArmourId { get; private set; } = string.Empty;
+    public string ShieldId { get; private set; } = string.Empty;
 
     public event Action? Changed;
 
@@ -30,8 +31,23 @@ public sealed class PlayerEquipment
     /// <summary>Null when nothing is worn.</summary>
     public ArmourDefinition? Armour => EquipmentCatalog.GetArmour(ArmourId);
 
-    public float ArmourValue => Armour?.Armour ?? 0f;
+    /// <summary>Null when the off hand is empty, or when both hands are on the weapon.</summary>
+    public ShieldDefinition? Shield =>
+        Weapon.IsTwoHanded ? null : EquipmentCatalog.GetShield(ShieldId);
+
+    /// <summary>Armour counts the shield, which protects whether or not it is raised.</summary>
+    public float ArmourValue => (Armour?.Armour ?? 0f) + (Shield?.Armour ?? 0f);
+
     public bool CanBlock => Weapon.CanBlock;
+
+    /// <summary>
+    /// What a blocked blow is multiplied by, given what is in both hands.
+    ///
+    /// A shield improves an existing verb rather than granting a new one, so a blade alone
+    /// still blocks exactly as well as it always did. Making the shield a precondition for
+    /// blocking would have been simpler and would have quietly nerfed every existing save.
+    /// </summary>
+    public float BlockFactor => Shield?.BlockFactor ?? DamageMath.BlockReduction;
 
     /// <summary>True while gear is held by a gaoler rather than by the player.</summary>
     public bool GearIsStashed { get; private set; }
@@ -54,6 +70,13 @@ public sealed class PlayerEquipment
         if (EquipmentCatalog.IsArmour(itemId))
         {
             ArmourId = itemId!;
+            Changed?.Invoke();
+            return true;
+        }
+
+        if (EquipmentCatalog.IsShield(itemId))
+        {
+            ShieldId = itemId!;
             Changed?.Invoke();
             return true;
         }

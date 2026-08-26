@@ -82,12 +82,27 @@ public sealed class WeaponView
         _swingRemaining = 0f;
     }
 
-    /// <summary>Start a swing. Its length follows the weapon, so a greatsword feels heavier.</summary>
-    public void Swing(WeaponDefinition weapon)
+    /// <summary>
+    /// Start a swing. Its length follows the weapon, so a greatsword feels heavier.
+    /// </summary>
+    /// <param name="sweeping">
+    /// True when this swing hits everything in its arc rather than one thing.
+    ///
+    /// A Splitting stone changes what a swing *does*, and the player has to be able to see
+    /// that from the swing itself — the alternative is noticing three health bars move and
+    /// inferring it, which is not the same as being told.
+    /// </param>
+    public void Swing(WeaponDefinition weapon, bool sweeping = false)
     {
         _swingDuration = MathF.Max(0.28f, weapon.Cooldown * 1.15f);
         _swingRemaining = _swingDuration;
+        _sweeping = sweeping;
     }
+
+    private bool _sweeping;
+
+    /// <summary>How much further a sweeping swing carries, as a multiple of the normal arc.</summary>
+    private const float SweepArcFactor = 1.7f;
 
     public void Update(float deltaSeconds, bool moving, bool guarding)
     {
@@ -153,8 +168,12 @@ public sealed class WeaponView
 
         // The grip is the SpriteBatch origin, so keeping the position fixed makes the blade
         // sweep around the hand while the hilt stays planted.
-        position += SwingTravel * strike;
-        rotation += SwingArc * strike;
+        // A sweep travels further and rotates further through the same time, which reads as
+        // one motion carried across the body rather than a jab at a point.
+        var reach = _sweeping ? SweepArcFactor : 1f;
+
+        position += SwingTravel * strike * reach;
+        rotation += SwingArc * strike * reach;
 
         // A slight push toward the viewer at the moment of contact.
         scale += BaseScale * 0.14f * strike;

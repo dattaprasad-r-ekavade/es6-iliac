@@ -85,8 +85,7 @@ public sealed class Game1 : Game
     /// <summary>One quad, rebuilt per call, for text carved onto a wall or a pillar face.</summary>
     private readonly VertexPositionNormalTexture[] _faceQuad = new VertexPositionNormalTexture[4];
     private readonly short[] _faceIndices = { 0, 1, 2, 0, 2, 3 };
-    private KeyboardState _previousKeyboard;
-    private MouseState _previousMouse;
+    private readonly InputRouter _input = new();
 
     /// <summary>True while the pointer is captured for looking. Tab releases it.</summary>
     private bool _mouseLook;
@@ -131,6 +130,16 @@ public sealed class Game1 : Game
     private float _verticalOffset;
     private float _verticalVelocity;
     private bool _grounded = true;
+
+    /// <summary>
+    /// Metres walked since the last footstep.
+    ///
+    /// Paced by distance rather than by a timer, which is the only version that stays honest:
+    /// a timer keeps stepping when the player walks into a wall, and goes out of step the
+    /// moment they sprint. Distance is also free — the collision resolver already reports how
+    /// far the body actually moved, which is not the same as how far it tried to.
+    /// </summary>
+    private float _stride;
     private bool _crouching;
     private bool _crouchToggled;
     private bool _forceCrouch;
@@ -160,13 +169,34 @@ public sealed class Game1 : Game
     private readonly List<WorldPickup> _pickups = new();
     private AmbientAudio? _ambientAudio;
 
+    /// <summary>Every sound effect in the game, synthesised at startup.</summary>
+    private SoundBank? _sfx;
+
+    /// <summary>
+    /// Seconds of frozen simulation still owed to a landed blow.
+    ///
+    /// The cheapest and most effective trick in melee combat: on impact, stop the world for
+    /// four or five frames. It reads as the blow having mass — the swing meets resistance
+    /// instead of passing through — and it does more for how a hit feels than any amount of
+    /// particles or numbers. Held to a few frames because past about 120ms it stops reading as
+    /// impact and starts reading as the game stuttering.
+    /// </summary>
+    private float _hitstop;
+
+    /// <summary>How far the camera is still owed a shake, and how hard.</summary>
+    private float _shake;
+    private float _shakeStrength;
+
     private BillboardRenderer _billboards = null!;
 
     /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
     private readonly WeaponView _weaponView = new();
+    private readonly HudRenderer _hud;
+    private readonly OverlayRenderer _overlay;
 
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
+
 
     /// <summary>
     /// Set by --cover: render the store cover instead of the HUD, at itch.io's aspect.
@@ -426,6 +456,9 @@ public sealed class Game1 : Game
             _graphics.IsFullScreen = false;
             Window.IsBorderless = false;
         }
+
+        _hud = new HudRenderer(DrawPanel, Text, TextFit, TextCentred, TextRight, Fill, Border);
+        _overlay = new OverlayRenderer(DrawPanel, Text, TextFit, TextCentred, Fill);
     }
 
     private static bool HasArgument(string[] args, string argument)
@@ -543,6 +576,9 @@ public sealed class Game1 : Game
             && !string.IsNullOrWhiteSpace(ambientError))
             _assetErrors.Add(ambientError);
 
+        _sfx = SoundBank.Create(out var sfxError);
+        if (!string.IsNullOrWhiteSpace(sfxError)) _assetErrors.Add(sfxError);
+
         _primitiveEffect = new BasicEffect(GraphicsDevice)
         {
             VertexColorEnabled = false,
@@ -584,6 +620,7 @@ public sealed class Game1 : Game
         _recorder.Flush();
 
         _ambientAudio?.Dispose();
+        _sfx?.Dispose();
         CharacterSprites.Clear();
         WeaponSprites.Clear();
         BoltSprites.Clear();
@@ -597,15 +634,33 @@ public sealed class Game1 : Game
     /// </summary>
     private const float MaxFrameSeconds = 0.1f;
 
-    private static float StepSeconds(GameTime gameTime) =>
+    private static float RealSeconds(GameTime gameTime) =>
         MathF.Min((float)gameTime.ElapsedGameTime.TotalSeconds, MaxFrameSeconds);
+
+    /// <summary>
+    /// The step the simulation is allowed this frame, which is zero while a hit is landing.
+    ///
+    /// Everything that moves reads this rather than the clock, so hitstop freezes the world
+    /// without any of it knowing why. The input layer deliberately does not: a player who
+    /// presses a key during those four frames should still be heard, or the freeze reads as
+    /// dropped input rather than as impact.
+    /// </summary>
+    private float StepSeconds(GameTime gameTime) =>
+        _hitstop > 0f ? 0f : RealSeconds(gameTime);
 
     protected override void Update(GameTime gameTime)
     {
-        var keyboard = Keyboard.GetState();
-        var mouse = Mouse.GetState();
+        _input.Sample();
+        var keyboard = _input.CurrentKeyboard;
+        var mouse = _input.CurrentMouse;
 
-        _clock += StepSeconds(gameTime);
+        // On real time, not simulation time: the fire has to keep moving during a hitstop or
+        // the freeze looks like the game locked up rather than like a blow landing.
+        var real = RealSeconds(gameTime);
+        _clock += real;
+
+        if (_hitstop > 0f) _hitstop = MathF.Max(0f, _hitstop - real);
+        if (_shake > 0f) _shake = MathF.Max(0f, _shake - real);
 
         if (Pressed(keyboard, Keys.F11))
             SetBorderlessFullscreen(!_borderlessFullscreen);
@@ -653,7 +708,7 @@ public sealed class Game1 : Game
         if (_askingConsent)
         {
             UpdateConsent(keyboard, mouse);
-            _previousMouse = mouse;
+            _input.CommitMouse();
             return;
         }
 
@@ -662,8 +717,7 @@ public sealed class Game1 : Game
         else
             UpdateGameScreen(gameTime, keyboard, mouse);
 
-        _previousKeyboard = keyboard;
-        _previousMouse = mouse;
+        _input.Commit();
         base.Update(gameTime);
     }
 
@@ -734,8 +788,7 @@ public sealed class Game1 : Game
         return new Vector2((mouse.X - offsetX) / _uiScale, (mouse.Y - offsetY) / _uiScale);
     }
 
-    private bool Clicked(MouseState mouse) =>
-        mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released;
+    private bool Clicked(MouseState mouse) => _input.Clicked(mouse);
 
     /// <summary>
     /// Where the cover is drawn, so its size does not depend on the monitor.
@@ -1132,13 +1185,15 @@ public sealed class Game1 : Game
 
     private void UpdateSettings(KeyboardState keyboard)
     {
-        const int optionCount = 3;
+        // Four rows now: display, UI scale, volume, bindings. The count was already one short
+        // of what DrawSettings lists, so the telemetry row could never be reached by keyboard.
+        const int optionCount = 5;
         if (Pressed(keyboard, Keys.Up))
             _settingsSelection = (_settingsSelection + optionCount - 1) % optionCount;
         if (Pressed(keyboard, Keys.Down))
             _settingsSelection = (_settingsSelection + 1) % optionCount;
 
-        var mouse = Mouse.GetState();
+        var mouse = _input.CurrentMouse;
         var pointer = LogicalMouse(mouse);
         var clicked = Clicked(mouse);
         var hovered = -1;
@@ -1153,20 +1208,32 @@ public sealed class Game1 : Game
         if (_settingsSelection == 0 && toggled)
             SetBorderlessFullscreen(!_borderlessFullscreen);
 
-        // The scale row is a slider: clicking its left half steps down, its right half up.
+        // The scale and volume rows are sliders: clicking the left half steps down, the right
+        // half up.
         var nudge = 0f;
-        if (Pressed(keyboard, Keys.Right)) nudge = 0.1f;
-        else if (Pressed(keyboard, Keys.Left)) nudge = -0.1f;
-        else if (clicked && hovered == 1)
+        if (Pressed(keyboard, Keys.Right)) nudge = 1f;
+        else if (Pressed(keyboard, Keys.Left)) nudge = -1f;
+        else if (clicked && (hovered == 1 || hovered == 2))
         {
-            var row = SettingsRowBounds(1);
-            nudge = pointer.X < row.Center.X ? -0.1f : 0.1f;
+            var row = SettingsRowBounds(hovered);
+            nudge = pointer.X < row.Center.X ? -1f : 1f;
         }
 
-        if (_settingsSelection != 1 || nudge == 0f) return;
+        if (nudge == 0f) return;
 
-        _uiScalePreference = MathHelper.Clamp(_uiScalePreference + nudge, 0.8f, 1.2f);
-        UpdateUiTransform();
+        if (_settingsSelection == 1)
+        {
+            _uiScalePreference = MathHelper.Clamp(_uiScalePreference + nudge * 0.1f, 0.8f, 1.2f);
+            UpdateUiTransform();
+        }
+        else if (_settingsSelection == 2 && _sfx is not null)
+        {
+            _sfx.Volume = MathHelper.Clamp(_sfx.Volume + nudge * 0.1f, 0f, 1f);
+
+            // Play the thing being adjusted, so the number is not the only feedback. A volume
+            // slider that makes no sound is guesswork.
+            _sfx.Play(Sfx.Coin, 0.5f);
+        }
     }
 
     /// <summary>
@@ -1997,7 +2064,7 @@ public sealed class Game1 : Game
         // not also swing the sword.
         if (!_mouseLook || _showHelp) return;
 
-        var mouse = Mouse.GetState();
+        var mouse = _input.CurrentMouse;
         _session.Player.Combat.SetBlocking(mouse.RightButton == ButtonState.Pressed);
 
         // A click that arrives a fraction early is remembered rather than thrown away.
@@ -2069,7 +2136,9 @@ public sealed class Game1 : Game
             // The arm moves whenever the swing actually happened — a hit and a miss look the
             // same from behind the weapon, which is what makes missing feel like missing
             // rather than like the button not working.
-            if (outcome.Swung) _weaponView.Swing(_session.Player.Combat.ActiveWeapon);
+            if (outcome.Swung)
+                _weaponView.Swing(_session.Player.Combat.ActiveWeapon,
+                    _session.Player.Combat.WeaponSweeps);
             ReportAttack(outcome);
         }
         if (Pressed(keyboard, Keys.Q))
@@ -2204,6 +2273,14 @@ public sealed class Game1 : Game
             LockResult.Failed => $"The lock resists. Security {door.Definition.Difficulty:0} required.",
             _ => "The door is already open."
         });
+
+        _sfx?.Play(result switch
+        {
+            LockResult.Opened or LockResult.Unlocked => Sfx.Door,
+            LockResult.Failed => Sfx.Denied,
+            _ => Sfx.Denied
+        }, 0.6f);
+
         return true;
     }
 
@@ -2270,19 +2347,74 @@ public sealed class Game1 : Game
     }
 
     /// <summary>Only the outcomes the player cannot see for themselves are worth saying.</summary>
+    /// <summary>How heavy the equipped weapon sounds. Two-handed is slow and low; a bow is neither.</summary>
+    private float SwingWeight() => _session?.Player.Equipment.Weapon.Class switch
+    {
+        WeaponClass.TwoHanded => 0.9f,
+        WeaponClass.Ranged => 0.15f,
+        _ => 0.35f
+    };
+
     private void ReportAttack(AttackOutcome outcome)
     {
-        if (outcome.Result == AttackResult.Exhausted) _session?.ShowToast("Too exhausted.");
+        if (outcome.Result == AttackResult.Exhausted)
+        {
+            _session?.ShowToast("Too exhausted.");
+            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            return;
+        }
+
+        if (outcome.Result == AttackResult.NoAmmunition)
+        {
+            _session?.ShowToast("Out of arrows.");
+            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            return;
+        }
+
+        // The swing plays on every swing, landed or not, because it is the sound of the input
+        // being received. A game that is silent when you miss feels unresponsive rather than
+        // feeling like you missed.
+        //
+        // Weight comes from the weapon's class, so a greatsword drops in pitch and gains
+        // volume against a knife without either being written out separately. That is the
+        // whole reason the sounds take a weight rather than being one file each.
+        if (outcome.Swung)
+        {
+            _sfx?.Play(Sfx.Swing, SwingWeight(), volumeScale: 0.75f);
+
+            // A swing puts the weapon in the way. Two-handed costs the most, blunt some, a
+            // blade nothing — which is the whole reason a mage would carry a blade.
+            _session?.Player.Spells.Encumber(
+                _session.Player.Equipment.Weapon.CastDelaySeconds);
+        }
+
+        if (outcome.Result != AttackResult.Hit) return;
+
+        // Landing is the sound and the freeze together. Weight comes from the damage actually
+        // dealt, so a greatsword lands heavier than a knife without either being special-cased.
+        var weight = MathHelper.Clamp(outcome.Damage / 45f, 0.25f, 1f);
+        if (outcome.WasOpening) weight = MathF.Min(1f, weight * 1.4f);
+
+        _sfx?.Play(Sfx.HitFlesh, weight);
+        Impact(weight);
     }
 
     private void ReportCast(CastOutcome outcome)
     {
         if (_session is null) return;
 
+        if (outcome.Result == CastResult.Landed || outcome.Result == CastResult.Missed)
+            _sfx?.Play(Sfx.Cast, 0.5f, volumeScale: 0.85f);
+
         switch (outcome.Result)
         {
             case CastResult.NoCharge:
                 _session.ShowToast("No prana, and no jiva stone to draw on.");
+                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+                break;
+            case CastResult.Shouldering:
+                _session.ShowToast($"Both hands are on the {_session.Player.Equipment.Weapon.DisplayName}.");
+                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
                 break;
             case CastResult.Landed when outcome.Spell?.Effect == SpellEffect.Heal:
                 _session.ShowToast($"{outcome.Spell.DisplayName} — restored.");
@@ -2304,6 +2436,8 @@ public sealed class Game1 : Game
     {
         if (_session is null) return;
 
+        UpdateStoneInput(keyboard);
+
         var items = _session.Player.Inventory.Items;
         if (items.Count == 0)
         {
@@ -2324,7 +2458,7 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Down) || Pressed(keyboard, Keys.S))
             _inventorySelection = (_inventorySelection + InventoryColumns) % items.Count;
 
-        var mouse = Mouse.GetState();
+        var mouse = _input.CurrentMouse;
         var pointer = LogicalMouse(mouse);
         var hovered = -1;
         for (var index = 0; index < items.Count && index < InventoryRows; index++)
@@ -2547,6 +2681,84 @@ public sealed class Game1 : Game
     /// only listens. Nothing in the game asks whether it is recording, which is what keeps it
     /// impossible for telemetry to change how the game plays.
     /// </summary>
+    /// <summary>
+    /// Freeze the world briefly, and shove the camera.
+    ///
+    /// Called from wherever a blow lands. <paramref name="weight"/> is 0 for a graze and 1 for
+    /// a killing blow on something large, and everything else scales off it — a light hit gets
+    /// two frames and a nudge, a heavy one gets six and a jolt.
+    /// </summary>
+    private void Impact(float weight)
+    {
+        var w = MathHelper.Clamp(weight, 0f, 1f);
+
+        // Take the longer of the two rather than adding, or a flurry stacks into a lockup.
+        _hitstop = MathF.Max(_hitstop, 0.030f + 0.055f * w);
+
+        _shake = MathF.Max(_shake, 0.10f + 0.14f * w);
+        _shakeStrength = MathF.Max(_shakeStrength, 0.0022f + 0.0075f * w);
+    }
+
+    /// <summary>
+    /// The rotational offset a running shake adds to the view, in yaw and pitch.
+    ///
+    /// Rotation rather than translation, because the camera is the player's head: moving the
+    /// eye through the world clips it into geometry, and turning it does not. Two frequencies
+    /// that do not divide into each other, so a long shake never repeats visibly.
+    ///
+    /// Returned rather than applied. Adding it to <c>_cameraYaw</c> would be simpler and would
+    /// be a bug: those fields persist, so every shake would leave the player aiming somewhere
+    /// slightly different from where they were, and a long fight would walk the view away by
+    /// degrees with nobody able to say why.
+    /// </summary>
+    private (float Yaw, float Pitch) ShakeOffset()
+    {
+        if (_shake <= 0f) return (0f, 0f);
+
+        var falloff = _shake * _shake;
+        var strength = _shakeStrength * falloff * 60f;
+
+        return (MathF.Sin(_clock * 71f) * strength,
+                MathF.Sin(_clock * 53f) * strength * 0.75f);
+    }
+
+    /// <summary>Wire the session's own good news to a sound.</summary>
+    private void WatchSessionForTheFeel(GameSession session)
+    {
+        session.Player.Vitals.LevelGained += _ => _sfx?.Play(Sfx.Chime, 0.5f);
+    }
+
+    /// <summary>Wire the encounter's events to what the player hears and feels.</summary>
+    private void WatchForTheFeel(Encounter encounter)
+    {
+        encounter.EnemyDefeated += enemy =>
+        {
+            _sfx?.Play(Sfx.Death, Weight(enemy));
+            Impact(0.85f);
+        };
+
+        encounter.SpellLanded += (_, _, _) =>
+        {
+            _sfx?.Play(Sfx.HitFlesh, 0.45f, volumeScale: 0.8f);
+            Impact(0.35f);
+        };
+
+        encounter.PlayerStruck += (damage, guarded) =>
+        {
+            var weight = MathHelper.Clamp(damage / 30f, 0.2f, 1f);
+
+            _sfx?.Play(guarded ? Sfx.Block : Sfx.Hurt, weight);
+
+            // Being hit shakes harder than hitting. The player should not have to read the
+            // health bar to know something went wrong.
+            Impact(guarded ? weight * 0.5f : MathF.Min(1f, weight * 1.15f));
+        };
+
+        // Bigger things land heavier, which is most of what makes a kravyada feel like one.
+        static float Weight(Enemy enemy) =>
+            MathHelper.Clamp(enemy.Archetype.MaxHealth / 260f, 0.35f, 1f);
+    }
+
     private void WatchForTheRecord(Encounter encounter, GameSession session)
     {
         encounter.EnemyDefeated += enemy => _recorder.Record(PlayEventKind.EnemyKilled,
@@ -2564,9 +2776,42 @@ public sealed class Game1 : Game
 
         encounter.PlayerStruck += (damage, guarded) => _recorder.Record(PlayEventKind.PlayerHurt,
             guarded ? "guarded" : "clean", damage, 0f, session.Player.Vitals.Health);
+
+        WatchForTheFeel(encounter);
+        WatchSessionForTheFeel(session);
     }
 
     /// <summary>Start the ledger for this descent, if the loaded world is a mine at all.</summary>
+    /// <summary>The stream that decides what a cleared room gives up. Seeded from the mine.</summary>
+    private Random _stoneDrops = new(0);
+
+    /// <summary>
+    /// A cleared room sometimes gives up a stone.
+    ///
+    /// Not every room, because a stone in every room means the sockets are full by room three
+    /// and the rest of the descent has no decisions left in it. Not payout-scaled either: a
+    /// stone is variety rather than reward, and tying it to depth would make the deep rooms
+    /// the only ones worth clearing for reasons that have nothing to do with the stones.
+    /// </summary>
+    private void OfferStone()
+    {
+        if (_session is null || _run is null) return;
+        if (_stoneDrops.NextDouble() > StoneDropChance) return;
+
+        var available = StoneCatalog.AvailableAt(_mineDepth);
+        if (available.Count == 0) return;
+
+        var stone = available[_stoneDrops.Next(available.Count)];
+        _session.Player.Stones.Found(stone.Id);
+
+        _session.ShowToast($"{stone.DisplayName} found.  {stone.Description}");
+        _sfx?.Play(Sfx.Chime, 0.4f);
+        _coach.Teach(Lessons.Stones, Lessons.TextOf(Lessons.Stones));
+    }
+
+    /// <summary>Roughly one room in two.</summary>
+    private const double StoneDropChance = 0.5;
+
     private void StartRun()
     {
         _run = null;
@@ -2576,6 +2821,15 @@ public sealed class Game1 : Game
         if (_world.Manifest.Rooms.Count < 2) return;
 
         _run = new RunRuntime(_world.Manifest, seed, _mineDepth, _mineRooms);
+
+        // Stones are found below and never carried down. Cleared on entry rather than on exit,
+        // because a run can end in ways nobody gets to run code for — dying, quitting, closing
+        // the window — and only clearing here cannot leave last run's stones in the sockets.
+        _session?.Player.Stones.ClearForDescent();
+
+        // A deterministic stream per mine, so the same seed gives the same stones. A run worth
+        // reporting can be asked for again exactly, which the recorder depends on.
+        _stoneDrops = new Random(seed * 397 + _mineDepth);
         _decisionRecorded = false;
 
         _recorder.Record(PlayEventKind.RunStarted, _world.Manifest.Id, seed, _mineDepth,
@@ -2596,9 +2850,15 @@ public sealed class Game1 : Game
         _run.RoomCleared += paid =>
         {
             _session?.ShowToast($"Room clear.  +{paid} stones held  ({_run.Run.Pending} at risk)");
+
+            // The pot growing is the thing the whole loop turns on, so it gets its own sound
+            // rather than sharing the kill that happened to end the room.
+            _sfx?.Play(Sfx.Coin, MathHelper.Clamp(paid / 12f, 0.3f, 1f));
             _recorder.Record(PlayEventKind.RoomCleared, $"room {_run.DeepestRoom}", paid,
                 _run.Run.Pending, _session?.Player.Vitals.Health ?? 0f,
                 _session?.Player.Vitals.Prana ?? 0f);
+
+            OfferStone();
         };
     }
 
@@ -2613,6 +2873,11 @@ public sealed class Game1 : Game
         _runSummary = result;
         if (result.Survived) _succession = null;
         SetMouseLook(false, forPanel: true);
+
+        // A descent is a supply run for the stall as much as for the player. Restocking here
+        // is also what keeps a death from being unrecoverable: half the pack is gone, and the
+        // shelf that could replace it has to have something on it.
+        _shop?.Restock();
 
         _coach.Teach(result.Survived ? Lessons.Banked : Lessons.Died,
             Lessons.TextOf(result.Survived ? Lessons.Banked : Lessons.Died));
@@ -2751,6 +3016,34 @@ public sealed class Game1 : Game
         }
     }
 
+    /// <summary>Roughly a pace. Shorter crouching, longer at a sprint.</summary>
+    private const float StrideMetres = 1.9f;
+
+    /// <summary>
+    /// Advance the stride by how far the body actually moved, and step when it comes due.
+    ///
+    /// Deliberately silent outside the world scene, and silent while airborne — a player who
+    /// jumps should not be taking paces in mid-air, and that is exactly what a distance-based
+    /// pacer does if nobody stops it.
+    /// </summary>
+    private void Stride(float metres, KeyboardState keyboard)
+    {
+        if (_screen != GameScreen.WorldScene || !_grounded) return;
+
+        _stride += metres;
+
+        var sprinting = keyboard.IsKeyDown(Keys.LeftShift);
+        var length = StrideMetres * (_crouching ? 0.72f : sprinting ? 1.25f : 1f);
+        if (_stride < length) return;
+
+        _stride = 0f;
+
+        // Quiet, and quieter still when crouching: the sneak is a promise the audio has to
+        // keep, or the stealth read is a lie the moment anybody has headphones on.
+        _sfx?.Play(Sfx.Step, sprinting ? 0.55f : 0.3f,
+            volumeScale: _crouching ? 0.28f : 0.5f);
+    }
+
     private void UpdateCamera(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         var seconds = StepSeconds(gameTime);
@@ -2801,6 +3094,10 @@ public sealed class Game1 : Game
         _verticalOffset = MathF.Max(0f, _verticalOffset + _verticalVelocity * seconds);
         if (_verticalOffset <= 0.0001f)
         {
+            // Only on the frame the ground is reached, not every frame spent standing on it.
+            if (!_grounded && _screen == GameScreen.WorldScene)
+                _sfx?.Play(Sfx.Land, 0.5f, volumeScale: 0.8f);
+
             _verticalOffset = 0f;
             _verticalVelocity = 0f;
             _grounded = true;
@@ -2820,12 +3117,16 @@ public sealed class Game1 : Game
                 var current = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
                 var resolved = _world.Move(current,
                     new WorldPoint(delta.X, 0f, delta.Z), PlayerCollisionRadius);
+
+                var moved = new Vector2(resolved.X - current.X, resolved.Z - current.Z).Length();
                 _cameraPosition = new Vector3(resolved.X, nextEyeY + _verticalOffset, resolved.Z);
+                Stride(moved, keyboard);
             }
             else
             {
                 _cameraPosition = new Vector3(_cameraPosition.X + delta.X,
                     nextEyeY + _verticalOffset, _cameraPosition.Z + delta.Z);
+                Stride(new Vector2(delta.X, delta.Z).Length(), keyboard);
             }
         }
         else
@@ -2836,7 +3137,20 @@ public sealed class Game1 : Game
 
     private void UpdateCameraMatrices()
     {
-        _view = Matrix.CreateLookAt(_cameraPosition, _cameraPosition + Forward, Vector3.Up);
+        var (yaw, pitch) = ShakeOffset();
+
+        // Built from the shaken angles directly rather than from Forward, so the offset lives
+        // only in this matrix and nothing downstream — aim, movement, the weapon — sees it.
+        var shakenPitch = MathHelper.Clamp(_cameraPitch + pitch, -PitchLimit, PitchLimit);
+        var shakenYaw = _cameraYaw + yaw;
+
+        // The same transform the Forward property uses, so the shaken view and the unshaken
+        // aim cannot disagree about which way is which.
+        var forward = Vector3.Transform(
+            Vector3.Forward,
+            Matrix.CreateRotationX(shakenPitch) * Matrix.CreateRotationY(-shakenYaw));
+
+        _view = Matrix.CreateLookAt(_cameraPosition, _cameraPosition + forward, Vector3.Up);
     }
 
     /// <summary>
@@ -3169,6 +3483,7 @@ public sealed class Game1 : Game
             _recorder.Record(PlayEventKind.ItemBought, item.Name, item.Price, 0f,
                 _session.Player.Vitals.Health, _session.Player.Vitals.Prana, item.Kind);
             _session.ShowToast($"Bought {item.Name}.");
+            _sfx?.Play(Sfx.Coin, 0.55f);
         }
         else
         {
@@ -3322,38 +3637,93 @@ public sealed class Game1 : Game
             new Vector2(98, 610), 14, new Color(163, 191, 194));
         if (!string.IsNullOrWhiteSpace(_menuStatus))
             TextFit(_menuStatus, new Vector2(592, 542), 520f, 14, new Color(228, 128, 118));
-        if (_showSettings) DrawSettings();
+        if (_showSettings) _overlay.DrawSettings(BuildOverlayState());
         EndUi();
     }
 
-    private void DrawSettings()
+    /// <summary>The volume row's value, or why there isn't one.</summary>
+    private string SoundVolumeLine()
     {
-        Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 214));
-        var panel = new Rectangle(260, 92, 760, 536);
-        DrawPanel(panel, new Color(7, 14, 21, 248), new Color(91, 146, 159));
-        Text("SETTINGS", new Vector2(panel.X + 32, panel.Y + 28), 28, Color.White);
-        Text("Display, interface and current bindings", new Vector2(panel.X + 34, panel.Y + 70), 15,
-            new Color(163, 191, 194));
+        if (_sfx is null || !_sfx.IsAvailable) return "unavailable on this machine";
+        return _sfx.Volume <= 0f ? "off" : $"{_sfx.Volume * 100f:0}%";
+    }
 
-        var options = new[]
-        {
-            $"Display mode     {(_borderlessFullscreen ? "Borderless fullscreen" : "Windowed 1280x720")}",
-            $"UI scale          {_uiScalePreference:0.0}x",
-            "Bindings          WASD move | E interact | J journal | I character",
-            SettingsTelemetryLine()
-        };
-        for (var index = 0; index < options.Length; index++)
-        {
-            var selected = index == _settingsSelection;
-            var row = SettingsRowBounds(index);
-            DrawPanel(row, selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
-            TextFit(options[index], new Vector2(row.X + 16, row.Y + 10), row.Width - 32, 16,
-                selected ? Color.White : new Color(203, 216, 214));
-        }
+    /// <summary>
+    /// Copies the live session into the small set of values the world HUD presents.
+    ///
+    /// Keeping this snapshot at the game/render boundary means HudRenderer never needs to
+    /// know about save files, quest services, or the rest of Game1's orchestration state.
+    /// </summary>
+    private WorldHudState BuildWorldHudState()
+    {
+        var detection = _session?.Player.Detection;
+        var objective = _session?.Player.Objective;
+        var vitals = _session?.Player.Vitals;
+        var feedback = _encounter?.Feedback;
 
-        Text("Up / Down select   Left / Right change UI scale   Enter toggle display   Esc close",
-            new Vector2(panel.X + 32, panel.Bottom - 38), 13, new Color(163, 191, 194));
+        var health = vitals is null
+            ? default
+            : new VitalBarState(vitals.Health, vitals.MaxHealth, _healthPulse);
+        var prana = vitals is null
+            ? default
+            : new VitalBarState(vitals.Prana, vitals.MaxPrana, _pranaPulse);
+        var stamina = vitals is null
+            ? default
+            : new VitalBarState(vitals.Stamina, vitals.MaxStamina);
+
+        var activeObjective = objective is { HasObjective: true } objectiveValue
+            ? objectiveValue
+            : null;
+        var objectiveTitle = activeObjective?.Title;
+        var objectiveDirections = activeObjective?.Directions ?? string.Empty;
+        var objectiveBearing = activeObjective is null || _session is null
+            ? string.Empty
+            : activeObjective.BearingLine(_session.Position);
+
+        return new WorldHudState(
+            HasSession: _session is not null,
+            IsCrouching: detection?.IsCrouching == true,
+            Awareness: detection?.Awareness ?? AwarenessLevel.Unaware,
+            Suspicion: detection?.Suspicion ?? 0f,
+            DamageFlash: _encounter is { DamageFlash: > 0f } encounter
+                ? encounter.DamageFlash / Encounter.DamageFlashSeconds
+                : 0f,
+            HitMarker: feedback?.HitMarker ?? 0f,
+            KillMarker: feedback?.KillMarker ?? 0f,
+            DamageDirections: feedback?.Directions.ToArray() ?? Array.Empty<DamageDirection>(),
+            CastBanner: feedback?.CastBanner ?? 0f,
+            CastTint: feedback?.CastTint ?? Color.Transparent,
+            CastColour: feedback?.CastColour ?? Color.White,
+            CastLine: feedback?.CastLine ?? string.Empty,
+            LocationCaption: LocationCaption(),
+            ObjectiveTitle: objectiveTitle,
+            ObjectiveDirections: objectiveDirections,
+            ObjectiveBearing: objectiveBearing,
+            Health: health,
+            Prana: prana,
+            Stamina: stamina);
+    }
+
+    /// <summary>Copies modal-screen state into the renderer-facing overlay snapshot.</summary>
+    private OverlayState BuildOverlayState()
+    {
+        var activeRun = _run is { Run.IsActive: true } run ? run.Run : null;
+        return new OverlayState(
+            InRun: activeRun is not null,
+            RoomsCleared: activeRun?.RoomsCleared ?? 0,
+            PendingStones: activeRun?.Pending ?? 0,
+            PauseItems: PauseItems,
+            PauseSelection: _pauseSelection,
+            SettingsOptions: new[]
+            {
+                $"Display mode     {(_borderlessFullscreen ? "Borderless fullscreen" : "Windowed 1280x720")}",
+                $"UI scale          {_uiScalePreference:0.0}x",
+                $"Sound             {SoundVolumeLine()}",
+                "Bindings          WASD move | E interact | J journal | I character",
+                SettingsTelemetryLine()
+            },
+            SettingsSelection: _settingsSelection,
+            RecordingDirectory: PlayRecorder.Directory);
     }
 
     private void DrawWorldScene()
@@ -3393,46 +3763,47 @@ public sealed class Game1 : Game
         // A full-screen panel owns the screen. Leaving the combat HUD drawing underneath it
         // was most of why testers called the inventory cluttered.
         var panelOpen = _showHelp || _showJournal || _showCharacter || _showShop;
+        var hudState = BuildWorldHudState();
 
         if (!panelOpen)
         {
             DrawWeapon();
-            DrawDamageFlash();
+            _hud.DrawDamageFlash(hudState);
             // Both of these report on a system with nothing to report: no live world places
             // a watcher, so the awareness meter has read UNAWARE in every screenshot ever
             // taken of this game. Crouching still works; it just no longer pretends.
-            if (ParkedFeatures.Sneaking) DrawSneakOverlay();
+            if (ParkedFeatures.Sneaking) _hud.DrawSneakOverlay(hudState);
             DrawThreatArrows();
             DrawFloatingNumbers();
-            DrawCrosshair();
-            DrawHitMarker();
-            DrawDamageDirections();
+            _hud.DrawCrosshair(hudState);
+            _hud.DrawHitMarker(hudState);
+            _hud.DrawDamageDirections(hudState);
             DrawSpellBar();
-            DrawCastBanner();
+            _hud.DrawCastBanner(hudState);
             DrawSurfaceSigns();
             DrawCoach();
             DrawCampDecision();
             DrawDoorPrompt();
             DrawRunLedger();
-            DrawLocationBanner();
-            if (ParkedFeatures.Sneaking) DrawAwareness();
-            DrawEnemyHealth();
-            DrawObjective();
-            DrawVitals();
-            DrawStatusStrip();
+            _hud.DrawLocationBanner(hudState);
+            if (ParkedFeatures.Sneaking) _hud.DrawAwareness(hudState);
+            DrawEnemyNameplates();
+            _hud.DrawObjective(hudState);
+            _hud.DrawVitals(hudState);
+            _hud.DrawStatusStrip(_session, _framesPerSecond);
         }
 
-        DrawToasts();
+        _hud.DrawToasts(_session);
         DrawContentErrors();
 
-        if (_showHelp) DrawHelpOverlay();
+        if (_showHelp) _overlay.DrawHelpOverlay(BuildOverlayState());
         if (_dialogueOpen) DrawDialogue();
         if (_showJournal) DrawJournal();
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
         if (_campTraderOpen) DrawCampTrader();
         if (_choosingDepth) DrawDepthChoice();
-        if (_paused && _runSummary is null) DrawPause();
+        if (_paused && _runSummary is null) _overlay.DrawPause(BuildOverlayState());
         if (_runSummary is { } summary) DrawRunSummary(summary);
 
         EndUi();
@@ -3528,57 +3899,6 @@ public sealed class Game1 : Game
         Text($"{run.Pending}", new Vector2(panel.Right - 44, panel.Y + 8), 18, Color.White);
         Text($"room {run.RoomsCleared}  ·  {run.Pending * SoulCrystals.LesserBasePrice} gold",
             new Vector2(panel.X + 14, panel.Y + 34), 12, new Color(150, 162, 170));
-    }
-
-    /// <summary>What the descent was worth, once it is over either way.</summary>
-    /// <summary>
-    /// The pause screen.
-    ///
-    /// It exists because Escape used to go straight to the main menu and take the descent with
-    /// it. What is at stake is spelled out here rather than assumed: a player deciding whether
-    /// to stop should be able to see what stopping costs.
-    /// </summary>
-    private void DrawPause()
-    {
-        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 214),
-            new Color(3, 6, 10, 0));
-
-        var inRun = _run is { Run.IsActive: true };
-        var panel = new Rectangle(400, 196, 480, inRun ? 332 : 268);
-        DrawPanel(panel, new Color(6, 12, 19, 246), new Color(151, 206, 210));
-
-        TextCentred("PAUSED", panel.Center.X, panel.Y + 26f, 24, new Color(214, 226, 226));
-
-        var top = panel.Y + 78f;
-        if (inRun && _run is not null)
-        {
-            var run = _run.Run;
-            TextCentred($"{run.RoomsCleared} rooms cleared  ·  {run.Pending} stones at risk",
-                panel.Center.X, panel.Y + 62f, 14, new Color(151, 206, 210));
-            TextCentred("Setting it aside keeps all of it. Giving up keeps none.",
-                panel.Center.X, panel.Y + 84f, 13, new Color(150, 162, 170));
-            top = panel.Y + 118f;
-        }
-
-        var items = PauseItems;
-        for (var index = 0; index < items.Length; index++)
-        {
-            var bounds = PauseItemBounds(index);
-            var selected = index == _pauseSelection;
-            var giveUp = items[index].StartsWith("Give up", StringComparison.Ordinal);
-
-            DrawPanel(bounds,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected
-                    ? giveUp ? new Color(214, 118, 96) : new Color(224, 181, 88)
-                    : new Color(54, 82, 91));
-
-            TextCentred(items[index], bounds.Center.X, bounds.Y + 10f, 16,
-                selected ? Color.White : new Color(192, 207, 205));
-        }
-
-        TextCentred("Click or arrows select      Enter confirm      Esc resume",
-            panel.Center.X, panel.Bottom - 30f, 13, new Color(140, 156, 164));
     }
 
     /// <summary>
@@ -3760,7 +4080,7 @@ public sealed class Game1 : Game
 
         var button = SummaryButtonBounds();
         var hovered = button.Contains(
-            (int)LogicalMouse(Mouse.GetState()).X, (int)LogicalMouse(Mouse.GetState()).Y);
+            (int)LogicalMouse(_input.CurrentMouse).X, (int)LogicalMouse(_input.CurrentMouse).Y);
 
         DrawPanel(button,
             hovered ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
@@ -4118,6 +4438,7 @@ public sealed class Game1 : Game
         Text($"Jiva stones drawn: {vitals.Channeled}",
             new Vector2(leftX, top + 182), 15, new Color(174, 188, 186));
 
+        DrawStoneSlots(player, leftX, top + 224);
         DrawEquippedSlots(player);
         DrawPack(player);
 
@@ -4137,8 +4458,126 @@ public sealed class Game1 : Game
             skillY += 37;
         }
 
-        Text("Arrows or hover to choose      Enter to use or equip      I / K / Esc close",
+        Text("Arrows or hover to choose      Enter to use or equip      1-6 socket a stone      I / K / Esc close",
             new Vector2(panel.X + 30, panel.Bottom - 34), 13, new Color(163, 191, 194));
+    }
+
+    /// <summary>
+    /// The sockets and whatever the mountain has given up this run.
+    ///
+    /// Put on the character screen rather than in its own window because it is read mid-run,
+    /// between rooms, with a decision waiting at a door — and a second screen to open is a
+    /// second reason not to bother. Socketing is number keys for the same reason: it has to be
+    /// doable in the two seconds a player is willing to spend on it.
+    /// </summary>
+    private void DrawStoneSlots(PlayerCharacter player, int x, int y)
+    {
+        var stones = player.Stones;
+
+        Text("STONES", new Vector2(x, y), 13, new Color(151, 206, 210));
+
+        var capacity = stones.Capacity;
+        if (capacity == 0)
+        {
+            Text("Nothing you hold has a socket.", new Vector2(x, y + 28), 14,
+                new Color(150, 160, 162));
+            return;
+        }
+
+        // Sockets as a row of cells, filled or empty, so the number of them is countable at a
+        // glance rather than being a sentence the player has to read.
+        for (var slot = 0; slot < capacity; slot++)
+        {
+            var cell = new Rectangle(x + slot * 46, y + 26, 40, 40);
+            var filled = slot < stones.Socketed.Count;
+
+            DrawPanel(cell,
+                filled ? new Color(52, 34, 74, 240) : new Color(14, 22, 30, 220),
+                filled ? new Color(178, 132, 226) : new Color(58, 78, 88));
+
+            if (!filled) continue;
+
+            var stone = StoneCatalog.Find(stones.Socketed[slot]);
+            if (stone is null) continue;
+
+            _spriteBatch.Draw(ItemSprites.JivaCrystal(GraphicsDevice),
+                new Rectangle(cell.X + 4, cell.Y + 4, 32, 32), Color.White);
+        }
+
+        var listY = y + 76;
+
+        if (stones.Socketed.Count > 0)
+        {
+            foreach (var id in stones.Socketed)
+            {
+                var stone = StoneCatalog.Find(id);
+                if (stone is null) continue;
+
+                TextFit($"{stone.DisplayName} — {stone.Description}",
+                    new Vector2(x, listY), 430f, 13, new Color(214, 184, 244));
+                listY += 22;
+            }
+
+            listY += 6;
+        }
+
+        if (stones.Loose.Count == 0)
+        {
+            Text(stones.Socketed.Count > 0 ? "Nothing else found." : "Nothing found yet.",
+                new Vector2(x, listY), 13, new Color(150, 160, 162));
+            return;
+        }
+
+        Text("FOUND — press the number to socket", new Vector2(x, listY), 12,
+            new Color(196, 170, 120));
+        listY += 22;
+
+        for (var index = 0; index < stones.Loose.Count && index < 6; index++)
+        {
+            var stone = StoneCatalog.Find(stones.Loose[index]);
+            if (stone is null) continue;
+
+            TextFit($"{index + 1}.  {stone.DisplayName} — {stone.Description}",
+                new Vector2(x, listY), 430f, 13,
+                stones.HasRoom ? new Color(226, 220, 208) : new Color(140, 132, 126));
+            listY += 22;
+        }
+
+        if (!stones.HasRoom)
+            Text("Every socket is full. Press 0 to empty the last one.",
+                new Vector2(x, listY + 4), 12, new Color(214, 150, 120));
+    }
+
+    /// <summary>Number keys socket a found stone; zero takes the last one back out.</summary>
+    private void UpdateStoneInput(KeyboardState keyboard)
+    {
+        if (_session is null) return;
+
+        var stones = _session.Player.Stones;
+
+        if (Pressed(keyboard, Keys.D0) && stones.Socketed.Count > 0)
+        {
+            if (stones.Unsocket(stones.Socketed[^1])) _sfx?.Play(Sfx.Coin, 0.3f);
+            return;
+        }
+
+        for (var index = 0; index < 6 && index < stones.Loose.Count; index++)
+        {
+            if (!Pressed(keyboard, Keys.D1 + index)) continue;
+
+            var id = stones.Loose[index];
+            if (stones.Socket(id))
+            {
+                _session.ShowToast($"{StoneCatalog.Find(id)?.DisplayName} socketed.");
+                _sfx?.Play(Sfx.Chime, 0.35f);
+            }
+            else
+            {
+                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            }
+
+            return;
+        }
     }
 
     private void DrawShop()
@@ -4241,6 +4680,14 @@ public sealed class Game1 : Game
             var tint = _encounter.TintOf(enemy);
 
             // A chilled enemy is visibly cold, so frost reads as more than a slower walk.
+            // Burning had no tint at all, which was a gap for Flame long before Cinder
+            // existed: a spell whose whole identity is "lowest burst, highest total once it
+            // burns" was invisible for the entire part that matters.
+            if (enemy.IsBurning)
+                tint = new Color(Math.Min(255, tint.R / 2 + 160), tint.G / 2 + 78, tint.B / 3);
+
+            // Chill wins when both apply. Two tints averaged is a third colour that means
+            // neither, and frost is the one the player has to react to.
             if (enemy.IsChilled) tint = new Color(tint.R / 2 + 90, tint.G / 2 + 110, tint.B);
 
             _billboards.Draw(SpriteFor(enemy), feet, _encounter.DrawHeightOf(enemy),
@@ -4271,7 +4718,7 @@ public sealed class Game1 : Game
 
         if (_captureSwing is { } progress)
         {
-            _weaponView.Swing(weapon);
+            _weaponView.Swing(weapon, _session.Player.Combat.WeaponSweeps);
             _weaponView.Update(progress, moving: false, guarding: false);
         }
 
@@ -4281,8 +4728,32 @@ public sealed class Game1 : Game
             _weaponView.Update(castProgress, moving: false, guarding: false);
         }
 
-        var texture = WeaponSprites.Get(GraphicsDevice, weapon);
+        // The hand replaces the weapon while a spell is going off. The player's hand is the
+        // only part of them they ever see, and showing the sword through a cast made the most
+        // distinctive thing a mage does look like the most ordinary thing a warrior does.
+        var texture = _weaponView.IsCasting
+            ? WeaponSprites.CastingHand(GraphicsDevice)
+            : WeaponSprites.Get(GraphicsDevice, weapon);
+
         var pose = _weaponView.Pose();
+
+        // The off hand, behind the weapon, and only while it is actually raised. A shield
+        // painted on screen at all times is furniture; one that appears when the guard goes up
+        // is feedback.
+        if (_session.Player.Equipment.Shield is { } shield && _session.Player.Combat.IsBlocking)
+        {
+            var shieldTexture = WeaponSprites.Shield(GraphicsDevice, shield);
+            _spriteBatch.Draw(
+                shieldTexture,
+                new Vector2(LogicalWidth * 0.22f, LogicalHeight + 44f),
+                null,
+                Color.White,
+                -0.12f,
+                new Vector2(shieldTexture.Width / 2f, shieldTexture.Height),
+                pose.Scale * 1.55f,
+                SpriteEffects.None,
+                0f);
+        }
 
         // The grip, not the corner: rotating about the hand is what makes it swing rather
         // than spin.
@@ -4714,78 +5185,83 @@ public sealed class Game1 : Game
         EndUi();
     }
 
-    /// <summary>A red vignette while the player is being hurt.</summary>
-    private void DrawDamageFlash()
-    {
-        if (_encounter is null || _encounter.DamageFlash <= 0f) return;
-
-        var strength = _encounter.DamageFlash / Encounter.DamageFlashSeconds;
-        var tint = new Color(150, 24, 28) * (strength * 0.45f);
-        const int band = 90;
-
-        Fill(new Rectangle(0, 0, LogicalWidth, band), tint);
-        Fill(new Rectangle(0, LogicalHeight - band, LogicalWidth, band), tint);
-        Fill(new Rectangle(0, 0, band, LogicalHeight), tint);
-        Fill(new Rectangle(LogicalWidth - band, 0, band, LogicalHeight), tint);
-    }
-
     /// <summary>
-    /// Skyrim-style stealth feedback: the eye replaces the ordinary crosshair and a quiet
-    /// vignette makes the stance readable without taking the player's eyes off the world.
-    /// The awareness panel still supplies the exact state and suspicion amount.
+    /// A nameplate over each enemy: name, level, health, and whatever is currently wrong with it.
+    ///
+    /// This used to be one bar pinned to the middle of the player's screen, showing only
+    /// whatever the crosshair was over. Moving it onto the enemies themselves does three things
+    /// the centred bar could not: it says which of five things in a room is hurt, it stops the
+    /// interface sitting between the player and the fight, and it puts the information where
+    /// the player is already looking.
+    ///
+    /// Drawn in the UI pass rather than as a billboard, so the text stays crisp at any distance
+    /// and is never clipped into a wall.
     /// </summary>
-    private void DrawSneakOverlay()
+    private void DrawEnemyNameplates()
     {
-        if (_session?.Player.Detection.IsCrouching != true) return;
+        if (_encounter is null || _encounter.Enemies.Count == 0) return;
 
-        var awareness = _session.Player.Detection.Awareness;
-        var edge = awareness switch
+        // Far ones first, so a nearer plate overlaps a further one rather than the reverse.
+        var sorted = new List<Enemy>(_encounter.Enemies);
+        sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
+
+        foreach (var enemy in sorted)
         {
-            AwarenessLevel.Alerted => new Color(108, 30, 28),
-            AwarenessLevel.Suspicious => new Color(104, 76, 31),
-            _ => new Color(13, 25, 32)
-        };
+            if (!enemy.IsAlive) continue;
 
-        // Two bands approximate a soft vignette using the existing 1x1 UI texture. The
-        // centre remains clear so sneaking never hides the thing being tested.
-        Fill(new Rectangle(0, 0, LogicalWidth, 30), edge * 0.66f);
-        Fill(new Rectangle(0, LogicalHeight - 30, LogicalWidth, 30), edge * 0.66f);
-        Fill(new Rectangle(0, 0, 42, LogicalHeight), edge * 0.54f);
-        Fill(new Rectangle(LogicalWidth - 42, 0, 42, LogicalHeight), edge * 0.54f);
-        Fill(new Rectangle(0, 30, 16, LogicalHeight - 60), edge * 0.28f);
-        Fill(new Rectangle(LogicalWidth - 16, 30, 16, LogicalHeight - 60), edge * 0.28f);
+            var distance = DistanceToCamera(enemy);
+            if (distance > NameplateRange) continue;
+
+            var feet = _encounter.DrawPositionOf(enemy);
+            var head = feet + Vector3.Up * (_encounter.DrawHeightOf(enemy) + 0.34f);
+            if (!TryProjectToScreen(head, out var anchor)) continue;
+
+            // Shrink with distance, but never past readable. A plate that scales all the way
+            // down is unreadable exactly when a player most wants to know what is coming.
+            var scale = MathHelper.Clamp(1.25f - distance / NameplateRange, 0.62f, 1f);
+            DrawNameplate(enemy, anchor, scale, focused: ReferenceEquals(_encounter.Focused, enemy));
+        }
     }
 
-    /// <summary>
-    /// The health of whatever the crosshair is over. Shown only while something is actually
-    /// in reach, so it doubles as the answer to "will this swing connect?".
-    /// </summary>
-    private void DrawEnemyHealth()
-    {
-        if (_encounter?.Focused is not { } enemy) return;
+    /// <summary>Past this, a nameplate is clutter rather than information.</summary>
+    private const float NameplateRange = 26f;
 
-        var bar = new Rectangle(LogicalWidth / 2 - 150, 96, 300, 24);
+    private void DrawNameplate(Enemy enemy, Vector2 anchor, float scale, bool focused)
+    {
+        var width = (int)(150 * scale);
+        var barHeight = (int)(7 * scale);
+        var nameSize = 13f * scale;
+
+        var bar = new Rectangle((int)(anchor.X - width / 2f), (int)anchor.Y, width, barHeight);
         var fraction = MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f);
 
-        Fill(bar, new Color(16, 20, 24, 226));
+        // Name and level above the bar; the level is the only warning a player gets that this
+        // room is deeper than the last one.
+        var label = enemy.Archetype.Level > 1
+            ? $"{enemy.DisplayName}  ·  {enemy.Archetype.Level}"
+            : enemy.DisplayName;
+
+        TextCentred(label, anchor.X, bar.Y - nameSize - 3f * scale, nameSize,
+            focused ? Color.White : new Color(214, 206, 194));
+
+        Fill(bar, new Color(12, 10, 12, 220));
         Fill(new Rectangle(bar.X, bar.Y, (int)(bar.Width * fraction), bar.Height),
-            new Color(178, 62, 66));
-        Border(bar, new Color(0, 0, 0, 140));
+            enemy.IsVulnerable ? new Color(232, 186, 96) : new Color(178, 62, 66));
 
-        Text(enemy.DisplayName, new Vector2(bar.X + 10, bar.Y + 4), 14, Color.White);
-        TextRight($"{enemy.Health:0} / {enemy.MaxHealth:0}", bar.Right - 10, bar.Y + 4, 14,
-            Color.White);
-
-        if (_encounter.IsLunging(enemy))
-            TextCentred("striking", LogicalWidth / 2f, bar.Y - 26f, 15, new Color(236, 148, 122));
+        // The focused enemy gets a brighter rule, so "will this swing connect?" is still
+        // answered — that was the one thing the centred bar was genuinely good at.
+        Border(bar, focused ? new Color(238, 226, 200, 210) : new Color(0, 0, 0, 150));
 
         var status = enemy.IsStaggered ? "staggered"
             : enemy.IsBurning ? "burning"
             : enemy.IsChilled ? "chilled"
+            : _encounter is not null && _encounter.IsLunging(enemy) ? "striking"
             : string.Empty;
 
-        if (status.Length > 0)
-            TextCentred(status, LogicalWidth / 2f, bar.Bottom + 6, 13, new Color(232, 194, 116));
+        if (status.Length == 0) return;
+
+        TextCentred(status, anchor.X, bar.Bottom + 2f * scale, 12f * scale,
+            status == "striking" ? new Color(236, 148, 122) : new Color(232, 194, 116));
     }
 
     /// <summary>Where a swing or a spell will go. Small, and always centred.</summary>
@@ -4804,7 +5280,7 @@ public sealed class Game1 : Game
         // machine rather than of the game.
         if (_screenshotPath is not null) return;
 
-        var pointer = LogicalMouse(Mouse.GetState());
+        var pointer = LogicalMouse(_input.CurrentMouse);
         if (pointer.X < -8f || pointer.Y < -8f
             || pointer.X > LogicalWidth + 8f || pointer.Y > LogicalHeight + 8f) return;
 
@@ -4826,78 +5302,6 @@ public sealed class Game1 : Game
             if (width <= 0) continue;
 
             Fill(new Rectangle(x, y + row, width, 1), Color.White);
-        }
-    }
-
-    private void DrawCrosshair()
-    {
-        const int cx = LogicalWidth / 2;
-        const int cy = LogicalHeight / 2;
-
-        if (_session?.Player.Detection.IsCrouching == true)
-        {
-            var colour = _session.Player.Detection.Awareness switch
-            {
-                AwarenessLevel.Alerted => new Color(238, 91, 78, 240),
-                AwarenessLevel.Suspicious => new Color(239, 190, 91, 240),
-                _ => new Color(220, 235, 226, 240)
-            };
-            DrawSneakEye(cx, cy, colour);
-            TextCentred("SNEAK", cx, cy + 22, 11, colour);
-            return;
-        }
-
-        var shadow = new Color(0, 0, 0, 165);
-        var ink = new Color(244, 248, 246, 225);
-
-        // Drawn twice: a dark pass one pixel out, then the light pass. A single-colour
-        // crosshair disappears whenever the scenery happens to match it.
-        foreach (var (colour, grow) in new[] { (shadow, 1), (ink, 0) })
-        {
-            Fill(new Rectangle(cx - 10 - grow, cy - grow, 7 + grow * 2, 2 + grow * 2), colour);
-            Fill(new Rectangle(cx + 3 - grow, cy - grow, 7 + grow * 2, 2 + grow * 2), colour);
-            Fill(new Rectangle(cx - grow, cy - 10 - grow, 2 + grow * 2, 7 + grow * 2), colour);
-            Fill(new Rectangle(cx - grow, cy + 3 - grow, 2 + grow * 2, 7 + grow * 2), colour);
-        }
-    }
-
-    /// <summary>Where you are. Top-centre, out of the way of everything you look at.</summary>
-    /// <summary>
-    /// A tick on the crosshair the instant a blow lands.
-    ///
-    /// Playtesters could not tell a hit from a miss. This is the smallest possible answer:
-    /// four strokes that only appear when the domain says something was struck.
-    /// </summary>
-    private void DrawHitMarker()
-    {
-        if (_encounter is null) return;
-
-        var strength = MathF.Max(_encounter.Feedback.HitMarker, _encounter.Feedback.KillMarker);
-        if (strength <= 0f) return;
-
-        const int cx = LogicalWidth / 2;
-        const int cy = LogicalHeight / 2;
-
-        // A kill reads gold; an ordinary hit reads white.
-        var colour = (_encounter.Feedback.KillMarker > 0f
-            ? new Color(255, 214, 122)
-            : new Color(255, 252, 246)) * strength;
-
-        // Spread outward as it fades, so the marker feels like an impact.
-        var spread = (int)(6f + (1f - strength) * 7f);
-        var length = 7;
-
-        for (var i = 0; i < 4; i++)
-        {
-            var dx = i < 2 ? (i == 0 ? -1 : 1) : 0;
-            var dz = i < 2 ? 0 : (i == 2 ? -1 : 1);
-
-            for (var step = 0; step < length; step++)
-            {
-                var x = cx + dx * (spread + step);
-                var y = cy + dz * (spread + step);
-                Fill(new Rectangle(x - 1, y - 1, 2, 2), colour);
-            }
         }
     }
 
@@ -4935,39 +5339,6 @@ public sealed class Game1 : Game
             TextCentred(number.Text, position.X + 2f, position.Y + 2f, size,
                 new Color(0, 0, 0, 190) * fade);
             TextCentred(number.Text, position.X, position.Y, size, number.Colour * fade);
-        }
-    }
-
-    /// <summary>
-    /// An arc pointing at whatever just hit the player.
-    ///
-    /// Being hit from behind was previously indistinguishable from being hit from in front:
-    /// the screen reddened and that was all.
-    /// </summary>
-    private void DrawDamageDirections()
-    {
-        if (_encounter is null) return;
-
-        const float centreX = LogicalWidth / 2f;
-        const float centreY = LogicalHeight / 2f;
-        const float radius = 132f;
-
-        foreach (var direction in _encounter.Feedback.Directions)
-        {
-            var fade = direction.Duration <= 0f ? 0f : direction.Remaining / direction.Duration;
-            var colour = new Color(232, 96, 88) * (fade * 0.9f);
-
-            // Screen space: bearing zero is up, positive is clockwise.
-            for (var offset = -0.34f; offset <= 0.34f; offset += 0.02f)
-            {
-                var angle = direction.Bearing + offset;
-                var thickness = 5f - MathF.Abs(offset) * 8f;
-                var x = centreX + MathF.Sin(angle) * radius;
-                var y = centreY - MathF.Cos(angle) * radius;
-
-                Fill(new Rectangle((int)x - 2, (int)y - 2, (int)MathF.Max(2f, thickness),
-                    (int)MathF.Max(2f, thickness)), colour);
-            }
         }
     }
 
@@ -5039,6 +5410,54 @@ public sealed class Game1 : Game
         if (caster.LightActive)
             TextCentred($"Emberlight {caster.LightRemaining:0}s",
                 LogicalWidth / 2f, panel.Y - 24f, 13, new Color(232, 194, 116));
+
+        DrawSocketedStones(panel);
+    }
+
+    /// <summary>
+    /// What is socketed, on the HUD, all the time.
+    ///
+    /// Without this the player has to remember. A stone changes how a swing behaves for the
+    /// rest of a descent, and the only place that was written down was a screen they have to
+    /// stop and open — so the effect was real and the knowledge of it was not, which is the
+    /// same as the effect not existing.
+    ///
+    /// Beside the readied spell rather than in a corner, because it belongs with the other
+    /// answer to "what will happen when I press the button".
+    /// </summary>
+    private void DrawSocketedStones(Rectangle spellPanel)
+    {
+        if (_session is null) return;
+
+        var socketed = _session.Player.Stones.Socketed;
+        if (socketed.Count == 0) return;
+
+        const int Cell = 34;
+        var width = socketed.Count * (Cell + 4) + 12;
+        var panel = new Rectangle(spellPanel.Right + 12, spellPanel.Y + 8, width, Cell + 16);
+
+        DrawPanel(panel, new Color(14, 8, 22, 214), new Color(122, 88, 168));
+
+        for (var index = 0; index < socketed.Count; index++)
+        {
+            var stone = StoneCatalog.Find(socketed[index]);
+            if (stone is null) continue;
+
+            var cell = new Rectangle(panel.X + 8 + index * (Cell + 4), panel.Y + 8, Cell, Cell);
+            _spriteBatch.Draw(ItemSprites.JivaCrystal(GraphicsDevice), cell, Color.White);
+
+            // The name under the icon rather than a tooltip: a tooltip needs a pointer, and
+            // the pointer is being used to look around.
+            TextCentred(ShortNameOf(stone), cell.Center.X, cell.Bottom - 2f, 10,
+                new Color(214, 184, 244));
+        }
+    }
+
+    /// <summary>"Cinder Stone" is too long under a 34-pixel icon; "Cinder" is not.</summary>
+    private static string ShortNameOf(StoneDefinition stone)
+    {
+        var space = stone.DisplayName.IndexOf(' ');
+        return space > 0 ? stone.DisplayName[..space] : stone.DisplayName;
     }
 
     /// <summary>
@@ -5069,37 +5488,6 @@ public sealed class Game1 : Game
                 break;
         }
 
-    }
-
-    /// <summary>
-    /// What was just cast, and what it did.
-    ///
-    /// A brief tint in the element's colour makes the cast itself unmissable, and the line
-    /// underneath names the spell and its result, so a cast that found nothing is clearly a
-    /// miss rather than a spell that silently failed to fire.
-    /// </summary>
-    private void DrawCastBanner()
-    {
-        if (_encounter is null) return;
-
-        var strength = _encounter.Feedback.CastBanner;
-        if (strength <= 0f) return;
-
-        // The tint fades faster than the words, so it reads as the moment of casting.
-        var tintStrength = MathF.Max(0f, strength - 0.55f) / 0.45f;
-        if (tintStrength > 0f)
-        {
-            var tint = _encounter.Feedback.CastTint * (tintStrength * 0.2f);
-            const int band = 72;
-            Fill(new Rectangle(0, 0, LogicalWidth, band), tint);
-            Fill(new Rectangle(0, LogicalHeight - band, LogicalWidth, band), tint);
-            Fill(new Rectangle(0, 0, band, LogicalHeight), tint);
-            Fill(new Rectangle(LogicalWidth - band, 0, band, LogicalHeight), tint);
-        }
-
-        var fade = MathHelper.Clamp(strength * 1.6f, 0f, 1f);
-        TextCentred(_encounter.Feedback.CastLine, LogicalWidth / 2f, LogicalHeight / 2f + 118f,
-            19, _encounter.Feedback.CastColour * fade);
     }
 
     /// <summary>
@@ -5144,81 +5532,6 @@ public sealed class Game1 : Game
             TextFit(error, new Vector2(panel.X + 16, y), 648f, 13, new Color(240, 208, 202));
             y += 22f;
         }
-    }
-
-    private void DrawLocationBanner()
-    {
-        TextCentred(LocationCaption(), LogicalWidth / 2f, 24f, 15, new Color(196, 214, 214));
-    }
-
-    private void DrawAwareness()
-    {
-        if (_session is null) return;
-
-        var detection = _session.Player.Detection;
-        var panel = new Rectangle(LogicalWidth - 264, 24, 240, 48);
-        var colour = detection.Awareness switch
-        {
-            AwarenessLevel.Alerted => new Color(188, 65, 68),
-            AwarenessLevel.Suspicious => new Color(205, 157, 98),
-            _ => new Color(76, 101, 116)
-        };
-        DrawPanel(panel, new Color(6, 13, 20, 226), colour);
-        Text("AWARENESS", new Vector2(panel.X + 14, panel.Y + 8), 12, Color.White);
-        TextRight(detection.Awareness.ToString().ToUpperInvariant(), panel.Right - 14,
-            panel.Y + 8, 12, colour == new Color(76, 101, 116) ? new Color(180, 196, 194) : colour);
-        Fill(new Rectangle(panel.X + 14, panel.Y + 29, panel.Width - 28, 7), new Color(20, 27, 33));
-        Fill(new Rectangle(panel.X + 14, panel.Y + 29,
-            (int)((panel.Width - 28) * MathHelper.Clamp(detection.Suspicion, 0f, 1f)), 7), colour);
-    }
-
-    /// <summary>
-    /// The objective, with a live compass bearing generated from where the player actually
-    /// is — which is what replaces a marker.
-    /// </summary>
-    private void DrawObjective()
-    {
-        if (_session?.Player.Objective is not { HasObjective: true } objective) return;
-
-        var panel = new Rectangle(24, 24, 360, 116);
-        DrawPanel(panel, new Color(7, 15, 22, 226), new Color(182, 137, 71));
-
-        Text("OBJECTIVE", new Vector2(panel.X + 18, panel.Y + 14), 13, new Color(239, 196, 111));
-        TextFit(objective.Title!, new Vector2(panel.X + 18, panel.Y + 36), 324f, 20, Color.White);
-        TextFit(objective.Directions ?? string.Empty, new Vector2(panel.X + 18, panel.Y + 64),
-            324f, 15, new Color(206, 220, 212));
-
-        var bearing = objective.BearingLine(_session.Position);
-        if (bearing.Length > 0)
-            TextFit(bearing, new Vector2(panel.X + 18, panel.Y + 88), 324f, 15,
-                new Color(232, 194, 116));
-    }
-
-    /// <summary>
-    /// The player's real numbers, bottom-left where a HUD belongs.
-    ///
-    /// Labels sit *on* their bar rather than underneath it: the previous layout put an 11 px
-    /// caption in the gap between two bars, which read as belonging to the wrong one.
-    /// </summary>
-    private void DrawVitals()
-    {
-        if (_session is null) return;
-
-        var vitals = _session.Player.Vitals;
-        var panel = new Rectangle(24, LogicalHeight - 164, 344, 140);
-        DrawPanel(panel, new Color(6, 13, 20, 232), new Color(78, 128, 148));
-
-        var barX = panel.X + 18;
-        var barWidth = panel.Width - 36;
-
-        DrawVitalBar(new Rectangle(barX, panel.Y + 20, barWidth, 26), "HEALTH",
-            vitals.Health, vitals.MaxHealth, new Color(198, 68, 74), _healthPulse);
-
-        DrawVitalBar(new Rectangle(barX, panel.Y + 58, barWidth, 26), "PRANA",
-            vitals.Prana, vitals.MaxPrana, new Color(74, 134, 216), _pranaPulse);
-
-        DrawVitalBar(new Rectangle(barX, panel.Y + 96, barWidth, 26), "STAMINA",
-            vitals.Stamina, vitals.MaxStamina, new Color(98, 172, 106));
     }
 
     /// <summary>
@@ -5332,221 +5645,6 @@ public sealed class Game1 : Game
             verb == "—" ? new Color(142, 157, 157) : new Color(232, 194, 116));
     }
 
-    /// <summary>One labelled bar. The label and the value live inside it, vertically centred.</summary>
-    private void DrawVitalBar(Rectangle bounds, string label, float value, float max, Color colour,
-        float pulse = 0f)
-    {
-        var fraction = max <= 0f ? 0f : MathHelper.Clamp(value / max, 0f, 1f);
-
-        Fill(bounds, new Color(20, 27, 33));
-        Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * fraction), bounds.Height), colour);
-
-        // A bar that just changed says so. Using an item used to alter a number in the corner
-        // of the screen and nothing else, so it was easy to believe nothing had happened.
-        if (pulse > 0f)
-        {
-            Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * fraction), bounds.Height),
-                new Color(255, 255, 255) * (pulse * 0.42f));
-            Border(bounds, new Color(226, 240, 255) * pulse);
-            Border(new Rectangle(bounds.X - 2, bounds.Y - 2, bounds.Width + 4, bounds.Height + 4),
-                new Color(226, 240, 255) * (pulse * 0.7f));
-        }
-        else
-        {
-            Border(bounds, new Color(0, 0, 0, 110));
-        }
-
-        // A dark scrim behind the text keeps it legible over both the filled and empty halves.
-        Text(label, new Vector2(bounds.X + 10, bounds.Y + 5), 14, Color.White);
-
-        var readout = pulse > 0f
-            ? Color.Lerp(Color.White, new Color(198, 232, 255), pulse)
-            : Color.White;
-        TextRight($"{value:0} / {max:0}", bounds.Right - 10, bounds.Y + 5,
-            pulse > 0f ? 16 : 14, readout);
-    }
-
-    /// <summary>Domain events, rendered above the vitals. Newest last, fading as they expire.</summary>
-    private void DrawToasts()
-    {
-        if (_session is null || _session.Toasts.Count == 0) return;
-
-        var y = LogicalHeight - 196f - _session.Toasts.Count * 28f;
-        foreach (var toast in _session.Toasts)
-        {
-            var alpha = MathHelper.Clamp(toast.Remaining, 0f, 1f);
-            TextCentred(toast.Message, LogicalWidth / 2f, y, 17, new Color(240, 230, 202) * alpha);
-            y += 28f;
-        }
-    }
-
-    /// <summary>Level, gold and the one key that opens the rest. Bottom-right, compact.</summary>
-    private void DrawStatusStrip()
-    {
-        if (_session is null) return;
-
-        var vitals = _session.Player.Vitals;
-        var panel = new Rectangle(LogicalWidth - 264, LogicalHeight - 88, 240, 64);
-        DrawPanel(panel, new Color(6, 13, 20, 226), new Color(76, 101, 116));
-
-        Text($"LEVEL {vitals.Level}", new Vector2(panel.X + 18, panel.Y + 12), 16, Color.White);
-        TextRight($"{vitals.Gold} gold", panel.Right - 18, panel.Y + 12, 16, new Color(228, 197, 122));
-        var combat = _session.Player.Combat;
-        Text(combat.ActiveWeapon.DisplayName, new Vector2(panel.X + 18, panel.Y + 38), 13,
-            combat.IsBlocking ? new Color(232, 194, 116) : new Color(203, 216, 214));
-        // Blank until the first averaging window closes: the counter used to show whatever
-        // the opening, texture-generating window computed, so a build running at 700 fps
-        // could report 4. A misleading diagnostic is worse than none.
-        TextRight(_framesPerSecond > 0f ? $"{_framesPerSecond:0} fps" : "— fps",
-            panel.Right - 18, panel.Y + 38, 13,
-            _framesPerSecond is > 0f and < 50f
-                ? new Color(228, 128, 118)
-                : new Color(146, 174, 178));
-    }
-
-    /// <summary>
-    /// The control list, on demand. It used to be a permanent full-width bar across the
-    /// bottom of the screen, which is developer scaffolding rather than a HUD.
-    /// </summary>
-    private void DrawHelpOverlay()
-    {
-        Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 7, 12, 200));
-
-        var panel = new Rectangle(300, 96, 680, 476);
-        DrawPanel(panel, new Color(7, 14, 21, 244), new Color(91, 146, 159));
-        TextCentred("CONTROLS", panel.X + panel.Width / 2f, panel.Y + 26, 24, Color.White);
-
-        // Grouped and in two columns, because the flat list had grown to twenty-three rows —
-        // which ran a hundred and twenty pixels past the bottom of its own panel, listed E and
-        // I twice in different words, and advertised a crouch key that does nothing while
-        // sneaking is parked. This is the first screen a confused player opens.
-        (string Heading, (string Key, string Action)[] Rows)[] sections =
-        {
-            ("MOVING", new[]
-            {
-                ("W A S D", "move"),
-                ("Mouse", "look"),
-                ("Arrow keys", "look, without the mouse"),
-                ("Shift", "sprint — spends stamina"),
-                ("Space", "jump")
-            }),
-            ("FIGHTING", new[]
-            {
-                ("Left click", "attack"),
-                ("Right click", "guard — one-handed only"),
-                ("Q", "cast the readied spell"),
-                ("4 5 6 7 8", "flame, rime, arc, mend, emberlight")
-            }),
-            ("THE WORLD", new[]
-            {
-                ("E", "talk, open, take"),
-                ("B", "trade with a merchant"),
-                ("I", "character, pack and skills"),
-                ("J", "journal")
-            }),
-            ("THE GAME", new[]
-            {
-                ("Esc", "close what is open, then the menu"),
-                ("M", "back to the menu"),
-                ("Tab", "release the mouse"),
-                ("F5 / F9", "save / load"),
-                ("F11", "windowed / fullscreen"),
-                ("F1", "close this")
-            })
-        };
-
-        // Whole sections are dealt to a column before moving to the next one. Splitting purely
-        // on line count orphaned a heading at the foot of the first column while its keys sat
-        // at the head of the second.
-        var total = sections.Sum(section => section.Rows.Length + 1);
-        var target = total / 2f;
-
-        var column = 0;
-        var placed = 0;
-        var line = 0;
-
-        foreach (var (heading, rows) in sections)
-        {
-            // Move on once this column holds its share, but never leave the second one empty.
-            if (column == 0 && placed > 0 && placed + (rows.Length + 1) / 2f > target)
-            {
-                column = 1;
-                line = 0;
-            }
-
-            var x = panel.X + 40f + column * 316f;
-            Text(heading, new Vector2(x, panel.Y + 82f + line * 30f), 13,
-                new Color(151, 206, 210));
-            line++;
-            placed++;
-
-            foreach (var (key, action) in rows)
-            {
-                var y = panel.Y + 76f + line * 30f;
-                Text(key, new Vector2(x, y), 16, new Color(232, 194, 116));
-                TextFit(action, new Vector2(x + 112f, y), 184f, 16, new Color(214, 226, 222));
-                line++;
-                placed++;
-            }
-        }
-
-        TextCentred($"This session is being recorded to {PlayRecorder.Directory}",
-            panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, new Color(140, 156, 164));
-    }
-
-    private void DrawGallery()
-    {
-        DrawWorldBase(new Color(56, 82, 100), new Color(52, 64, 70));
-
-        DrawModel("tree", new Vector3(-5f, 0f, -2f), 1.8f, 0.15f);
-        DrawModel("rock", new Vector3(-2.3f, 0f, -1.8f), 1.4f, 0.4f);
-        DrawModel("tent", new Vector3(1.2f, 0f, -2.2f), 1.7f, -0.3f);
-        DrawModel("bridge", new Vector3(4.3f, 0f, -1.5f), 1.6f, 0.5f);
-        DrawModel("campfire", new Vector3(-3.4f, 0f, 2.1f), 1.6f, 0f);
-        DrawModel("bush", new Vector3(0.2f, 0f, 2.2f), 1.6f, 0.3f);
-        DrawModel("cheeseBox", new Vector3(3.3f, 0.55f, 2.0f), 1.2f, -0.2f);
-
-        BeginUi();
-        DrawPanel(new Rectangle(24, 86, 374, 132), new Color(5, 10, 16, 220), new Color(78, 155, 185));
-        Text("Imported assets", new Vector2(44, 104), 22, Color.White);
-        Text("7 Kenney FBX models + 1 Poly Haven textured FBX", new Vector2(44, 139), 15, new Color(184, 214, 225));
-        Text("WASD move | Arrow keys look | 1/2/3 switch tests", new Vector2(44, 171), 14, new Color(130, 169, 185));
-        if (_assetErrors.Count > 0)
-        {
-            Text("Load issues: " + string.Join(", ", _assetErrors), new Vector2(44, 196), 12, Color.OrangeRed);
-        }
-        EndUi();
-    }
-
-    private void DrawPhotoScene(bool drawStudyOverlay)
-    {
-        DrawWorldBase(new Color(96, 121, 136), new Color(58, 70, 74));
-
-        DrawCube(new Vector3(0f, -0.35f, 0f), new Vector3(24f, 0.4f, 24f), new Color(104, 112, 96), 0f);
-        DrawCube(new Vector3(0f, 3.5f, -9f), new Vector3(22f, 7f, 0.3f), new Color(96, 110, 116), 0f);
-        DrawCube(new Vector3(-9f, 2.8f, 0f), new Vector3(0.3f, 5.6f, 18f), new Color(82, 98, 96), 0f);
-
-        DrawModel("ground", new Vector3(-1f, 0f, -1f), 2.8f, 0f);
-        DrawModel("tree", new Vector3(-5.8f, 0f, -2.4f), 2.1f, 0.2f);
-        DrawModel("tree", new Vector3(5.7f, 0f, -4.8f), 2.3f, -0.15f);
-        DrawModel("rock", new Vector3(-4.2f, 0f, 2.7f), 1.4f, 0.1f);
-        DrawModel("bush", new Vector3(4.4f, 0f, 1.8f), 1.4f, 0.4f);
-        DrawModel("tent", new Vector3(1.5f, 0f, -3.9f), 1.7f, -0.2f);
-        DrawModel("campfire", new Vector3(2.4f, 0f, 1.2f), 1.4f, 0f);
-        DrawModel("cheeseBox", new Vector3(-0.2f, 0.45f, 2.3f), 1.3f, 0.3f);
-
-        if (drawStudyOverlay)
-        {
-            BeginUi();
-            DrawPanel(new Rectangle(24, 86, 438, 134), new Color(6, 12, 18, 205), new Color(205, 157, 98));
-            Text("Photo-realism feasibility study", new Vector2(44, 104), 22, Color.White);
-            Text("Current pass: textured prop + lit geometry", new Vector2(44, 139), 15, new Color(232, 205, 164));
-            Text("This is a renderer test, not final PBR quality.", new Vector2(44, 171), 14, new Color(173, 188, 191));
-            Text("WASD move | Arrow keys look | 3 opens UI stress", new Vector2(44, 196), 14, new Color(140, 165, 171));
-            EndUi();
-        }
-    }
-
     private void DrawAuthoredWorld()
     {
         if (_world is null)
@@ -5620,29 +5718,6 @@ public sealed class Game1 : Game
             DrawModel(pickup.Model, new Vector3(position.X, position.Y, position.Z),
                 pickup.Scale, 0f);
         }
-    }
-
-    private void DrawSneakEye(int cx, int cy, Color colour)
-    {
-        var shadow = new Color(0, 0, 0, 190);
-
-        // Block-built eye: it remains crisp at every supported UI scale and is legible over
-        // both the bright ground and the dark dungeon walls.
-        Fill(new Rectangle(cx - 17, cy - 9, 34, 3), shadow);
-        Fill(new Rectangle(cx - 17, cy + 6, 34, 3), shadow);
-        Fill(new Rectangle(cx - 13, cy - 6, 6, 3), shadow);
-        Fill(new Rectangle(cx + 7, cy - 6, 6, 3), shadow);
-        Fill(new Rectangle(cx - 13, cy + 3, 6, 3), shadow);
-        Fill(new Rectangle(cx + 7, cy + 3, 6, 3), shadow);
-
-        Fill(new Rectangle(cx - 14, cy - 7, 28, 2), colour);
-        Fill(new Rectangle(cx - 14, cy + 5, 28, 2), colour);
-        Fill(new Rectangle(cx - 10, cy - 5, 5, 2), colour);
-        Fill(new Rectangle(cx + 5, cy - 5, 5, 2), colour);
-        Fill(new Rectangle(cx - 10, cy + 3, 5, 2), colour);
-        Fill(new Rectangle(cx + 5, cy + 3, 5, 2), colour);
-        Fill(new Rectangle(cx - 4, cy - 4, 8, 8), colour);
-        Fill(new Rectangle(cx - 1, cy - 1, 2, 2), new Color(20, 26, 27));
     }
 
     /// <summary>Roughly two metres of wall per repeat of the block texture.</summary>
@@ -6163,160 +6238,6 @@ public sealed class Game1 : Game
         }
     }
 
-    private void DrawModeHeader(string title, string subtitle)
-    {
-        BeginUi();
-        DrawPanel(new Rectangle(0, 0, 1280, 64), new Color(4, 8, 13, 236), new Color(75, 129, 150));
-        Text("RATNA BAY / FEASIBILITY LAB", new Vector2(26, 12), 17, new Color(165, 212, 224));
-        TextFit(title, new Vector2(350, 9), 500f, 20, Color.White);
-        TextFit(subtitle, new Vector2(350, 37), 500f, 12, new Color(153, 174, 181));
-        TextFit("[1] Assets   [2] Photo Study   [3] UI Stress   [Esc] Exit", new Vector2(902, 22), 350f, 12, new Color(194, 208, 207));
-        EndUi();
-    }
-
-    private void DrawComplexUi()
-    {
-        BeginUi();
-
-        DrawPanel(new Rectangle(24, 84, 270, 300), new Color(9, 16, 24, 236), new Color(79, 141, 164));
-        Text("CHARACTER", new Vector2(44, 102), 13, new Color(145, 198, 210));
-        TextFit("RATNA BAY EXPLORER", new Vector2(44, 123), 226f, 18, Color.White);
-        DrawPortrait(new Rectangle(44, 160, 86, 104), new Color(72, 56, 45));
-        TextFit("Level 4  |  Wayfarer", new Vector2(146, 168), 130f, 14, new Color(216, 225, 219));
-        DrawBar(new Rectangle(146, 198, 120, 12), 0.72f, new Color(194, 66, 72), "HP  72 / 100");
-        DrawBar(new Rectangle(146, 228, 120, 12), 0.48f, new Color(70, 130, 212), "MP  24 / 50");
-        Text("STR  12     AGI  15", new Vector2(44, 285), 13, new Color(178, 192, 189));
-        Text("WIL  11     LCK  09", new Vector2(44, 306), 13, new Color(178, 192, 189));
-        Text("FATIGUE  34%", new Vector2(44, 339), 13, new Color(215, 176, 111));
-
-        DrawPanel(new Rectangle(314, 84, 582, 146), new Color(10, 18, 23, 239), new Color(182, 137, 71));
-        Text("ACTIVE QUEST", new Vector2(336, 102), 13, new Color(239, 196, 111));
-        TextFit("The Lantern Under the Hill", new Vector2(336, 123), 528f, 21, Color.White);
-        TextFit("Find the sealed stair beneath the old watch road.", new Vector2(336, 158), 528f, 14, new Color(211, 219, 210));
-        DrawQuestStep(new Vector2(340, 190), "1", "Speak to gatekeeper", true, 178f);
-        DrawQuestStep(new Vector2(530, 190), "2", "Inspect lantern", true, 178f);
-        DrawQuestStep(new Vector2(720, 190), "3", "Open sealed stair", false, 166f);
-
-        DrawPanel(new Rectangle(916, 84, 340, 300), new Color(7, 16, 22, 235), new Color(89, 167, 177));
-        Text("REGION MAP", new Vector2(938, 102), 13, new Color(152, 213, 211));
-        DrawMap(new Rectangle(938, 132, 296, 196));
-        TextFit("Northwatch / 1.4 km", new Vector2(938, 341), 296f, 13, new Color(192, 207, 202));
-        TextFit("Weather: clear  |  Visibility: good", new Vector2(938, 360), 296f, 12, new Color(136, 169, 170));
-
-        DrawPanel(new Rectangle(314, 248, 582, 338), new Color(9, 15, 22, 242), new Color(87, 112, 128));
-        Text("INVENTORY", new Vector2(336, 266), 13, new Color(163, 190, 197));
-        Text("Field pack", new Vector2(336, 287), 20, Color.White);
-        TextRight("12 / 24 slots", 856f, 294f, 13, new Color(178, 199, 198));
-        DrawInventoryGrid(new Rectangle(336, 328, 520, 226));
-
-        DrawPanel(new Rectangle(916, 402, 340, 184), new Color(8, 14, 21, 240), new Color(97, 114, 134));
-        Text("EQUIPMENT", new Vector2(938, 420), 13, new Color(169, 190, 203));
-        DrawEquipmentRow(new Vector2(938, 448), "MAIN HAND", "Ashwood sabre", new Color(180, 139, 83));
-        DrawEquipmentRow(new Vector2(938, 486), "OFF HAND", "Traveler's lantern", new Color(212, 173, 90));
-        DrawEquipmentRow(new Vector2(938, 524), "ARMOR", "Riveted leather", new Color(115, 129, 130));
-
-        DrawPanel(new Rectangle(24, 404, 270, 182), new Color(9, 15, 22, 238), new Color(101, 135, 156));
-        Text("NOTIFICATIONS", new Vector2(44, 422), 13, new Color(154, 194, 207));
-        TextFit("A distant bell rings.", new Vector2(44, 454), 226f, 14, new Color(216, 226, 216));
-        TextFit("Discovered: Northwatch", new Vector2(44, 482), 226f, 13, new Color(201, 176, 113));
-        TextFit("Campfire warmth  +4 HP", new Vector2(44, 510), 226f, 13, new Color(166, 198, 175));
-        TextFit("[I] Inventory  [J] Journal  [M] Map", new Vector2(44, 552), 226f, 12, new Color(131, 158, 165));
-
-        DrawPanel(new Rectangle(24, 610, 1232, 78), new Color(4, 8, 13, 244), new Color(76, 101, 116));
-        DrawQuickSlots(new Vector2(46, 626));
-        Text("Frame: 60 fps", new Vector2(1048, 632), 12, new Color(120, 149, 155));
-        Text("Mode 3 / UI stress", new Vector2(1048, 652), 12, new Color(120, 149, 155));
-
-        EndUi();
-    }
-
-    private void DrawPortrait(Rectangle bounds, Color color)
-    {
-        Fill(bounds, color);
-        Fill(new Rectangle(bounds.X + 18, bounds.Y + 16, bounds.Width - 36, 38), new Color(108, 80, 60));
-        Fill(new Rectangle(bounds.X + 25, bounds.Y + 51, bounds.Width - 50, 42), new Color(45, 59, 75));
-        Border(bounds, new Color(206, 166, 102));
-    }
-
-    private void DrawBar(Rectangle bounds, float amount, Color color, string label)
-    {
-        Fill(bounds, new Color(26, 34, 40));
-        Fill(new Rectangle(bounds.X, bounds.Y, (int)(bounds.Width * amount), bounds.Height), color);
-        TextFit(label, new Vector2(bounds.X, bounds.Y + 15), bounds.Width, 11, new Color(182, 197, 194));
-    }
-
-    private void DrawQuestStep(Vector2 position, string number, string label, bool complete, float maxWidth)
-    {
-        var color = complete ? new Color(101, 183, 135) : new Color(145, 153, 158);
-        Fill(new Rectangle((int)position.X, (int)position.Y, 22, 22), color);
-        Text(number, position + new Vector2(7, 2), 13, new Color(7, 16, 20));
-        TextFit(label, position + new Vector2(30, 4), maxWidth - 30f, 12, complete ? new Color(197, 220, 204) : new Color(150, 161, 163));
-    }
-
-    private void DrawMap(Rectangle bounds)
-    {
-        Fill(bounds, new Color(18, 45, 48));
-        for (var x = bounds.X + 20; x < bounds.Right; x += 35)
-            Fill(new Rectangle(x, bounds.Y, 1, bounds.Height), new Color(47, 87, 83, 180));
-        for (var y = bounds.Y + 20; y < bounds.Bottom; y += 32)
-            Fill(new Rectangle(bounds.X, y, bounds.Width, 1), new Color(47, 87, 83, 180));
-        Fill(new Rectangle(bounds.X + 24, bounds.Y + 138, 174, 5), new Color(97, 125, 104));
-        Fill(new Rectangle(bounds.X + 156, bounds.Y + 44, 5, 126), new Color(97, 125, 104));
-        Fill(new Rectangle(bounds.X + 214, bounds.Y + 76, 10, 10), new Color(222, 168, 75));
-        Fill(new Rectangle(bounds.X + 91, bounds.Y + 117, 10, 10), new Color(198, 83, 86));
-        Fill(new Rectangle(bounds.X + 156, bounds.Y + 43, 8, 8), new Color(102, 188, 205));
-        Border(bounds, new Color(74, 124, 127));
-    }
-
-    private void DrawInventoryGrid(Rectangle bounds)
-    {
-        var columns = 6;
-        var rows = 3;
-        var gap = 8;
-        var slotWidth = (bounds.Width - gap * (columns - 1)) / columns;
-        var slotHeight = (bounds.Height - gap * (rows - 1)) / rows;
-        var items = new[] { "SABRE", "LANTERN", "HERB", "ROPE", "KEY", "GEM", "BREAD", "BANDAGE", "MAP", "TORCH", "RING", "EMPTY" };
-
-        for (var row = 0; row < rows; row++)
-        {
-            for (var column = 0; column < columns; column++)
-            {
-                var index = row * columns + column;
-                var x = bounds.X + column * (slotWidth + gap);
-                var y = bounds.Y + row * (slotHeight + gap);
-                var selected = index == 0;
-                Fill(new Rectangle(x, y, slotWidth, slotHeight), selected ? new Color(69, 67, 47) : new Color(24, 31, 38));
-                Border(new Rectangle(x, y, slotWidth, slotHeight), selected ? new Color(218, 176, 90) : new Color(67, 83, 94));
-                if (index < items.Length - 1)
-                {
-                    Fill(new Rectangle(x + 28, y + 18, 34, 28), new Color(83 + index * 5, 83 + index * 3, 76));
-                    TextFit(items[index], new Vector2(x + 8, y + slotHeight - 24), slotWidth - 16f, 11, new Color(181, 194, 192));
-                }
-                Text((index + 1).ToString(), new Vector2(x + 6, y + 6), 11, new Color(113, 137, 143));
-            }
-        }
-    }
-
-    private void DrawEquipmentRow(Vector2 position, string slot, string item, Color color)
-    {
-        Fill(new Rectangle((int)position.X, (int)position.Y, 28, 28), new Color(37, 46, 53));
-        Border(new Rectangle((int)position.X, (int)position.Y, 28, 28), color);
-        Text(slot, position + new Vector2(40, 0), 10, new Color(117, 143, 151));
-        TextFit(item, position + new Vector2(40, 12), 250f, 13, Color.White);
-    }
-
-    private void DrawQuickSlots(Vector2 position)
-    {
-        for (var index = 0; index < 8; index++)
-        {
-            var slot = new Rectangle((int)position.X + index * 48, (int)position.Y, 38, 38);
-            Fill(slot, index == 0 ? new Color(73, 67, 43) : new Color(26, 34, 41));
-            Border(slot, index == 0 ? new Color(221, 177, 88) : new Color(75, 91, 99));
-            Text((index + 1).ToString(), new Vector2(slot.X + 6, slot.Y + 4), 11, new Color(140, 165, 166));
-            Fill(new Rectangle(slot.X + 13, slot.Y + 16, 14, 12), new Color(121 + index * 8, 94 + index * 4, 60));
-        }
-    }
-
     private void BeginUi()
     {
         _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, _uiTransform);
@@ -6584,5 +6505,5 @@ public sealed class Game1 : Game
             0);
     }
 
-    private bool Pressed(KeyboardState current, Keys key) => current.IsKeyDown(key) && !_previousKeyboard.IsKeyDown(key);
+    private bool Pressed(KeyboardState current, Keys key) => _input.Pressed(current, key);
 }

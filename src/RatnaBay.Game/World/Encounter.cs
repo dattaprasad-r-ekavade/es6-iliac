@@ -281,6 +281,13 @@ public sealed class Encounter
 
                     var guarded = _session.Player.Combat.IsBlocking;
                     var landed = _session.Player.Combat.TakeHit(damage);
+
+                    // A Ward stone turns the guard from a way of losing less into a way of
+                    // creating an opening. Melee only: an arrow has nobody standing in front
+                    // of you to reel.
+                    if (guarded && _session.Player.Combat.HasStone(StoneEffect.Ward))
+                        enemy.ApplyStagger(StoneCatalog.WardSeconds);
+
                     PlayerStruck?.Invoke(landed, guarded);
                     Feedback.PlayerHurt(landed,
                         Targeting.RelativeBearing(player, playerYaw, enemy.Position), guarded);
@@ -727,14 +734,30 @@ public sealed class Encounter
         return position;
     }
 
-    /// <summary>A struck enemy dips; a lunging one rises onto its toes.</summary>
+    /// <summary>How far a staggered figure sags, as a fraction of its height.</summary>
+    private const float StaggerSag = 0.16f;
+
+    /// <summary>
+    /// A struck enemy dips; a lunging one rises onto its toes; a staggered one sags.
+    ///
+    /// The sag is the one that matters most and was missing entirely. A mace exists to create
+    /// an opening, and an opening the player cannot see is not one they can use — the enemy
+    /// was standing perfectly upright with the word "staggered" written above it, which asks
+    /// the player to read the interface instead of the fight.
+    /// </summary>
     public float DrawHeightOf(Enemy enemy)
     {
         if (!_animation.TryGetValue(enemy, out var animation)) return FigureHeight;
 
         var lunge = animation.Lunge > 0f ? 0.06f * (animation.Lunge / LungeSeconds) : 0f;
         var recoil = animation.Recoil > 0f ? -0.09f * (animation.Recoil / RecoilSeconds) : 0f;
-        return FigureHeight * (1f + lunge + recoil);
+
+        // Not scaled by how much stagger is left: it drops on the blow and comes back on
+        // recovery, because a figure that slowly rises through the window reads as recovering
+        // long before it actually has.
+        var stagger = enemy.IsStaggered ? -StaggerSag : 0f;
+
+        return FigureHeight * (1f + lunge + recoil + stagger);
     }
 
     /// <summary>True while an enemy is committed to a swing — the moment to be guarding.</summary>
@@ -759,11 +782,21 @@ public sealed class Encounter
         return length < 0.001f ? default : new WorldPoint(dx / length, 0f, dz / length);
     }
 
-    /// <summary>White while a sprite is being struck, so a landed blow is visible.</summary>
-    public Color TintOf(Enemy enemy) =>
-        _hitFlash.TryGetValue(enemy, out var remaining) && remaining > 0f
-            ? new Color(255, 236, 236)
-            : Color.White;
+    /// <summary>
+    /// White while a sprite is being struck; drained while it is staggered.
+    ///
+    /// The flash wins when both apply, because the blow that caused the stagger should still
+    /// read as a blow. The drained tint is what the player sees for the rest of the window.
+    /// </summary>
+    public Color TintOf(Enemy enemy)
+    {
+        if (_hitFlash.TryGetValue(enemy, out var remaining) && remaining > 0f)
+            return new Color(255, 236, 236);
+
+        // Grey and dim: the colour of something that has stopped fighting for a moment. It
+        // reads at a distance and through a crowd, which a posture change alone does not.
+        return enemy.IsStaggered ? new Color(150, 148, 156) : Color.White;
+    }
 
     private void Killed(Enemy enemy)
     {

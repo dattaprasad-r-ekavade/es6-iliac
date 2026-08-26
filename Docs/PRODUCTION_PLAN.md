@@ -378,7 +378,8 @@ One board. Work in progress limit: **one**.
   it more than a vending machine, but player-side temporary effects do not exist yet.
 - **Story at the camp.** The slot exists and nothing is written into it. It is the only place a
   person is met every single run, which makes it the natural home for story in frequent pieces.
-- **The stall does not restock.** Buy a row and it is gone for the save.
+- **The stall restocks after each completed descent.** Bought rows are gone for the current
+  stock cycle and a fresh stock is generated when the player returns.
 - **Gold pacing is a guess.** Roughly 250 a run against a 450 sword, never measured.
 - **Two cave themes, one fort room, and the preta rise** — the remaining trailer build list.
 

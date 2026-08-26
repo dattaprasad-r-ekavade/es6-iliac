@@ -120,11 +120,15 @@ public sealed class PlayerVitals
     /// Take a hit. Worn armour is flat reduction and blocking halves what gets through —
     /// armour has no skill of its own because Block is the active defensive verb.
     /// </summary>
-    public float TakeDamage(float amount, float armour = 0f, bool blocking = false)
+    public float TakeDamage(float amount, float armour = 0f, bool blocking = false) =>
+        TakeDamage(amount, armour, blocking ? DamageMath.BlockReduction : 1f);
+
+    /// <summary>The same, with the guard's quality passed in rather than assumed.</summary>
+    public float TakeDamage(float amount, float armour, float blockFactor)
     {
         if (!IsAlive) return 0f;
 
-        var incoming = DamageMath.Resolve(amount, armour, blocking);
+        var incoming = DamageMath.Resolve(amount, armour, blockFactor);
         Health = MathF.Max(0f, Health - incoming);
         Changed?.Invoke();
 
@@ -184,6 +188,18 @@ public sealed class PlayerVitals
         Prana -= amount;
         Changed?.Invoke();
         return true;
+    }
+
+    /// <summary>
+    /// Give charge back, capped at the reserve. Never announced as a drawn stone, because
+    /// nothing was spent to produce it.
+    /// </summary>
+    public void RestorePrana(float amount)
+    {
+        if (amount <= 0f || Prana >= MaxPrana) return;
+
+        Prana = MathF.Min(MaxPrana, Prana + amount);
+        Changed?.Invoke();
     }
 
     /// <summary>

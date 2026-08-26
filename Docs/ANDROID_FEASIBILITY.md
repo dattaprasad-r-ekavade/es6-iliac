@@ -91,22 +91,17 @@ System{,.Collections.Generic,.IO,.Linq}
 That is the whole dependency surface. The `UseWindowsForms`, `net9.0-windows` and `win-x64` settings
 in the csproj are inherited from the MonoGame WindowsDX template, not because any code needs them.
 
-There is a related finding that matters for a port. Of the community packages the project pins and
-`doctor` checks, **only FontStashSharp is used by any code at all**:
+There is a related finding that matters for a port. Of the community packages the project used to
+pin, **only FontStashSharp remains in the game**:
 
 | Package | Used in game code |
 |---|---|
 | FontStashSharp.MonoGame | Yes — the two font systems and the Stambha carving |
-| MonoGame.Extended | No — content-pipeline reference only |
-| Gum.MonoGame | No — closed decision: UI is immediate-mode on SpriteBatch |
-| ImGui.NET | No |
-| BepuPhysics | No — closed decision: physics is hand-rolled |
-| DotRecast.Recast / .Detour | No — closed decision: navigation is direct pursuit |
-| Ink | No |
+| MonoGame.Extended, Gum.MonoGame, ImGui.NET | Removed — no runtime usage |
+| BepuPhysics, DotRecast.Recast / .Detour, Ink | Removed — no runtime usage |
 
-Six of the seven are dead references. On Windows they cost only restore time. On Android they would
-be the most likely source of a native-library problem, and they can simply be dropped. The spike
-referenced only MonoGame and FontStashSharp, and needed nothing else.
+The spike referenced only MonoGame and FontStashSharp, and needed nothing else. The game project
+now reflects that smaller dependency surface.
 
 ### 2.5 Reproducing it
 
