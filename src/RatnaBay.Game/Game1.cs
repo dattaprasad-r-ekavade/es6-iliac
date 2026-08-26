@@ -10,10 +10,17 @@ using System.Linq;
 
 namespace RatnaBay.Client;
 
+/// <summary>
+/// MonoGame lifecycle coordinator: devices, the frame, and draw order.
+///
+/// Screens, HUD and overlay layout live in <c>Ui/</c>. Input sampling lives in
+/// <c>Input/InputRouter</c>. Game rules live in <c>RatnaBay.Domain</c>. New work belongs in
+/// one of those, not in this class, unless it is genuinely a lifecycle concern.
+/// </summary>
 public sealed class Game1 : Game
 {
-    private const int LogicalWidth = 1280;
-    private const int LogicalHeight = 720;
+    private const int LogicalWidth = UiLayout.Width;
+    private const int LogicalHeight = UiLayout.Height;
 
     private enum GameScreen
     {
@@ -191,8 +198,8 @@ public sealed class Game1 : Game
 
     /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
     private readonly WeaponView _weaponView = new();
-    private readonly HudRenderer _hud;
-    private readonly OverlayRenderer _overlay;
+    private readonly UiCanvas _ui;
+    private readonly UiScreens _screens;
 
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
@@ -457,8 +464,11 @@ public sealed class Game1 : Game
             Window.IsBorderless = false;
         }
 
-        _hud = new HudRenderer(DrawPanel, Text, TextFit, TextCentred, TextRight, Fill, Border);
-        _overlay = new OverlayRenderer(DrawPanel, Text, TextFit, TextCentred, Fill);
+        _ui = new UiCanvas(DrawPanel, Text, TextFit, TextCentred, TextRight,
+            (value, position, maxWidth, scale, color, maxLines) =>
+                TextWrapped(value, position, maxWidth, scale, color, maxLines),
+            Fill, Border, DrawSprite);
+        _screens = new UiScreens(_ui);
     }
 
     private static bool HasArgument(string[] args, string argument)
@@ -1037,10 +1047,6 @@ public sealed class Game1 : Game
         }
     }
 
-    /// <summary>One of the two answers on the consent screen.</summary>
-    private static Rectangle ConsentButtonBounds(int index) =>
-        new(360 + index * 296, 534, 264, 46);
-
     private void UpdateConsent(KeyboardState keyboard, MouseState mouse)
     {
         var pointer = LogicalMouse(mouse);
@@ -1048,7 +1054,7 @@ public sealed class Game1 : Game
 
         for (var index = 0; index < 2; index++)
         {
-            if (!ConsentButtonBounds(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
+            if (!UiLayout.ConsentButton(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
 
             _consentSelection = index;
             if (Clicked(mouse)) chosen = index;
@@ -1076,52 +1082,7 @@ public sealed class Game1 : Game
     /// that the answer changes nothing about the game. "Yes" is not the default and is not
     /// styled to look like the safe one.
     /// </summary>
-    private void DrawConsent()
-    {
-        Fill(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(6, 10, 16));
-
-        // Tall enough for the text and the two answers to be separate things. The first
-        // version put the buttons through the last three lines of the explanation, which
-        // is a poor look on the one screen that is asking permission.
-        var panel = new Rectangle(300, 120, 680, 484);
-        DrawPanel(panel, new Color(8, 16, 24, 250), new Color(151, 206, 210));
-
-        TextCentred("BEFORE YOU PLAY", panel.Center.X, panel.Y + 30f, 26, Color.White);
-        TextCentred("This is an alpha, and it is being tuned from how people actually play.",
-            panel.Center.X, panel.Y + 76f, 15, new Color(190, 203, 200));
-
-        var lines = new[]
-        {
-            "May the game send a record of your runs to its developer?",
-            "",
-            "What it sends:  rooms cleared, what killed what, how long you",
-            "spent deciding at a door, what you bought, when you died.",
-            "",
-            "What it never sends:  your name, your files, your location, or",
-            "anything you type. There is nothing to type.",
-            "",
-            "You are a random number to us, and deleting the game forgets it.",
-            "The game plays exactly the same either way, and you can change",
-            "this whenever you like in Settings."
-        };
-
-        for (var index = 0; index < lines.Length; index++)
-            TextCentred(lines[index], panel.Center.X, panel.Y + 128f + index * 24f, 14,
-                index == 0 ? new Color(214, 226, 226) : new Color(172, 186, 190));
-
-        string[] answers = { "Yes, send them", "No, keep them here" };
-        for (var index = 0; index < answers.Length; index++)
-        {
-            var bounds = ConsentButtonBounds(index);
-            var selected = index == _consentSelection;
-
-            DrawPanel(bounds,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
-            TextCentred(answers[index], bounds.Center.X, bounds.Y + 14f, 16,
-                selected ? Color.White : new Color(192, 207, 205));
-        }
-    }
+    private void DrawConsent() => _screens.Consent.Draw(_consentSelection);
 
     private void UpdateMenu(KeyboardState keyboard, MouseState mouse)
     {
@@ -1150,7 +1111,7 @@ public sealed class Game1 : Game
         var pointer = LogicalMouse(mouse);
         var hovered = -1;
         for (var index = 0; index < menuItemCount; index++)
-            if (MenuItemBounds(index).Contains((int)pointer.X, (int)pointer.Y))
+            if (UiLayout.MenuItem(index).Contains((int)pointer.X, (int)pointer.Y))
                 hovered = index;
 
         if (hovered >= 0)
@@ -1179,10 +1140,6 @@ public sealed class Game1 : Game
         return $"Send recordings   {(_consent.Allowed ? "On" : "Off")}{queued}";
     }
 
-    /// <summary>One settings row. Drawing and hit testing share it.</summary>
-    private static Rectangle SettingsRowBounds(int index) =>
-        new(284, 214 + index * 56, 712, 42);
-
     private void UpdateSettings(KeyboardState keyboard)
     {
         // Four rows now: display, UI scale, volume, bindings. The count was already one short
@@ -1199,7 +1156,7 @@ public sealed class Game1 : Game
         var hovered = -1;
 
         for (var index = 0; index < optionCount; index++)
-            if (SettingsRowBounds(index).Contains((int)pointer.X, (int)pointer.Y))
+            if (UiLayout.SettingsRow(index).Contains((int)pointer.X, (int)pointer.Y))
                 hovered = index;
 
         if (hovered >= 0) _settingsSelection = hovered;
@@ -1215,7 +1172,7 @@ public sealed class Game1 : Game
         else if (Pressed(keyboard, Keys.Left)) nudge = -1f;
         else if (clicked && (hovered == 1 || hovered == 2))
         {
-            var row = SettingsRowBounds(hovered);
+            var row = UiLayout.SettingsRow(hovered);
             nudge = pointer.X < row.Center.X ? -1f : 1f;
         }
 
@@ -1235,12 +1192,6 @@ public sealed class Game1 : Game
             _sfx.Play(Sfx.Coin, 0.5f);
         }
     }
-
-    /// <summary>
-    /// One menu row. Drawing and hit testing both read this, so a clickable row is always
-    /// exactly the row the player can see.
-    /// </summary>
-    private static Rectangle MenuItemBounds(int index) => new(120, 286 + index * 56, 368, 42);
 
     /// <summary>
     /// Drop into a world, generated or authored.
@@ -1400,9 +1351,6 @@ public sealed class Game1 : Game
     }
 
     /// <summary>A row of the camp trader's pack. Selling is row zero.</summary>
-    private static Rectangle CampRowBounds(int index) => new(360, 262 + index * 52, 560, 44);
-
-    /// <summary>
     /// The trader at a cleared room's exit.
     ///
     /// Everything here is priced in the pot, because down a mine the pot is the purse: what is
@@ -1430,7 +1378,7 @@ public sealed class Game1 : Game
         var pointer = LogicalMouse(mouse);
         for (var index = 0; index < rows; index++)
         {
-            if (!CampRowBounds(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
+            if (!UiLayout.CampRow(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
 
             _campSelection = index;
             chosen = Clicked(mouse);
@@ -1507,7 +1455,7 @@ public sealed class Game1 : Game
         var pointer = LogicalMouse(mouse);
         for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
         {
-            if (!DepthRowBounds(tier).Contains((int)pointer.X, (int)pointer.Y)) continue;
+            if (!UiLayout.DepthRow(tier).Contains((int)pointer.X, (int)pointer.Y)) continue;
 
             _depthSelection = tier;
             chosen = Clicked(mouse);
@@ -1546,19 +1494,6 @@ public sealed class Game1 : Game
         ? new[] { "Resume", "Settings", "Set the descent aside", "Give up the descent" }
         : new[] { "Resume", "Settings", "Save and quit to menu" };
 
-    /// <summary>One row of the pause screen. Shared so the mouse and the drawing agree.</summary>
-    private Rectangle PauseItemBounds(int index)
-    {
-        var inRun = _run is { Run.IsActive: true };
-        var panel = new Rectangle(400, 196, 480, inRun ? 332 : 268);
-        var top = inRun ? panel.Y + 118 : panel.Y + 78;
-        return new Rectangle(panel.X + 40, top + index * 46, panel.Width - 80, 38);
-    }
-
-    /// <summary>One row of the shaft panel.</summary>
-    private static Rectangle DepthRowBounds(int tier) =>
-        new(348, 236 + (tier - MineEntry.MinTier) * 56, 584, 48);
-
     private void Pause()
     {
         if (_paused) return;
@@ -1596,7 +1531,8 @@ public sealed class Game1 : Game
         var pointer = LogicalMouse(mouse);
         for (var index = 0; index < items.Length; index++)
         {
-            if (!PauseItemBounds(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
+            if (!UiLayout.PauseItem(_run is { Run.IsActive: true }, index)
+                .Contains((int)pointer.X, (int)pointer.Y)) continue;
 
             _pauseSelection = index;
             chosen = Clicked(mouse);
@@ -1706,7 +1642,7 @@ public sealed class Game1 : Game
         // The run summary owns the screen: nothing else is reachable until it is dismissed.
         if (_runSummary is not null)
         {
-            var onTheWayUp = SummaryButtonBounds()
+            var onTheWayUp = UiLayout.SummaryButton
                 .Contains((int)LogicalMouse(mouse).X, (int)LogicalMouse(mouse).Y);
 
             if ((onTheWayUp && Clicked(mouse))
@@ -2185,38 +2121,6 @@ public sealed class Game1 : Game
         SetMouseLook(false);
     }
 
-    /// <summary>
-    /// Narrower and shorter than it was, with larger type. The old panel was 836x500 of
-    /// mostly empty space set in 13-15 px text, which testers read as a wall.
-    /// </summary>
-    private static Rectangle DialoguePanelBounds => new(352, 150, 576, 420);
-
-    /// <summary>Topic rows the panel shows before it stops listing.</summary>
-    private const int DialogueRows = 6;
-
-    private static Rectangle DialogueTopicBounds(int index) =>
-        new(376, 300 + index * 34, 528, 30);
-
-    /// <summary>Tiles across the stall. Three to a row.</summary>
-    private const int ShopColumns = 3;
-
-    /// <summary>
-    /// One tile of stock.
-    ///
-    /// A list ran off the bottom of the panel the moment the stall carried more than six
-    /// things, and there was no way to reach what had overflowed. A grid holds four times as
-    /// much in the same space and every tile is clickable.
-    /// </summary>
-    private static Rectangle ShopItemBounds(int index) => new(
-        282 + index % ShopColumns * 246,
-        200 + index / ShopColumns * 96,
-        230, 84);
-
-    private static Rectangle TalkPromptBounds() => new(302, 596, 224, 42);
-    private static Rectangle SecondaryPromptBounds() => new(534, 596, 212, 42);
-    private static Rectangle PickpocketPromptBounds() => new(754, 596, 224, 42);
-    private static Rectangle SinglePromptBounds() => new(388, 596, 504, 42);
-
     /// <summary>Activate the prompt under a released mouse pointer instead of recapturing it.</summary>
     private bool TryActivateWorldPrompt(MouseState mouse)
     {
@@ -2227,13 +2131,13 @@ public sealed class Game1 : Game
         var actor = _dialogue?.FindActor(player, _cameraYaw);
         if (actor is not null)
         {
-            if (TalkPromptBounds().Contains((int)pointer.X, (int)pointer.Y))
+            if (UiLayout.TalkPrompt.Contains((int)pointer.X, (int)pointer.Y))
             {
                 OpenDialogue(actor);
                 return true;
             }
 
-            if (SecondaryPromptBounds().Contains((int)pointer.X, (int)pointer.Y))
+            if (UiLayout.SecondaryPrompt.Contains((int)pointer.X, (int)pointer.Y))
             {
                 if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
                     && _shop is not null)
@@ -2245,7 +2149,7 @@ public sealed class Game1 : Game
                 }
 
                 if (HasPickablePocket(actor)
-                    && PickpocketPromptBounds().Contains((int)pointer.X, (int)pointer.Y))
+                    && UiLayout.PickpocketPrompt.Contains((int)pointer.X, (int)pointer.Y))
                 {
                     TryPickpocket(actor);
                     return true;
@@ -2253,7 +2157,7 @@ public sealed class Game1 : Game
             }
         }
 
-        if (!SinglePromptBounds().Contains((int)pointer.X, (int)pointer.Y)) return false;
+        if (!UiLayout.SinglePrompt.Contains((int)pointer.X, (int)pointer.Y)) return false;
 
         var pickup = FindPickup(player, _cameraYaw);
         if (pickup is not null)
@@ -2317,7 +2221,7 @@ public sealed class Game1 : Game
         var pointer = LogicalMouse(mouse);
         for (var index = 0; index < topics.Count && index < 9; index++)
         {
-            var row = DialogueTopicBounds(index);
+            var row = UiLayout.DialogueTopic(index);
             if (!row.Contains((int)pointer.X, (int)pointer.Y)) continue;
 
             _dialogueSelection = index;
@@ -2454,15 +2358,15 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Right) || Pressed(keyboard, Keys.D))
             _inventorySelection = (_inventorySelection + 1) % items.Count;
         if (Pressed(keyboard, Keys.Up) || Pressed(keyboard, Keys.W))
-            _inventorySelection = (_inventorySelection + items.Count - InventoryColumns) % items.Count;
+            _inventorySelection = (_inventorySelection + items.Count - UiLayout.InventoryColumns) % items.Count;
         if (Pressed(keyboard, Keys.Down) || Pressed(keyboard, Keys.S))
-            _inventorySelection = (_inventorySelection + InventoryColumns) % items.Count;
+            _inventorySelection = (_inventorySelection + UiLayout.InventoryColumns) % items.Count;
 
         var mouse = _input.CurrentMouse;
         var pointer = LogicalMouse(mouse);
         var hovered = -1;
-        for (var index = 0; index < items.Count && index < InventoryRows; index++)
-            if (InventoryRowBounds(index).Contains((int)pointer.X, (int)pointer.Y))
+        for (var index = 0; index < items.Count && index < UiLayout.InventoryRows; index++)
+            if (UiLayout.InventoryTile(index).Contains((int)pointer.X, (int)pointer.Y))
                 hovered = index;
 
         if (hovered >= 0) _inventorySelection = hovered;
@@ -2490,41 +2394,6 @@ public sealed class Game1 : Game
         _inventorySelection = Math.Clamp(_inventorySelection, 0,
             Math.Max(0, _session.Player.Inventory.Items.Count - 1));
     }
-
-    /// <summary>Rows the character screen can show before it stops listing.</summary>
-    /// <summary>Tiles across the pack.</summary>
-    private const int InventoryColumns = 3;
-
-    /// <summary>How many fit on the sheet at once.</summary>
-    private const int InventoryRows = 12;
-
-    /// <summary>Left edge of the pack, on the character sheet.</summary>
-    private const int InventoryLeft = 440;
-
-    private const int InventoryTop = 288;
-    private const int InventoryTileWidth = 138;
-    private const int InventoryTileHeight = 52;
-
-    /// <summary>
-    /// One inventory row. Drawing and hit testing share it, so a clickable row is always
-    /// exactly the row on screen.
-    /// </summary>
-    /// <summary>
-    /// One slot of the pack.
-    ///
-    /// A grid rather than a list of names. The list was reported as rudimentary and it was: it
-    /// showed ten of twelve things in a column narrow enough to truncate half of them, gave no
-    /// hint which one was in your hand, and put the only useful information — what the thing
-    /// does — in a box below that nobody looked at.
-    /// </summary>
-    private static Rectangle InventoryRowBounds(int index) => new(
-        InventoryLeft + index % InventoryColumns * (InventoryTileWidth + 6),
-        InventoryTop + index / InventoryColumns * (InventoryTileHeight + 6),
-        InventoryTileWidth, InventoryTileHeight);
-
-    /// <summary>The two slots above the pack: what is in hand, and what is worn.</summary>
-    private static Rectangle EquippedSlotBounds(int index) => new(
-        InventoryLeft + index * 216, 202, 210, 52);
 
     private static bool IsMoving(KeyboardState keyboard) =>
         keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.A)
@@ -3452,14 +3321,14 @@ public sealed class Game1 : Game
         if (Pressed(keyboard, Keys.Right))
             _shopSelection = (_shopSelection + 1) % items.Count;
         if (Pressed(keyboard, Keys.Up))
-            _shopSelection = (_shopSelection + items.Count - ShopColumns) % items.Count;
+            _shopSelection = (_shopSelection + items.Count - UiLayout.ShopColumns) % items.Count;
         if (Pressed(keyboard, Keys.Down))
-            _shopSelection = (_shopSelection + ShopColumns) % items.Count;
+            _shopSelection = (_shopSelection + UiLayout.ShopColumns) % items.Count;
 
         var pointer = LogicalMouse(mouse);
         for (var index = 0; index < items.Count; index++)
         {
-            var row = ShopItemBounds(index);
+            var row = UiLayout.ShopItem(index);
             if (!row.Contains((int)pointer.X, (int)pointer.Y)) continue;
 
             _shopSelection = index;
@@ -3571,73 +3440,14 @@ public sealed class Game1 : Game
         GraphicsDevice.Clear(new Color(40, 58, 68));
 
         BeginUi();
-        Fill(new Rectangle(0, 0, 1280, 720), new Color(3, 7, 12, 178));
-        DrawPanel(new Rectangle(64, 62, 1152, 596), new Color(5, 11, 18, 232), new Color(91, 146, 159));
-
-        Text("RATNA BAY", new Vector2(98, 96), 38, Color.White);
-        // This screen described the story slice long after the game stopped being one. It is
-        // the first thing a stranger reads, and it was promising them exploration, trading and
-        // sneaking -- one of which is parked and none of which is what they are about to play.
-        Text("AN ENDLESS MINE", new Vector2(101, 153), 13, new Color(161, 211, 218));
-        TextFit("Go down, clear rooms, and decide when to stop", new Vector2(101, 181), 420f, 15,
-            new Color(184, 197, 196));
-
-        DrawPanel(new Rectangle(96, 222, 416, 390), new Color(8, 16, 24, 238), new Color(65, 105, 119));
-        Text("MAIN MENU", new Vector2(124, 246), 14, new Color(214, 183, 108));
-
-        var menuItems = MenuItems;
-        for (var index = 0; index < menuItems.Length; index++)
-        {
-            var itemBounds = MenuItemBounds(index);
-            var selected = index == _menuSelection;
-            DrawPanel(
-                itemBounds,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
-            Text((index + 1).ToString("00"), new Vector2(itemBounds.X + 16, itemBounds.Y + 9), 13, selected ? new Color(245, 209, 124) : new Color(112, 148, 155));
-            Text(menuItems[index], new Vector2(itemBounds.X + 62, itemBounds.Y + 7), 18, selected ? Color.White : new Color(192, 207, 205));
-        }
-
-        DrawPanel(new Rectangle(560, 222, 592, 390), new Color(8, 16, 24, 226), new Color(65, 105, 119));
-
-        var descending = menuItems[_menuSelection] == ResumeItem;
-        Text(descending ? "BELOW RATNA BAY" : "THE YARD AT RATNA BAY",
-            new Vector2(592, 246), 14, new Color(151, 206, 210));
-        Text(descending ? "A DESCENT" : "TAKE UP THE LAMP",
-            new Vector2(592, 280), 24, Color.White);
-
-        var blurb = descending
-            ? new[]
-            {
-                "A mine that has never been walked before.",
-                "Clear a room and it pays. Clear the next and it pays more.",
-                "Camp at a door to bank it, or open the door and risk the lot."
-            }
-            : new[]
-            {
-                "Buy your way into a mine. The first one costs nothing.",
-                "Every room you clear is worth more than the last one.",
-                "Every shut door asks whether that is enough."
-            };
-
-        for (var line = 0; line < blurb.Length; line++)
-            TextFit(blurb[line], new Vector2(592, 326 + line * 24), 500f, 15,
-                new Color(190, 203, 200));
-
-        Text("WHAT YOU CAN DO", new Vector2(592, 414), 12, new Color(214, 183, 108));
-
-        var doing = descending
-            ? new[] { "Fight through generated rooms", "Bank your stones, or press on", "Die and lose the lot" }
-            : new[] { "Fight through generated rooms", "Bank your stones, or press on", "Die, and send the next one down" };
-
-        for (var line = 0; line < doing.Length; line++)
-            Text(doing[line], new Vector2(592, 442 + line * 26), 14, new Color(190, 215, 208));
-
-        Text("Click or hover to choose      Up / Down select      Enter confirm      Esc safe",
-            new Vector2(98, 610), 14, new Color(163, 191, 194));
-        if (!string.IsNullOrWhiteSpace(_menuStatus))
-            TextFit(_menuStatus, new Vector2(592, 542), 520f, 14, new Color(228, 128, 118));
-        if (_showSettings) _overlay.DrawSettings(BuildOverlayState());
+        var items = MenuItems;
+        _screens.Menu.Draw(new MenuState(
+            Items: items,
+            Selection: _menuSelection,
+            Status: _menuStatus,
+            Resuming: items[_menuSelection] == ResumeItem,
+            ShowSettings: _showSettings,
+            Overlay: BuildOverlayState()), _screens.Overlay);
         EndUi();
     }
 
@@ -3701,7 +3511,43 @@ public sealed class Game1 : Game
             ObjectiveBearing: objectiveBearing,
             Health: health,
             Prana: prana,
-            Stamina: stamina);
+            Stamina: stamina,
+            Toasts: _session?.Toasts.Select(toast => new ToastHud(toast.Message, toast.Remaining)).ToArray()
+                ?? Array.Empty<ToastHud>(),
+            Level: vitals?.Level ?? 0,
+            Gold: vitals?.Gold ?? 0,
+            WeaponName: _session?.Player.Combat.ActiveWeapon.DisplayName ?? string.Empty,
+            IsBlocking: _session?.Player.Combat.IsBlocking == true,
+            FramesPerSecond: _framesPerSecond,
+            Spell: BuildSpellHud());
+    }
+
+    private SpellHudState BuildSpellHud()
+    {
+        if (_session is null) return new SpellHudState(false, string.Empty, 0f, false, false, 0f,
+            Array.Empty<SocketHud>());
+
+        var caster = _session.Player.Spells;
+        var spell = SpellCatalog.Get(caster.SelectedSpellId);
+        if (spell is null) return new SpellHudState(false, string.Empty, 0f, false, false, 0f,
+            Array.Empty<SocketHud>());
+
+        var cost = caster.CostOf(spell);
+        var stones = _session.Player.Stones.Socketed
+            .Select(StoneCatalog.Find)
+            .Where(stone => stone is not null)
+            .Select(stone => new SocketHud(ShortNameOf(stone!)))
+            .ToArray();
+
+        return new SpellHudState(
+            HasSpell: true,
+            Name: spell.DisplayName,
+            Cost: cost,
+            Affordable: _session.Player.Vitals.Prana >= cost
+                || _session.Player.Inventory.Has(SoulCrystals.LesserId),
+            LightActive: caster.LightActive,
+            LightRemaining: caster.LightRemaining,
+            Stones: stones);
     }
 
     /// <summary>Copies modal-screen state into the renderer-facing overlay snapshot.</summary>
@@ -3768,325 +3614,78 @@ public sealed class Game1 : Game
         if (!panelOpen)
         {
             DrawWeapon();
-            _hud.DrawDamageFlash(hudState);
+            _screens.Hud.DrawDamageFlash(hudState);
             // Both of these report on a system with nothing to report: no live world places
             // a watcher, so the awareness meter has read UNAWARE in every screenshot ever
             // taken of this game. Crouching still works; it just no longer pretends.
-            if (ParkedFeatures.Sneaking) _hud.DrawSneakOverlay(hudState);
+            if (ParkedFeatures.Sneaking) _screens.Hud.DrawSneakOverlay(hudState);
             DrawThreatArrows();
             DrawFloatingNumbers();
-            _hud.DrawCrosshair(hudState);
-            _hud.DrawHitMarker(hudState);
-            _hud.DrawDamageDirections(hudState);
-            DrawSpellBar();
-            _hud.DrawCastBanner(hudState);
+            _screens.Hud.DrawCrosshair(hudState);
+            _screens.Hud.DrawHitMarker(hudState);
+            _screens.Hud.DrawDamageDirections(hudState);
+            _screens.Hud.DrawSpellBar(hudState, ItemSprites.JivaCrystal(GraphicsDevice));
+            _screens.Hud.DrawCastBanner(hudState);
             DrawSurfaceSigns();
             DrawCoach();
             DrawCampDecision();
             DrawDoorPrompt();
             DrawRunLedger();
-            _hud.DrawLocationBanner(hudState);
-            if (ParkedFeatures.Sneaking) _hud.DrawAwareness(hudState);
+            _screens.Hud.DrawLocationBanner(hudState);
+            if (ParkedFeatures.Sneaking) _screens.Hud.DrawAwareness(hudState);
             DrawEnemyNameplates();
-            _hud.DrawObjective(hudState);
-            _hud.DrawVitals(hudState);
-            _hud.DrawStatusStrip(_session, _framesPerSecond);
+            _screens.Hud.DrawObjective(hudState);
+            _screens.Hud.DrawVitals(hudState);
+            _screens.Hud.DrawStatusStrip(hudState);
         }
 
-        _hud.DrawToasts(_session);
+        _screens.Hud.DrawToasts(hudState);
         DrawContentErrors();
 
-        if (_showHelp) _overlay.DrawHelpOverlay(BuildOverlayState());
+        if (_showHelp) _screens.Overlay.DrawHelpOverlay(BuildOverlayState());
         if (_dialogueOpen) DrawDialogue();
         if (_showJournal) DrawJournal();
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
         if (_campTraderOpen) DrawCampTrader();
         if (_choosingDepth) DrawDepthChoice();
-        if (_paused && _runSummary is null) _overlay.DrawPause(BuildOverlayState());
+        if (_paused && _runSummary is null) _screens.Overlay.DrawPause(BuildOverlayState());
         if (_runSummary is { } summary) DrawRunSummary(summary);
 
         EndUi();
     }
 
-    /// <summary>
-    /// The whole game, in one panel.
-    ///
-    /// Both numbers are shown together on purpose: what is being staked, and what the next
-    /// room pays. The escalating ratio between them is the pressure the loop runs on, and a
-    /// player who has to work it out in their head is not feeling it.
-    /// </summary>
     private void DrawCampDecision()
     {
         if (_run is not { AtDecision: true } decision) return;
-
-        var run = decision.Run;
-        var panel = new Rectangle(360, 358, 560, 260);
-        DrawPanel(panel, new Color(6, 12, 19, 240), new Color(205, 157, 98));
-
-        TextCentred("A CLEARED ROOM, AND A SHUT DOOR", panel.Center.X, panel.Y + 18f, 13,
-            new Color(205, 157, 98));
-
-        TextCentred($"{run.Pending}", panel.X + 148f, panel.Y + 52f, 44, new Color(151, 206, 210));
-
-        // "Fifteen stones" is an abstraction; what it is worth is not. A pot the player cannot
-        // price is a pot they cannot be afraid of losing, and a recorded run answered eight
-        // doors in under a second each with forty-five stones on the table.
-        TextCentred($"stones held  ·  {run.Pending * SoulCrystals.LesserBasePrice} gold",
-            panel.X + 148f, panel.Y + 104f, 13, new Color(150, 162, 170));
-
-        TextCentred(run.IsExhausted ? "—" : $"+{run.NextRoomPays}",
-            panel.Right - 148f, panel.Y + 52f, 44, new Color(214, 186, 120));
-        TextCentred(run.IsExhausted ? "the mine is spent" : "the next room pays",
-            panel.Right - 148f, panel.Y + 104f, 13, new Color(150, 162, 170));
-
-        TextCentred(run.IsExhausted
-                ? $"{run.RoomsCleared} rooms cleared. There is nothing deeper."
-                : $"{run.RoomsCleared} rooms cleared  ·  staking {run.RiskRatio:0.0} : 1",
-            panel.Center.X, panel.Y + 128f, 15, new Color(206, 212, 218));
-
-        if (!run.IsExhausted)
-            TextCentred("Fall in there and you carry out nothing.",
-                panel.Center.X, panel.Y + 150f, 13, new Color(196, 118, 96));
-
-        if (run.CanCallTrader)
-            TextCentred($"T   whistle for a trader — {run.TraderCallCost} stones",
-                panel.Center.X, panel.Y + 168f, 14, new Color(196, 176, 210));
-        else if (run.TradersCalled > 0 || run.Pending > 0)
-            TextCentred($"a trader would want {run.TraderCallCost} stones",
-                panel.Center.X, panel.Y + 168f, 13, new Color(120, 116, 128));
-
-        var camp = new Rectangle(panel.X + 24, panel.Bottom - 62, 248, 40);
-        DrawPanel(camp, new Color(17, 34, 28, 235), new Color(120, 178, 132));
-        TextCentred($"C   Camp — bank {run.Pending}", camp.Center.X, camp.Y + 12f, 15,
-            new Color(214, 240, 220));
-
-        var press = new Rectangle(panel.Right - 272, panel.Bottom - 62, 248, 40);
-        if (run.CanPressOn)
-        {
-            DrawPanel(press, new Color(40, 24, 20, 235), new Color(196, 118, 96));
-            TextCentred("E   Open it", press.Center.X, press.Y + 12f, 15, new Color(244, 214, 200));
-            return;
-        }
-
-        DrawPanel(press, new Color(18, 22, 26, 200), new Color(70, 78, 86));
-        TextCentred("nothing deeper", press.Center.X, press.Y + 12f, 15, new Color(110, 120, 128));
+        _screens.Descent.DrawCampDecision(decision.Run);
     }
 
-    /// <summary>First, second, third — for counting the dead.</summary>
-    private static string Ordinal(int value) => (value % 100) switch
-    {
-        11 or 12 or 13 => $"{value}th",
-        _ => (value % 10) switch
-        {
-            1 => $"{value}st",
-            2 => $"{value}nd",
-            3 => $"{value}rd",
-            _ => $"{value}th"
-        }
-    };
 
-    /// <summary>A quiet running total, so the pot is never a surprise at the door.</summary>
     private void DrawRunLedger()
     {
         if (_run is not { } active || !active.Run.IsActive || _runSummary is not null) return;
-
-        var run = active.Run;
-        var panel = new Rectangle(1016, 84, 240, 62);
-        DrawPanel(panel, new Color(5, 11, 18, 214), new Color(65, 105, 119));
-
-        Text("AT RISK", new Vector2(panel.X + 14, panel.Y + 10), 12, new Color(151, 206, 210));
-        Text($"{run.Pending}", new Vector2(panel.Right - 44, panel.Y + 8), 18, Color.White);
-        Text($"room {run.RoomsCleared}  ·  {run.Pending * SoulCrystals.LesserBasePrice} gold",
-            new Vector2(panel.X + 14, panel.Y + 34), 12, new Color(150, 162, 170));
+        _screens.Descent.DrawRunLedger(active.Run);
     }
 
-    /// <summary>
-    /// The trader's pack, priced in the pot.
-    ///
-    /// The pot is on the panel at all times, because every price here is a stone not carried
-    /// out, and that is the only thing that makes any of it a decision.
-    /// </summary>
     private void DrawCampTrader()
     {
         if (_session is null || _run is null) return;
-
-        var run = _run.Run;
-        var (lootItems, lootStones) = CampTrader.ValueOfLoot(_session.Player.Inventory);
-        var panel = new Rectangle(320, 168, 640, 384);
-
-        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 214),
-            new Color(3, 6, 10, 0));
-        DrawPanel(panel, new Color(6, 12, 19, 246), new Color(205, 157, 98));
-
-        TextCentred("SOMEBODY CAME DOWN", panel.Center.X, panel.Y + 24f, 24,
-            new Color(214, 226, 226));
-        TextCentred($"{run.Pending} stones in the pot  ·  the next whistle costs {run.TraderCallCost}",
-            panel.Center.X, panel.Y + 58f, 14, new Color(151, 206, 210));
-
-        for (var index = 0; index < CampRowCount(); index++)
-        {
-            var row = CampRowBounds(index);
-            var selected = index == _campSelection;
-
-            var name = index == 0
-                ? lootItems > 0 ? $"Sell {lootItems} pieces of loot" : "Nothing to sell"
-                : CampTrader.Stock[index - 1].Name;
-
-            var price = index == 0
-                ? lootItems > 0 ? $"+{lootStones} stones" : "—"
-                : $"{CampTrader.Stock[index - 1].Stones} stones";
-
-            var affordable = index == 0
-                ? lootItems > 0
-                : run.Pending >= CampTrader.Stock[index - 1].Stones;
-
-            DrawPanel(row,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
-
-            var ink = !affordable ? new Color(122, 112, 108)
-                : selected ? Color.White
-                : new Color(192, 207, 205);
-
-            Text(name, new Vector2(row.X + 18, row.Y + 12), 16, ink);
-            TextRight(price, row.Right - 18, row.Y + 12, 15,
-                index == 0
-                    ? new Color(151, 206, 210)
-                    : affordable ? new Color(214, 186, 120) : new Color(196, 118, 96));
-        }
-
-        TextCentred("Nothing here outlives the descent. Dying still costs you all of it.",
-            panel.Center.X, panel.Bottom - 52f, 13, new Color(196, 118, 96));
-        TextCentred("Click or arrows choose      Enter trade      Esc back to the door",
-            panel.Center.X, panel.Bottom - 28f, 13, new Color(140, 156, 164));
+        _screens.Descent.DrawCampTrader(_session.Player.Inventory, _run.Run, _campSelection);
     }
 
-    /// <summary>
-    /// The price of every depth, and what each is worth, at the moment of committing.
-    ///
-    /// Both halves on screen together on purpose. Stones were an abstraction for five
-    /// playtests because nothing ever asked for them; a door with a number on it is the first
-    /// time carrying forty-five out of a mine has meant anything at all.
-    /// </summary>
     private void DrawDepthChoice()
     {
         if (_session is null) return;
-
-        var stones = _session.Player.Inventory.CountOf(SoulCrystals.LesserId);
-        var panel = new Rectangle(320, 148, 640, 452);
-
-        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 214),
-            new Color(3, 6, 10, 0));
-        DrawPanel(panel, new Color(6, 12, 19, 246), new Color(205, 157, 98));
-
-        // "How deep" was the wrong question. You are picking which mine to buy into — how
-        // far you actually go is answered later, one door at a time.
-        TextCentred("WHICH MINE", panel.Center.X, panel.Y + 24f, 24, new Color(214, 226, 226));
-        TextCentred($"{stones} jiva stones in hand", panel.Center.X, panel.Y + 58f, 14,
-            new Color(151, 206, 210));
-
-        for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
-        {
-            var cost = MineEntry.CostOf(tier);
-            var affordable = stones >= cost;
-            var selected = tier == _depthSelection;
-            var row = DepthRowBounds(tier);
-
-            DrawPanel(row,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
-
-            var ink = !affordable ? new Color(112, 100, 96)
-                : selected ? Color.White
-                : new Color(192, 207, 205);
-
-            Text($"Tier {tier}", new Vector2(row.X + 18, row.Y + 6), 18, ink);
-            TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 18, row.Y + 8, 16,
-                affordable ? new Color(214, 186, 120) : new Color(196, 118, 96));
-            TextFit(MineEntry.DescriptionOf(tier), new Vector2(row.X + 18, row.Y + 28),
-                row.Width - 150, 12, new Color(150, 162, 170));
-        }
-
-        var breakEven = MineEntry.RoomsToBreakEven(_depthSelection);
-        TextCentred(breakEven == 0
-                ? "Pays one stone a room. Nothing to make back."
-                : $"Pays {_depthSelection} a room, rising. {breakEven} rooms before the door pays for itself.",
-            panel.Center.X, panel.Bottom - 78f, 14, new Color(206, 212, 218));
-
-        TextCentred("A harder mine, not a longer one. How far you go is decided at each door.",
-            panel.Center.X, panel.Bottom - 52f, 13, new Color(151, 206, 210));
-
-        TextCentred("Click or arrows choose      Enter descend      Esc step back",
-            panel.Center.X, panel.Bottom - 26f, 13, new Color(140, 156, 164));
+        _screens.Descent.DrawDepthChoice(
+            _session.Player.Inventory.CountOf(SoulCrystals.LesserId), _depthSelection);
     }
-
-    /// <summary>The way out of the run summary, shared by the drawing and the pointer.</summary>
-    private static Rectangle SummaryButtonBounds() => new(492, 500, 296, 42);
 
     private void DrawRunSummary(RunResult summary)
     {
-        DrawPanel(new Rectangle(0, 0, LogicalWidth, LogicalHeight), new Color(3, 6, 10, 226),
-            new Color(3, 6, 10, 0));
-
-        // Taller than it was: it now carries who took the lamp, where the body is, and a
-        // button to leave by.
-        var panel = new Rectangle(360, 200, 560, 360);
-        var accent = summary.Survived ? new Color(120, 178, 132) : new Color(196, 96, 88);
-        DrawPanel(panel, new Color(6, 12, 19, 246), accent);
-
-        TextCentred(summary.Survived ? "YOU WALKED OUT" : "YOU DID NOT",
-            panel.Center.X, panel.Y + 30f, 26, accent);
-
-        TextCentred($"{summary.RoomsCleared} rooms cleared at tier {summary.Tier}",
-            panel.Center.X, panel.Y + 78f, 15, new Color(206, 212, 218));
-
-        if (summary.Survived)
-        {
-            TextCentred($"+{summary.StonesCarriedOut}", panel.Center.X, panel.Y + 124f, 52,
-                new Color(151, 206, 210));
-            TextCentred(
-                $"jiva stones banked  ·  {summary.StonesCarriedOut * SoulCrystals.LesserBasePrice} gold",
-                panel.Center.X, panel.Y + 186f, 14, new Color(150, 162, 170));
-        }
-        else
-        {
-            TextCentred($"−{summary.StonesLost}", panel.Center.X, panel.Y + 124f, 52,
-                new Color(196, 96, 88));
-            TextCentred(summary.StonesLost > 0
-                    ? $"left where you fell  ·  {summary.StonesLost * SoulCrystals.LesserBasePrice} gold"
-                    : "you had nothing to lose yet",
-                panel.Center.X, panel.Y + 186f, 14, new Color(150, 162, 170));
-        }
-
-        // Who takes the lamp, and where the last one is lying. A death that only reports a
-        // number is a reset; a death with a name and a place to go back to is a reason.
-        if (!summary.Survived && _session is not null)
-        {
-            var legacy = _session.Player.Legacy;
-            var successor = legacy.CurrentName;
-
-            TextCentred($"{successor} takes the lamp  ·  Deepankar the {Ordinal(legacy.Generation + 1)}",
-                panel.Center.X, panel.Bottom - 88f, 15, new Color(214, 200, 170));
-
-            if (legacy.Fallen is { } cache)
-                TextCentred(
-                    $"{cache.Name} lies in room {cache.RoomIndex} with {cache.Stones} stones. Go and fetch them.",
-                    panel.Center.X, panel.Bottom - 64f, 13, new Color(151, 206, 210));
-            else if (_succession is { } cost && cost.ItemsLost > 0)
-                TextCentred($"{cost.ItemsLost} items went into the ground.",
-                    panel.Center.X, panel.Bottom - 64f, 13, new Color(150, 162, 170));
-        }
-
-        var button = SummaryButtonBounds();
-        var hovered = button.Contains(
-            (int)LogicalMouse(_input.CurrentMouse).X, (int)LogicalMouse(_input.CurrentMouse).Y);
-
-        DrawPanel(button,
-            hovered ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-            hovered ? new Color(224, 181, 88) : new Color(54, 82, 91));
-        TextCentred("Back to the surface", button.Center.X, button.Y + 12f, 16,
-            hovered ? Color.White : new Color(192, 207, 205));
+        var pointer = LogicalMouse(_input.CurrentMouse);
+        var hovered = UiLayout.SummaryButton.Contains((int)pointer.X, (int)pointer.Y);
+        _screens.Descent.DrawRunSummary(summary, _session?.Player, _succession, hovered);
     }
 
     /// <summary>
@@ -4201,7 +3800,7 @@ public sealed class Game1 : Game
                 _ => "E  Read the carving"
             };
 
-            DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225), new Color(205, 157, 98));
+            DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
             Text(line, new Vector2(404, 608), 15, Color.White);
             return;
         }
@@ -4209,8 +3808,8 @@ public sealed class Game1 : Game
         var actor = _dialogue?.FindActor(player, _cameraYaw);
         if (actor is not null)
         {
-            var talk = TalkPromptBounds();
-            var secondary = SecondaryPromptBounds();
+            var talk = UiLayout.TalkPrompt;
+            var secondary = UiLayout.SecondaryPrompt;
             DrawPanel(talk, new Color(5, 11, 18, 225), new Color(151, 206, 210));
             TextFit($"Click / E  Talk to {actor.DisplayName}",
                 new Vector2(talk.X + 16, talk.Y + 12), talk.Width - 32, 14, Color.White);
@@ -4227,7 +3826,7 @@ public sealed class Game1 : Game
             // had no prompt at all and testers never found it.
             if (HasPickablePocket(actor))
             {
-                var pocket = PickpocketPromptBounds();
+                var pocket = UiLayout.PickpocketPrompt;
                 DrawPanel(pocket, new Color(5, 11, 18, 225), new Color(190, 148, 196));
                 Text("P  Pick pocket", new Vector2(pocket.X + 16, pocket.Y + 12), 14, Color.White);
             }
@@ -4238,7 +3837,7 @@ public sealed class Game1 : Game
         var pickup = FindPickup(player, _cameraYaw);
         if (pickup is not null)
         {
-            DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225),
+            DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225),
                 new Color(151, 206, 210));
             TextFit($"Click / E  Take {pickup.Name} x{pickup.Count}",
                 new Vector2(404, 608), 472f, 15, Color.White);
@@ -4256,7 +3855,7 @@ public sealed class Game1 : Game
 
         if (_run is { BarsTheWay: true })
         {
-            DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225), new Color(150, 120, 110));
+            DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(150, 120, 110));
             Text("Barred  |  clear this room first", new Vector2(404, 608), 15,
                 new Color(224, 196, 186));
             return;
@@ -4265,7 +3864,7 @@ public sealed class Game1 : Game
         var text = !door.Lock.IsLocked ? "Click / E  Open door"
             : hasKey ? "Click / E  Unlock with your key"
             : $"Locked  |  a key, or Security {door.Definition.Difficulty:0}";
-        DrawPanel(SinglePromptBounds(), new Color(5, 11, 18, 225), new Color(205, 157, 98));
+        DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
         Text(text, new Vector2(404, 608), 15, Color.White);
     }
 
@@ -4329,224 +3928,22 @@ public sealed class Game1 : Game
     private void DrawDialogue()
     {
         if (_conversationActor is null) return;
-
-        var topics = _conversationActor.AvailableTopics();
-        var panel = DialoguePanelBounds;
-        DrawPanel(panel, new Color(5, 11, 18, 248), new Color(151, 206, 210));
-
-        Text(_conversationActor.DisplayName, new Vector2(panel.X + 24, panel.Y + 20), 26, Color.White);
-        TextWrapped(_dialogueResponse, new Vector2(panel.X + 24, panel.Y + 62),
-            panel.Width - 48, 18, new Color(216, 228, 223), maxLines: 4);
-
-        if (topics.Count == 0)
-        {
-            Text("Nothing you know to ask reaches them.",
-                new Vector2(panel.X + 24, DialogueTopicBounds(0).Y + 6), 17,
-                new Color(174, 188, 186));
-        }
-        else
-        {
-            for (var index = 0; index < topics.Count && index < DialogueRows; index++)
-            {
-                var selected = index == _dialogueSelection;
-                var row = DialogueTopicBounds(index);
-                Fill(row, selected ? new Color(74, 67, 43, 240) : new Color(17, 27, 35, 190));
-                Text($"{index + 1}. {topics[index]}", new Vector2(row.X + 12, row.Y + 6), 17,
-                    selected ? new Color(245, 209, 124) : new Color(206, 219, 217));
-            }
-
-            if (topics.Count > DialogueRows)
-                Text($"+{topics.Count - DialogueRows} more",
-                    new Vector2(panel.X + 24, DialogueTopicBounds(DialogueRows).Y + 4), 14,
-                    new Color(142, 157, 157));
-        }
-
-        Text("Enter ask      Esc close", new Vector2(panel.X + 24, panel.Bottom - 30), 15,
-            new Color(170, 197, 200));
+        _screens.Dialogue.Draw(_conversationActor, _dialogueResponse, _dialogueSelection);
     }
 
     private void DrawJournal()
     {
         if (_session is null) return;
-
-        var panel = new Rectangle(200, 82, 880, 556);
-        DrawPanel(panel, new Color(5, 11, 18, 246), new Color(182, 137, 71));
-        Text("JOURNAL", new Vector2(panel.X + 30, panel.Y + 24), 13,
-            new Color(214, 183, 108));
-        Text("Current work", new Vector2(panel.X + 30, panel.Y + 56), 28, Color.White);
-
-        var quests = _session.Player.Quests.Quests;
-        if (quests.Count == 0)
-        {
-            Text("No quests have been recorded.", new Vector2(panel.X + 30, panel.Y + 112), 17,
-                new Color(174, 188, 186));
-        }
-        else
-        {
-            var y = panel.Y + 108;
-            foreach (var quest in quests)
-            {
-                var colour = quest.IsCompleted ? new Color(143, 180, 142)
-                    : quest.IsActive ? Color.White : new Color(142, 157, 157);
-                TextFit(quest.Title, new Vector2(panel.X + 30, y), 440f, 19, colour);
-                var state = quest.IsCompleted ? "COMPLETE"
-                    : quest.IsActive ? quest.StageText : "Not accepted";
-                TextFit(state, new Vector2(panel.X + 54, y + 30), 760f, 15,
-                    quest.IsCompleted ? new Color(143, 180, 142) : new Color(203, 216, 214));
-                y += 76;
-                if (y > panel.Bottom - 70) break;
-            }
-        }
-
-        Text("J / Esc close", new Vector2(panel.X + 30, panel.Bottom - 34), 13,
-            new Color(163, 191, 194));
+        _screens.Journal.Draw(_session.Player);
     }
 
     private void DrawCharacterSheet()
     {
         if (_session is null) return;
-
-        var player = _session.Player;
-        var vitals = player.Vitals;
-        var panel = new Rectangle(90, 70, 1100, 580);
-        DrawPanel(panel, new Color(5, 11, 18, 248), new Color(117, 153, 166));
-        Text("CHARACTER", new Vector2(panel.X + 30, panel.Y + 22), 13,
-            new Color(214, 183, 108));
-
-        var name = string.IsNullOrWhiteSpace(player.Story.State.Profile.Name)
-            ? "Northwatch Wanderer"
-            : player.Story.State.Profile.Name;
-        TextFit(name, new Vector2(panel.X + 30, panel.Y + 52), 440f, 28, Color.White);
-        TextRight($"{vitals.Gold} gold", panel.Right - 30, panel.Y + 60, 17,
-            new Color(228, 197, 122));
-
-        var leftX = panel.X + 30;
-        var skillsX = panel.X + 800;
-        var top = panel.Y + 112;
-
-        Text("VITALS", new Vector2(leftX, top), 13, new Color(151, 206, 210));
-        Text($"Level {vitals.Level}   XP {vitals.Xp} / {vitals.XpToLevel}",
-            new Vector2(leftX, top + 34), 17, Color.White);
-        Text($"Health     {vitals.Health:0} / {vitals.MaxHealth:0}",
-            new Vector2(leftX, top + 70), 16, new Color(224, 116, 105));
-        Text($"Prana       {vitals.Prana:0} / {vitals.MaxPrana:0}",
-            new Vector2(leftX, top + 100), 16, new Color(112, 174, 225));
-        Text($"Stamina   {vitals.Stamina:0} / {vitals.MaxStamina:0}",
-            new Vector2(leftX, top + 130), 16, new Color(117, 194, 137));
-        // What is worn used to be repeated here as two lines of text. It now has its own
-        // slots beside the pack, and saying it twice only made the column look busy.
-        Text($"Jiva stones drawn: {vitals.Channeled}",
-            new Vector2(leftX, top + 182), 15, new Color(174, 188, 186));
-
-        DrawStoneSlots(player, leftX, top + 224);
-        DrawEquippedSlots(player);
-        DrawPack(player);
-
-        Text("SKILLS", new Vector2(skillsX, top), 13, new Color(151, 206, 210));
-        var skillY = top + 34;
-        foreach (var skillId in Skills.All)
-        {
-            // Parked skills are not shown. Nothing trains Security or Stealth now that
-            // picking and sneaking are switched off, and a number that cannot move is a
-            // promise the interface is making on the game's behalf and not keeping.
-            if (!ParkedFeatures.SkillIsLive(skillId)) continue;
-
-            TextFit(Skills.Label(skillId), new Vector2(skillsX, skillY), 205f, 16,
-                new Color(203, 216, 214));
-            TextRight(player.Skills.LevelOf(skillId).ToString("0.0"), panel.Right - 34,
-                skillY, 16, Color.White);
-            skillY += 37;
-        }
-
-        Text("Arrows or hover to choose      Enter to use or equip      1-6 socket a stone      I / K / Esc close",
-            new Vector2(panel.X + 30, panel.Bottom - 34), 13, new Color(163, 191, 194));
+        _screens.Character.Draw(_session.Player, _inventorySelection,
+            ItemSprites.JivaCrystal(GraphicsDevice));
     }
 
-    /// <summary>
-    /// The sockets and whatever the mountain has given up this run.
-    ///
-    /// Put on the character screen rather than in its own window because it is read mid-run,
-    /// between rooms, with a decision waiting at a door — and a second screen to open is a
-    /// second reason not to bother. Socketing is number keys for the same reason: it has to be
-    /// doable in the two seconds a player is willing to spend on it.
-    /// </summary>
-    private void DrawStoneSlots(PlayerCharacter player, int x, int y)
-    {
-        var stones = player.Stones;
-
-        Text("STONES", new Vector2(x, y), 13, new Color(151, 206, 210));
-
-        var capacity = stones.Capacity;
-        if (capacity == 0)
-        {
-            Text("Nothing you hold has a socket.", new Vector2(x, y + 28), 14,
-                new Color(150, 160, 162));
-            return;
-        }
-
-        // Sockets as a row of cells, filled or empty, so the number of them is countable at a
-        // glance rather than being a sentence the player has to read.
-        for (var slot = 0; slot < capacity; slot++)
-        {
-            var cell = new Rectangle(x + slot * 46, y + 26, 40, 40);
-            var filled = slot < stones.Socketed.Count;
-
-            DrawPanel(cell,
-                filled ? new Color(52, 34, 74, 240) : new Color(14, 22, 30, 220),
-                filled ? new Color(178, 132, 226) : new Color(58, 78, 88));
-
-            if (!filled) continue;
-
-            var stone = StoneCatalog.Find(stones.Socketed[slot]);
-            if (stone is null) continue;
-
-            _spriteBatch.Draw(ItemSprites.JivaCrystal(GraphicsDevice),
-                new Rectangle(cell.X + 4, cell.Y + 4, 32, 32), Color.White);
-        }
-
-        var listY = y + 76;
-
-        if (stones.Socketed.Count > 0)
-        {
-            foreach (var id in stones.Socketed)
-            {
-                var stone = StoneCatalog.Find(id);
-                if (stone is null) continue;
-
-                TextFit($"{stone.DisplayName} — {stone.Description}",
-                    new Vector2(x, listY), 430f, 13, new Color(214, 184, 244));
-                listY += 22;
-            }
-
-            listY += 6;
-        }
-
-        if (stones.Loose.Count == 0)
-        {
-            Text(stones.Socketed.Count > 0 ? "Nothing else found." : "Nothing found yet.",
-                new Vector2(x, listY), 13, new Color(150, 160, 162));
-            return;
-        }
-
-        Text("FOUND — press the number to socket", new Vector2(x, listY), 12,
-            new Color(196, 170, 120));
-        listY += 22;
-
-        for (var index = 0; index < stones.Loose.Count && index < 6; index++)
-        {
-            var stone = StoneCatalog.Find(stones.Loose[index]);
-            if (stone is null) continue;
-
-            TextFit($"{index + 1}.  {stone.DisplayName} — {stone.Description}",
-                new Vector2(x, listY), 430f, 13,
-                stones.HasRoom ? new Color(226, 220, 208) : new Color(140, 132, 126));
-            listY += 22;
-        }
-
-        if (!stones.HasRoom)
-            Text("Every socket is full. Press 0 to empty the last one.",
-                new Vector2(x, listY + 4), 12, new Color(214, 150, 120));
-    }
 
     /// <summary>Number keys socket a found stone; zero takes the last one back out.</summary>
     private void UpdateStoneInput(KeyboardState keyboard)
@@ -4583,60 +3980,7 @@ public sealed class Game1 : Game
     private void DrawShop()
     {
         if (_session is null || _shop is null) return;
-
-        // Tall enough for four rows of three. The stall carries ten things and the last row
-        // used to run off the bottom of the panel and through the help text.
-        var panel = new Rectangle(250, 100, 780, 552);
-        DrawPanel(panel, new Color(5, 11, 18, 248), new Color(205, 157, 98));
-        Text("SHOP", new Vector2(panel.X + 30, panel.Y + 26), 13,
-            new Color(214, 183, 108));
-        TextFit(_shop.Definition.DisplayName, new Vector2(panel.X + 30, panel.Y + 54), 520f, 27,
-            Color.White);
-        TextRight($"{_session.Player.Vitals.Gold} gold", panel.Right - 30, panel.Y + 62, 17,
-            new Color(228, 197, 122));
-
-        var items = _shop.Definition.Items;
-        if (items.Count == 0)
-            Text("No stock.", new Vector2(panel.X + 30, panel.Y + 126), 17, new Color(174, 188, 186));
-        else
-        {
-            var purse = _session.Player.Vitals.Gold;
-
-            for (var index = 0; index < items.Count; index++)
-            {
-                var item = items[index];
-                var selected = index == _shopSelection;
-                var sold = _shop.IsSoldOut(item.Id);
-                var affordable = !sold && purse >= item.Price;
-                var tile = ShopItemBounds(index);
-
-                DrawPanel(tile,
-                    selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                    selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
-
-                var ink = sold ? new Color(112, 122, 122)
-                    : !affordable ? new Color(146, 130, 124)
-                    : selected ? Color.White
-                    : new Color(203, 216, 214);
-
-                TextFit(item.Name, new Vector2(tile.X + 12, tile.Y + 10), tile.Width - 24, 16, ink);
-                TextFit(ItemUse.Describe(item.Id, item.Kind), new Vector2(tile.X + 12, tile.Y + 34),
-                    tile.Width - 24, 12, new Color(140, 156, 164));
-
-                Text(sold ? "SOLD OUT" : $"{item.Price} gold",
-                    new Vector2(tile.X + 12, tile.Bottom - 24), 15,
-                    sold ? new Color(142, 157, 157)
-                        : affordable ? new Color(228, 197, 122)
-                        : new Color(196, 118, 96));
-
-                if (item.Count > 1)
-                    TextRight($"x{item.Count}", tile.Right - 12, tile.Bottom - 24, 14,
-                        new Color(150, 162, 170));
-            }
-        }
-
-        Text("Click to buy      Arrows move      Enter buy      B / Esc close",
-            new Vector2(panel.X + 30, panel.Bottom - 34), 13, new Color(163, 191, 194));
+        _screens.Shop.Draw(_shop, _session.Player.Vitals.Gold, _shopSelection);
     }
 
     /// <summary>
@@ -5378,80 +4722,7 @@ public sealed class Game1 : Game
         }
     }
 
-    /// <summary>
-    /// The readied spell, its cost, and whether it can be paid for.
-    ///
-    /// Spells were bound to keys but never shown, so testers reported them as unimplemented.
-    /// </summary>
-    private void DrawSpellBar()
-    {
-        if (_session is null) return;
 
-        var caster = _session.Player.Spells;
-        var spell = SpellCatalog.Get(caster.SelectedSpellId);
-        if (spell is null) return;
-
-        var panel = new Rectangle(LogicalWidth / 2 - 150, LogicalHeight - 96, 300, 60);
-        DrawPanel(panel, new Color(6, 13, 20, 214), new Color(74, 106, 132));
-
-        var cost = caster.CostOf(spell);
-        var affordable = _session.Player.Vitals.Prana >= cost
-            || _session.Player.Inventory.Has(SoulCrystals.LesserId);
-
-        Text("READIED", new Vector2(panel.X + 14, panel.Y + 9), 12, new Color(146, 174, 178));
-        TextFit(spell.DisplayName, new Vector2(panel.X + 14, panel.Y + 28), 176f, 19,
-            affordable ? Color.White : new Color(198, 132, 126));
-
-        TextRight($"{cost:0} prana", panel.Right - 14, panel.Y + 9, 13,
-            affordable ? new Color(150, 190, 232) : new Color(216, 128, 120));
-        TextRight(affordable ? "Q to cast" : "no charge", panel.Right - 14, panel.Y + 30, 13,
-            new Color(146, 174, 178));
-
-        if (caster.LightActive)
-            TextCentred($"Emberlight {caster.LightRemaining:0}s",
-                LogicalWidth / 2f, panel.Y - 24f, 13, new Color(232, 194, 116));
-
-        DrawSocketedStones(panel);
-    }
-
-    /// <summary>
-    /// What is socketed, on the HUD, all the time.
-    ///
-    /// Without this the player has to remember. A stone changes how a swing behaves for the
-    /// rest of a descent, and the only place that was written down was a screen they have to
-    /// stop and open — so the effect was real and the knowledge of it was not, which is the
-    /// same as the effect not existing.
-    ///
-    /// Beside the readied spell rather than in a corner, because it belongs with the other
-    /// answer to "what will happen when I press the button".
-    /// </summary>
-    private void DrawSocketedStones(Rectangle spellPanel)
-    {
-        if (_session is null) return;
-
-        var socketed = _session.Player.Stones.Socketed;
-        if (socketed.Count == 0) return;
-
-        const int Cell = 34;
-        var width = socketed.Count * (Cell + 4) + 12;
-        var panel = new Rectangle(spellPanel.Right + 12, spellPanel.Y + 8, width, Cell + 16);
-
-        DrawPanel(panel, new Color(14, 8, 22, 214), new Color(122, 88, 168));
-
-        for (var index = 0; index < socketed.Count; index++)
-        {
-            var stone = StoneCatalog.Find(socketed[index]);
-            if (stone is null) continue;
-
-            var cell = new Rectangle(panel.X + 8 + index * (Cell + 4), panel.Y + 8, Cell, Cell);
-            _spriteBatch.Draw(ItemSprites.JivaCrystal(GraphicsDevice), cell, Color.White);
-
-            // The name under the icon rather than a tooltip: a tooltip needs a pointer, and
-            // the pointer is being used to look around.
-            TextCentred(ShortNameOf(stone), cell.Center.X, cell.Bottom - 2f, 10,
-                new Color(214, 184, 244));
-        }
-    }
 
     /// <summary>"Cinder Stone" is too long under a 34-pixel icon; "Cinder" is not.</summary>
     private static string ShortNameOf(StoneDefinition stone)
@@ -5534,116 +4805,7 @@ public sealed class Game1 : Game
         }
     }
 
-    /// <summary>
-    /// What is in hand and what is worn, above the pack rather than buried in a column of
-    /// text. These are the two facts a player checks mid-run and the two the old sheet made
-    /// hardest to find.
-    /// </summary>
-    private void DrawEquippedSlots(PlayerCharacter player)
-    {
-        Text("EQUIPPED", new Vector2(InventoryLeft, 182), 13, new Color(151, 206, 210));
 
-        var weapon = player.Equipment.Weapon;
-        var armour = player.Equipment.Armour;
-
-        string[] labels = { "IN HAND", "WORN" };
-        string[] names = { weapon.DisplayName, armour?.DisplayName ?? "Nothing" };
-        string[] notes =
-        {
-            $"{weapon.Damage:0} damage   {weapon.Range:0.0} m   {(weapon.CanBlock ? "guards" : "no guard")}",
-            armour is null ? "no protection" : $"{armour.Armour:0} damage reduction"
-        };
-
-        for (var index = 0; index < 2; index++)
-        {
-            var slot = EquippedSlotBounds(index);
-            var filled = index == 0 || armour is not null;
-
-            DrawPanel(slot, new Color(14, 24, 32, 235),
-                filled ? new Color(120, 150, 130) : new Color(54, 68, 76));
-
-            Text(labels[index], new Vector2(slot.X + 12, slot.Y + 8), 11,
-                new Color(140, 168, 160));
-            TextFit(names[index], new Vector2(slot.X + 12, slot.Y + 24), slot.Width - 24, 15,
-                filled ? Color.White : new Color(128, 138, 142));
-            TextRight(notes[index], slot.Right - 12, slot.Y + 8, 11, new Color(150, 162, 170));
-        }
-    }
-
-    /// <summary>
-    /// The pack, as a grid of what things are and what they do.
-    ///
-    /// Each tile carries the name, the count, and whether it is the thing currently in hand,
-    /// because "which of these two swords am I holding" was a question the old list could not
-    /// answer at a glance. What the selected thing does, and what using it will do, sits
-    /// underneath in words rather than in a verb the player has to guess.
-    /// </summary>
-    private void DrawPack(PlayerCharacter player)
-    {
-        var items = player.Inventory.Items;
-        Text("PACK", new Vector2(InventoryLeft, 268), 13, new Color(151, 206, 210));
-
-        if (items.Count == 0)
-        {
-            Text("Empty. Everything down there drops something.",
-                new Vector2(InventoryLeft, InventoryTop + 8), 15, new Color(142, 157, 157));
-            return;
-        }
-
-        var selection = Math.Clamp(_inventorySelection, 0, items.Count - 1);
-        var shown = Math.Min(items.Count, InventoryRows);
-
-        for (var index = 0; index < shown; index++)
-        {
-            var item = items[index];
-            var tile = InventoryRowBounds(index);
-            var selected = index == selection;
-            var inHand = string.Equals(item.Id, player.Equipment.WeaponId, StringComparison.Ordinal)
-                || string.Equals(item.Id, player.Equipment.ArmourId, StringComparison.Ordinal);
-
-            DrawPanel(tile,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88)
-                    : inHand ? new Color(120, 150, 130)
-                    : new Color(54, 82, 91));
-
-            TextFit(item.Name, new Vector2(tile.X + 10, tile.Y + 9), tile.Width - 20, 14,
-                selected ? Color.White : new Color(203, 216, 214));
-
-            if (item.Count > 1)
-                TextRight($"x{item.Count}", tile.Right - 10, tile.Y + 30, 13,
-                    new Color(228, 197, 122));
-
-            if (inHand)
-                Text("equipped", new Vector2(tile.X + 10, tile.Y + 31), 11,
-                    new Color(150, 200, 158));
-        }
-
-        var rowsUsed = (shown + InventoryColumns - 1) / InventoryColumns;
-        var belowPack = InventoryTop + rowsUsed * (InventoryTileHeight + 6);
-
-        if (items.Count > shown)
-            TextRight($"+{items.Count - shown} more", InventoryLeft + 426, belowPack + 4, 12,
-                new Color(142, 157, 157));
-
-        // What it is, and what Enter does to it.
-        var chosen = items[selection];
-        var detail = new Rectangle(InventoryLeft, belowPack + 22, 426, 78);
-
-        DrawPanel(detail, new Color(8, 16, 24, 232), new Color(72, 104, 118));
-        TextFit(chosen.Name, new Vector2(detail.X + 14, detail.Y + 10), detail.Width - 28, 16,
-            Color.White);
-        TextFit(ItemUse.Describe(chosen.Id, chosen.Kind),
-            new Vector2(detail.X + 14, detail.Y + 34), detail.Width - 28, 13,
-            new Color(196, 212, 210));
-
-        var verb = ItemUse.DescribeAction(chosen.Id, chosen.Kind);
-        TextFit(verb == "—"
-                ? "Nothing happens when you use this."
-                : $"Enter or click to {verb.ToLowerInvariant()}",
-            new Vector2(detail.X + 14, detail.Y + 56), detail.Width - 28, 13,
-            verb == "—" ? new Color(142, 157, 157) : new Color(232, 194, 116));
-    }
 
     private void DrawAuthoredWorld()
     {
@@ -6340,6 +5502,9 @@ public sealed class Game1 : Game
     }
 
     private void Fill(Rectangle bounds, Color color) => _spriteBatch.Draw(_white, bounds, color);
+
+    private void DrawSprite(Texture2D texture, Rectangle destination, Color color) =>
+        _spriteBatch.Draw(texture, destination, color);
 
     private void Border(Rectangle bounds, Color color)
     {

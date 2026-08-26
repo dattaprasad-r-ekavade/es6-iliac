@@ -19,8 +19,8 @@ internal sealed class InputRouter
 
     public void Sample()
     {
-        CurrentKeyboard = Microsoft.Xna.Framework.Input.Keyboard.GetState();
-        CurrentMouse = Microsoft.Xna.Framework.Input.Mouse.GetState();
+        CurrentKeyboard = Keyboard.GetState();
+        CurrentMouse = Mouse.GetState();
     }
 
     public bool Pressed(KeyboardState current, Keys key) =>
