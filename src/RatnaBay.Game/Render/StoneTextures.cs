@@ -59,6 +59,18 @@ public static class StoneTextures
     public static Texture2D Floor(GraphicsDevice device, StonePalette palette)
         => Get(device, "floor:" + palette.Id, () => BuildFloor(palette));
 
+    /// <summary>Sawn planks, for stall counters, posts, awning frames and winch timber.</summary>
+    public static Texture2D Timber(GraphicsDevice device)
+        => Get(device, "timber", BuildTimber);
+
+    /// <summary>Coarse woven cloth, for awnings and hangings.</summary>
+    public static Texture2D Cloth(GraphicsDevice device)
+        => Get(device, "cloth", BuildCloth);
+
+    /// <summary>Packed earth: no courses, no mortar, just grit and a few stones.</summary>
+    public static Texture2D Earth(GraphicsDevice device)
+        => Get(device, "earth", BuildEarth);
+
     /// <summary>
     /// A soft radial falloff, drawn additively to fake the pool of light a torch throws.
     ///
@@ -178,6 +190,155 @@ public static class StoneTextures
         }
 
         Pit(pixels, palette, random, count: 140);
+        return pixels;
+    }
+
+    // ------------------------------------------------------------------ other materials
+
+    /// <summary>
+    /// Sawn planks running the length of the tile.
+    ///
+    /// Timber is the material the yard needed most: every post, counter and beam in the camp
+    /// was drawn as coursed blockwork, so the stall read as a brick bench and the winch over
+    /// the shaft read as brick posts. Grain runs one way and the boards are unequal widths,
+    /// which is most of what separates a plank from a stripe.
+    /// </summary>
+    private static Color[] BuildTimber()
+    {
+        var pixels = new Color[Size * Size];
+        var random = new Random(0x7100BE);
+
+        var body = new Color(150, 108, 66);
+        var gap = new Color(58, 40, 26);
+
+        // Board edges at uneven intervals, so the eye does not find a repeat.
+        var edges = new List<int> { 0 };
+        for (var y = random.Next(24, 40); y < Size; y += random.Next(26, 46)) edges.Add(y);
+        edges.Add(Size);
+
+        for (var board = 0; board < edges.Count - 1; board++)
+        {
+            var top = edges[board];
+            var bottom = edges[board + 1];
+            var tone = random.Next(-14, 15);
+
+            for (var y = top; y < bottom; y++)
+            for (var x = 0; x < Size; x++)
+            {
+                var index = y * Size + x;
+
+                if (y - top < 2)
+                {
+                    pixels[index] = Jitter(gap, random, 5);
+                    continue;
+                }
+
+                // Long grain: a slow ripple along the board, plus fine noise across it.
+                var grain = MathF.Sin((x * 0.11f) + board * 2.3f) * 5f
+                    + MathF.Sin(x * 0.031f + y * 0.7f) * 3f;
+                var shade = tone + grain + random.Next(-4, 5);
+
+                // A darker line near each edge reads as the round of a sawn board.
+                var toEdge = MathF.Min(y - top, bottom - 1 - y);
+                if (toEdge < 4) shade -= (4 - toEdge) * 3f;
+
+                pixels[index] = Shift(body, shade);
+            }
+        }
+
+        // Knots. Two or three per tile is plenty; more reads as damage.
+        for (var knot = 0; knot < 3; knot++)
+        {
+            var cx = random.Next(Size);
+            var cy = random.Next(Size);
+            var radius = random.Next(4, 8);
+
+            for (var y = cy - radius; y <= cy + radius; y++)
+            for (var x = cx - radius; x <= cx + radius; x++)
+            {
+                if (x < 0 || y < 0 || x >= Size || y >= Size) continue;
+
+                var dx = (x - cx) / (float)radius;
+                var dy = (y - cy) / (float)radius;
+                var falloff = 1f - MathF.Min(1f, MathF.Sqrt(dx * dx + dy * dy));
+                if (falloff <= 0f) continue;
+
+                pixels[y * Size + x] = Shift(pixels[y * Size + x], -34f * falloff);
+            }
+        }
+
+        return pixels;
+    }
+
+    /// <summary>A coarse over-under weave. Close up it is threads; at stall size it is canvas.</summary>
+    private static Color[] BuildCloth()
+    {
+        var pixels = new Color[Size * Size];
+        var random = new Random(0xC107F);
+        var body = new Color(158, 92, 78);
+
+        for (var y = 0; y < Size; y++)
+        for (var x = 0; x < Size; x++)
+        {
+            // Which thread is on top alternates in both directions, four texels to a thread.
+            var overUnder = (x / 4 + y / 4) % 2 == 0;
+            var alongThread = overUnder ? y % 4 : x % 4;
+
+            var shade = overUnder ? 8f : -8f;
+            shade += alongThread is 0 or 3 ? -6f : 3f;
+
+            // A slow sag across the weave, so a large panel is not flat.
+            shade += MathF.Sin(x * 0.02f) * 4f + MathF.Sin(y * 0.017f) * 4f;
+
+            pixels[y * Size + x] = Shift(body, shade + random.Next(-3, 4));
+        }
+
+        return pixels;
+    }
+
+    /// <summary>
+    /// Packed earth: grit, a few trodden stones, and no courses at all.
+    ///
+    /// The yard floor was flagstones, which made the camp read as a paved room with a sky
+    /// over it rather than as ground somebody dug a hole in.
+    /// </summary>
+    private static Color[] BuildEarth()
+    {
+        var pixels = new Color[Size * Size];
+        var random = new Random(0xEA27D);
+        var body = new Color(132, 112, 84);
+
+        for (var y = 0; y < Size; y++)
+        for (var x = 0; x < Size; x++)
+        {
+            // Broad patches of damp and dry, then grit on top of it.
+            var patch = MathF.Sin(x * 0.021f + y * 0.013f) * 7f
+                + MathF.Sin(x * 0.007f - y * 0.031f) * 5f;
+
+            pixels[y * Size + x] = Shift(body, patch + random.Next(-9, 10));
+        }
+
+        // Small stones trodden into the surface.
+        for (var stone = 0; stone < 90; stone++)
+        {
+            var cx = random.Next(Size);
+            var cy = random.Next(Size);
+            var radius = random.Next(1, 4);
+            var lighter = random.Next(2) == 0;
+
+            for (var y = cy - radius; y <= cy + radius; y++)
+            for (var x = cx - radius; x <= cx + radius; x++)
+            {
+                if (x < 0 || y < 0 || x >= Size || y >= Size) continue;
+
+                var dx = (x - cx) / (float)radius;
+                var dy = (y - cy) / (float)radius;
+                if (dx * dx + dy * dy > 1f) continue;
+
+                pixels[y * Size + x] = Shift(pixels[y * Size + x], lighter ? 22f : -20f);
+            }
+        }
+
         return pixels;
     }
 

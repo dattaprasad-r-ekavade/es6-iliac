@@ -63,6 +63,17 @@ public static class MineGenerator
     private const float FloorBottom = -0.6f;
     private const float FloorTop = -0.2f;
     private const float WallTop = 6f;
+
+    /// <summary>
+    /// Head height of a doorway, and therefore of the passage behind it.
+    ///
+    /// A room is a six-metre hall and a door is three and a half metres tall, which used to
+    /// mean every shut door had nearly three metres of open air above it: the leaf hung in the
+    /// middle of a full-height hole with the lit corridor visible over the top, and read as a
+    /// slab floating in a gap. Doorways, lintels and passages all take their height from here
+    /// so the three cannot drift apart again.
+    /// </summary>
+    private const float DoorwayHeight = 3.4f;
     private const float CeilingTop = 6.5f;
 
     /// <summary>Matches the authored world's spawn height; the player falls the last inch.</summary>
@@ -350,15 +361,21 @@ public static class MineGenerator
             return;
         }
 
+        // The two jambs, and the masonry carried over the top. Without the lintel the opening
+        // was the full height of the room, so a doorway was a hole from floor to ceiling.
         if (horizontal)
         {
             Box(manifest, $"{id}.a", minX, FloorTop, minZ, centre - DoorwayHalf, WallTop, maxZ, colour);
             Box(manifest, $"{id}.b", centre + DoorwayHalf, FloorTop, minZ, maxX, WallTop, maxZ, colour);
+            Box(manifest, $"{id}.lintel", centre - DoorwayHalf, FloorTop + DoorwayHeight, minZ,
+                centre + DoorwayHalf, WallTop, maxZ, colour);
             return;
         }
 
         Box(manifest, $"{id}.a", minX, FloorTop, minZ, maxX, WallTop, centre - DoorwayHalf, colour);
         Box(manifest, $"{id}.b", minX, FloorTop, centre + DoorwayHalf, maxX, WallTop, maxZ, colour);
+        Box(manifest, $"{id}.lintel", minX, FloorTop + DoorwayHeight, centre - DoorwayHalf,
+            maxX, WallTop, centre + DoorwayHalf, colour);
     }
 
     /// <summary>The passage between two rooms, and the door standing in it.</summary>
@@ -422,31 +439,36 @@ public static class MineGenerator
         var floorMinZ = alongZ ? minZ : minZ - WallThickness;
         var floorMaxZ = alongZ ? maxZ : maxZ + WallThickness;
 
+        // A passage is doorway height, not room height: a low crawl between tall chambers.
+        // It used to be a six-metre tube behind a three-metre door, which is what made the
+        // gap over the door look lit from somewhere it should not have been.
+        var head = FloorTop + DoorwayHeight;
+
         Box(manifest, $"{prefix}.floor",
             floorMinX, FloorBottom, floorMinZ, floorMaxX, FloorTop, floorMaxZ, colour);
         Box(manifest, $"{prefix}.ceiling",
-            floorMinX, WallTop, floorMinZ, floorMaxX, CeilingTop, floorMaxZ, colour);
+            floorMinX, head, floorMinZ, floorMaxX, head + WallThickness, floorMaxZ, colour);
 
         if (alongZ)
         {
             Box(manifest, $"{prefix}.left", minX - WallThickness, FloorTop, minZ,
-                minX, WallTop, maxZ, colour);
+                minX, head, maxZ, colour);
             Box(manifest, $"{prefix}.right", maxX, FloorTop, minZ,
-                maxX + WallThickness, WallTop, maxZ, colour);
+                maxX + WallThickness, head, maxZ, colour);
             return;
         }
 
         Box(manifest, $"{prefix}.left", minX, FloorTop, minZ - WallThickness,
-            maxX, WallTop, minZ, colour);
+            maxX, head, minZ, colour);
         Box(manifest, $"{prefix}.right", minX, FloorTop, maxZ,
-            maxX, WallTop, maxZ + WallThickness, colour);
+            maxX, head, maxZ + WallThickness, colour);
     }
 
     private static void Door(WorldManifest manifest, string id, float spanMin, float spanMax,
         float centre, bool alongZ, bool locked)
     {
         const float half = 0.2f;
-        const float height = 3.4f;
+        const float height = DoorwayHeight;
 
         manifest.Doors.Add(new WorldDoor
         {

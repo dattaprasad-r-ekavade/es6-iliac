@@ -233,6 +233,9 @@ public sealed class Game1 : Game
     /// <summary>--stambha: frame the carved pillar as the trailer's opening shot.</summary>
     private bool _stambhaPreview;
 
+    /// <summary>--yard: start in the surface camp instead of at the menu.</summary>
+    private bool _startOnTheSurface;
+
     /// <summary>
     /// --moodboard: one room built to the target fidelity, to be argued with.
     ///
@@ -421,6 +424,10 @@ public sealed class Game1 : Game
         // described. Screenshot mode only.
         _captureScreen = ParseOption(args, "--show");
         _stambhaPreview = HasArgument(args, "--stambha");
+
+        // --yard opens on the surface rather than the menu, so the one place the player
+        // starts and returns to can be looked at rather than described.
+        _startOnTheSurface = HasArgument(args, "--yard");
         _moodboard = HasArgument(args, "--moodboard");
         _assetCase = HasArgument(args, "--assets");
         if (_assetCase) _moodboard = true;
@@ -614,6 +621,10 @@ public sealed class Game1 : Game
         LoadModel("tent", "Feasibility/Models/Kenney/tent_detailedOpen");
         LoadModel("tree", "Feasibility/Models/Kenney/tree_pineRoundA");
         LoadModel("cheeseBox", "Feasibility/Models/PolyHavenCheeseBox/CheeseBox_01_1k");
+
+        // Done here rather than at parse time: the surface needs the device, the fonts and
+        // the models, and none of those exist when the command line is read.
+        if (_startOnTheSurface) EnterWorld(null, newCharacter: true);
     }
 
     protected override void UnloadContent()
@@ -4888,7 +4899,8 @@ public sealed class Game1 : Game
         foreach (var geometry in _world.Manifest.Geometry ?? new List<WorldGeometry>())
         {
             if (!geometry.Visible) continue;
-            DrawWorldBox(geometry.Min, geometry.Max, ToXnaColor(geometry.Color));
+            DrawWorldBox(geometry.Min, geometry.Max, ToXnaColor(geometry.Color),
+                geometry.Material);
         }
 
         foreach (var door in _world.Doors)
@@ -4917,7 +4929,8 @@ public sealed class Game1 : Game
     /// <summary>Roughly two metres of wall per repeat of the block texture.</summary>
     private const float StoneTileMetres = 2.2f;
 
-    private void DrawWorldBox(WorldVector min, WorldVector max, Color color)
+    private void DrawWorldBox(WorldVector min, WorldVector max, Color color,
+        string material = WorldMaterials.Stone)
     {
         var centre = new Vector3(
             (min.X + max.X) * 0.5f,
@@ -4930,9 +4943,28 @@ public sealed class Game1 : Game
         // blockwork laid across a floor reads immediately as a wall someone dropped.
         var isSlab = scale.Y < scale.X * 0.5f && scale.Y < scale.Z * 0.5f;
 
-        var texture = isSlab
-            ? StoneTextures.Floor(GraphicsDevice, _stone)
-            : StoneTextures.Wall(GraphicsDevice, _stone);
+        // Colour alone could not say what a thing was made of: every surface was blockwork
+        // tinted toward its authored colour, so the yard's timber counter, cloth awning and
+        // packed-earth ground all came out as sandy brick. The material says it instead.
+        var texture = material switch
+        {
+            WorldMaterials.Timber => StoneTextures.Timber(GraphicsDevice),
+            WorldMaterials.Cloth => StoneTextures.Cloth(GraphicsDevice),
+            WorldMaterials.Earth => StoneTextures.Earth(GraphicsDevice),
+            _ => isSlab
+                ? StoneTextures.Floor(GraphicsDevice, _stone)
+                : StoneTextures.Wall(GraphicsDevice, _stone)
+        };
+
+        // Planks and weave carry their own colour, so tinting them by the authored colour
+        // would put the sandstone back over the top of the thing that just stopped being it.
+        var painted = material is WorldMaterials.Stone ? TintFor(color) : Color.White;
+
+        // Boards are about a metre wide, not two: a plank the size of a wall block reads as a
+        // wall block with a stripe on it.
+        var tiling = material is WorldMaterials.Timber or WorldMaterials.Cloth
+            ? StoneTileMetres * 0.5f
+            : StoneTileMetres;
 
         // Something authored almost black is meant to be a hole, not a wall.
         //
@@ -4948,7 +4980,7 @@ public sealed class Game1 : Game
 
         // The authored colour stops being the surface and becomes a tint over it, so a cave
         // theme still shifts the whole room by changing the same numbers it changes today.
-        DrawTexturedCube(centre, scale, TintFor(color), texture, StoneTileMetres);
+        DrawTexturedCube(centre, scale, painted, texture, tiling);
     }
 
     /// <summary>Below this total, an authored colour is a void rather than a surface.</summary>

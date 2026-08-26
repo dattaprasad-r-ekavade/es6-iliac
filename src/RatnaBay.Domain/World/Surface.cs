@@ -72,12 +72,39 @@ public static class Surface
 
         // Packed earth, warmer than anything underground. The colour is doing the work the
         // fiction needs: coming up out of a mine should feel like arriving somewhere.
-        Box(manifest, "surface.ground", -outer, FloorBottom, -outer, outer, FloorTop, outer,
-            new WorldColor(96, 84, 66));
+        // Four slabs with a gap where the shaft is, rather than one slab across the whole
+        // yard. The mouth of the mine was drawn over by the ground it was supposed to be a
+        // hole in, so the one thing the camp exists to point at was a dark tile at best and,
+        // once the path was laid over it too, nothing at all.
+        const float holeMinX = -1.8f;
+        const float holeMaxX = 1.8f;
+        const float holeMinZ = -10.8f;
+        const float holeMaxZ = -7.2f;
 
-        // A worn path from where the player arrives to the shaft they will use.
-        Box(manifest, "surface.path", -2.4f, FloorTop, -Half, 2.4f, FloorTop + 0.03f, Half,
-            new WorldColor(112, 100, 80));
+        var earth = new WorldColor(96, 84, 66);
+
+        Box(manifest, "surface.ground.north", -outer, FloorBottom, -outer, outer, FloorTop, holeMinZ, earth, WorldMaterials.Earth);
+        Box(manifest, "surface.ground.south", -outer, FloorBottom, holeMaxZ, outer, FloorTop, outer, earth, WorldMaterials.Earth);
+        Box(manifest, "surface.ground.west", -outer, FloorBottom, holeMinZ, holeMinX, FloorTop, holeMaxZ, earth, WorldMaterials.Earth);
+        Box(manifest, "surface.ground.east", holeMaxX, FloorBottom, holeMinZ, outer, FloorTop, holeMaxZ, earth, WorldMaterials.Earth);
+
+        // You may look down it; you may not walk into it. Descending is a decision made at
+        // the collar, and an open hole in the floor of the one safe place would make losing a
+        // run something you could do by leaning.
+        manifest.Geometry.Add(new WorldGeometry
+        {
+            Id = "surface.shaft.lid",
+            Min = new WorldVector(holeMinX, FloorTop - 0.02f, holeMinZ),
+            Max = new WorldVector(holeMaxX, FloorTop, holeMaxZ),
+            Color = new WorldColor(0, 0, 0),
+            Solid = true,
+            Visible = false
+        });
+
+        // A worn path from where the player arrives, stopping at the kerb. It used to run the
+        // length of the yard and straight over the shaft.
+        Box(manifest, "surface.path", -2.4f, FloorTop, -5.8f, 2.4f, FloorTop + 0.03f, Half,
+            new WorldColor(150, 138, 116));
     }
 
     private static void Walls(WorldManifest manifest)
@@ -102,19 +129,58 @@ public static class Surface
         var collar = new WorldColor(84, 78, 70);
         var timber = new WorldColor(96, 68, 44);
 
-        Box(manifest, "surface.shaft.collar.n", -3.2f, FloorTop, -12.2f, 3.2f, FloorTop + 0.9f, -10.8f, collar);
-        Box(manifest, "surface.shaft.collar.s", -3.2f, FloorTop, -7.2f, 3.2f, FloorTop + 0.9f, -5.8f, collar);
-        Box(manifest, "surface.shaft.collar.w", -3.2f, FloorTop, -10.8f, -1.8f, FloorTop + 0.9f, -7.2f, collar);
-        Box(manifest, "surface.shaft.collar.e", 1.8f, FloorTop, -10.8f, 3.2f, FloorTop + 0.9f, -7.2f, collar);
+        var rope = new WorldColor(150, 136, 104);
 
-        // The dark at the bottom of it, set below the collar so it reads as depth.
-        Box(manifest, "surface.shaft.dark", -1.8f, FloorBottom - 3f, -10.8f, 1.8f, FloorTop - 0.05f,
+        // A low kerb rather than a waist-high box: the old collar was tall enough to hide the
+        // hole, so the one thing the whole yard exists to point at read as a brick crate.
+        Box(manifest, "surface.shaft.collar.n", -3.2f, FloorTop, -12.2f, 3.2f, FloorTop + 0.45f, -10.8f, collar);
+        Box(manifest, "surface.shaft.collar.s", -3.2f, FloorTop, -7.2f, 3.2f, FloorTop + 0.45f, -5.8f, collar);
+        Box(manifest, "surface.shaft.collar.w", -3.2f, FloorTop, -10.8f, -1.8f, FloorTop + 0.45f, -7.2f, collar);
+        Box(manifest, "surface.shaft.collar.e", 1.8f, FloorTop, -10.8f, 3.2f, FloorTop + 0.45f, -7.2f, collar);
+
+        // A lined shaft rather than a dark lid.
+        //
+        // The hole used to be one black box whose top face sat five centimetres under the
+        // ground, so looking into the mouth of the mine showed a dark tile at floor level. It
+        // needs sides going down and a floor a long way below them before it reads as
+        // somewhere you could be lowered into.
+        const float shaftFloor = -9f;
+        var lining = new WorldColor(62, 58, 54);
+
+        Box(manifest, "surface.shaft.line.n", -2.1f, shaftFloor, -11.1f, 2.1f, FloorTop, -10.8f, lining);
+        Box(manifest, "surface.shaft.line.s", -2.1f, shaftFloor, -7.2f, 2.1f, FloorTop, -6.9f, lining);
+        Box(manifest, "surface.shaft.line.w", -2.1f, shaftFloor, -10.8f, -1.8f, FloorTop, -7.2f, lining);
+        Box(manifest, "surface.shaft.line.e", 1.8f, shaftFloor, -10.8f, 2.1f, FloorTop, -7.2f, lining);
+
+        // The dark at the bottom, far enough down that the sides do the work.
+        Box(manifest, "surface.shaft.dark", -1.8f, shaftFloor - 0.4f, -10.8f, 1.8f, shaftFloor,
             -7.2f, new WorldColor(14, 13, 16));
 
-        // A winch frame, so the hole reads as worked rather than as a hole.
-        Box(manifest, "surface.shaft.post.w", -3.4f, FloorTop, -9.4f, -2.8f, 4.4f, -8.6f, timber);
-        Box(manifest, "surface.shaft.post.e", 2.8f, FloorTop, -9.4f, 3.4f, 4.4f, -8.6f, timber);
-        Box(manifest, "surface.shaft.beam", -3.6f, 4.4f, -9.5f, 3.6f, 5f, -8.5f, timber);
+        // Rungs down one side, so the depth has a scale to be read against.
+        for (var rung = 0; rung < 7; rung++)
+        {
+            var y = FloorTop - 0.9f - rung * 1.15f;
+            Decor(manifest, $"surface.shaft.rung.{rung:00}", -0.7f, y, -7.45f, 0.7f, y + 0.14f,
+                -7.3f, timber, WorldMaterials.Timber);
+        }
+
+        // The windlass: two braced legs, a drum across them, a crank, and a rope going down.
+        // A hole with gear over it reads as a way into somewhere. A hole on its own reads as
+        // a missing texture.
+        Box(manifest, "surface.shaft.post.w", -2.6f, FloorTop, -9.5f, -2.0f, 4.2f, -8.5f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.shaft.post.e", 2.0f, FloorTop, -9.5f, 2.6f, 4.2f, -8.5f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.shaft.brace.w", -3.4f, FloorTop, -9.2f, -2.4f, 2.2f, -8.8f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.shaft.brace.e", 2.4f, FloorTop, -9.2f, 3.4f, 2.2f, -8.8f, timber, WorldMaterials.Timber);
+
+        Box(manifest, "surface.shaft.drum", -2.2f, 3.5f, -9.3f, 2.2f, 4.1f, -8.7f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.shaft.crank", 2.6f, 3.6f, -9.2f, 3.2f, 4.0f, -8.8f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.shaft.headbeam", -3.0f, 4.2f, -9.6f, 3.0f, 4.7f, -8.4f, timber, WorldMaterials.Timber);
+
+        // Rope and bucket, hanging where the drum would let them down.
+        Decor(manifest, "surface.shaft.rope", -0.12f, 1.6f, -9.06f, 0.12f, 3.5f, -8.94f, rope,
+            WorldMaterials.Timber);
+        Decor(manifest, "surface.shaft.bucket", -0.55f, 1.0f, -9.5f, 0.55f, 1.7f, -8.5f, timber,
+            WorldMaterials.Timber);
     }
 
     private static void TheStall(WorldManifest manifest)
@@ -122,10 +188,30 @@ public static class Surface
         var timber = new WorldColor(104, 74, 48);
         var cloth = new WorldColor(126, 74, 62);
 
-        Box(manifest, "surface.stall.counter", -12.4f, FloorTop, -0.6f, -10.4f, 1.1f, 2.6f, timber);
-        Box(manifest, "surface.stall.post.n", -12.6f, FloorTop, -1f, -12f, 3.2f, -0.4f, timber);
-        Box(manifest, "surface.stall.post.s", -12.6f, FloorTop, 2.4f, -12f, 3.2f, 3f, timber);
-        Box(manifest, "surface.stall.awning", -13f, 3.2f, -1.2f, -8.6f, 3.6f, 3.2f, cloth);
+        var goods = new WorldColor(150, 132, 96);
+
+        // A counter you stand behind, with a plank top proud of its front board, four posts
+        // holding a cloth awning, and something actually on the shelf. The old stall was a
+        // single box and a slab, both drawn as brick, which is why it read as a bench built
+        // into the wall rather than as somewhere a person sells things.
+        Box(manifest, "surface.stall.front", -12.2f, FloorTop, -0.6f, -11.6f, 1.05f, 2.6f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.stall.top", -12.6f, 1.05f, -0.9f, -11.0f, 1.25f, 2.9f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.stall.shelf", -12.5f, 0.5f, -0.5f, -11.7f, 0.65f, 2.5f, timber, WorldMaterials.Timber);
+
+        Box(manifest, "surface.stall.post.nf", -11.9f, FloorTop, -1.0f, -11.5f, 3.1f, -0.6f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.stall.post.sf", -11.9f, FloorTop, 2.6f, -11.5f, 3.1f, 3.0f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.stall.post.nb", -13.2f, FloorTop, -1.0f, -12.8f, 3.4f, -0.6f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.stall.post.sb", -13.2f, FloorTop, 2.6f, -12.8f, 3.4f, 3.0f, timber, WorldMaterials.Timber);
+
+        // The awning slopes by being two panels at different heights rather than one slab.
+        Decor(manifest, "surface.stall.awning.back", -13.4f, 3.4f, -1.3f, -12.2f, 3.55f, 3.3f, cloth, WorldMaterials.Cloth);
+        Decor(manifest, "surface.stall.awning.front", -12.2f, 3.1f, -1.3f, -10.4f, 3.25f, 3.3f, cloth, WorldMaterials.Cloth);
+        Decor(manifest, "surface.stall.valance", -10.6f, 2.75f, -1.3f, -10.4f, 3.25f, 3.3f, cloth, WorldMaterials.Cloth);
+
+        // Stock on the counter, so the shelf is not bare.
+        Decor(manifest, "surface.stall.goods.a", -12.4f, 1.25f, 0.1f, -11.9f, 1.6f, 0.6f, goods, WorldMaterials.Timber);
+        Decor(manifest, "surface.stall.goods.b", -12.3f, 1.25f, 1.1f, -11.7f, 1.5f, 1.7f, goods, WorldMaterials.Timber);
+        Decor(manifest, "surface.stall.goods.c", -12.5f, 1.25f, 2.0f, -12.0f, 1.75f, 2.5f, goods, WorldMaterials.Timber);
     }
 
     /// <summary>The Stambha, carved with the verse. The trailer's opening shot, standing still.</summary>
@@ -134,9 +220,18 @@ public static class Surface
         var plinth = new WorldColor(84, 78, 70);
         var shaft = new WorldColor(104, 97, 87);
 
-        Box(manifest, "surface.stambha.plinth", 8.2f, FloorTop, -0.3f, 10.8f, 0.5f, 2.3f, plinth);
-        Box(manifest, "surface.stambha.shaft", 8.5f, 0.5f, 0.2f, 10.5f, 4.6f, 1.8f, shaft);
-        Box(manifest, "surface.stambha.capital", 8.2f, 4.6f, -0.1f, 10.8f, 5f, 2.1f, plinth);
+        // Two metres square and four tall is a buttress, not a pillar: at that width the
+        // blockwork courses line up with the yard wall behind it and the whole thing reads as
+        // masonry that failed to become a wall. Slimmer and taller, on a stepped base, so it
+        // stands as an object.
+        Box(manifest, "surface.stambha.step", 8.3f, FloorTop, 0.1f, 10.7f, 0.35f, 2.5f, plinth);
+        Box(manifest, "surface.stambha.plinth", 8.7f, 0.35f, 0.5f, 10.3f, 0.85f, 2.1f, plinth);
+        Box(manifest, "surface.stambha.shaft", 9.1f, 0.85f, 0.9f, 9.9f, 5.4f, 1.7f, shaft);
+
+        // A banded collar where the verse is carved, and a wider cap over it.
+        Box(manifest, "surface.stambha.band", 8.95f, 2.0f, 0.75f, 10.05f, 3.4f, 1.85f, shaft);
+        Box(manifest, "surface.stambha.capital", 8.75f, 5.4f, 0.55f, 10.25f, 5.8f, 2.05f, plinth);
+        Box(manifest, "surface.stambha.finial", 9.15f, 5.8f, 0.95f, 9.85f, 6.3f, 1.65f, shaft);
     }
 
     /// <summary>
@@ -159,13 +254,15 @@ public static class Surface
             new WorldColor(84, 74, 60));
 
         // Crates stacked by the stall.
-        Box(manifest, "surface.crate.a", -13.4f, FloorTop, 5f, -11.9f, 1.5f, 6.5f, crate);
-        Box(manifest, "surface.crate.b", -11.7f, FloorTop, 5.2f, -10.3f, 1.3f, 6.6f, crate);
-        Box(manifest, "surface.crate.c", -13.2f, 1.5f, 5.2f, -11.9f, 2.7f, 6.4f, crate);
+        Box(manifest, "surface.crate.a", -13.4f, FloorTop, 5f, -11.9f, 1.5f, 6.5f, crate, WorldMaterials.Timber);
+        Box(manifest, "surface.crate.b", -11.7f, FloorTop, 5.2f, -10.3f, 1.3f, 6.6f, crate, WorldMaterials.Timber);
+        Box(manifest, "surface.crate.c", -13.2f, 1.5f, 5.2f, -11.9f, 2.7f, 6.4f, crate, WorldMaterials.Timber);
 
-        // Barrels by the gate.
-        Box(manifest, "surface.barrel.a", 10.6f, FloorTop, 9.4f, 11.8f, 1.6f, 10.6f, timber);
-        Box(manifest, "surface.barrel.b", 12.1f, FloorTop, 9.6f, 13.3f, 1.6f, 10.8f, timber);
+        // Barrels by the gate, with a hoop each so they are not just posts.
+        Box(manifest, "surface.barrel.a", 10.6f, FloorTop, 9.4f, 11.8f, 1.6f, 10.6f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.barrel.b", 12.1f, FloorTop, 9.6f, 13.3f, 1.6f, 10.8f, timber, WorldMaterials.Timber);
+        Decor(manifest, "surface.barrel.a.hoop", 10.52f, 0.9f, 9.32f, 11.88f, 1.1f, 10.68f, iron, WorldMaterials.Stone);
+        Decor(manifest, "surface.barrel.b.hoop", 12.02f, 0.9f, 9.52f, 13.38f, 1.1f, 10.88f, iron, WorldMaterials.Stone);
 
         // A brazier, which is where the warm light is coming from.
         Box(manifest, "surface.brazier.stem", 5.6f, FloorTop, 8.6f, 6.2f, 1.4f, 9.2f, iron);
@@ -173,9 +270,17 @@ public static class Surface
             new WorldColor(198, 118, 58));
 
         // The notice board the order pins its work to.
-        Box(manifest, "surface.board.post.a", -3.6f, FloorTop, 12.4f, -3.1f, 2.8f, 12.9f, timber);
-        Box(manifest, "surface.board.post.b", 0.1f, FloorTop, 12.4f, 0.6f, 2.8f, 12.9f, timber);
-        Box(manifest, "surface.board.face", -3.8f, 1.4f, 12.5f, 0.8f, 2.9f, 12.8f, crate);
+        Box(manifest, "surface.board.post.a", -3.6f, FloorTop, 12.4f, -3.1f, 2.8f, 12.9f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.board.post.b", 0.1f, FloorTop, 12.4f, 0.6f, 2.8f, 12.9f, timber, WorldMaterials.Timber);
+        Box(manifest, "surface.board.face", -3.8f, 1.4f, 12.5f, 0.8f, 2.9f, 12.8f, crate, WorldMaterials.Timber);
+
+        // Pinned paper, so the board has something on it to read.
+        Decor(manifest, "surface.board.note.a", -3.3f, 1.9f, 12.46f, -2.6f, 2.6f, 12.5f,
+            new WorldColor(206, 196, 172), WorldMaterials.Cloth);
+        Decor(manifest, "surface.board.note.b", -1.9f, 2.0f, 12.46f, -1.3f, 2.5f, 12.5f,
+            new WorldColor(198, 188, 166), WorldMaterials.Cloth);
+        Decor(manifest, "surface.board.note.c", -0.7f, 1.7f, 12.46f, -0.1f, 2.3f, 12.5f,
+            new WorldColor(210, 200, 176), WorldMaterials.Cloth);
     }
 
     private static void Lanterns(WorldManifest manifest)
@@ -200,7 +305,8 @@ public static class Surface
     }
 
     private static void Box(WorldManifest manifest, string id,
-        float minX, float minY, float minZ, float maxX, float maxY, float maxZ, WorldColor colour)
+        float minX, float minY, float minZ, float maxX, float maxY, float maxZ, WorldColor colour,
+        string material = WorldMaterials.Stone)
     {
         manifest.Geometry.Add(new WorldGeometry
         {
@@ -209,7 +315,25 @@ public static class Surface
             Max = new WorldVector(maxX, maxY, maxZ),
             Color = colour,
             Solid = true,
-            Visible = true
+            Visible = true,
+            Material = material
+        });
+    }
+
+    /// <summary>Something you can see but walk through: cloth, and the lip of an awning.</summary>
+    private static void Decor(WorldManifest manifest, string id,
+        float minX, float minY, float minZ, float maxX, float maxY, float maxZ, WorldColor colour,
+        string material)
+    {
+        manifest.Geometry.Add(new WorldGeometry
+        {
+            Id = id,
+            Min = new WorldVector(minX, minY, minZ),
+            Max = new WorldVector(maxX, maxY, maxZ),
+            Color = colour,
+            Solid = false,
+            Visible = true,
+            Material = material
         });
     }
 

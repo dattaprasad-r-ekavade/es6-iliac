@@ -233,7 +233,29 @@ public sealed class WorldGeometry
     public bool Solid { get; set; } = true;
     public bool Visible { get; set; } = true;
 
+    /// <summary>
+    /// What this is made of: "stone" (the default), "timber", "cloth" or "earth".
+    ///
+    /// Colour alone could not carry this. Every surface was drawn as coursed blockwork tinted
+    /// toward whatever colour it was authored with, so a timber stall post, a cloth awning and
+    /// a packed-earth yard all came out as sandy brick — which is why the camp read as a set
+    /// of brick lumps rather than as a place where people work.
+    ///
+    /// A free-form string rather than an enum so a manifest stays hand-editable and an
+    /// unknown value degrades to stone rather than refusing to load.
+    /// </summary>
+    public string Material { get; set; } = WorldMaterials.Stone;
+
     public CollisionBox ToCollisionBox() => new(Id, Min.X, Min.Y, Min.Z, Max.X, Max.Y, Max.Z);
+}
+
+/// <summary>The surfaces the renderer knows how to draw. Anything else falls back to stone.</summary>
+public static class WorldMaterials
+{
+    public const string Stone = "stone";
+    public const string Timber = "timber";
+    public const string Cloth = "cloth";
+    public const string Earth = "earth";
 }
 
 public sealed class WorldProp
