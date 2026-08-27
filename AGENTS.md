@@ -88,7 +88,9 @@ the interface to all of `Game1`.
 - Rules and persistence in `RatnaBay.Domain`. Presentation and device APIs in the game project.
 - Sample keyboard and mouse only through `InputRouter`. Screen handlers interpret a snapshot;
   they do not call `Keyboard.GetState` / `Mouse.GetState`.
-- Draw 2D UI through `UiCanvas`. Do not open `SpriteBatch` from a screen renderer.
+- Draw 2D UI through `UiCanvas`. Do not open `SpriteBatch` from a screen renderer. There is one
+  deliberate exception, `DrawCoverArt`: the store cover is 1260×1000, so the UI transform that
+  letterboxes a 16:9 canvas would put bars down its sides. Leave it alone.
 - Hit-test rectangles live in `UiLayout`. Input and drawing must share them. If a clickable
   row is not the row on screen, the numbers have drifted.
 - Colours come from `UiTheme`, by role. Do not write `new Color(...)` in a screen renderer for
