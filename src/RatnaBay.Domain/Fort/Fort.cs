@@ -96,11 +96,11 @@ public static class FortRoster
                     "Dipadhara, they call us. Lamp-bearers. On the tally roll we are "
                     + "akara-shantika — mine-pacifiers. The state prefers its own word."),
                 F("hall.2", Rank.Sthanika, 8,
-                    "The name is older than the work. We were founded to stop this, you know. "
-                    + "Nobody says so out loud any more."),
+                    "We are one year old. The committee gave us the name and never said who "
+                    + "chose it, and it has never once fitted the work."),
                 F("hall.3", Rank.Adhyaksha, 18,
-                    "There are names on this wall from before the province was a province. "
-                    + "I do not know who lit their lamps.")
+                    "There is no lamp for the first one. She died the winter before we were "
+                    + "founded, so the roll says she was never one of ours. I light one anyway.")
             }),
 
         new("fort.assay", "The Assay", "Nagadatta", "Assayer", Rank.Sthanika,
@@ -204,7 +204,7 @@ public static class FortRoster
                     "I inherited an arrangement. I have kept it because the alternative is a "
                     + "province that starves in a season."),
                 F("gov.2", Rank.Mahamatra, 26,
-                    "The first Deepankar is still down there. She went to close the seam. "
+                    "Uttara went down last winter to close the seam, and did not come back. "
                     + "Whatever stopped her is between you and the bottom."),
                 F("gov.3", Rank.Mahamatra, 30,
                     "You can expose it, take it, or end it. I have had thirty years to choose "

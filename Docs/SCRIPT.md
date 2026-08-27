@@ -13,15 +13,19 @@ Jiva stones are not a curiosity in a mining town. **They are what the empire is 
 
 Lamps burn them. Foundries are heated by them. Blades are quenched with them and hold an edge
 no ordinary steel holds. Physicians spend them. Messages move on them. An army that carries them
-beats an army that does not, and every campaign of the last two centuries was decided by who
-had more.
+beats an army that does not, and every campaign of the last forty years was decided by who had
+more.
 
-**None of it was regulated**, because nothing that works that well ever is. Nobody asked what a
-seam is for, or what happens when it is empty, or what the prana was doing before it was
-convenient. There was no reason to ask: the stones came up, the lamps stayed lit, and the empire
-grew on it for two hundred years.
+**None of it was regulated**, because nothing that works that well ever is. It was asked for —
+formally, twice, by people whose names are on the request — and refused. Nobody wanted to know
+what a seam is for, or what happens when it is empty, or what the prana was doing before it was
+convenient.
 
-The bill is arriving now.
+**And all of this took forty-five years.** That is the part that matters. This is not an ancient
+arrangement nobody remembers agreeing to. Every person who made every decision is still alive,
+most of them are still in office, and several of them are in the fort.
+
+The bill is arriving now, and it is arriving to the people who ran up the bill.
 
 ### What that looks like from the bottom
 
@@ -62,19 +66,24 @@ runs out of desperation.
 
 It also splits the order in two, which is where the drama is:
 
-- **The old order** — Sona, the hall, the lamps, the names on the wall. Institutional memory,
-  and three centuries of shame.
-- **The new intake** — most Deepankars, who arrive knowing nothing about any of it and do not
-  live long enough to be told.
+- **The founders** — the committee's people. They know why the order really exists, and they
+  were the ones who warned about all of it twenty years ago and were told to check their
+  arithmetic.
+- **The intake** — everybody else, hired this year, who think they took a dangerous job.
 
-**The history is not hidden. It is simply not survived long enough to be inherited.** Sona is
-keeping a memory for people who keep dying before they can receive it, and that is why she is so
-glad when somebody finally comes back a fourth time.
+**The order is one year old.** There is no ancient shame to inherit and no lost history to
+recover: the people who decided are upstairs, and the thing being covered up happened last
+winter. What protects the secret is not time. It is that nobody in the intake lives long enough
+to become curious.
+
+Sona keeps the wall of names, and the wall is filling faster than she expected. That is why she
+is so glad when somebody finally comes back a fourth time — not because it is touching, but
+because in a year nobody else has.
 
 ### Ratna Bay is the oldest seam
 
-Not the only one — the empire has many. **This is the first, and the deepest, and the most
-worked.**
+Not the only one any more — the empire has opened others since. **This is the first, the
+deepest, and the only one that has been worked for the whole forty-five years.**
 
 Which means whatever is going to happen everywhere is happening here first. The province is not
 special; it is early. That gives the inspector a real reason to care about a distant mining town,
@@ -83,43 +92,79 @@ player settles is one the whole empire is about to have.
 
 ---
 
-## 2. The keystone: what the first Deepankar found
+## 2. Forty-five years
 
-Everything hangs off one fact, and until now it was a blank. `gov.2` says she went down to close
-the seam and something stopped her. Nothing stopped her.
+Dates are shown as the fiction's own. **They have been shifted fifty-five years later than the
+first draft of this chronology**, so the story sits at 300 BCE and keeps the setting's Mauryan
+anchor — the offices, the courts, and the decision to carve in Brahmi rather than Devanagari all
+depend on that. Only the intervals matter; subtract fifty-five to get back.
 
-> **She closed it. It worked. Ratna Bay starved.**
->
-> The lamps went out, the foundries stopped, the physicians had nothing, and in one season the
-> province lost more people than the mines had taken in twenty years. So the order went back
-> down and **opened it again** — and then rewrote what it was for.
+| Year | What happened |
+|---|---|
+| **345 BCE** | A mountain opens. An eruption tears caves into the range above what is not yet Ratna Bay, and there are stones in them |
+| **325 BCE** | They are found to hold power — and then to hold *life*. Twenty years of curiosity ends the day somebody proves a stone can carry what leaves a dying man |
+| **322 BCE** | **The committee reports.** It declares the stones the most powerful thing the empire has ever held and asks for them to be regulated before they are used. The king refuses. The skeptics say the effect is exaggerated |
+| **315 BCE** | **War.** The first campaign decided by prana, and after it nobody argues about the effect again. A mining body is founded *to regulate supply* — and does not. It mines, and it supplies |
+| **311 BCE** | Prices soar. The committee asks, a second time, for research into what the stones do to people and to the ground. It is not refused so much as never answered |
+| **304 BCE** | **The first preta.** Seven years after the question nobody answered, the answer walks out of a mine |
+| **301 BCE** | **The supply collapses.** The economy splits — the great houses hoard and grow, everybody else falls, and the two never meet again |
+| **300 BCE** | **The story.** The same committee that was ignored twice founds an order of explorers, and starts hiring |
 
-Every Deepankar since has been maintaining the thing the order was founded to end. **They know.**
-It is why the hall is evasive, why the shrine is uncomfortable, why nobody says the old name out
-loud. The order is not corrupt. It is ashamed, and it is right to be, and it is not obvious that
-it was wrong.
+### Two things this chronology decides
 
-This does four things no other version of the answer does:
+**Nobody involved is dead.** Forty-five years is one working life. The king who refused the
+regulation is the empire's king. The skeptics who said it was exaggerated hold offices. The
+committee that was right twice is the body that now employs the player. **There is no ancient
+wrong here** — there is a room full of living people who were told and did not listen, and who
+are now in charge of the consequences.
 
-- It makes the governor's line **literally true** rather than an excuse: *"the alternative is a
-  province that starves in a season."* He has the precedent.
-- It explains **capture without a villain.** Nobody had to be bought. They saw what closing it
-  cost and could not do it twice.
-- It gives **The Release** a real price. The player would be repeating a documented catastrophe
-  on purpose, with the numbers in front of them.
-- It puts the moral argument **in the past tense.** The question is not *should someone do the
-  right thing* — someone did, and this is what happened.
-
-### And she is still down there
-
-Not as a body. **Uttara never rose and never left.** Whatever holds the seam from becoming a
-door is her, still doing the job, three hundred years past the point of it meaning anything.
-
-She is the fight at the bottom, and she is not an enemy. She is the last Deepankar still working.
+**The order is one year old.** The player is not inheriting a tradition. They are among the first
+people ever hired to do this, for an institution that does not yet know what it is, founded by
+people with a reason they have not stated.
 
 ---
 
-## 3. Why the supply is failing *now*
+## 3. The keystone: what happened in 301
+
+The chronology says the supply collapsed in 301 BCE and the economy split. That is what the
+province was told.
+
+> **It did not run out. Uttara closed it.**
+>
+> She went down alone and shut the seam, and it worked. The lamps went out, the foundries
+> stopped, the physicians had nothing, and within a season the province lost more people than the
+> mines had taken in ten years.
+>
+> So they went back down and **opened it again**, and called the whole thing a shortage.
+
+**That was last winter.** The cover-up is one year old. The people who authorised the reopening
+are the people who founded the order the following spring — and the order exists, underneath its
+stated purpose, to make sure the seam is never closed a second time.
+
+This does four things:
+
+- It makes the governor's line **literally true** rather than an excuse: *"the alternative is a
+  province that starves in a season."* He watched it happen. He has the month.
+- It explains **capture without a villain.** Nobody was bought. They saw the cost of doing the
+  right thing and could not pay it twice.
+- It gives **The Release** a real price. The player would be repeating a documented catastrophe
+  on purpose, with survivors of the first one in the room.
+- It puts the moral argument **in the past tense, one year ago.** The question is not whether
+  somebody should do the right thing. Somebody did, last winter, and this is what happened.
+
+### She is still down there
+
+Not as a body — or not only. **Uttara never rose and never left.** Whatever holds the seam from
+becoming a door again is her, still doing the job, a year past anybody thanking her for it.
+
+She is the fight at the bottom, and she is not an enemy. She is the first Deepankar, and the only
+one who ever finished the work.
+
+**And she is not in the register.** The roll lists the office, not the name — the same erasure
+the uncounted dead in the mountain are owed a number for. The founder of the order is its first
+unrecorded death, and she died the year before it was founded.
+
+## 4. Why the supply is failing *now*
 
 The middle act needs a cause or it is just errands. It is political, not geological:
 
@@ -135,20 +180,22 @@ every five years and *"the last one did not reach us."* This one does.
 
 ---
 
-## 4. Who the protagonist is
+## 5. Who the protagonist is
 
 **The order.** Not the player character, who dies repeatedly by design.
 
 Individual Deepankars get a **voice** — one line about who they were, and per §1 that line is
-almost always about money. The **arc** belongs to the Dipadhara: founded to end this, failed by
-succeeding, three centuries of maintaining it, handed one more chance by somebody who keeps
-coming back up.
+almost always about money. The **arc** belongs to the Dipadhara: an order founded last spring on
+a lie, staffed by people who do not know it, and handed a chance to become what it was supposed
+to be by somebody who keeps coming back up.
 
-Practically: nobody in the fort ever says *"you"* about the founding. They say *"we."*
+Because the order is one year old, the founders speak of it as *"we"* and the intake as *"they"*
+— and the moment a founder finally says *"we"* to the player is the moment they have been let
+in. That is worth saving for one scene.
 
 ---
 
-## 5. What the preta want
+## 6. What the preta want
 
 They are beings of unsatisfiable want, and it turns out the want is the plot.
 
@@ -166,7 +213,7 @@ because nobody reads the old rolls.
 
 ---
 
-## 6. The cast, and where the pressure comes from
+## 7. The cast, and where the pressure comes from
 
 There is **no villain**, and that should be defended rather than fixed. There is a quota, and
 everybody is somewhere between complicit and trapped.
@@ -181,14 +228,20 @@ everybody is somewhere between complicit and trapped.
 | **Chandrashri**, clerk | The true figures read | Three replies telling her to check her arithmetic |
 | **Vasumitra**, governor | To hand it to somebody else | Thirty years of choosing none of the options |
 | **The mahamatra** | The province audited | Nothing. He is the only free person in it |
+| **The committee** | To have been listened to in 322 | Being right twice and heeded neither time. They founded the order, and not for the reason they gave |
 
 **The inspector is the antagonist and is not evil.** He is doing his job correctly, which is what
 makes him frightening: no argument works on him, because he is not wrong about anything he is
 actually claiming.
 
+**And the committee is not the good guys**, which is the sharpest thing the chronology gives us.
+They asked for regulation in 322 and research in 311, they were right both times, and when the
+seam was closed in 301 they helped reopen it and founded an order to keep it open. Being right
+and being decent turn out to be different, and the body that employs the player is the proof.
+
 ---
 
-## 7. The beat sheet
+## 8. The beat sheet
 
 ### Act I — The job (runs 1–8, Yukta to Sthanika)
 
@@ -234,7 +287,7 @@ telling you what they would do.
 
 ---
 
-## 8. The house: one descent that is not a mine
+## 9. The house: one descent that is not a mine
 
 Midway through Act II, a great house hires the order to clear its cellars. It is the only place
 in the game where a Deepankar is **invited in** rather than sent down, and everything about the
@@ -335,7 +388,7 @@ them is another cellar that should not be haunted and is.
 
 ---
 
-## 9. The three endings
+## 10. The three endings
 
 The premise raises the stakes on all three, and it turns The Lamp from villainy into a position.
 
@@ -347,8 +400,8 @@ The premise raises the stakes on all three, and it turns The Lamp from villainy 
 
 **None is clean, and the game never says which is right.** The Ledger is what the preta are
 asking for and it ends the town. The Lamp saves the most lives and makes you the villain of the
-next three hundred years. The Release is the honest one and it is a catastrophe somebody already
-ran the experiment on.
+rest of it. The Release is the honest one, and it is a catastrophe somebody ran the experiment
+on last winter.
 
 **Default: The Lamp.** A player who committed to nothing gets the ending for people who commit to
 nothing, and the province goes on as it was. That is not a punishment; it is the truest outcome
@@ -356,7 +409,7 @@ of indifference, and it should be delivered without comment.
 
 ---
 
-## 10. Rules for the writing itself
+## 11. Rules for the writing itself
 
 **The premise lives in objects, never in speeches.** A lamp with a stone in it. A blade that
 holds an edge it should not. A strongbox in a house the player cannot enter. Beggars at the gate
@@ -387,7 +440,21 @@ and never self-pitying.
 
 ---
 
-## 11. Still open
+## 12. Content already reconciled
+
+Three shipped fragments in `RatnaBay.Domain/Fort/Fort.cs` were written for an order three hundred
+years old and now contradict the chronology. They have been rewritten rather than left:
+
+- `hall.2` — was *"the name is older than the work"*. The order is one year old and the committee
+  named it.
+- `hall.3` — was *"names on this wall from before the province was a province"*. It now seeds
+  Uttara instead: there is no lamp for her, because the roll says she was never one of theirs.
+- `gov.2` — now names Uttara and dates her descent to last winter. The governor still believes
+  something stopped her, which is the point.
+
+---
+
+## 13. Still open
 
 - **What the empire is arming for.** The quota rose for a reason. It probably never needs to be
   said, and nobody in the province knowing is better than any answer.
