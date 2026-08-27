@@ -87,7 +87,7 @@ public static class FortRoster
                     + "person who said so out loud is behind a door at the bottom of a mine.")
             }),
 
-        new("fort.hall", "The Order's Hall", "Sona", "Lamp-keeper", Rank.Yukta,
+        new("fort.hall", "The Order's Hall", "Revati", "Lamp-keeper", Rank.Yukta,
             "Lamps in rows, and names cut into the wall beneath them.",
             "One lamp for each of us. I light the ones that have gone out.",
             new[]

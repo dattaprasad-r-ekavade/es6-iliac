@@ -76,7 +76,7 @@ recover: the people who decided are upstairs, and the thing being covered up hap
 winter. What protects the secret is not time. It is that nobody in the intake lives long enough
 to become curious.
 
-Sona keeps the wall of names, and the wall is filling faster than she expected. That is why she
+Revati keeps the wall of names, and the wall is filling faster than she expected. That is why she
 is so glad when somebody finally comes back a fourth time — not because it is touching, but
 because in a year nobody else has.
 
@@ -230,7 +230,7 @@ everybody is somewhere between complicit and trapped.
 | Who | Wants | Is trapped by |
 |---|---|---|
 | **Tissa**, tally-keeper | The books to balance | Not being permitted to say they do not |
-| **Sona**, lamp-keeper | Somebody to live long enough to be told | An order that dies before it inherits |
+| **Revati**, lamp-keeper | Somebody to live long enough to be told | An order that dies before it inherits |
 | **Visakha**, physician | To stop buying what she buys | People who die without it |
 | **Suvarnapala**, registrar | The quota met | The capital, who set it |
 | **Isidata**, priest | The dead pitied | Being tolerated only while he stays quiet |
@@ -473,7 +473,7 @@ rather than left contradicting it:
 - **How much of the rich quarter is ever walkable** beyond the one house. The streets above are
   probably better as a place seen and not entered; the cellars are the level.
 - **Does the player ever learn the order reopened the seam?** The darkest fact in the game.
-  Suggested: from Sona, at the highest rank, in the hall — the only person who would say it, and
+  Suggested: from Revati, at the highest rank, in the hall — the only person who would say it, and
   only to somebody who has come back often enough to be worth telling.
 - **Whether the mahamatra can be turned.** Currently no, and that is stronger. Worth one pass to
   be sure the game is not refusing something a player will reasonably expect.

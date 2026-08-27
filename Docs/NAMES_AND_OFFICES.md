@@ -78,7 +78,7 @@ the mountain gives.
 Common, attested, short, and easy for a non-Indian player to hold onto — which matters, because a
 player has to remember who to go back to:
 
-**Tissa · Sona · Uttara · Yasa · Nandi · Siha · Bhadda · Visakha · Kanha · Sivali · Revata ·
+**Tissa · Revati · Uttara · Yasa · Nandi · Siha · Bhadda · Visakha · Kanha · Sivali ·
 Sanghamita · Ujjeni**
 
 **Practical rule:** the ten fort occupants should have names of two syllables or three, and no two
