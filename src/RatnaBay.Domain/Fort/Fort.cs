@@ -93,17 +93,18 @@ public static class FortRoster
             new[]
             {
                 F("hall.1", Rank.Atala, 1,
-                    "Bhagiratha, they call us, after the man who spent his whole life "
-                    + "fetching water for sixty thousand diggers nobody counted. On the "
-                    + "tally roll we are akara-shantika. Mine-pacifiers. The state prefers "
-                    + "its own word."),
+                    "Bhagiratha, they call us. Bhagirathi, if that suits you better. He was "
+                    + "a miner, and he went down one morning and did not come back up. On "
+                    + "the tally roll we are akara-shantika. Mine-pacifiers. The state "
+                    + "prefers its own word."),
                 F("hall.2", Rank.Sutala, 8,
-                    "We are one year old. We are named for a woman who ran the mines and "
-                    + "counted her people in and out, which nobody had thought to do before."),
+                    "We are one year old. The woman who ran these mines counted her people "
+                    + "in and counted them out, which nobody had thought to do before. The "
+                    + "night the count came up one short, it was her husband."),
                 F("hall.3", Rank.Rasatala, 18,
-                    "The miners called her Bhagirathi. We are Bhagiratha. One letter, and "
-                    + "she is a story about a man again. Her lamp is first on that wall and "
-                    + "her name is on no roll in this province.")
+                    "She went in after him and she did not come out either. So the miners "
+                    + "put his name on the rest of us. Anybody lost down there is somebody "
+                    + "she is still looking for. That is the whole of it.")
             }),
 
         new("fort.assay", "The Assay", "Nagadatta", "Assayer", Rank.Vitala,

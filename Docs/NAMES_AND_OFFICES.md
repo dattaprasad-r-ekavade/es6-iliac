@@ -289,36 +289,32 @@ The original problem was small: *Dipankara* is the name of a Buddha of the past,
 called that is stumbling into an irony rather than authoring one. The first fix was *Dipadhara*,
 lamp-bearer — accurate, unobjectionable, and completely inert. It described the equipment.
 
-**The name is now Bhagiratha, and it is the only one of a dozen candidates that is about the job
-rather than the kit.**
+**The name is now Bhagiratha, and in the fiction it is nothing more than a dead man's name.**
 
-The myth, from the Ramayana and the Puranas: the sixty thousand sons of Sagara dug into the earth
-after a lost sacrificial horse, broke through into the netherworld, found a sage there, and were
-burnt to ash where they stood. Nobody counted them and nobody buried them, and they lay in the
-ground unredeemed for three generations — until **Bhagiratha** gave up his kingdom and spent his
-whole life on the austerities that brought the Ganga down from heaven so that men who had been
-dead for a century could finally have water poured for them.
+Bhagiratha was a miner. He was married to Uttara, who ran the mines and counted her people in and
+out, and in 312 BCE he went down one morning and did not come back up. Her year-long campaign into
+the deep workings — which the province remembers as a supply operation — was a woman looking for
+one specific person. She went in after him and did not come out either.
 
-Everything this game is about is already in that story:
+The miners named the order, not the committee, and they named it **after the man who was lost
+rather than the woman who went after him.** The reason is a superstition and a kindness:
 
-- **It is a mining catastrophe.** Diggers went too deep, hit something that was not ore, and died
-  in numbers nobody wrote down. That is Ratna Bay's premise, told two thousand years earlier.
-- **The hero is not the one who descends.** He is the one who spends a life on the dead who
-  already did — which is precisely the order's stated purpose and precisely what the quota has
-  turned it into a pretext for.
-- **It is proverbial.** *Bhagiratha prayatna* — a Bhagiratha effort — still means impossible,
-  relentless, generation-long labour in most Indian languages. The name comes pre-loaded for a
-  large part of the audience, and for everyone else it is four clean syllables.
+> As long as every diver is called by his name, anybody the mountain keeps is somebody Uttara is
+> still down there looking for.
 
-**And it answers the open question about Uttara's second name.**
+**Bhagirathi** is the same name for a woman, and the order uses whichever fits. Nobody made a rule
+about it, and nothing in the game turns on which one a given character gets.
 
-The miners called her **Bhagirathi** — the feminine — because she was the one who went down after
-people nobody had counted. When the committee founded the order a year after she failed to come
-back, they took the name and put it back to **Bhagiratha**, the form the story has, the man's.
+**Why this version and not a cleverer one.** Every other candidate — including an earlier draft of
+this section that hung the name on the Ramayana's Bhagiratha and the sixty thousand sons of Sagara
+— asked the player to hold a second layer before the name meant anything. This one is a sentence
+long, it is warm rather than ironic, and a player understands it the first time they hear it.
+The reveal at `hall.3` is not that the name secretly means something else. It is only *why*, and
+it is stronger for being plain.
 
-One letter. It is the smallest possible act of erasure, it is completely deniable, and nobody who
-did it thought of it as anything at all. That is the whole thesis of the game in a vowel, and it
-is delivered in `hall.3`.
+*(The mythological Bhagiratha is still why a man in 300 BCE is called that at all — the king who
+gave up a throne to bring the Ganga down for diggers who died unburied and uncounted. It is a
+period-plausible name for a miner and the resonance is free. **Nothing should ever explain it.**)*
 
 **Two names, because a real bureaucracy always produces two.**
 
@@ -328,8 +324,7 @@ is delivered in `hall.3`.
 - **Commonly, to everyone else: `Bhagiratha`.**
 
 The gap between the two is characterisation for nothing. The registrar says *akara-shantika*. The
-miners say *bhagiratha*. `hall.1` is the line that puts both in front of the player in their first
-ten minutes.
+miners say *bhagiratha*. `hall.1` puts both in front of the player in their first ten minutes.
 
 **The lamp survives all of this.** It was never in the etymology — it is Revati's wall, one lamp
 per member, lit again when its person goes out, and the trailer's closing line depends on the

@@ -84,8 +84,9 @@ and contracts the problem out.
 
 ### The Bhagiratha
 
-The **Bhagiratha** — named for the king who spent a lifetime bringing water to sixty thousand
-diggers who died unburied — are the order the province hires to go down and clear the
+The **Bhagiratha** — named for a miner who went down and did not come up, so that anybody lost
+under the mountain is somebody being looked for — are the order the province hires to go down and
+clear the
 caves before the miners follow.
 
 They are paid in what they bring up. They are not soldiers, not priests, and not quite

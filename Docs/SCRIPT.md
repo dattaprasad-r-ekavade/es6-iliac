@@ -103,13 +103,13 @@ anchor — the offices, the courts and the decision to carve in Brahmi all depen
 | **325 BCE** | They are found to hold power — and then to hold *life*. Twenty years of curiosity ends the day somebody proves a stone can carry what leaves a dying man |
 | **322 BCE** | **The committee reports.** It calls the stones the most powerful thing the empire has held and asks that they be regulated before they are used. The king refuses. The skeptics say the effect is exaggerated |
 | **315 BCE** | **War**, and the first campaign decided by prana. A mining body is founded *to regulate supply* and does not — it mines, and it supplies. **Uttara is given the mines.** She delivers her quotas, and she is known for something else: she counts her people in and she counts them out |
-| **312 BCE** | Miners stop coming back. Not many. Enough that her tallies stop matching, and she is the only official in the province who notices because she is the only one keeping that column |
-| **311 BCE** | **Her campaign.** A year spent clearing the deep workings, which opens more of the mountain than anyone had reached before — and ends with her going in alone. **Prices soar**, and the committee asks a second time for research into what the stones do. Nobody answers |
+| **312 BCE** | Miners stop coming back. Not many. Enough that her tallies stop matching, and she is the only official in the province who notices because she is the only one keeping that column. **One of the names that does not come back out is Bhagiratha, her husband** |
+| **311 BCE** | **Her campaign.** A year spent clearing the deep workings — for the province, a delivery problem solved; for her, a search. It opens more of the mountain than anyone had reached before, and ends with her going in alone. **Prices soar**, and the committee asks a second time for research into what the stones do. Nobody answers |
 | **310 BCE** | **She does not come out.** The entrance she went in by is shut, and it is shut *from the inside*. Nobody knows why, and the deep workings are lost with her |
 | **305 BCE** | Five years of a sealed seam and a rising quota. Demand has outrun what the shallow workings can give, and the province needs what is behind that door. **New miners force it open** |
 | **304 BCE** | **The first preta.** The province learns what she had shut in, seven years after asking a question nobody answered |
 | **301 BCE** | **The supply collapses** under what is now coming out of the mountain to meet it. The economy splits — the great houses hoard and grow, everybody else falls, and the two never meet again |
-| **300 BCE** | **The story.** The committee founds an order of explorers to clear what was let out, and names it for her |
+| **300 BCE** | **The story.** The committee founds an order of explorers to clear what was let out. It does not name them. The miners do, and the word they use is the one they have been using since she went in: **Bhagiratha** |
 
 ### Three things this chronology decides
 
@@ -119,8 +119,10 @@ are in the fort, and one of them signs the player's contracts.
 
 **The order is one year old** and the player is among the first ever hired.
 
-**And it is named for the woman whose judgement they overruled.** Not out of cynicism — out of
-genuine, useless respect. That is worse than a conspiracy and far more ordinary.
+**And its name did not come from the people who founded it.** The committee employs the men who
+overruled her and honours her anyway, without cynicism and without noticing — but the word the
+order actually goes by was given to it from below, by miners, and means something the committee
+has never had to think about. See §3.
 
 ---
 
@@ -135,6 +137,11 @@ Everything hangs on one fact, and the province has never had it.
 > and been told about quotas every time. So she took the only decision that was hers to take,
 > went in, and sealed it behind her.
 >
+> **And she was not only doing her job.** Bhagiratha, her husband, was one of the names that had
+> not come back out. The year-long campaign the province remembers as a supply operation was a
+> woman looking for one specific person, and it is why she went in alone and why she did not
+> come back out to argue her case.
+>
 > **It held for five years.** Then the quota rose past what the shallow seams could give, and men
 > with orders broke it open.
 
@@ -143,6 +150,8 @@ Everything hangs on one fact, and the province has never had it.
 - **She is legible.** A mine official who counted her people in and out, and who could not make
   the tallies match. Everything she does follows from that one habit, and it is the same habit —
   *counting* — that the dead in the mountain are owed.
+- **Her reason is one sentence and needs no explaining.** Her husband did not come up. A player
+  does not have to be told what that means, in any language, at any age.
 - **The catastrophe is not hers.** She solved it. It was undone because the empire needed the
   stones, which is the theme with nobody to blame and no way around it.
 - **The precedent still exists, and it is economic rather than apocalyptic.** The province knows
@@ -161,6 +170,30 @@ her post, five years past the point of anyone relieving her, doing the last thin
 do. That is what makes her terrible to meet and impossible to hate.
 
 She is the fight at the bottom, and she is not an enemy.
+
+### Why every one of us is called by his name
+
+The miners named the order, not the committee, and they named it after **the man who was lost
+rather than the woman who went after him.**
+
+> You are a Bhagiratha. You are the one somebody is coming for.
+
+It is a superstition and a kindness and it costs nothing: as long as every diver carries his name,
+anybody the mountain keeps is somebody Uttara is still down there looking for. Miners tell each
+other this the way miners tell each other things — half meant, and never in front of an officer.
+
+**Bhagirathi** is the same word for a woman, and the order uses whichever fits. Nobody made a rule
+about it.
+
+Two things make this the right version and both are cheap:
+
+- **The player is told it in their first ten minutes** and it is simply warm. There is nothing to
+  decode, no myth to look up, and no irony. The reveal at `hall.3` is not that the name means
+  something else — it is only *why*, and it lands harder for being plain.
+- **The comfort is literally true**, which nobody in the province knows. §3 already establishes
+  that Uttara never left and is not hungry — she is still at her post. The thing miners say to
+  each other to feel better about the dark is a description of what is actually down there, and
+  the player will eventually walk into her.
 
 ### And they never wrote her name down
 
@@ -478,8 +511,7 @@ rather than left contradicting it:
 - **Whether the mahamatra can be turned.** Currently no, and that is stronger. Worth one pass to
   be sure the game is not refusing something a player will reasonably expect.
 - **Names** for the province, the empire, and the governor's house.
-- ~~**Uttara's second name**~~ — **closed.** She was **Bhagirathi** to the miners, for the
-  Ramayana's king who spent his life bringing water to sixty thousand diggers who died unburied
-  and uncounted. The order took the name and put it back to the masculine **Bhagiratha**, the
-  form the story has. One letter, entirely deniable, and nobody who did it thought of it as
-  anything. Delivered in `hall.3`; see `NAMES_AND_OFFICES.md`.
+- ~~**Uttara's second name**~~ — **closed, and it was the wrong question.** The order is not
+  named for her at all. It is named **Bhagiratha**, for her husband, who went down in 312 and did
+  not come up — so that every diver carrying his name is somebody she is still looking for. See §3
+  and `NAMES_AND_OFFICES.md`.
