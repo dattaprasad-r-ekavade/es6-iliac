@@ -42,9 +42,9 @@ internal sealed class HudRenderer
 
         _ui.Text($"LEVEL {state.Level}", new Vector2(panel.X + 18, panel.Y + 12), 16, Color.White);
         _ui.TextRight($"{state.Gold} gold", panel.Right - 18, panel.Y + 12, 16,
-            new Color(228, 197, 122));
+            UiTheme.GoldBright);
         _ui.Text(state.WeaponName, new Vector2(panel.X + 18, panel.Y + 38), 13,
-            state.IsBlocking ? new Color(232, 194, 116) : new Color(203, 216, 214));
+            state.IsBlocking ? UiTheme.Gold : UiTheme.Body);
         // Blank until the first averaging window closes: the counter used to show whatever
         // the opening, texture-generating window computed, so a build running at 700 fps
         // could report 4. A misleading diagnostic is worse than none.
@@ -58,7 +58,7 @@ internal sealed class HudRenderer
         _ui.TextRight(state.FramesPerSecond > 0f ? $"{state.FramesPerSecond:0} fps" : "— fps",
             panel.Right - 18, panel.Y + 38, 13,
             state.FramesPerSecond is > 0f and < 50f
-                ? new Color(228, 128, 118)
+                ? UiTheme.Error
                 : new Color(146, 174, 178));
     }
 
@@ -208,7 +208,7 @@ internal sealed class HudRenderer
         var colour = state.Awareness switch
         {
             AwarenessLevel.Alerted => new Color(188, 65, 68),
-            AwarenessLevel.Suspicious => new Color(205, 157, 98),
+            AwarenessLevel.Suspicious => UiTheme.Bronze,
             _ => new Color(76, 101, 116)
         };
         _ui.Panel(panel, new Color(6, 13, 20, 226), colour);
@@ -236,7 +236,7 @@ internal sealed class HudRenderer
             new Color(206, 220, 212));
         if (state.ObjectiveBearing.Length > 0)
             _ui.TextFit(state.ObjectiveBearing, new Vector2(panel.X + 18, panel.Y + 88), 324f, 15,
-                new Color(232, 194, 116));
+                UiTheme.Gold);
     }
 
     /// <summary>Health, prana, and stamina bars in the bottom-left HUD panel.</summary>
@@ -282,7 +282,7 @@ internal sealed class HudRenderer
 
         if (spell.LightActive)
             _ui.TextCentred($"Emberlight {spell.LightRemaining:0}s",
-                UiLayout.Width / 2f, panel.Y - 24f, 13, new Color(232, 194, 116));
+                UiLayout.Width / 2f, panel.Y - 24f, 13, UiTheme.Gold);
 
         if (crystal is null || spell.Stones.Count == 0) return;
 
