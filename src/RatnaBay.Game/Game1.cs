@@ -418,14 +418,8 @@ public sealed class Game1 : Game, IConsoleTarget
     private int _fpsFrames;
     private readonly System.Diagnostics.Stopwatch _fpsClock = System.Diagnostics.Stopwatch.StartNew();
 
-    /// <summary>Real seconds the last frame took, for spotting a stall.</summary>
-    private float _lastFrameMs;
     private int _framesDrawn;
 
-    /// <summary>
-    /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
-    /// pixel so glyphs land 1:1 on the display instead of being resampled.
-    /// </summary>
     /// <summary>
     /// Seconds since the game started, for anything that moves on its own.
     ///
@@ -435,6 +429,10 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private float _clock;
 
+    /// <summary>
+    /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
+    /// pixel so glyphs land 1:1 on the display instead of being resampled.
+    /// </summary>
     private float _uiScale = 1f;
     private float _uiScalePreference = 1f;
     private bool _showSettings;
@@ -790,19 +788,16 @@ public sealed class Game1 : Game, IConsoleTarget
         MathF.Min((float)gameTime.ElapsedGameTime.TotalSeconds, MaxFrameSeconds);
 
     /// <summary>
-    /// The step the simulation is allowed this frame, which is zero while a hit is landing.
+    /// Simulated seconds this frame: zero while a hit is landing, scaled by the console's 'time'.
     ///
     /// Everything that moves reads this rather than the clock, so hitstop freezes the world
     /// without any of it knowing why. The input layer deliberately does not: a player who
     /// presses a key during those four frames should still be heard, or the freeze reads as
     /// dropped input rather than as impact.
-    /// </summary>
-    /// <summary>
-    /// Simulated seconds this frame.
     ///
-    /// Scaled by the console's 'time', which is what makes a fight watchable: at 0.2 a swing
-    /// can be followed through, and at 0 the frame holds still while the camera is moved.
-    /// Real time is untouched, so fire keeps flickering and the console stays responsive.
+    /// The time scale is what makes a fight watchable — at 0.2 a swing can be followed through,
+    /// and at 0 the frame holds still while the camera is moved. Real time is untouched, so
+    /// fire keeps flickering and the console stays responsive.
     /// </summary>
     private float StepSeconds(GameTime gameTime) =>
         _hitstop > 0f ? 0f : RealSeconds(gameTime) * _timeScale;
@@ -1181,7 +1176,6 @@ public sealed class Game1 : Game, IConsoleTarget
         if (elapsed >= 0.5)
         {
             _framesPerSecond = (float)(_fpsFrames / elapsed);
-            _lastFrameMs = (float)(elapsed * 1000.0 / _fpsFrames);
             _fpsFrames = 0;
             _fpsClock.Restart();
         }
@@ -1574,13 +1568,6 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// Drop into a world, generated or authored.
-    ///
-    /// Both paths go through here because the world has to be discarded and rebuilt when the
-    /// kind of world changes. Leaving the old one in place is how "Start New Game" after a
-    /// descent used to hand back the mine you had just left.
-    /// </summary>
-    /// <summary>
     /// Walk back into the mine that was put down.
     ///
     /// The mine is rebuilt from its seed rather than stored, the ledger is adopted by the run
@@ -1641,6 +1628,13 @@ public sealed class Game1 : Game, IConsoleTarget
         EnterWorld(null);
     }
 
+    /// <summary>
+    /// Drop into a world, generated or authored.
+    ///
+    /// Both paths go through here because the world has to be discarded and rebuilt when the
+    /// kind of world changes. Leaving the old one in place is how "Start New Game" after a
+    /// descent used to hand back the mine you had just left.
+    /// </summary>
     private void EnterWorld(int? mineSeed, bool newCharacter = false, int tier = 1)
     {
         _mineSeed = mineSeed;
@@ -1730,7 +1724,7 @@ public sealed class Game1 : Game, IConsoleTarget
         }
     }
 
-    /// <summary>A row of the camp trader's pack. Selling is row zero.</summary>
+    /// <summary>
     /// The trader at a cleared room's exit.
     ///
     /// Everything here is priced in the pot, because down a mine the pot is the purse: what is
@@ -2339,20 +2333,7 @@ public sealed class Game1 : Game, IConsoleTarget
                 }
                 else
                 {
-                    var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
-                    if (door is not null && door.Lock.IsOpen)
-                        _recorder.Record(PlayEventKind.DoorOpened, door.Definition.Id, 0f, 0f,
-                            _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
-                    if (door is not null)
-                    {
-                        _session.ShowToast(result switch
-                        {
-                            LockResult.Opened => $"{door.Definition.Id} opened.",
-                            LockResult.Unlocked => "The key turns. The door opens.",
-                            LockResult.Failed => $"The lock resists. Security {door.Definition.Difficulty:0} required.",
-                            _ => "The door is already open."
-                        });
-                    }
+                    TryOpenDoorAhead(player);
                 }
             }
         }
@@ -2546,9 +2527,28 @@ public sealed class Game1 : Game, IConsoleTarget
             return true;
         }
 
-        if (_world is null) return false;
+        return TryOpenDoorAhead(player);
+    }
+
+    /// <summary>
+    /// Open whatever door the player is facing, and say so.
+    ///
+    /// One method because there are two ways to ask -- the key and the on-screen prompt -- and
+    /// they had a copy each. The copies had already drifted in both directions: pressing E
+    /// recorded the opening for telemetry and played no sound, while clicking the prompt played
+    /// the sound and recorded nothing. Every door opened by hand was missing from the recording
+    /// or missing from the audio depending on which the player used.
+    /// </summary>
+    private bool TryOpenDoorAhead(WorldPoint player)
+    {
+        if (_world is null || _session is null) return false;
+
         var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
         if (door is null) return false;
+
+        if (door.Lock.IsOpen)
+            _recorder.Record(PlayEventKind.DoorOpened, door.Definition.Id, 0f, 0f,
+                _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
 
         _session.ShowToast(result switch
         {
@@ -2561,7 +2561,6 @@ public sealed class Game1 : Game, IConsoleTarget
         _sfx?.Play(result switch
         {
             LockResult.Opened or LockResult.Unlocked => Sfx.Door,
-            LockResult.Failed => Sfx.Denied,
             _ => Sfx.Denied
         }, 0.6f);
 
@@ -2924,13 +2923,6 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// Subscribe the recorder to the fight.
-    ///
-    /// Everything here is something that already happened for its own reasons; the recorder
-    /// only listens. Nothing in the game asks whether it is recording, which is what keeps it
-    /// impossible for telemetry to change how the game plays.
-    /// </summary>
-    /// <summary>
     /// Freeze the world briefly, and shove the camera.
     ///
     /// Called from wherever a blow lands. <paramref name="weight"/> is 0 for a graze and 1 for
@@ -3008,6 +3000,13 @@ public sealed class Game1 : Game, IConsoleTarget
             MathHelper.Clamp(enemy.Archetype.MaxHealth / 260f, 0.35f, 1f);
     }
 
+    /// <summary>
+    /// Subscribe the recorder to the fight.
+    ///
+    /// Everything here is something that already happened for its own reasons; the recorder
+    /// only listens. Nothing in the game asks whether it is recording, which is what keeps it
+    /// impossible for telemetry to change how the game plays.
+    /// </summary>
     private void WatchForTheRecord(Encounter encounter, GameSession session)
     {
         encounter.EnemyDefeated += enemy => _recorder.Record(PlayEventKind.EnemyKilled,
@@ -4272,7 +4271,7 @@ public sealed class Game1 : Game, IConsoleTarget
             };
 
             DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-            Text(line, new Vector2(404, 608), 15, Color.White);
+            Text(line, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
             return;
         }
 
@@ -4311,7 +4310,8 @@ public sealed class Game1 : Game, IConsoleTarget
             DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225),
                 new Color(151, 206, 210));
             TextFit($"Click / E  Take {pickup.Name} x{pickup.Count}",
-                new Vector2(404, 608), 472f, 15, Color.White);
+                UiLayout.PromptText(UiLayout.SinglePrompt),
+                UiLayout.PromptTextWidth(UiLayout.SinglePrompt), 15, Color.White);
             return;
         }
 
@@ -4327,7 +4327,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_run is { BarsTheWay: true })
         {
             DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(150, 120, 110));
-            Text("Barred  |  clear this room first", new Vector2(404, 608), 15,
+            Text("Barred  |  clear this room first", UiLayout.PromptText(UiLayout.SinglePrompt), 15,
                 new Color(224, 196, 186));
             return;
         }
@@ -4336,7 +4336,7 @@ public sealed class Game1 : Game, IConsoleTarget
             : hasKey ? "Click / E  Unlock with your key"
             : $"Locked  |  a key, or Security {door.Definition.Difficulty:0}";
         DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-        Text(text, new Vector2(404, 608), 15, Color.White);
+        Text(text, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
     }
 
     private void DrawSpeakingActors()
@@ -4455,12 +4455,6 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// The enemies, as camera-facing sprites.
-    ///
-    /// Drawn far to near so the alpha-tested cutouts never punch a hole in something behind
-    /// them that has not been drawn yet.
-    /// </summary>
-    /// <summary>
     /// The sprite an enemy is drawn with.
     ///
     /// Every enemy used to be a bandit. That was survivable while there was one kind of thing
@@ -4480,6 +4474,12 @@ public sealed class Game1 : Game, IConsoleTarget
             : CharacterSprites.Get(GraphicsDevice, "bandit", CharacterPalette.Bandit);
     }
 
+    /// <summary>
+    /// The enemies, as camera-facing sprites.
+    ///
+    /// Drawn far to near so the alpha-tested cutouts never punch a hole in something behind
+    /// them that has not been drawn yet.
+    /// </summary>
     private void DrawEnemies()
     {
         if (_encounter is null || _encounter.Enemies.Count == 0) return;
@@ -5646,12 +5646,6 @@ public sealed class Game1 : Game, IConsoleTarget
         (byte)Math.Clamp(color.G, 0, 255),
         (byte)Math.Clamp(color.B, 0, 255),
         (byte)Math.Clamp(color.A, 0, 255));
-
-    private void DrawWorldBase(Color sky, Color horizon)
-    {
-        GraphicsDevice.Clear(sky);
-        DrawCube(new Vector3(0f, -0.45f, 0f), new Vector3(22f, 0.3f, 22f), horizon, 0f);
-    }
 
     private void DrawModel(string key, Vector3 position, float scale, float rotation)
     {

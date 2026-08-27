@@ -230,13 +230,13 @@ public sealed class PlayerCombat
         return struck;
     }
 
-    /// <summary>Take a hit, applying worn armour and the current guard.</summary>
     /// <summary>
     /// Set by the console's 'god'. The blow still lands, still counts and still trains, so a
     /// fight can be watched through without the watcher dying halfway.
     /// </summary>
     public bool Invulnerable { get; set; }
 
+    /// <summary>Take a hit, applying worn armour and the current guard.</summary>
     public float TakeHit(float amount)
     {
         EnterCombat();

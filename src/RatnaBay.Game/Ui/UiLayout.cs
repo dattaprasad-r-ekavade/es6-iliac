@@ -60,6 +60,18 @@ internal static class UiLayout
     public static Rectangle PickpocketPrompt => new(754, 596, 224, 42);
     public static Rectangle SinglePrompt => new(388, 596, 504, 42);
 
+    /// <summary>
+    /// Where a prompt's text sits inside its panel.
+    ///
+    /// Derived rather than typed. The single prompt's text was written at (404, 608) in four
+    /// places while the panel itself came from <see cref="SinglePrompt"/> — so moving the panel
+    /// left the words behind, and only in some of the four.
+    /// </summary>
+    public static Vector2 PromptText(Rectangle prompt) => new(prompt.X + 16, prompt.Y + 12);
+
+    /// <summary>How wide a prompt's text may run before it must shrink.</summary>
+    public static float PromptTextWidth(Rectangle prompt) => prompt.Width - 32;
+
     public static Rectangle InventoryTile(int index) => new(
         InventoryLeft + index % InventoryColumns * (InventoryTileWidth + 6),
         InventoryTop + index / InventoryColumns * (InventoryTileHeight + 6),
