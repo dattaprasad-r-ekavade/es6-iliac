@@ -127,6 +127,8 @@ Supporting records:
   and the ending
 - [`Docs/STORY_AND_SYSTEMS.md`](Docs/STORY_AND_SYSTEMS.md) — where the story should stop being
   told and start being played
+- [`Docs/SCRIPT.md`](Docs/SCRIPT.md) — the plot: what is true, who wants what, and the rules
+  for writing it
 
 - [`Docs/PLAYTEST_NOTES.md`](Docs/PLAYTEST_NOTES.md) — what testers found, and what was done
 - [`Docs/PLAYTEST_DISTRIBUTION.md`](Docs/PLAYTEST_DISTRIBUTION.md) — shipping to testers on itch.io,
