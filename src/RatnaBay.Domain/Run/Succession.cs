@@ -146,6 +146,31 @@ public sealed class Legacy
 {
     private int _generation;
     private readonly List<string> _amulets = new();
+    private readonly HashSet<string> _heard = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// What the order has done, which is what its standing is read from.
+    ///
+    /// On the legacy rather than the character for the same reason amulets are: rank belongs
+    /// to the order, not to the person holding the lamp this week. A successor arriving to
+    /// find themselves demoted to yukta is a successor nobody wants to play.
+    /// </summary>
+    public ServiceRecord Service { get; } = new();
+
+    /// <summary>Story fragments already heard, so nobody repeats themselves.</summary>
+    public IReadOnlyCollection<string> Heard => _heard;
+
+    /// <summary>True the first time this fragment is heard, false ever after.</summary>
+    public bool Hear(string? fragmentId)
+    {
+        if (string.IsNullOrEmpty(fragmentId) || !_heard.Add(fragmentId)) return false;
+
+        Changed?.Invoke();
+        return true;
+    }
+
+    public bool HasHeard(string? fragmentId) =>
+        fragmentId is not null && _heard.Contains(fragmentId);
 
     /// <summary>How many have died. The first Deepankar is generation zero.</summary>
     public int Generation => _generation;
@@ -247,7 +272,10 @@ public sealed class Legacy
         Name = Fallen?.Name ?? string.Empty,
         HasFallen = Fallen is not null,
         Amulets = _amulets.ToList(),
-        DeepestEver = DeepestEver
+        DeepestEver = DeepestEver,
+        DescentsSurvived = Service.DescentsSurvived,
+        StonesBanked = Service.StonesBanked,
+        Heard = _heard.ToList()
     };
 
     public void Restore(SavedLegacy? saved)
@@ -267,6 +295,10 @@ public sealed class Legacy
         // Restored rather than merged, and unknown ids dropped, so an amulet removed from the
         // catalogue cannot resurrect itself out of an old save.
         RestoreAmulets(saved?.Amulets, saved?.DeepestEver ?? 0);
+        Service.Restore(saved?.DescentsSurvived ?? 0, saved?.StonesBanked ?? 0);
+
+        _heard.Clear();
+        foreach (var id in saved?.Heard ?? Enumerable.Empty<string>()) _heard.Add(id);
 
         Changed?.Invoke();
     }
@@ -276,7 +308,9 @@ public sealed class Legacy
         _generation = 0;
         Fallen = null;
         _amulets.Clear();
+        _heard.Clear();
         DeepestEver = 0;
+        Service.Reset();
         Changed?.Invoke();
     }
 }
@@ -296,4 +330,13 @@ public sealed class SavedLegacy
 
     /// <summary>The high-water mark amulets are earned against.</summary>
     public int DeepestEver { get; init; }
+
+    /// <summary>Descents walked out of alive, which rank is read from.</summary>
+    public int DescentsSurvived { get; init; }
+
+    /// <summary>Stones actually banked over every run.</summary>
+    public int StonesBanked { get; init; }
+
+    /// <summary>Fragments already heard, so the fort does not repeat itself after a load.</summary>
+    public List<string> Heard { get; init; } = new();
 }

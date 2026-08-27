@@ -20,6 +20,7 @@ internal sealed class UiScreens
         Journal = new JournalRenderer(canvas);
         Consent = new ConsentRenderer(canvas);
         Descent = new DescentRenderer(canvas);
+        Fort = new FortRenderer(canvas);
         Markers = new MarkerRenderer(canvas);
         Console = new ConsoleRenderer(canvas);
     }
@@ -34,6 +35,9 @@ internal sealed class UiScreens
     public JournalRenderer Journal { get; }
     public ConsentRenderer Consent { get; }
     public DescentRenderer Descent { get; }
+
+    /// <summary>The fort between runs: ten doors, and who is behind them.</summary>
+    public FortRenderer Fort { get; }
 
     /// <summary>Flat interface anchored to things in the world.</summary>
     public MarkerRenderer Markers { get; }

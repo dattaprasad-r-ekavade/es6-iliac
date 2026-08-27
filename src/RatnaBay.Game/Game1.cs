@@ -229,6 +229,12 @@ public sealed class Game1 : Game, IConsoleTarget
     private bool _dialogueOpen;
     private bool _showJournal;
 
+    /// <summary>The fort, opened with F on the surface. Null room id means the corridor.</summary>
+    private bool _showFort;
+
+    private int _fortSelection;
+    private string? _openFortRoom;
+
     /// <summary>Which inventory row is selected on the character screen.</summary>
     private int _inventorySelection;
     private bool _showCharacter;
@@ -2160,6 +2166,22 @@ public sealed class Game1 : Game, IConsoleTarget
         }
 
         if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
+
+        // Only above ground. The fort is what a run is for, not something to read halfway
+        // down a shaft with a door waiting.
+        if (Pressed(keyboard, Keys.F) && OnTheSurface)
+        {
+            if (_showFort) ClosePanels();
+            else
+            {
+                _showFort = true;
+                _showJournal = false;
+                _showCharacter = false;
+                _openFortRoom = null;
+                _fortSelection = 0;
+                SetMouseLook(false, forPanel: true);
+            }
+        }
         if (Pressed(keyboard, Keys.J))
         {
             if (_showJournal) ClosePanels();
@@ -2175,6 +2197,12 @@ public sealed class Game1 : Game, IConsoleTarget
                 _inventorySelection = 0;
                 SetMouseLook(false, forPanel: true);
             }
+        }
+
+        if (_showFort)
+        {
+            UpdateFort(keyboard, mouse);
+            return;
         }
 
         if (_showCharacter)
@@ -2243,7 +2271,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// list lives in exactly one place and both the Escape key and the camera read it.
     /// </summary>
     private bool AnyPanelOpen =>
-        _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp
+        _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp || _showFort
         || _showSettings || _paused || _choosingDepth || _campTraderOpen
         || _runSummary is not null;
 
@@ -2264,6 +2292,8 @@ public sealed class Game1 : Game, IConsoleTarget
         _showCharacter = false;
         _showHelp = false;
         _showSettings = false;
+        _showFort = false;
+        _openFortRoom = null;
 
         if (_screen == GameScreen.WorldScene) SetMouseLook(true);
     }
@@ -2761,6 +2791,62 @@ public sealed class Game1 : Game, IConsoleTarget
     /// could read your possessions but not drink, equip or wear any of them. Selection is
     /// driven from both the keyboard and the pointer so neither is the only way in.
     /// </summary>
+    /// <summary>
+    /// Walking the fort's corridor, and stepping into a room.
+    ///
+    /// Escape steps back one level rather than closing everything: from a room to the
+    /// corridor, from the corridor out. A single Escape that dumps the player onto the yard
+    /// from three rooms deep is the thing that makes a menu feel like a trap.
+    /// </summary>
+    private void UpdateFort(KeyboardState keyboard, MouseState mouse)
+    {
+        if (_session is null) { _showFort = false; return; }
+
+        if (Pressed(keyboard, Keys.Escape))
+        {
+            if (_openFortRoom is not null) _openFortRoom = null;
+            else ClosePanels();
+            return;
+        }
+
+        if (_openFortRoom is not null) return;
+
+        var rooms = FortRoster.All;
+
+        if (Pressed(keyboard, Keys.Up))
+            _fortSelection = Math.Max(0, _fortSelection - 1);
+        if (Pressed(keyboard, Keys.Down))
+            _fortSelection = Math.Min(rooms.Count - 1, _fortSelection + 1);
+
+        var pointer = LogicalMouse(mouse);
+        var clicked = false;
+
+        for (var index = 0; index < rooms.Count; index++)
+        {
+            if (!FortRenderer.DoorRow(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
+
+            _fortSelection = index;
+            clicked = Clicked(mouse);
+            break;
+        }
+
+        if (!clicked && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
+
+        var room = rooms[_fortSelection];
+        var rank = _session.Player.Legacy.Service.Rank;
+
+        if (!room.IsOpen(rank))
+        {
+            _session.ShowToast(
+                $"That door is shut to a {Ranks.TitleOf(rank)}. It wants a {Ranks.TitleOf(room.RequiredRank)}.");
+            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            return;
+        }
+
+        _openFortRoom = room.Id;
+        _sfx?.Play(Sfx.Door, 0.4f, volumeScale: 0.7f);
+    }
+
     private void UpdateInventory(KeyboardState keyboard)
     {
         if (_session is null) return;
@@ -3186,6 +3272,16 @@ public sealed class Game1 : Game, IConsoleTarget
         _earnedAmulets = _session is null
             ? Array.Empty<string>()
             : _session.Player.Legacy.RecordDepth(result.RoomsCleared);
+
+        // Standing is read from what the order has actually done, and only a banked run counts
+        // toward it. The order is not impressed by how deep somebody got if the stones stayed
+        // down there — the promise that a lost run still pays is amulets, deliberately separate.
+        if (_session is not null && _session.Player.Legacy.Service.Record(result))
+        {
+            var rank = _session.Player.Legacy.Service;
+            _session.ShowToast($"The order raises you. You are {rank.Title}.");
+            _sfx?.Play(Sfx.Chime, 0.85f);
+        }
 
         foreach (var id in _earnedAmulets)
         {
@@ -4136,6 +4232,8 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_showHelp) _screens.Overlay.DrawHelpOverlay(BuildOverlayState());
         if (_dialogueOpen) DrawDialogue();
         if (_showJournal) DrawJournal();
+        if (_showFort && _session is not null)
+            _screens.Fort.Draw(_session.Player.Legacy, _fortSelection, _openFortRoom);
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
         if (_campTraderOpen) DrawCampTrader();

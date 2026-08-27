@@ -83,9 +83,17 @@ public sealed class CaveThemeTests
     {
         // The shaft screen names the cave before the player pays, and the descent has to
         // deliver that cave. Both derive it from the seed, so this is what stops them drifting.
-        for (var seed = -50; seed < 50; seed++)
-            Assert.That(CaveThemeCatalog.For(seed, 3).Id,
-                Is.EqualTo(CaveThemeCatalog.For(seed, 3).Id));
+        // Captured first, then re-derived, so this actually tests determinism rather than
+        // comparing one expression to itself.
+        var first = Enumerable.Range(-50, 100)
+            .Select(seed => CaveThemeCatalog.For(seed, 3).Id)
+            .ToList();
+
+        var again = Enumerable.Range(-50, 100)
+            .Select(seed => CaveThemeCatalog.For(seed, 3).Id)
+            .ToList();
+
+        Assert.That(again, Is.EqualTo(first));
     }
 
     [Test]
