@@ -14,6 +14,9 @@ namespace RatnaBay.Client;
 /// </summary>
 internal sealed class DescentRenderer
 {
+    /// <summary>A count of stones, said properly. "1 stones" on the screen that counts them.</summary>
+    private static string Stones(int count) => count == 1 ? "1 stone" : $"{count} stones";
+
     private readonly UiCanvas _ui;
 
     public DescentRenderer(UiCanvas ui) => _ui = ui;
@@ -53,10 +56,10 @@ internal sealed class DescentRenderer
                 panel.Center.X, panel.Y + 150f, 13, UiTheme.Warning);
 
         if (run.CanCallTrader)
-            _ui.TextCentred($"T   whistle for a trader — {run.TraderCallCost} stones",
+            _ui.TextCentred($"T   whistle for a trader — {Stones(run.TraderCallCost)}",
                 panel.Center.X, panel.Y + 168f, 14, new Color(196, 176, 210));
         else if (run.TradersCalled > 0 || run.Pending > 0)
-            _ui.TextCentred($"a trader would want {run.TraderCallCost} stones",
+            _ui.TextCentred($"a trader would want {Stones(run.TraderCallCost)}",
                 panel.Center.X, panel.Y + 168f, 13, new Color(120, 116, 128));
 
         var camp = new Rectangle(panel.X + 24, panel.Bottom - 62, 248, 40);
@@ -105,7 +108,7 @@ internal sealed class DescentRenderer
 
         _ui.TextCentred("SOMEBODY CAME DOWN", panel.Center.X, panel.Y + 24f, 24,
             UiTheme.Heading);
-        _ui.TextCentred($"{run.Pending} stones in the pot  ·  the next whistle costs {run.TraderCallCost}",
+        _ui.TextCentred($"{Stones(run.Pending)} in the pot  ·  the next whistle costs {run.TraderCallCost}",
             panel.Center.X, panel.Y + 58f, 14, UiTheme.Accent);
 
         for (var index = 0; index < rows; index++)
@@ -118,8 +121,8 @@ internal sealed class DescentRenderer
                 : CampTrader.Stock[index - 1].Name;
 
             var price = index == 0
-                ? lootItems > 0 ? $"+{lootStones} stones" : "—"
-                : $"{CampTrader.Stock[index - 1].Stones} stones";
+                ? lootItems > 0 ? $"+{Stones(lootStones)}" : "—"
+                : Stones(CampTrader.Stock[index - 1].Stones);
 
             var affordable = index == 0
                 ? lootItems > 0
@@ -172,7 +175,7 @@ internal sealed class DescentRenderer
                 : UiTheme.RowIdleText;
 
             _ui.Text($"Tier {tier}", new Vector2(row.X + 18, row.Y + 6), 18, ink);
-            _ui.TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 18, row.Y + 8, 16,
+            _ui.TextRight(cost == 0 ? "free" : Stones(cost), row.Right - 18, row.Y + 8, 16,
                 affordable ? new Color(214, 186, 120) : UiTheme.Warning);
             // The cave itself, not just the tier. Choosing which cave to buy into knowing what
             // is down there is the decision the whole loop rests on, and it cannot be made

@@ -4051,7 +4051,9 @@ public sealed class Game1 : Game, IConsoleTarget
         var pointer = LogicalMouse(mouse);
         for (var index = 0; index < items.Count; index++)
         {
-            var row = UiLayout.ShopItem(index);
+            // Through the same helper the renderer uses, so a scrolled grid cannot end up
+            // drawing one thing where the mouse buys another.
+            if (ShopRenderer.TileFor(index, _shopSelection, items.Count) is not { } row) continue;
             if (!row.Contains((int)pointer.X, (int)pointer.Y)) continue;
 
             _shopSelection = index;
@@ -5446,6 +5448,10 @@ public sealed class Game1 : Game, IConsoleTarget
                 _depthSelection = 3;
                 _choosingDepth = true;
                 break;
+            case "shop" or "stall": _showShop = true; break;
+            case "camp" or "trader": _campTraderOpen = true; break;
+            case "fort": _showFort = true; break;
+            case "pause": _paused = true; break;
             case "dialogue":
                 _conversationActor = _dialogue?.Actors.FirstOrDefault();
                 _dialogueOpen = _conversationActor is not null;

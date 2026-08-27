@@ -50,10 +50,29 @@ internal static class UiLayout
 
     public static Rectangle DialogueTopic(int index) => new(376, 300 + index * 34, 528, 30);
 
-    public static Rectangle ShopItem(int index) => new(
-        282 + index % ShopColumns * 246,
-        200 + index / ShopColumns * 96,
-        230, 84);
+    /// <summary>The stall's panel. Everything else on that screen is measured from it.</summary>
+    public static readonly Rectangle ShopPanel = new(250, 64, 780, 604);
+
+    /// <summary>Where the grid starts, under the name and the gold.</summary>
+    public const int ShopGridTop = 164;
+
+    /// <summary>Rows that fit between the header and the footer. More than this scrolls.</summary>
+    public const int ShopVisibleRows = 5;
+
+    private const int ShopRowStep = 90;
+
+    /// <summary>
+    /// One tile of the stall, given its place on screen rather than its place in the stock.
+    ///
+    /// The old version hard-coded a step of 96 from y=200 and the panel was sized for "four
+    /// rows of three... the stall carries ten things". The stall carries fifteen now, so the
+    /// fifth row ran sixteen pixels past the bottom of the panel and the footer hint was drawn
+    /// straight through it. Sizes come from the panel here, so the two cannot disagree again.
+    /// </summary>
+    public static Rectangle ShopItem(int slot) => new(
+        ShopPanel.X + 32 + slot % ShopColumns * 246,
+        ShopGridTop + slot / ShopColumns * ShopRowStep,
+        230, 78);
 
     public static Rectangle TalkPrompt => new(302, 596, 224, 42);
     public static Rectangle SecondaryPrompt => new(534, 596, 212, 42);
