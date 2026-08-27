@@ -5,7 +5,9 @@ one. This says where it should stop being told and start being *played*.
 
 **Why it exists.** Iteration 19 put ten rooms of story into the game and, in doing so, made a
 gap obvious: the story is delivered entirely *beside* the mechanics. NPCs say things. The player
-does something else. Everything below is an attempt to make those the same activity.
+does something else. Everything below is an attempt to make those the same activity —
+**without adding a verb**, because a moral question that costs the player a button press is a
+moral question they will learn to skip.
 
 ---
 
@@ -13,10 +15,9 @@ does something else. Everything below is an attempt to make those the same activ
 
 ### The moral spine has no mechanic at all
 
-[`SETTING.md`](SETTING.md) §3 says prana is gathered three ways — caught from the almost-dead,
-drip-fed from the living, or taken from animals — and that **"the difference between them is the
-moral spine of the story."** [`TRAILER.md`](TRAILER.md) goes further: *"Prana is the mana bar,
-the town's economy, and a moral question at the same time."*
+[`SETTING.md`](SETTING.md) §3 says prana is gathered three ways and that **"the difference
+between them is the moral spine of the story."** [`TRAILER.md`](TRAILER.md) goes further:
+*"Prana is the mana bar, the town's economy, and a moral question at the same time."*
 
 Mechanically, today, the player's entire relationship with prana is:
 
@@ -24,206 +25,261 @@ Mechanically, today, the player's entire relationship with prana is:
 gold  →  buy a jiva stone  →  spend it on a spell
 ```
 
-There is no choice in that, and therefore no moral question. The spine is something the fort's
-occupants *tell you about*. The theme of the game — the quest for power corrupts — is currently
-a thing other people say while the player shops.
+The theme of the game — the quest for power corrupts — is currently a thing other people say
+while the player shops.
 
 ### The second tap is empty
 
 `design_pivot.md` §7 promises two: **descending reveals what the mountain holds; rising in rank
-reveals what the town is hiding.** Iteration 19 filled the second one with twenty-four fragments.
+reveals what the town is hiding.** Iteration 19 filled the second with twenty-four fragments.
 
-The first has **nothing in it.** The Stambha exists, is carved, and appears only in the
-`--stambha` preview — it has never been placed in a mine. A player can descend to room thirty
-and learn precisely nothing about the mountain.
+The first has **nothing in it.** The Stambha exists, is carved, is transliterated into Brahmi,
+and appears only behind the `--stambha` flag — it has never been placed in a mine. A player can
+descend to room thirty and learn precisely nothing about the mountain.
 
-### The endings cannot currently be earned
-
-[`STORY.md`](STORY.md) §10 leaves this open: *"whether the three endings are chosen or earned —
-a menu at the end is weak; an ending you have been walking toward for ten hours without being
-told is much stronger and much harder."*
-
-It is only harder if nothing is tracking. Something already is — see below.
-
----
-
-## 2. The missing verb: taking prana yourself
-
-One mechanic closes the first two findings at once.
-
-**A dying preta is releasing prana.** That is the fiction already: stones left in the rock give
-up their prana to the dead, and the dead rise on it. When one falls, that prana goes somewhere.
-The Deepankar are named light-*givers* and are, in fact, in the business of collecting it.
-
-So give the player the three methods as an actual decision:
-
-| Method | How it plays | What it costs |
-|---|---|---|
-| **Release** | Hold on a dying chhaya for a beat and take what leaves it | Time, in a room that may not be clear. The lawful way, and the slow one |
-| **Draw** | Take it from someone living | Nothing you can see. Far more, far faster |
-| **Animals** | The rats in the deep rooms | Almost nothing. There for the player who tries it once |
-
-**Release is the interesting one mechanically**, because it fights the press-your-luck loop
-directly: standing still over a body while three more things are getting up is a real risk, and
-it is a risk taken for the *virtuous* option. That inversion — the honest way is the dangerous
-way — is worth more than any amount of dialogue about ethics.
-
-### Who is there to draw from
-
-This is the part that makes it land, and the answer is already built.
-
-**The camp trader.** They are whistled down for money, into a mine, alone, at the player's
-convenience. Nobody above ground knows they came. The board already calls the camp *"the only
-place a person is met every single run"* — which makes them simultaneously the natural home for
-frequent story **and** the standing temptation.
-
-The same NPC, two purposes, and they sharpen each other: the more the trader talks, the more
-they are a person, and the worse it is to drain them.
-
----
-
-## 3. `Channeled` is already the ledger
+### `Channeled` is a ledger nothing reads
 
 `PlayerVitals.Channeled` counts every jiva stone drawn. It is incremented, saved, restored, and
-exposed to the dialogue system as `player.channeled`.
+exposed to dialogue as `player.channeled`. **Nothing consequential reads it.**
 
-**Nothing reads it consequentially.** It is a moral ledger with no consequences attached — which
-means the expensive half of this feature is already built and merely inert.
-
-What it should feed:
-
-- **The Stambha.** `SETTING.md` says the pillar *"measures what has been drawn."* Put one in
-  every mine and carve the count into it. The verse — *covet not; for whose is wealth?* — stops
-  being a decoration and becomes a number with the player's name on it. This is also the
-  trailer's opening shot finally existing in the game.
-- **The shrine.** The priest's fragments should read differently at 20 drawn than at 200.
-- **What rises.** See §6.
-- **Which endings are available.** See §5.
-
-Splitting `Channeled` into *released* and *drawn* is the only new state this needs, and it is
-one integer.
+That is the whole feature, already built and inert.
 
 ---
 
-## 4. Giving the mountain a voice
+## 2. The answer: consumption destabilises the mountain
 
-The empty tap. Three sources, cheapest first:
+**No new verb.** The player already spends stones — that is the game. The change is that
+spending has a consequence, and the consequence arrives where the player feels safe.
 
-**The Stambha, per mine.** One pillar, deep in a generated mine, carrying a verse and a count.
-Costs nothing new — the carving generator, the Brahmi transliteration and the shot composition
-all exist and are used by nothing.
+> Prana is what holds the dead down. Every stone burned is a stone that is no longer holding
+> anything. Burn enough and they stop staying in the mine.
 
-**Released preta.** `SETTING.md` says the risen are *"the past lives the mountain has taken —
-miners, soldiers, the convict labour the state sent down in earlier reigns."* **The preta are
-the record.** A released chhaya can give one line of who it was:
+This is better than making the player choose *how* to take prana, and it is worth being explicit
+about why: a choice at the point of consumption is a decision the player makes a hundred times
+and optimises within an hour. A consequence of consumption is a pressure they feel constantly
+and can never fully escape, because the only way to avoid it is to stop using the thing the
+whole game is built around.
+
+### Instability, as a number
+
+One value, derived from what is already counted:
+
+```
+instability  ←  stones burned, less what has decayed back
+```
+
+What it does, in ascending order of how alarming it should feel:
+
+| Instability | What changes |
+|---|---|
+| Low | Nothing. The fort is a fort |
+| Rising | The lamps gutter. Occupants mention it before you notice it |
+| High | **Chhaya in the fort corridors.** The safe room is not |
+| Critical | Rooms are *held*. The occupant is not there, and the story in that room is unreachable until it is cleared |
+
+**The last row is the one that makes it a system rather than a hazard.** Losing a fort room
+costs the player *story* and *services* — the smith, the assayer, the physician — so instability
+is not a fight, it is an interruption to everything else they were doing. That is a far better
+threat than damage.
+
+### Why this is cheap
+
+Every piece exists. `Channeled` is the counter. `FortRoster` is the ten rooms. `EnemyCatalog`
+has three tiers of risen. The generator already places them. What is missing is one number and
+the wiring between them.
+
+---
+
+## 3. The half-life, and where to put it
+
+A jiva stone leaks. That is good lore and good pressure, and it belongs to the **fort**, not to
+the run.
+
+### Not inside a descent
+
+`design_pivot.md` §3 is unambiguous: **"the run has to end because the player stopped, not
+because the game did."** A decaying stone in the pot makes the clock answer *"one more room?"*
+instead of nerve, and that question is the entire game.
+
+There is also no tuning that works. A run is five to eight minutes: leak fast enough to matter
+and every run becomes a rush, leak slow enough not to and it is invisible. And it would dissolve
+the `N x T` payout curve, because a pot that is worth less than it says is a promise the summary
+screen is breaking.
+
+### In the fort, where hoarding happens
+
+**Banked stones leak between descents.** Slowly, visibly, and only while sitting still.
+
+This aims the pressure at the behaviour that actually needs discouraging. The failure mode of a
+press-your-luck game is the player who banks early every time and grinds safely; a stockpile
+that quietly evaporates makes that strategy cost something without ever touching the decision at
+the door.
+
+It also closes the loop with §2 — **you cannot hoard safety.** Stones spent destabilise the
+mountain; stones kept leak away. There is no position from which the player is simply fine, and
+the only answer to either is to go back down.
+
+### The one exception worth considering
+
+**Socketed stones burning out mid-run** is the version that *can* live inside a descent, because
+socketed stones are already temporary and already cleared on entry — there is no payout to
+break. A stone leaking its prana into your weapon and going dark two rooms later is tension with
+no cost to the loop. Worth trying after the fort version is in.
+
+---
+
+## 4. The order, and why it should be the one talking
+
+Story delivered as **the Deepankar managing a failing supply**, with the player as their agent.
+
+The fort's twenty-four fragments are good and they are passive: the player reads them. Giving
+the order a problem, and the player a part in it, turns a fort visit from reading into doing —
+and it makes the order a character rather than a background fact.
+
+The shape, roughly every one or two descents:
+
+1. The order notices the shortfall. You are sent to the **trader** to argue the price down.
+2. You have to **explain the shortage** — to the registrar, or to the physician, and what you
+   say is a choice with a record.
+3. The **armourer** wants supplies for the order that the province does not want to give.
+4. **The fort is overtaken.** Rooms fall and you are sent to clear them. This is where §2 stops
+   being atmosphere.
+5. You begin **asking the royalty questions** they do not want asked.
+6. You decide the fate.
+
+**One rule that keeps this from becoming what the pivot escaped.** `design_pivot.md` §7 says the
+story is not a questline, and what it is actually warning against is errands that consist of
+walking somewhere. Every step above must be **a conversation with a decision in it** — negotiate,
+choose what to admit, choose who to protect — and never a delivery. If a step could be completed
+by a courier, it should be cut.
+
+---
+
+## 5. Giving the mountain a voice
+
+The empty tap, and it stays cheap.
+
+**The Stambha, in every mine.** One pillar deep in a generated mine, carrying a verse and the
+count of what has been burned. `SETTING.md` already says the pillar *"measures what has been
+drawn"* — so the carving becomes the instability read-out, in the world, with the player's own
+number on it. The verse stops being decoration and becomes an accusation with an integer
+attached. Every asset for this exists and is currently used by nothing.
+
+**The risen are the record.** `SETTING.md` says they are the past lives the mountain took —
+miners, soldiers, the convict labour the state sent down in earlier reigns. A killed chhaya can
+leave one line of who it was:
 
 > *"Forty of us went in on the governor's order. The register says twelve."*
 
-That is history, testimony, and evidence — delivered by the thing the player just killed, and
-only to a player who took the slow honest route. **The mine's story is the reward for releasing
-rather than draining**, which welds the theme to the verb.
-
-**Depth as a gate on its own.** Deeper fragments name older things: the convict gangs, then the
-first Deepankar, then whatever was down there before the province.
+No new verb; it arrives on a kill the player was making anyway. At the measured ~700 words an
+hour, fifty of these is an afternoon.
 
 ---
 
-## 5. Plot placement
+## 6. Plot placement
 
-The acts from `STORY.md`, against the systems that now exist. The rule from §6 of that document
-still holds — **conjunctions, never either tap alone.**
+The acts from `STORY.md` against the systems that exist. The conjunction rule still holds:
+**rank and depth, never either alone.**
 
-| Beat | Fires on | Already written? |
+| Beat | Fires on | Written? |
 |---|---|---|
-| **Act I opens** | First descent | The coach |
+| Act I opens | First descent | ✅ the coach |
 | The tally does not balance | `Yukta` + depth 3 | ✅ `gate.1` |
 | **Turn I — the supply does not add up** | `Pradeshika` + depth 10 | ✅ `phys.1` |
 | The order was founded to stop this | `Sthanika` + depth 8 | ✅ `hall.2` |
-| The law: a stone is your life | `Adhyaksha` + depth 18 | ✅ `reg.2` |
+| A stone taken is your life | `Adhyaksha` + depth 18 | ✅ `reg.2` |
 | **Turn II — the first Deepankar** | `Mahamatra` + depth 26 | ✅ `gov.2` |
-| **Act III — the choice** | `Mahamatra` + depth 30 | ✅ `gov.3` |
+| Act III — the choice | `Mahamatra` + depth 30 | ✅ `gov.3` |
 
-**The acts are already placed.** What they lack is consequence: every one of those turns is a
-line of dialogue that changes nothing about what the player can do next.
+**The acts are already placed.** What the turns lack is consequence — each is a line that changes
+nothing about what the player can do next. Each should hand something over:
 
-### Make each turn hand over a mechanic
-
-This is the change worth making, and it is what turns plot into play:
-
-- **Turn I** — the physician admits the supply is drip-fed — **unlocks Draw.** Until that
-  conversation the player *cannot* take prana from the living, because they do not know it is
-  possible. The moment complicity becomes available is the moment the story says it exists. A
-  player who never reaches that fragment plays an entirely honest game without ever being told
-  they were being tested.
-- **Turn II** — the governor names the first Deepankar — **unlocks the seam.** A specific
-  descent, at a fixed seed, to the bottom. `STORY.md` §10 asks whether Act III is playable and
-  whether a hand-authored level earns its cost; this is the one place it does, and only one is
-  needed.
+- **Turn I** — the supply is admitted to be short — starts the **errand chain** in §4. The story
+  stops being something you read and becomes something you are sent to do.
+- **Turn II** — the first Deepankar is named — opens **the seam**: one fixed descent to the
+  bottom. `STORY.md` §10 asks whether a hand-authored level ever earns its cost. This is the one
+  place, and one is enough.
 
 ---
 
-## 6. The endings, earned rather than chosen
+## 7. The finale: the fort falls
 
-`STORY.md` leaves this open. It can now be closed, because the counters exist.
+The endgame is **the fort itself, overrun**, cleared room by room against a clock.
+
+It is the right climax for three reasons that have nothing to do with spectacle:
+
+- **It is the theme, literally.** The province burned prana to keep its lamps lit, and the thing
+  that comes for it is what the burning let up. The player did most of the burning.
+- **It inverts the one safe place**, which is the strongest structural move a hub-and-run game
+  has available and almost nobody uses.
+- **It reuses ten rooms that already exist as data**, and it plays differently from every run
+  before it — a clock and a defence rather than a descent and a decision. A finale that plays
+  like the ninetieth run is not a finale.
+
+**The honest cost:** the fort is currently a corridor of doors, not geometry. This is the piece
+that needs it built, and it is the largest single item in this document. Nothing else here does.
+
+---
+
+## 8. The endings, earned rather than chosen
+
+`STORY.md` §10 leaves this open. It can be closed now, because the counters exist.
 
 | Ending | Earned by | Read from |
 |---|---|---|
-| **The Ledger** — expose it | Having the evidence, and the standing to be believed | Heard `clerk.1` and `clerk.2`; `Mahamatra` |
-| **The Lamp** — take it over | Having already been doing it | High **drawn** count |
-| **The Release** — break the stones | Having done it the hard way throughout | High **released**, low **drawn** |
+| **The Ledger** — expose it | Evidence, and standing enough to be believed | Heard `clerk.1` and `clerk.2`; `Mahamatra` |
+| **The Lamp** — take it over | Having burned through it without ever asking | High lifetime consumption |
+| **The Release** — break the stones | Having kept the mountain steady at your own cost | Low instability at the end |
 
-The player is never told which one they are walking toward. At the bottom, the doors that open
-are the ones their own hundred small decisions opened — and the one that does not open is the
-one they argued themselves out of ten hours ago without noticing.
+Nobody is told which one they are walking toward. At the bottom the doors that open are the ones
+a hundred small decisions opened, and the one that does not is the one they argued themselves
+out of ten hours ago without noticing.
 
-**A player who qualifies for none gets The Lamp**, which is the ending for someone who never
-committed to anything. That is not a punishment; it is an answer, and it is the truest one.
+**A player who qualifies for none gets The Lamp.** That is not a punishment; it is the honest
+answer for somebody who never committed to anything.
 
 ---
 
-## 7. Your own dead
+## 9. Your own dead
 
-Still the strongest single idea available, still unbuilt, and now cheaper than when
-[`STORY.md`](STORY.md) proposed it: `Legacy.Fallen` exists, the vetala tier exists, and the
-generator already places elites.
+Still unbuilt, still the strongest single idea available, and cheaper than when `STORY.md`
+proposed it: `Legacy.Fallen` exists, the vetala tier exists, the generator places elites.
 
 > A fallen Deepankar whose cache is never recovered rises, in the mine where they fell, wearing
 > what they died in and named for who they were.
 
-And it should read the ledger. **A predecessor who drew heavily comes back as something worse** —
-a kravyada rather than a vetala. The order's own corruption is buried in the mountain and comes
-back up at whoever inherited it. That is the theme, as a spawn rule.
+And it should read the ledger: **a predecessor who burned heavily comes back as something
+worse.** The order's own consumption, buried in the mountain, coming back up at whoever
+inherited it. The theme, as a spawn rule.
 
 ---
 
-## 8. What to build, and in what order
+## 10. What to build, and in what order
 
-Cheapest and most load-bearing first. None of it is large; most of it is wiring things that
-already exist to each other.
+Cheapest and most load-bearing first. Nothing before item 6 needs a new subsystem.
 
-1. **Split `Channeled` into released and drawn.** One integer, and everything below reads it.
-2. **Release, as a verb.** Hold on a dying chhaya. This alone changes how the loop is played.
-3. **Preta testimony.** One line per release, from a pool. At ~700 words an hour, fifty of them
-   is an afternoon.
-4. **The Stambha in every mine**, carrying the drawn count. Assets already exist and are unused.
-5. **Draw**, gated behind Turn I. The camp trader is the target.
-6. **Endings read the ledger.**
-7. **The seam** — one hand-authored descent, unlocked by Turn II.
-8. **Your own dead rise**, tiered by what they drew.
+1. **Instability, as one number** derived from consumption.
+2. **The fort reacts to it** — lamps, then lines, then chhaya in the corridor.
+3. **Rooms can be held**, and a held room costs its story and its services until cleared.
+4. **The Stambha in every mine**, carrying the count. Assets exist and are unused.
+5. **Banked stones leak** between descents.
+6. **The errand chain**, starting at Turn I.
+7. **Endings read the ledger.**
+8. **The seam** — one hand-authored descent, from Turn II.
+9. **The fort finale** — the expensive one, and the only item here that needs geometry.
+10. **Your own dead rise**, tiered by what they burned.
 
-Items 1 to 4 are the ones that matter. They give the mountain a voice, make the honest route the
-dangerous one, and turn an inert counter into the spine the design has always claimed it had —
-and they can be done without writing a single new subsystem.
+Items 1 to 4 are the ones that matter. They make consumption cost something, give the mountain a
+voice, and turn an inert counter into the spine the design has always claimed it had.
 
 ---
 
-## 9. Open
+## 11. Open
 
-- Does drawing from the camp trader remove them for the rest of the save? It should cost
-  something permanent, and losing the only person who visits you is the obvious candidate.
-- Is Release automatic once learned, or always a held button? Automatic is kinder; held is a
-  decision, and this design generally prefers decisions.
-- Does the fort *notice* a heavy ledger before the ending — a garrison that watches you, a
-  shrine that closes? Probably yes, and probably as one changed line rather than a system.
-- What the first Deepankar actually found. It is named in `gov.2` and nothing behind it is
-  written yet.
+- How fast should banked stones leak? Fast enough to notice across three runs, slow enough that
+  a player who is simply saving for a sword is not robbed. Needs a number and a playtest.
+- Does clearing a held fort room pay anything, or is getting the room back the whole reward?
+  Probably the latter — paying for it would make instability farmable.
+- Can instability ever be *reduced* deliberately, or only decay on its own? A way to spend
+  stones on calming the mountain is elegant and risks becoming a chore tax.
+- What the first Deepankar actually found. Named in `gov.2`, and nothing behind it is written.
