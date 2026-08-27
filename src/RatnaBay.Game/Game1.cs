@@ -4757,8 +4757,25 @@ public sealed class Game1 : Game, IConsoleTarget
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
     }
 
+    /// <summary>
+    /// Squared, for sorting only. Anything that compares against a distance in metres wants
+    /// <see cref="MetresToCamera"/> — see the note there.
+    /// </summary>
     private float DistanceToCamera(Enemy enemy) =>
         Vector3.DistanceSquared(_cameraPosition,
+            new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z));
+
+    /// <summary>
+    /// Real metres to an enemy.
+    ///
+    /// The nameplate code was using the squared form against a range of 26, so a plate only
+    /// appeared within the square root of that -- about five metres -- and the distance-based
+    /// shrink hit its floor almost immediately. The level of the thing walking at you was
+    /// therefore unreadable until it was already on top of you, which is precisely when
+    /// nobody has time to read it.
+    /// </summary>
+    private float MetresToCamera(Enemy enemy) =>
+        Vector3.Distance(_cameraPosition,
             new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z));
 
     /// <summary>
@@ -5265,7 +5282,7 @@ public sealed class Game1 : Game, IConsoleTarget
         {
             if (!enemy.IsAlive) continue;
 
-            var distance = DistanceToCamera(enemy);
+            var distance = MetresToCamera(enemy);
             if (distance > MarkerRenderer.NameplateRange) continue;
 
             var feet = _encounter.DrawPositionOf(enemy);
@@ -5280,9 +5297,15 @@ public sealed class Game1 : Game, IConsoleTarget
             plates.Add(new NameplateState(
                 Anchor: anchor,
                 Scale: scale,
-                Label: enemy.Archetype.Level > 1
-                    ? $"{enemy.DisplayName}  ·  {enemy.Archetype.Level}"
-                    : enemy.DisplayName,
+                // Always, and labelled.
+                //
+                // It was hidden at level one and drawn as a bare number after a dot, so the
+                // shallow rooms showed nothing and the deep ones showed "Bandit · 4" -- which
+                // could be a level, a count, or a rank. Now that every body rolls its own
+                // level out of a band, the number is the main thing a player reads off a room
+                // on entry: five bandits at Lv 3 and one at Lv 6 is a different room from six
+                // at Lv 3, and it should be legible from the doorway.
+                Label: $"{enemy.DisplayName}   Lv {enemy.Archetype.Level}",
                 Status: enemy.IsStaggered ? "staggered"
                     : enemy.IsBurning ? "burning"
                     : enemy.IsChilled ? "chilled"

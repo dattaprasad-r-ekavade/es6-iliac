@@ -36,8 +36,23 @@ public sealed class EnemyArchetype
     /// <summary>Health added per level above the first.</summary>
     public const float HealthPerLevel = 0.22f;
 
-    /// <summary>Damage added per level above the first — slower than health on purpose.</summary>
-    public const float DamagePerLevel = 0.16f;
+    /// <summary>
+    /// Damage added per level above the first.
+    ///
+    /// Much slower than health, and the gap is the whole point. What a fight costs you is the
+    /// product of the two: a levelled enemy takes longer to kill *and* hits harder each time,
+    /// so damage taken grows roughly as (1 + 0.22s)(1 + Ds). At D = 0.16 that curve was
+    /// quadratic and vicious -- a level-ten bandit cost 75 of a player's health, against a
+    /// player who gains 6 max health a level. The threat grew about sevenfold while the player
+    /// grew by half, which meant deep rooms were unwinnable long before anybody reached one.
+    ///
+    /// At 0.07 the product is close enough to linear that depth lengthens a fight without
+    /// making it lethal. That is the direction wanted: length comes from health, so blocking,
+    /// stagger and chill get time on the clock to be seen at all; threat comes from numbers,
+    /// from elites, and from what a room holds -- not from every bandit hitting like a siege
+    /// engine because the player walked through six doors.
+    /// </summary>
+    public const float DamagePerLevel = 0.07f;
 
     /// <summary>Experience added per level, which is why deeper floors are worth the risk.</summary>
     public const float XpPerLevel = 0.35f;

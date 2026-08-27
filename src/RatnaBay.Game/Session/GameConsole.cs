@@ -344,6 +344,83 @@ internal static class GameConsole
                 return $"{target.DisplayName} down.";
             });
 
+        console.Register("room",
+            "room <n>",
+            "Stand in the middle of a numbered room of the mine you are in.",
+            args =>
+            {
+                if (game.World is not { } world) return "No world.";
+                if (args.Count == 0) return "room which?";
+
+                var wanted = args.Integer(0, 0);
+                var room = world.Manifest.Rooms?.FirstOrDefault(r => r.Index == wanted);
+                if (room is null) return $"No room {wanted}. This mine has "
+                    + $"{world.Manifest.Rooms?.Count ?? 0}.";
+
+                game.PlaceAt(new Vector3(room.Centre.X, PlayerEye, room.Centre.Z));
+                return $"Room {wanted} at {room.Centre.X:0.0}, {room.Centre.Z:0.0}.";
+            });
+
+        console.Register("face",
+            "face",
+            "Turn to the nearest living enemy. Attacks go where the crosshair points.",
+            _ =>
+            {
+                if (game.Encounter is not { } encounter) return "Nothing to face.";
+
+                var here = new WorldPoint(game.CameraPosition.X, game.CameraPosition.Y,
+                    game.CameraPosition.Z);
+
+                var target = encounter.Enemies
+                    .Where(enemy => enemy.IsAlive)
+                    .OrderBy(enemy => enemy.Position.FlatDistanceTo(here))
+                    .FirstOrDefault();
+
+                if (target is null) return "The room is clear.";
+
+                var yaw = MathF.Atan2(-(target.Position.X - here.X), -(target.Position.Z - here.Z));
+
+                // Pitch as well, and this is not a nicety. The camera is at eye height and an
+                // enemy's middle is about a metre off the floor, so at two metres the target
+                // sits some thirty-four degrees below level -- outside the 0.6 rad targeting
+                // cone. Facing with pitch zero aimed over its head, and every swing in the
+                // first scripted fight missed for exactly that reason.
+                var flat = target.Position.FlatDistanceTo(here);
+                var rise = target.Position.Y + 0.9f - here.Y;
+                var pitch = MathF.Atan2(rise, MathF.Max(0.01f, flat));
+
+                game.LookAt(yaw, pitch);
+
+                return $"Facing {target.DisplayName} at {flat:0.0} m, pitch {pitch:0.00}.";
+            });
+
+        console.Register("swing",
+            "swing [count]",
+            "Attack whatever the crosshair is on, as clicking would.",
+            args =>
+            {
+                if (game.Encounter is not { } encounter) return "Nothing to fight.";
+
+                // Repeats are separated by nothing, so a count runs into the weapon cooldown
+                // and reports it. That is the honest result: a script that swings ten times in
+                // one frame should be told nine of them were refused, because that is what
+                // happens to a player who mashes.
+                var count = Math.Clamp(args.Integer(0, 1), 1, 40);
+                int hit = 0, missed = 0, refused = 0;
+                var damage = 0f;
+
+                for (var i = 0; i < count; i++)
+                {
+                    var outcome = encounter.PlayerAttack();
+
+                    if (outcome.Result == AttackResult.Hit) { hit++; damage += outcome.Damage; }
+                    else if (outcome.Result == AttackResult.Missed) missed++;
+                    else refused++;
+                }
+
+                return $"{hit} hit for {damage:0}, {missed} missed, {refused} refused";
+            });
+
         console.Register("enemies",
             "enemies",
             "List what is in the room and how far away it is.",
@@ -359,7 +436,7 @@ internal static class GameConsole
                 return string.Join('\n', alive
                     .OrderBy(enemy => enemy.Position.FlatDistanceTo(here))
                     .Select(enemy =>
-                        $"{enemy.DisplayName,-16} {enemy.Health:0} hp  "
+                        $"{enemy.DisplayName,-16} Lv {enemy.Archetype.Level,-3} {enemy.Health:0} hp  "
                         + $"{enemy.Position.FlatDistanceTo(here):0.0} m  "
                         // Rousing is worth naming: a body still coming up out of the floor is
                         // drawn sunk into it, so one stuck part-way reads as a sliver of colour

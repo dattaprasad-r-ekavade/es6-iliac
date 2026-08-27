@@ -1,0 +1,73 @@
+# How long a fight lasts, and what it costs.
+#
+#     build\RatnaBay.exe --script Docs\scripts\fight.rbs
+#
+# The question this exists to answer: are ordinary fights long enough for
+# blocking, stagger and chill to ever be seen? Recorded fights ran about two
+# seconds, which is not.
+#
+# Swings are separated by 'wait' rather than fired in a burst, because the
+# weapon cooldown refuses anything faster and a refused swing is not a fight.
+
+echo === a shallow room, tier 1 ===
+
+descend 1 20789
+noclip on
+god on
+room 1
+wait 3
+
+enemies
+watch enemies
+
+# Eight swings a second apart is roughly the rate a player actually manages.
+face
+swing
+wait 0.5
+face
+swing
+wait 0.5
+face
+swing
+wait 0.5
+face
+swing
+wait 0.5
+enemies
+
+echo === a deep room, tier 4 ===
+
+surface
+wait 0.5
+descend 4 20789
+noclip on
+room 6
+wait 3
+
+# Deep rooms are where the levels have climbed, so this is where a fight should
+# have grown long enough to have a shape.
+enemies
+assert enemies has Lv
+
+face
+swing
+wait 0.5
+face
+swing
+wait 0.5
+face
+swing
+wait 0.5
+face
+swing
+wait 0.5
+face
+swing
+wait 0.5
+face
+swing
+wait 0.5
+enemies
+
+shot captures/fight-deep.png
+quit
