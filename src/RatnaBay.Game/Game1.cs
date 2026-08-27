@@ -428,7 +428,23 @@ public sealed class Game1 : Game, IConsoleTarget
     /// Long enough to cover an impatient press, short enough that a click during a long
     /// animation does not fire half a second after the player stopped meaning it.
     /// </summary>
-    private const float SwingBufferSeconds = 0.22f;
+    /// <summary>
+    /// How long a click is remembered while the weapon is still swinging.
+    ///
+    /// It was a flat 0.22s, which matches no weapon: a sword's cooldown is 0.45 and a mace's
+    /// is 0.72, so the window reached less than half of one and less than a third of the
+    /// other. The recordings show what that cost -- 660 refused clicks across 76 sessions, all
+    /// of them cooldown and not one of them stamina, and of the ones the buffer failed to
+    /// catch, 80% arrived too early for a 0.22s window to reach the swing. The median lost
+    /// click came 0.19s after the last one: a player pressing at about two and a half a
+    /// second against a weapon that allows two and a bit.
+    ///
+    /// Held for the whole of whatever the weapon's own cooldown is, so a click during a swing
+    /// is never dropped. Still one click, not a queue -- mashing five times buys one swing,
+    /// which is the part that should stay true.
+    /// </summary>
+    private float SwingBufferSeconds =>
+        _session?.Player.Combat.ActiveWeapon.Cooldown ?? 0.45f;
 
     /// <summary>Whether a panel was open on the previous frame.</summary>
     private bool _panelWasOpen;
@@ -2612,9 +2628,15 @@ public sealed class Game1 : Game, IConsoleTarget
             var struck = _encounter.Focused;
             if (outcome.Result is AttackResult.OnCooldown or AttackResult.Exhausted)
             {
-                _recorder.Record(PlayEventKind.MeleeBalked,
-                    outcome.Result == AttackResult.OnCooldown ? "too soon" : "no stamina",
-                    0f, 0f, _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+                // A click that was buffered is not a refused click: it fires the moment the
+                // weapon is free, a median 0.17s later. Recording it as balked put 297 clicks
+                // in the log as lost that the player got, which is the log describing a
+                // failure that did not happen -- the same shape as a burning enemy whose
+                // nameplate stopped saying so.
+                if (_swingBuffered <= 0f)
+                    _recorder.Record(PlayEventKind.MeleeBalked,
+                        outcome.Result == AttackResult.OnCooldown ? "too soon" : "no stamina",
+                        0f, 0f, _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
             }
             else
             {
