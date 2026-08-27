@@ -372,7 +372,8 @@ public static class Surface
         {
             ["spawn"] = SurfaceFixture.None,
             ["shaft"] = SurfaceFixture.Shaft,
-            ["mine"] = SurfaceFixture.Shaft,
+            // Deliberately not "mine": that is already the console's alias for 'descend', and
+            // one word meaning two things is what this table exists to stop.
             ["well"] = SurfaceFixture.Shaft,
             ["stall"] = SurfaceFixture.Trader,
             ["trader"] = SurfaceFixture.Trader,

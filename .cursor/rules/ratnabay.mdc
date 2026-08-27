@@ -9,6 +9,9 @@ alwaysApply: true
 - `Game1` is the lifecycle coordinator. New screens, HUD, and overlays go in `src/RatnaBay.Game/Ui/`.
 - Sample input only through `InputRouter`. Draw 2D UI only through `UiCanvas`.
 - Hit-test and draw rectangles share `UiLayout`. Do not duplicate pixel numbers in `Game1` and a renderer.
+- Colours come from `UiTheme` by role. Don't write `new Color(...)` in a renderer for a colour the theme names.
+- World-anchored flat interface (nameplates, floating damage, signs) goes through `WorldProjector` + `MarkerRenderer`.
 - Do not revive `ParkedFeatures` or add a package without a focused spike.
 - Validate with `.\verify.ps1` on Windows, or `dotnet test tests/RatnaBay.Domain.Tests` plus a Windows-targeted compile on Linux.
+- To assert on a running client, drive it with a console script: `build\RatnaBay.exe --script Docs\scripts\smoke.rbs`. A script opens in the yard; `wait` is in simulated seconds; a failed `assert` exits non-zero.
 - Full contributor recipes live in `AGENTS.md`.

@@ -10,7 +10,8 @@
     needs a Windows machine and writes into .\build.
 
 .PARAMETER Pack
-    Also run publish.ps1 -SkipTests after the gates above are green.
+    Also run publish.ps1 -SkipTests, then drive the packaged build through the smoke script.
+    That last step is the only gate that asserts on a running client, so it needs the exe.
 
 .PARAMETER Configuration
     Build configuration. Release is the default, matching the publish gate.
@@ -49,6 +50,17 @@ try {
         Write-Host '==> Packaging' -ForegroundColor Cyan
         & (Join-Path $root 'publish.ps1') -Configuration $Configuration -SkipTests
         Assert-LastExitCode 'publish.ps1'
+
+        # The only gate that asserts on a running client. Everything above this proves the
+        # rules; this proves the yard has a floor, the shaft is a hole you can see down, and a
+        # descent still fills a room -- none of which a domain test can see.
+        Write-Host ''
+        Write-Host '==> Driving the build through the smoke script' -ForegroundColor Cyan
+        $exe = Join-Path $root 'build\RatnaBay.exe'
+        if (-not (Test-Path $exe)) { throw "No packaged build at $exe" }
+
+        & $exe --script (Join-Path $root 'Docs\scripts\smoke.rbs')
+        Assert-LastExitCode 'smoke.rbs'
     }
 
     Write-Host ''

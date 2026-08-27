@@ -51,6 +51,38 @@ dotnet build src/RatnaBay.Game/RatnaBay.Game.csproj -p:EnableWindowsTargeting=tr
 
 Do not commit `build/`, `bin/`, `obj/`, captures, or generated world output.
 
+## Driving the game from a script
+
+This is the most useful thing here for checking a client-side change, and the only way to
+assert on a running build without a person at the keyboard. The console takes commands, a
+script is a file of them, and a failed `assert` makes the process exit non-zero.
+
+```powershell
+build\RatnaBay.exe --script Docs\scripts\smoke.rbs
+build\RatnaBay.exe --exec "goto shaft; look at shaft; hud off" --screenshot shot.png
+```
+
+What to know before writing one:
+
+- **A script opens in the yard.** Commands act on a world and the menu has none. Pass `--mine`,
+  `--moodboard` or `--stambha` to script a different scene.
+- **One statement per frame.** `descend` then `enemies` sees a populated room because a frame
+  ticked in between. This is why the queue is pumped rather than run at once.
+- **`wait` is in simulated seconds, not frames.** Capture mode is uncapped, so a frame count
+  buys an unpredictable and usually tiny amount of game time.
+- **Unknown commands fail the run before the first statement.** A typo does not cost the whole
+  script and then report success from the asserts above it.
+- **`help` lists every command.** `GameConsole.Build` is the only place they are registered;
+  there is no second table to keep in step.
+- **Assert on something specific.** `assert where has yard` also passes on the title screen,
+  because "the yard" is what `where` says when there is no run. Prefer named geometry.
+
+What the console **cannot** reach, so do not try to assert it this way: shop and dialogue
+panels, the depth-choice and camp-trader UI, equipping, save/load round trips, story flags,
+and audio. Those want a domain test, or a person. `IConsoleTarget` is the full list of what a
+script can touch — if something is not on it, add it there deliberately rather than widening
+the interface to all of `Game1`.
+
 ## Design boundaries
 
 - Rules and persistence in `RatnaBay.Domain`. Presentation and device APIs in the game project.
@@ -59,8 +91,12 @@ Do not commit `build/`, `bin/`, `obj/`, captures, or generated world output.
 - Draw 2D UI through `UiCanvas`. Do not open `SpriteBatch` from a screen renderer.
 - Hit-test rectangles live in `UiLayout`. Input and drawing must share them. If a clickable
   row is not the row on screen, the numbers have drifted.
-- Build presentation snapshots (`WorldHudState`, `OverlayState`, `MenuState`) in `Game1`.
-  Renderers receive those snapshots, not the rest of the coordinator.
+- Colours come from `UiTheme`, by role. Do not write `new Color(...)` in a screen renderer for
+  anything the theme already names.
+- Anything anchored to a point in the world but drawn flat goes through `WorldProjector` and
+  `MarkerRenderer`. Do not hand a renderer the camera to get a screen position.
+- Build presentation snapshots (`WorldHudState`, `OverlayState`, `MenuState`, `NameplateState`)
+  in `Game1`. Renderers receive those snapshots, not the rest of the coordinator.
 - UI coordinates are a 1280×720 logical canvas (`UiLayout.Width` / `Height`) and must account
   for letterboxing.
 - Save/load changes need a round-trip test and backward-compatible defaults.
@@ -82,10 +118,13 @@ Do not commit `build/`, `bin/`, `obj/`, captures, or generated world output.
 | Journal | `Ui/JournalRenderer.cs` | local panel |
 | Recording consent | `Ui/ConsentRenderer.cs` | `UiLayout.ConsentButton` |
 | Shut door, camp trader, shaft, run summary | `Ui/DescentRenderer.cs` | `CampRow`, `DepthRow`, `SummaryButton` |
+| Nameplates, floating damage, threat arrows, yard signs, content errors | `Ui/MarkerRenderer.cs` | projected via `WorldProjector` |
+| Developer console and watches | `Ui/ConsoleRenderer.cs` | local panels |
 
-World-space draw (rooms, enemies, weapon, nameplates, door prompts) stays in `Game1` until a
-later extraction. Nameplates need a projection callback; do not expose all of `Game1` to
-obtain one.
+Still in `Game1` and not yet extracted: the 3D world pass, the weapon and billboard sprites,
+the door prompt, the coach line, the pointer, and the moodboard/stambha/asset spike scenes.
+Extract those when a change needs to touch them, not speculatively — the 3D pass needs a
+primitive-drawing seam that does not exist yet.
 
 ## Recipes
 
@@ -106,6 +145,15 @@ obtain one.
 3. Construct it from `UiScreens` if it is a new class.
 4. Keep selection, open/close, and side effects in `Game1`.
 5. Hit-test with the same `UiLayout` method the renderer uses to draw the row.
+6. Use `_ui.Row(bounds, selected)` for a list row and `UiTheme` for colour. If a colour is
+   genuinely new, add it to `UiTheme` with a name saying what it is for.
+
+### Add a landmark or a fixture to the yard
+
+`Surface` owns both the geometry and the names for it. Add the fixture to `SurfaceFixture`,
+build it in `Surface.Build`, give it a position, return that from `PositionOf`, and add the
+names people would type to `Surface.Landmarks`. The console picks all of it up; there is no
+second table. `SurfaceYardTests` will check every name reaches the thing it names.
 
 ### Change a content manifest
 
@@ -120,11 +168,19 @@ rather than crash the scene; hot-reload already keeps the last valid room.
 3. Update the help overlay in `OverlayRenderer.DrawHelpOverlay` in the same change.
 4. Parked features: a binding that does nothing must not appear in help. See `ParkedFeatures`.
 
+### Add a console command
+
+Register it in `GameConsole.Build`. If it needs something from the running game that
+`IConsoleTarget` does not expose, add that one member rather than widening the interface — the
+value of it is that it is a short, readable list of everything a script can do. Then say so in
+`help` text, because `help` is generated from the registry and is what an agent reads first.
+
 ### Validate and commit
 
 Make the smallest coherent change. Run `.\verify.ps1` (or the domain suite plus a WindowsDX
-compile on Linux). When removing content or a dependency, update the doctor command,
-attribution records, and this file in the same change.
+compile on Linux). For a change a player would see, add a line to `Docs/scripts/smoke.rbs` and
+run `.\verify.ps1 -Pack`, which drives the packaged build through it. When removing content or
+a dependency, update the doctor command, attribution records, and this file in the same change.
 
 ## Canonical design docs
 
