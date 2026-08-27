@@ -211,9 +211,12 @@ Every step is a conversation with a decision:
 2. **The shortage.** Explain it — to the registrar, or the physician. What you say is recorded.
 3. **The armourer.** The order wants supplies the province will not release, because the army
    has first call on everything.
-4. **The inspection is announced.** The books do not balance.
-5. **The fort falls.** Rooms are held. Instability arrives as plot rather than weather.
-6. **The questions.** You start asking the clerk, then the governor, what nobody asks.
+4. **The house.** Vasudatta hires the order to clear his cellars. See §8 — the shortage turns
+   out to be a hoard, the uncounted turn out to include servants, and the player comes back up
+   with a household register.
+5. **The inspection is announced.** The books do not balance, and now somebody has paper.
+6. **The fort falls.** Rooms are held. Instability arrives as plot rather than weather.
+7. **The questions.** You start asking the clerk, then the governor, what nobody asks.
 
 > **Turn II** — *the first Deepankar.* `gov.2`. Her name, and that she went down to close it.
 > The governor does not tell you she succeeded, because he does not know.
@@ -231,13 +234,99 @@ telling you what they would do.
 
 ---
 
-## 8. The three endings
+## 8. The house: one descent that is not a mine
+
+Midway through Act II, a great house hires the order to clear its cellars. It is the only place
+in the game where a Deepankar is **invited in** rather than sent down, and everything about the
+beat runs on that.
+
+### Vasudatta, of the house of Ratnavardhana
+
+He is not a villain and he is not innocent. **He knows exactly why his cellar is haunted, and he
+cannot stop.**
+
+He cannot sell — prices rise every month and selling now would be madness. He cannot spend it —
+the strongbox *is* the family's position, and a house that lights its own stones is a house
+visibly ending. So he pays the order to clear the symptom every few months and keeps the cause
+in the room underneath, and he will do that until it kills him.
+
+That is the same trap everybody else in the cast is in, seen from the top of the province instead
+of the middle. It is also, quietly, funny.
+
+### What rises in a rich man's cellar
+
+The reveal, and it should be arrived at rather than announced.
+
+Preta in a mine are miners the state did not write down. Preta in a great house are **servants
+the family did not write down.** Same erasure, different ledger.
+
+> *"I carried water in this house for thirty-one years. There is no entry for me."*
+
+The rule from §5 holds exactly — a number and a name, never a plea. And it lands harder here,
+because in a mine the uncounted dead are an administrative failure at a distance. In a house they
+are somebody's staff, and the man paying you to clear them out is upstairs.
+
+### What the house gives the player
+
+**The shortage is artificial.** This is the beat's real payload and it reframes the whole middle
+act: the mountain has not stopped producing. The stones are in cellars. The province is not
+running out — it is being sat on, and everyone bidding the price up is bidding against a hoard
+they cannot see.
+
+**And a document.** A great house keeps a household register. It lists servants who died in
+service and were never entered on the town roll — the first hard evidence in the game that the
+counting is wrong, and the first thing the player could put in front of the clerk.
+
+That matters structurally: **The Ledger ending needs proof, and this is where proof enters the
+story.** A player who never takes this job can still reach that ending, but they will be arguing
+from suspicion rather than from paper.
+
+### The small choice, which is the whole game in miniature
+
+He is careless with the reckoning. Whatever is loose in the cellar, the player can take.
+
+Taking it is free, immediate, and useful — and it is exactly the behaviour the entire province is
+built on. The game does not comment, and the ledger from
+[`STORY_AND_SYSTEMS.md`](STORY_AND_SYSTEMS.md) remembers.
+
+### How it plays differently
+
+| | A mine | The house |
+|---|---|---|
+| Shape | Generated, endless, press your luck | Authored, finite, clear it |
+| Space | Cut rock | Interiors — furniture, plaster, a wine cellar, a strongroom |
+| Reward | Stones, banked at a door | **Gold, paid on completion.** It is a job, not a dive |
+| Pressure | How far do you dare | How fast, and what do you pocket |
+
+Paying in gold rather than stones is deliberate: the reward shape says *this is contract work*
+before any line of dialogue does.
+
+### And it teaches the ending
+
+The finale is the fort overrun, cleared room by room against a clock. **The house is that verb,
+once, at small scale, fifteen runs earlier** — a building rather than a shaft, rooms rather than
+depth, finished rather than pressed.
+
+A player who has done the house arrives at the finale already knowing how to fight indoors. That
+is worth more than any tutorial and it costs nothing extra, because the beat exists anyway.
+
+### Afterwards: contracts
+
+The first house is authored, because it carries the reveal. **Later houses can be generated** —
+the same interior theme, different plans, other families with the same problem and less to say.
+
+That gives the province a second run type for the price of one authored level, and every one of
+them is another cellar that should not be haunted and is.
+
+---
+
+## 9. The three endings
 
 The premise raises the stakes on all three, and it turns The Lamp from villainy into a position.
 
 | | What you do | What happens | Who pays |
 |---|---|---|---|
-| **The Ledger** | Write the true count. Every name, including Uttara's | The dead are counted and rest. The corrected books reach the capital, and the whole arrangement is finally looked at | Ratna Bay, which is finished as a place. And it will be looked at everywhere else too |
+| **The Ledger** | Write the true count. Every name — the mine, the houses, and Uttara | The dead are counted and rest. The corrected books reach the capital, and the whole arrangement is finally looked at | Ratna Bay, which is finished as a place. And it will be looked at everywhere else too |
 | **The Lamp** | Take the trade over and impose the regulation nobody ever imposed | The province lives. The supply is measured, rationed, and permanent. Somebody is finally in charge | Whoever is being drained, forever and efficiently. You are the thing the order was founded to stop, and you are good at it |
 | **The Release** | Close the seam, as she did | It works, exactly as it worked before. The oldest seam in the empire goes quiet, and everything built on it starts to fail | Everyone, in one season, with the precedent in front of you |
 
@@ -252,7 +341,7 @@ of indifference, and it should be delivered without comment.
 
 ---
 
-## 9. Rules for the writing itself
+## 10. Rules for the writing itself
 
 **The premise lives in objects, never in speeches.** A lamp with a stone in it. A blade that
 holds an edge it should not. A strongbox in a house the player cannot enter. Beggars at the gate
@@ -283,13 +372,14 @@ and never self-pitying.
 
 ---
 
-## 10. Still open
+## 11. Still open
 
 - **What the empire is arming for.** The quota rose for a reason. It probably never needs to be
   said, and nobody in the province knowing is better than any answer.
-- **Whether the player ever sees the rich quarter.** The strongest version is a place you can see
-  and never enter — but a haunted wealthy district is also the most interesting level in the
-  premise, and it is currently nowhere in the plan.
+- **How much of the rich quarter is ever walkable** beyond the one house. The streets above are
+  probably better as a place seen and not entered; the cellars are the level.
+- **Whether Vasudatta survives the story.** He is still hoarding at the end of §8, and the fort
+  falls afterwards.
 - **Does the player ever learn the order reopened the seam?** The darkest fact in the game.
   Suggested: from Sona, at the highest rank, in the hall — the only person who would say it, and
   only to somebody who has come back often enough to be worth telling.
