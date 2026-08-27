@@ -92,19 +92,8 @@ internal interface IConsoleTarget
 /// </summary>
 internal static class GameConsole
 {
-    /// <summary>Where the yard's fixtures are, by the names a person would type.</summary>
-    private static readonly Dictionary<string, WorldPoint> Landmarks =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["spawn"] = Surface.Spawn,
-            ["shaft"] = Surface.Shaft,
-            ["well"] = Surface.Shaft,
-            ["stall"] = Surface.Trader,
-            ["trader"] = Surface.Trader,
-            ["shop"] = Surface.Trader,
-            ["stambha"] = Surface.Stambha,
-            ["pillar"] = Surface.Stambha
-        };
+    /// <summary>The yard's landmark names, as help should list them.</summary>
+    private static string LandmarkNames => string.Join(", ", Surface.Landmarks.Keys);
 
     public static ConsoleRouter Build(IConsoleTarget game)
     {
@@ -114,12 +103,12 @@ internal static class GameConsole
 
         console.Register("goto",
             "goto <landmark|x y z>",
-            "Stand somewhere. Landmarks: " + string.Join(", ", Landmarks.Keys.Distinct()),
+            "Stand somewhere. Landmarks: " + LandmarkNames,
             args =>
             {
-                if (args.Count == 0) return "goto where? " + string.Join(", ", Landmarks.Keys.Distinct());
+                if (args.Count == 0) return "goto where? " + LandmarkNames;
 
-                if (Landmarks.TryGetValue(args.Text(0), out var landmark))
+                if (Surface.TryLandmark(args.Text(0), out var landmark))
                 {
                     // Stood beside it rather than inside it: a landmark is a thing to look at.
                     var offset = landmark.Z > 0f ? -3.2f : 3.2f;
@@ -167,8 +156,8 @@ internal static class GameConsole
             {
                 if (string.Equals(args.Text(0), "at", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!Landmarks.TryGetValue(args.Text(1), out var landmark))
-                        return $"No landmark '{args.Text(1)}'.";
+                    if (!Surface.TryLandmark(args.Text(1), out var landmark))
+                        return $"No landmark '{args.Text(1)}'. Try: {LandmarkNames}.";
 
                     var here = game.CameraPosition;
                     var yaw = MathF.Atan2(-(landmark.X - here.X), -(landmark.Z - here.Z));
@@ -613,8 +602,13 @@ internal static class GameConsole
         return MathF.Sqrt(dx * dx + dy * dy + dz * dz);
     }
 
-    /// <summary>Standing eye height, matching the authored spawn.</summary>
-    private const float PlayerEye = 2.4f;
+    /// <summary>
+    /// Standing eye height, read from the authored spawn rather than repeated as a number.
+    ///
+    /// It was typed here as well, which meant a change to how tall the player is put the
+    /// console's idea of standing somewhere underground or in the air.
+    /// </summary>
+    private static float PlayerEye => Surface.Spawn.Y;
 
     /// <summary>A readable name from an id, for things given by id rather than chosen.</summary>
     private static string PrettyName(string id)
