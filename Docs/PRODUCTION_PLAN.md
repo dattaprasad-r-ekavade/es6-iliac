@@ -316,6 +316,37 @@ finishable.
 **Done when:** you can state **hours of authoring per hour of play**. Record it. This is the
 single most useful figure for planning everything after release.
 
+#### The measurement
+
+Recorded from the first pass, which built the roster in `RatnaBay.Domain/Fort/Fort.cs`.
+
+| | |
+|---|---:|
+| Rooms | 10 |
+| Occupants | 10 |
+| Story fragments | 24 |
+| Authored prose | 721 words |
+| Time to author the roster | ~1 hour |
+
+**Roughly 700 words an hour, once the shape is fixed.** The shape is the expensive part and it
+is now paid for: a fragment is an id, a rank, a depth and a line, and the eleventh is the same
+cost as the tenth.
+
+**What that means for the rest of the game.** `STORY.md` §5 budgets ~15 major beats and 150–250
+short reactions. At this rate the majors are a few hours and the reaction pool is **eight to
+twelve hours of writing** — not the months the iteration was braced for. Content is not the
+thing that decides whether this is finishable.
+
+**Two caveats that keep the number honest.**
+
+- It measures *writing against an existing schema*, not designing one. The hour excludes the
+  rank ladder, the conjunction rule, and the fragment type — the parts that had to be invented.
+- It excludes **the fort as a place**. The rooms are a list of doors, not geometry to walk
+  through, and the walk-through version is a separate cost that this figure says nothing about.
+  It was staged that way deliberately: the risk this iteration exists to retire is authoring
+  throughput, and building corridors first would have spent the expensive weeks before learning
+  anything about the cheap ones.
+
 ---
 
 ### Iteration 20 — Bosses (2–3 weeks)

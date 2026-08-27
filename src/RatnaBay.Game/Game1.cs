@@ -229,6 +229,12 @@ public sealed class Game1 : Game, IConsoleTarget
     private bool _dialogueOpen;
     private bool _showJournal;
 
+    /// <summary>The fort, opened with F on the surface. Null room id means the corridor.</summary>
+    private bool _showFort;
+
+    private int _fortSelection;
+    private string? _openFortRoom;
+
     /// <summary>Which inventory row is selected on the character screen.</summary>
     private int _inventorySelection;
     private bool _showCharacter;
@@ -360,6 +366,32 @@ public sealed class Game1 : Game, IConsoleTarget
 
     /// <summary>The shaft panel is open and a depth is being chosen.</summary>
     private bool _choosingDepth;
+
+    /// <summary>
+    /// The mine each tier is offering right now, one seed per tier.
+    ///
+    /// Rolled when the shaft is opened rather than when a tier is confirmed, because the
+    /// design requires the cave's element to be shown *before* the player pays: entry already
+    /// costs stones, so the information belongs at the point of payment. A seed picked after
+    /// the money changed hands cannot be previewed, and a preview of a different mine than the
+    /// one you get is worse than none.
+    /// </summary>
+    private readonly int[] _shaftSeeds = new int[MineEntry.MaxTier + 1];
+
+    /// <summary>The cave currently being descended, or null on the surface.</summary>
+    private CaveTheme? _cave;
+
+    /// <summary>
+    /// Tell the caster which cave it is standing in.
+    ///
+    /// Called after the session exists rather than alongside the derivation, because starting
+    /// a new character replaces the session — and the assignment made before that replacement
+    /// went to the object that was about to be thrown away.
+    /// </summary>
+    private void ApplyCave()
+    {
+        if (_session is not null) _session.Player.Spells.Cave = _cave;
+    }
     private int _depthSelection = 1;
 
     /// <summary>
@@ -636,16 +668,43 @@ public sealed class Game1 : Game, IConsoleTarget
         // and mentions it in a settings menu is disclosed in the technical sense and not in
         // any other, and the tester who finds out afterwards is right to be annoyed.
         _uploader = new TelemetryUploader(_consent);
-        _askingConsent = !_consent.Asked && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
-        if (!_askingConsent) _uploader.SendPending();
+
+        // Never asked during a capture.
+        //
+        // The question owns the screen until it is answered, so on any machine that has not
+        // answered it yet — a fresh clone, a build agent, a contributor's first run — every
+        // --screenshot and every --cover came out as a picture of the consent dialog. The
+        // store assets the board is waiting on were being generated wrong and looked fine
+        // until somebody opened the file.
+        //
+        // Suppressing it is also correct rather than merely convenient: a capture run renders
+        // a few frames and exits, nobody is playing, and there is no session to consent to
+        // sending. Nothing is uploaded either way, because SendPending is not reached.
+        // --cover already funnels into _screenshotPath, so this covers both.
+        var capturing = _screenshotPath is not null;
+
+        _askingConsent = !capturing
+            && !_consent.Asked
+            && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
+
+        if (!_askingConsent && !capturing) _uploader.SendPending();
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.
         if (_screen == GameScreen.WorldScene)
         {
+            // The launch flags set _mineSeed and _mineDepth directly rather than going through
+            // EnterWorld, so the cave has to be derived here too. Without it every --mine
+            // capture came out in the default granite whatever seed was asked for, which is
+            // exactly the kind of thing a screenshot is supposed to prove.
+            _cave = _mineSeed is { } launchSeed
+                ? CaveThemeCatalog.For(launchSeed, _mineDepth)
+                : null;
+
             LoadWorldManifest();
             ResetCamera();
             StartSession(GameSession.NewGame());
+            ApplyCave();
         }
 
         if (_startYaw is { } forcedYaw) _cameraYaw = forcedYaw;
@@ -1574,7 +1633,11 @@ public sealed class Game1 : Game, IConsoleTarget
         _mineSeed = descent.Seed;
         _world = null;
 
+        // A resumed descent is the same cave it was when it was set aside.
+        _cave = CaveThemeCatalog.For(descent.Seed, descent.Depth);
+
         StartSession(_session);
+        ApplyCave();
 
         // Where they were standing, not the mine's entrance.
         _cameraPosition = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
@@ -1621,12 +1684,17 @@ public sealed class Game1 : Game, IConsoleTarget
         _mineRooms = RoomsPerSegment;
         _mineDepth = Math.Clamp(tier, MineEntry.MinTier, MineEntry.MaxTier);
 
+        // One derivation, read by the renderer for its palette and by the caster for its
+        // resistances. Neither stores it, so they cannot disagree with the shaft screen.
+        _cave = mineSeed is { } seed ? CaveThemeCatalog.For(seed, _mineDepth) : null;
+
         _world = null;
         _run = null;
         _runSummary = null;
 
         var session = newCharacter || _session is null ? GameSession.NewGame() : _session;
         StartSession(session);
+        ApplyCave();
         ResetCamera();
 
         _menuStatus = string.Empty;
@@ -1782,6 +1850,14 @@ public sealed class Game1 : Game, IConsoleTarget
         _choosingDepth = true;
         _depthSelection = Math.Clamp(
             MineEntry.DeepestAffordable(_session.Player.Inventory), 1, MineEntry.MaxTier);
+
+        // A fresh set of offers each time the shaft is opened. Backing out and looking again
+        // re-rolls them, which is deliberate: it is free, it costs no stones, and a player who
+        // does not like any of today's caves should be able to come back tomorrow.
+        var roll = new Random(Environment.TickCount);
+        for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
+            _shaftSeeds[tier] = roll.Next(int.MinValue, int.MaxValue);
+
         SetMouseLook(false, forPanel: true);
     }
 
@@ -1830,7 +1906,7 @@ public sealed class Game1 : Game, IConsoleTarget
         var fallen = _session.Player.Legacy.Fallen;
         var returning = fallen is not null && fallen.Tier == _depthSelection;
 
-        EnterMine(returning ? fallen!.MineSeed : Environment.TickCount, _depthSelection);
+        EnterMine(returning ? fallen!.MineSeed : _shaftSeeds[_depthSelection], _depthSelection);
 
         _session.ShowToast(returning
             ? $"The same shaft. {fallen!.Name} is still down there, in room {fallen.RoomIndex}."
@@ -2090,6 +2166,22 @@ public sealed class Game1 : Game, IConsoleTarget
         }
 
         if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
+
+        // Only above ground. The fort is what a run is for, not something to read halfway
+        // down a shaft with a door waiting.
+        if (Pressed(keyboard, Keys.F) && OnTheSurface)
+        {
+            if (_showFort) ClosePanels();
+            else
+            {
+                _showFort = true;
+                _showJournal = false;
+                _showCharacter = false;
+                _openFortRoom = null;
+                _fortSelection = 0;
+                SetMouseLook(false, forPanel: true);
+            }
+        }
         if (Pressed(keyboard, Keys.J))
         {
             if (_showJournal) ClosePanels();
@@ -2105,6 +2197,12 @@ public sealed class Game1 : Game, IConsoleTarget
                 _inventorySelection = 0;
                 SetMouseLook(false, forPanel: true);
             }
+        }
+
+        if (_showFort)
+        {
+            UpdateFort(keyboard, mouse);
+            return;
         }
 
         if (_showCharacter)
@@ -2173,7 +2271,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// list lives in exactly one place and both the Escape key and the camera read it.
     /// </summary>
     private bool AnyPanelOpen =>
-        _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp
+        _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp || _showFort
         || _showSettings || _paused || _choosingDepth || _campTraderOpen
         || _runSummary is not null;
 
@@ -2194,6 +2292,8 @@ public sealed class Game1 : Game, IConsoleTarget
         _showCharacter = false;
         _showHelp = false;
         _showSettings = false;
+        _showFort = false;
+        _openFortRoom = null;
 
         if (_screen == GameScreen.WorldScene) SetMouseLook(true);
     }
@@ -2691,6 +2791,62 @@ public sealed class Game1 : Game, IConsoleTarget
     /// could read your possessions but not drink, equip or wear any of them. Selection is
     /// driven from both the keyboard and the pointer so neither is the only way in.
     /// </summary>
+    /// <summary>
+    /// Walking the fort's corridor, and stepping into a room.
+    ///
+    /// Escape steps back one level rather than closing everything: from a room to the
+    /// corridor, from the corridor out. A single Escape that dumps the player onto the yard
+    /// from three rooms deep is the thing that makes a menu feel like a trap.
+    /// </summary>
+    private void UpdateFort(KeyboardState keyboard, MouseState mouse)
+    {
+        if (_session is null) { _showFort = false; return; }
+
+        if (Pressed(keyboard, Keys.Escape))
+        {
+            if (_openFortRoom is not null) _openFortRoom = null;
+            else ClosePanels();
+            return;
+        }
+
+        if (_openFortRoom is not null) return;
+
+        var rooms = FortRoster.All;
+
+        if (Pressed(keyboard, Keys.Up))
+            _fortSelection = Math.Max(0, _fortSelection - 1);
+        if (Pressed(keyboard, Keys.Down))
+            _fortSelection = Math.Min(rooms.Count - 1, _fortSelection + 1);
+
+        var pointer = LogicalMouse(mouse);
+        var clicked = false;
+
+        for (var index = 0; index < rooms.Count; index++)
+        {
+            if (!FortRenderer.DoorRow(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
+
+            _fortSelection = index;
+            clicked = Clicked(mouse);
+            break;
+        }
+
+        if (!clicked && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
+
+        var room = rooms[_fortSelection];
+        var rank = _session.Player.Legacy.Service.Rank;
+
+        if (!room.IsOpen(rank))
+        {
+            _session.ShowToast(
+                $"That door is shut to a {Ranks.TitleOf(rank)}. It wants a {Ranks.TitleOf(room.RequiredRank)}.");
+            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            return;
+        }
+
+        _openFortRoom = room.Id;
+        _sfx?.Play(Sfx.Door, 0.4f, volumeScale: 0.7f);
+    }
+
     private void UpdateInventory(KeyboardState keyboard)
     {
         if (_session is null) return;
@@ -3051,6 +3207,12 @@ public sealed class Game1 : Game, IConsoleTarget
         // the window — and only clearing here cannot leave last run's stones in the sockets.
         _session?.Player.Stones.ClearForDescent();
 
+        // Bearer's Mark: one more stone than was bought, every descent. Given on entry rather
+        // than held in the pack, so it cannot be stockpiled by starting runs and backing out.
+        if (_session?.Player.Legacy.Has(AmuletEffect.Bearer) == true)
+            _session.Player.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 1,
+                SoulCrystals.ItemKind);
+
         // A deterministic stream per mine, so the same seed gives the same stones. A run worth
         // reporting can be asked for again exactly, which the recorder depends on.
         _stoneDrops = new Random(seed * 397 + _mineDepth);
@@ -3061,6 +3223,8 @@ public sealed class Game1 : Game, IConsoleTarget
 
         _run.RoomEntered += room =>
         {
+            _session?.Player.Combat.EnterRoom();
+
             _recorder.Record(PlayEventKind.RoomEntered,
                 $"room {room}", room, 0f, _session?.Player.Vitals.Health ?? 0f,
                 _session?.Player.Vitals.Prana ?? 0f);
@@ -3092,11 +3256,38 @@ public sealed class Game1 : Game, IConsoleTarget
     /// Camping pays out here rather than in the domain because this is where the inventory
     /// lives; the ledger's job ends at deciding the number.
     /// </summary>
+    /// <summary>What the run that just ended earned permanently, for the summary screen.</summary>
+    private IReadOnlyList<string> _earnedAmulets = Array.Empty<string>();
+
     private void EndRun(RunResult result)
     {
         _runSummary = result;
         if (result.Survived) _succession = null;
         SetMouseLook(false, forPanel: true);
+
+        // The ratchet, and the reason it is recorded here rather than on a successful bank:
+        // amulets are earned by going deeper than the order ever has, whether the person who
+        // went there came back or not. A run that ends in a corpse two rooms past the previous
+        // best still pays, which is the whole question this iteration exists to answer.
+        _earnedAmulets = _session is null
+            ? Array.Empty<string>()
+            : _session.Player.Legacy.RecordDepth(result.RoomsCleared);
+
+        // Standing is read from what the order has actually done, and only a banked run counts
+        // toward it. The order is not impressed by how deep somebody got if the stones stayed
+        // down there — the promise that a lost run still pays is amulets, deliberately separate.
+        if (_session is not null && _session.Player.Legacy.Service.Record(result))
+        {
+            var rank = _session.Player.Legacy.Service;
+            _session.ShowToast($"The order raises you. You are {rank.Title}.");
+            _sfx?.Play(Sfx.Chime, 0.85f);
+        }
+
+        foreach (var id in _earnedAmulets)
+        {
+            _session?.ShowToast($"{AmuletCatalog.Find(id)?.DisplayName} — kept for good.");
+            _sfx?.Play(Sfx.Chime, 0.7f);
+        }
 
         // A descent is a supply run for the stall as much as for the player. Restocking here
         // is also what keeps a death from being unrecoverable: half the pack is gone, and the
@@ -3398,7 +3589,11 @@ public sealed class Game1 : Game, IConsoleTarget
     private string LocationCaption() => _mineSeed is { } seed
         // The decimal seed, because that is what --mine takes: a mine worth replaying or
         // reporting can be asked for again exactly.
-        ? $"MINE {seed}  ·  TIER {_mineDepth}"
+        // The cave's name, not only its number. A player who has learned that the Drowned
+        // Level fears Arc needs to be told which cave they are in without opening anything.
+        ? _cave is null
+            ? $"MINE {seed}  ·  TIER {_mineDepth}"
+            : $"{_cave.DisplayName.ToUpperInvariant()}  ·  TIER {_mineDepth}  ·  MINE {seed}"
         : "THE YARD  ·  RATNA BAY";
 
     private void ResetCamera()
@@ -4037,6 +4232,8 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_showHelp) _screens.Overlay.DrawHelpOverlay(BuildOverlayState());
         if (_dialogueOpen) DrawDialogue();
         if (_showJournal) DrawJournal();
+        if (_showFort && _session is not null)
+            _screens.Fort.Draw(_session.Player.Legacy, _fortSelection, _openFortRoom);
         if (_showCharacter) DrawCharacterSheet();
         if (_showShop) DrawShop();
         if (_campTraderOpen) DrawCampTrader();
@@ -4073,14 +4270,16 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_session is null) return;
         _screens.Descent.DrawDepthChoice(
-            _session.Player.Inventory.CountOf(SoulCrystals.LesserId), _depthSelection);
+            _session.Player.Inventory.CountOf(SoulCrystals.LesserId), _depthSelection,
+            tier => CaveThemeCatalog.For(_shaftSeeds[tier], tier));
     }
 
     private void DrawRunSummary(RunResult summary)
     {
         var pointer = LogicalMouse(_input.CurrentMouse);
         var hovered = UiLayout.SummaryButton.Contains((int)pointer.X, (int)pointer.Y);
-        _screens.Descent.DrawRunSummary(summary, _session?.Player, _succession, hovered);
+        _screens.Descent.DrawRunSummary(summary, _session?.Player, _succession, hovered,
+            _earnedAmulets);
     }
 
     /// <summary>
@@ -4410,6 +4609,15 @@ public sealed class Game1 : Game, IConsoleTarget
             var tint = _encounter.TintOf(enemy);
 
             // A chilled enemy is visibly cold, so frost reads as more than a slower walk.
+            // The cave's own colour, lightly. A quarter rather than a wash, because the three
+            // tiers of risen are told apart by their flesh colours and a full tint would make
+            // a chhaya in the Ossuary look like a vetala anywhere else. The spec asks for a
+            // preta set per theme; a palette shift is what that means in a game whose art is
+            // generated rather than drawn.
+            if (_cave is not null)
+                tint = Color.Lerp(tint,
+                    new Color(_cave.Accent.R, _cave.Accent.G, _cave.Accent.B), 0.25f);
+
             // Burning had no tint at all, which was a gap for Flame long before Cinder
             // existed: a spell whose whole identity is "lowest burst, highest total once it
             // burns" was invisible for the entire part that matters.
@@ -5116,7 +5324,12 @@ public sealed class Game1 : Game, IConsoleTarget
         }
         else
         {
-            _stone = StoneTextures.StonePalette.Granite;
+            // The cave's own rock. Derived from the seed, so it matches what the shaft screen
+            // promised without either side storing the answer.
+            _stone = _cave is null
+                ? StoneTextures.StonePalette.Granite
+                : StoneTextures.StonePalette.FromTheme(_cave);
+
             SetCaveAmbience(
                 ambient: new Vector3(0.10f, 0.10f, 0.12f),
                 keyDirection: new Vector3(-0.4f, -1f, -0.25f),

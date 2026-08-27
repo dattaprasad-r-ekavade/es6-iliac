@@ -38,7 +38,14 @@ public sealed class PlayerVitals
 
     private readonly Inventory _inventory;
 
-    public PlayerVitals(Inventory inventory) => _inventory = inventory;
+    /// <summary>The order's permanent gains, which can change how fast wind returns.</summary>
+    private readonly Legacy? _legacy;
+
+    public PlayerVitals(Inventory inventory, Legacy? legacy = null)
+    {
+        _inventory = inventory;
+        _legacy = legacy;
+    }
 
     public int Level { get; private set; } = 1;
     public int Xp { get; private set; }
@@ -78,6 +85,12 @@ public sealed class PlayerVitals
         // Combat regen used to be zero, which gave twelve swings and then six seconds of
         // standing there unable to attack. Reduced, not absent.
         var staminaRegen = inCombat ? CombatStaminaRegen : RestStaminaRegen;
+
+        // Second Breath only helps out of combat, deliberately. Speeding recovery mid-fight
+        // would remove the reason stamina exists; speeding it between fights shortens the
+        // standing around, which is the part nobody was enjoying.
+        if (!inCombat && _legacy?.Has(AmuletEffect.SecondBreath) == true)
+            staminaRegen *= AmuletCatalog.SecondBreathFactor;
         Stamina = MathF.Min(MaxStamina, Stamina + staminaRegen * deltaSeconds);
 
         if (!inCombat)

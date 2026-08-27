@@ -137,14 +137,74 @@ public class SkillProgressionTests
     }
 
     [Test]
-    public void Rule4_CharacterLevelComesFromTotalSkillProgress()
+    public void Rule4_TrainingSkillsNoLongerGrantsCharacterLevels()
     {
-        var levels = 0;
-        _skills.CharacterLevelGained += () => levels++;
+        // Retired in iteration 17, deliberately. Character level used to derive from total
+        // skill progress, which made "a level grants skill points" circular: training raised
+        // the level, which granted points, which raised the skill. Level now comes from the
+        // experience track and this direction is gone.
+        var granted = 0;
+        _skills.PointsGranted += points => granted += points;
 
         foreach (var id in Skills.All) TrainToMastery(id);
 
-        Assert.That(levels, Is.EqualTo((int)(_skills.TotalPoints / 40f)));
+        Assert.That(granted, Is.Zero,
+            "training a skill handed out points, which is the loop that was removed");
+        Assert.That(_skills.UnspentPoints, Is.Zero);
+    }
+
+    [Test]
+    public void ALevelIsWorthPointsToSpend()
+    {
+        _skills.GrantPoints();
+
+        Assert.That(_skills.UnspentPoints,
+            Is.EqualTo(SkillProgression.PointsPerCharacterLevel));
+    }
+
+    [Test]
+    public void ASpentPointRaisesTheSkillAndIsGone()
+    {
+        _skills.GrantPoints();
+        var before = _skills.LevelOf(Skills.Blade);
+        var points = _skills.UnspentPoints;
+
+        Assert.That(_skills.SpendPoint(Skills.Blade), Is.True);
+        Assert.That(_skills.LevelOf(Skills.Blade), Is.GreaterThan(before));
+        Assert.That(_skills.UnspentPoints, Is.EqualTo(points - 1));
+    }
+
+    [Test]
+    public void APointIsNeverSilentlyThrownAway()
+    {
+        _skills.GrantPoints();
+        var points = _skills.UnspentPoints;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_skills.SpendPoint("skill.nonexistent"), Is.False);
+            Assert.That(_skills.SpendPoint(null), Is.False);
+            Assert.That(_skills.UnspentPoints, Is.EqualTo(points),
+                "a refused spend still took the point");
+        });
+    }
+
+    [Test]
+    public void NothingCanBeSpentWithoutAPoint()
+    {
+        Assert.That(_skills.UnspentPoints, Is.Zero);
+        Assert.That(_skills.SpendPoint(Skills.Blade), Is.False);
+    }
+
+    [Test]
+    public void APointCannotPushASkillPastTheCeiling()
+    {
+        TrainToMastery(Skills.Blade);
+        _skills.GrantPoints();
+
+        var points = _skills.UnspentPoints;
+        Assert.That(_skills.SpendPoint(Skills.Blade), Is.False);
+        Assert.That(_skills.UnspentPoints, Is.EqualTo(points));
     }
 
     [Test]
@@ -210,19 +270,20 @@ public class SkillProgressionTests
     }
 
     [Test]
-    public void ReloadingDoesNotHandOutAFreeCharacterLevel()
+    public void ReloadingDoesNotHandOutFreePoints()
     {
         foreach (var id in Skills.All) TrainToMastery(id);
         var saved = _skills.Capture();
-        Assume.That(_skills.TotalPoints, Is.GreaterThan(40f));
 
         var restored = new SkillProgression();
-        var levelsAfterLoad = 0;
-        restored.CharacterLevelGained += () => levelsAfterLoad++;
+        var grantedAfterLoad = 0;
+        restored.PointsGranted += points => grantedAfterLoad += points;
         restored.Restore(saved);
 
-        // The classic save-scum bug: loading re-credits levels that were already granted.
-        Assert.That(levelsAfterLoad, Is.Zero);
+        // The classic save-scum bug, in its new form: loading re-credits what was already
+        // granted. It cannot happen now that points come from the experience track rather than
+        // from skill totals, and this is the assertion that says so if that ever changes back.
+        Assert.That(grantedAfterLoad, Is.Zero);
     }
 
     [Test]

@@ -26,7 +26,6 @@ public sealed class SkillProgression
     public const float MaxSkill = 100f;
 
     /// <summary>Total skill points needed per character level.</summary>
-    private const float PointsPerLevel = 40f;
 
     /// <summary>Ceiling on how much one skill can gain within a single fight.</summary>
     private const float EncounterGainCap = 6f;
@@ -37,7 +36,6 @@ public sealed class SkillProgression
     private readonly Dictionary<string, float> _levels = new(StringComparer.Ordinal);
     private readonly Dictionary<string, float> _encounterGain = new(StringComparer.Ordinal);
 
-    private float _creditedLevelPoints;
 
     public SkillProgression()
     {
@@ -47,8 +45,8 @@ public sealed class SkillProgression
     /// <summary>Raised when a skill's whole-number level goes up. Carries the new level.</summary>
     public event Action<string, int>? SkillRaised;
 
-    /// <summary>Raised once per character level earned from total skill progress.</summary>
-    public event Action? CharacterLevelGained;
+    /// <summary>Raised when a level's points are granted, so the interface can say so.</summary>
+    public event Action<int>? PointsGranted;
 
     /// <summary>Raised when levels change wholesale — a route grant or a load.</summary>
     public event Action? Reset;
@@ -112,7 +110,6 @@ public sealed class SkillProgression
         var after = DisplayLevelOf(skillId);
         if (after > before) SkillRaised?.Invoke(skillId, after);
 
-        CreditCharacterLevel();
     }
 
     /// <summary>
@@ -122,15 +119,55 @@ public sealed class SkillProgression
     public void EndEncounter() => _encounterGain.Clear();
 
     /// <summary>
-    /// Character level derives from total skill progress rather than a separate XP track.
+    /// Points earned by levelling and not yet spent.
+    ///
+    /// The direction of this relationship is reversed from what it used to be, and the reversal
+    /// is the point of iteration 17. Character level used to *derive from* total skill progress,
+    /// which made "levels grant skill points" circular: training a skill raised the level, which
+    /// granted points, which raised the skill. Level now comes from experience earned on runs,
+    /// and the skills-to-level path is retired.
+    ///
+    /// Skills still grow by use, and all five anti-grind rules still hold. Points are a second,
+    /// slower way in — the one a player controls, and the only way to raise a skill they are not
+    /// currently able to practise.
     /// </summary>
-    private void CreditCharacterLevel()
+    public int UnspentPoints { get; private set; }
+
+    /// <summary>What one character level is worth.</summary>
+    public const int PointsPerCharacterLevel = 2;
+
+    /// <summary>How far one spent point moves a skill.</summary>
+    public const float PointValue = 1.5f;
+
+    /// <summary>Called when the experience track awards a level.</summary>
+    public void GrantPoints(int points = PointsPerCharacterLevel)
     {
-        while (TotalPoints - _creditedLevelPoints >= PointsPerLevel)
-        {
-            _creditedLevelPoints += PointsPerLevel;
-            CharacterLevelGained?.Invoke();
-        }
+        if (points <= 0) return;
+
+        UnspentPoints += points;
+        PointsGranted?.Invoke(points);
+    }
+
+    /// <summary>
+    /// Spend one point on a skill. Refuses unknown skills, parked ones, and skills already at
+    /// the ceiling, so a point is never silently thrown away.
+    /// </summary>
+    public bool SpendPoint(string? skillId)
+    {
+        if (UnspentPoints <= 0) return false;
+        if (string.IsNullOrEmpty(skillId) || !_levels.ContainsKey(skillId)) return false;
+
+        var current = _levels[skillId];
+        if (current >= MaxSkill) return false;
+
+        UnspentPoints--;
+        _levels[skillId] = MathF.Min(MaxSkill, current + PointValue);
+
+        var after = DisplayLevelOf(skillId);
+        if (after > (int)MathF.Floor(current)) SkillRaised?.Invoke(skillId, after);
+
+        Reset?.Invoke();
+        return true;
     }
 
     /// <summary>
@@ -165,10 +202,6 @@ public sealed class SkillProgression
             foreach (var entry in saved)
                 if (entry is not null && _levels.ContainsKey(entry.Id))
                     _levels[entry.Id] = Math.Clamp(entry.Value, 0f, MaxSkill);
-
-        // Level was already granted when those points were first earned; re-crediting here
-        // would hand out a free level on every load.
-        _creditedLevelPoints = MathF.Floor(TotalPoints / PointsPerLevel) * PointsPerLevel;
 
         Reset?.Invoke();
     }

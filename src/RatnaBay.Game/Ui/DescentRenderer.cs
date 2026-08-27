@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 
@@ -145,7 +147,7 @@ internal sealed class DescentRenderer
     /// <summary>
     /// The price of every depth, and what each is worth, at the moment of committing.
     /// </summary>
-    public void DrawDepthChoice(int stones, int selection)
+    public void DrawDepthChoice(int stones, int selection, Func<int, CaveTheme>? themeOf = null)
     {
         var panel = new Rectangle(320, 148, 640, 452);
 
@@ -172,7 +174,14 @@ internal sealed class DescentRenderer
             _ui.Text($"Tier {tier}", new Vector2(row.X + 18, row.Y + 6), 18, ink);
             _ui.TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 18, row.Y + 8, 16,
                 affordable ? new Color(214, 186, 120) : UiTheme.Warning);
-            _ui.TextFit(MineEntry.DescriptionOf(tier), new Vector2(row.X + 18, row.Y + 28),
+            // The cave itself, not just the tier. Choosing which cave to buy into knowing what
+            // is down there is the decision the whole loop rests on, and it cannot be made
+            // after the stones are spent.
+            var line = themeOf is null
+                ? MineEntry.DescriptionOf(tier)
+                : themeOf(tier).Summary;
+
+            _ui.TextFit(line, new Vector2(row.X + 18, row.Y + 28),
                 row.Width - 150, 12, UiTheme.Muted);
         }
 
@@ -190,11 +199,15 @@ internal sealed class DescentRenderer
     }
 
     public void DrawRunSummary(RunResult summary, PlayerCharacter? player,
-        SuccessionResult? succession, bool buttonHovered)
+        SuccessionResult? succession, bool buttonHovered,
+        IReadOnlyList<string>? earnedAmulets = null)
     {
         _ui.Panel(UiLayout.FullScreen, new Color(3, 6, 10, 226), UiTheme.NoBorder);
 
-        var panel = new Rectangle(360, 200, 560, 360);
+        // Taller when the run earned something permanent. The ratchet is the reason to come
+        // back, and a screen that mentions it in the margin is a screen that hides it.
+        var earned = earnedAmulets ?? Array.Empty<string>();
+        var panel = new Rectangle(360, 176, 560, 360 + earned.Count * 46 + 28);
         var accent = summary.Survived ? new Color(120, 178, 132) : new Color(196, 96, 88);
         _ui.Panel(panel, UiTheme.PanelRaised, accent);
 
@@ -239,10 +252,56 @@ internal sealed class DescentRenderer
                     panel.Center.X, panel.Bottom - 64f, 13, UiTheme.Muted);
         }
 
+        DrawRatchet(panel, player, earned);
+
         var button = UiLayout.SummaryButton;
         _ui.Row(button, buttonHovered);
         _ui.TextCentred("Back to the surface", button.Center.X, button.Y + 12f, 16,
             UiTheme.RowText(buttonHovered));
+    }
+
+    /// <summary>
+    /// What the order gained, whether or not the person did.
+    ///
+    /// The one part of this screen that has to read the same after a death as after a win.
+    /// A losing run that shows only what it cost is a losing run that argues against playing
+    /// again, and this iteration exists precisely to make the opposite true.
+    /// </summary>
+    private void DrawRatchet(Rectangle panel, PlayerCharacter? player,
+        IReadOnlyList<string> earned)
+    {
+        if (player is null) return;
+
+        var y = panel.Bottom - 116f - earned.Count * 46f;
+
+        foreach (var id in earned)
+        {
+            var amulet = AmuletCatalog.Find(id);
+            if (amulet is null) continue;
+
+            _ui.TextCentred($"{amulet.DisplayName}  ·  kept for good",
+                panel.Center.X, y, 17, UiTheme.Accent);
+            _ui.TextCentred(amulet.Description, panel.Center.X, y + 22f, 13, UiTheme.Muted);
+            y += 46f;
+        }
+
+        var points = player.Skills.UnspentPoints;
+        if (points > 0)
+        {
+            _ui.TextCentred(
+                points == 1 ? "1 skill point to spend" : $"{points} skill points to spend",
+                panel.Center.X, y, 15, new Color(214, 200, 170));
+            y += 26f;
+        }
+
+        // What to aim at next. A ratchet the player cannot see the next tooth of is a ratchet
+        // they have to take on faith.
+        if (AmuletCatalog.NextAfter(player.Legacy.DeepestEver) is not { } next) return;
+
+        _ui.TextCentred(
+            $"Deepest ever: room {player.Legacy.DeepestEver}."
+            + $"  Reach room {next.Depth} for {next.Amulet.DisplayName}.",
+            panel.Center.X, y, 13, UiTheme.Muted);
     }
 
     private static string Ordinal(int value) => (value % 100) switch
