@@ -276,7 +276,7 @@ everybody is somewhere between complicit and trapped.
 
 | Who | Wants | Is trapped by |
 |---|---|---|
-| **Tissa**, tally-keeper | The books to balance | Not being permitted to say they do not |
+| **Ganaka**, tally-keeper | The books to balance | Not being permitted to say they do not |
 | **Revati**, lamp-keeper | Somebody to live long enough to be told | An order that dies before it inherits |
 | **Visakha**, physician | To stop buying what she buys | People who die without it |
 | **Suvarnapala**, registrar | The quota met | The capital, who set it |
@@ -394,7 +394,7 @@ player did not get to weigh:
 
 - **What happens to the province** — the lower town, the mines, the order, the fifty-seven.
 - **What happens to the people the player knows by name**, including the ones their decision
-  ruins. Revati, Tissa and the physician all have to appear in every ending.
+  ruins. Revati, Ganaka and the physician all have to appear in every ending.
 - **And what happens everywhere else.** §1 establishes that Ratna Bay is the oldest seam and the
   empire has opened others: *the province is not special, it is early.* So the epilogue's last
   beat is the same argument arriving somewhere the player has never been, and being settled the
@@ -530,7 +530,7 @@ of indifference, and it should be delivered without comment.
 Per §8, the act is not over at the choice. **Every ending owes the player three things, in this
 order**, and they are cheap because they are text over the fort screen:
 
-**One — the people, by name.** Revati, Tissa and Visakha appear in all three. The player knows
+**One — the people, by name.** Revati, Ganaka and Visakha appear in all three. The player knows
 what those three want; the ending has to say whether they got it. An ending that reports a
 province and not a person is a policy summary, and the player did not spend forty hours on
 policy.

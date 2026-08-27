@@ -95,6 +95,26 @@ start with the same letter, because the player has to remember *who to go back t
 recognition problem rather than a pronunciation one.
 
 
+
+### Names from the work, and why Tissa is not in the cast
+
+*Tissa* is as period-correct as this pile gets — the Pali form of *Tishya*, and the name of
+Ashoka's own younger brother, of Moggaliputta Tissa who presided over the Third Council, and of
+the Lankan king ruling in the same decades. It was the fort's tally-keeper and it has been
+replaced, on one ground only: **it does not read as Indian to anybody who is not already a
+historian.** The Pali forms are not in modern currency, so an Indian player does not recognise it
+and everyone else hears something Nordic. Accuracy the audience cannot perceive is doing no work.
+It stays in the pool above; it is a good name for somebody the player meets once.
+
+The tally-keeper is now **Ganaka** — attested Sanskrit for a reckoner, a counter, one who
+calculates, and an entirely ordinary way for a hereditary clerical family to be named.
+
+**Profession-derived names are worth more than ornamental ones here**, because the fort screen
+prints the occupant and the office side by side. A player reads *Ganaka, Tally-keeper* as a name
+and a job. A player who knows the word reads a man whose family has counted for generations,
+keeping a book that has never once added up — and that is the game's whole thesis sitting in the
+first room the player ever walks into, costing nothing and explaining itself to nobody.
+
 ### Key elements carry a second name
 
 Per the practical rule above, the words the player *decides with* stay English — a stone chosen

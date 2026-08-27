@@ -73,7 +73,7 @@ public static class FortRoster
 
     private static readonly FortRoom[] Rooms =
     {
-        new("fort.gate", "The Gate", "Tissa", "Tally-keeper", Rank.Atala,
+        new("fort.gate", "The Gate", "Ganaka", "Tally-keeper", Rank.Atala,
             "A table, a ledger, and a lamp that is never out.",
             "Bring it here before you spend it. I write down what the mountain gave you.",
             new[]
