@@ -300,47 +300,108 @@ the proof.
 
 ## 8. The beat sheet
 
-### Act I — The job (runs 1–8, Atala to Sutala)
+Three acts, and each one is about a different *thing* rather than a different stage of the
+player's guilt:
 
-The economy, learned by doing. The fort is warm, the work is honest, and the only strange thing
-is that the ledger never balances and the tally-keeper will not discuss it.
+| | What the act is about | What the player is doing |
+|---|---|---|
+| **I** | **The world as it works.** Systems, trade, offices, and the mythos of the order | Learning the loop, and being told legends |
+| **II** | **What the mining is doing to people.** Not to the player — to the province | Walking down through every stratum of it, one conversation at a time |
+| **III** | **The decision, and what it does to the world** | Choosing, and then watching it land |
 
-**Already written:** `gate.1`, `hall.1`, `assay.1`, `forge.1`.
+---
 
-**Needed:** the first preta testimony, in a mine, on a kill — the first crack, and it should
-arrive before any fort room admits anything.
+### Act I — The world before it *(runs 1–8, Atala to Sutala)*
+
+**Nothing is wrong yet.** The fort is warm, the work is dangerous and honest, the economy makes
+sense, and a player learning to descend is also learning how a province that runs on prana
+actually functions — who buys, who weighs, who records, who takes a cut.
+
+This is the act that has to be **pleasant**, and it is the one most likely to be cut short in
+development because it feels like it is not doing anything. It is doing the most important thing
+in the game: establishing a working world, so that Act II is a loss rather than a description.
+
+**And it is where the legends go.**
+
+The order is one year old but it already has a mythology, because it was named out of one. Uttara
+is told to the player in Act I **as a legend** — proud, warm, slightly wrong, and told by people
+who love it: `hall.1`, `hall.2`, and the miner stories that do not exist yet. She counted her
+people. She brought fifty-seven out. Somebody is always coming for you.
+
+**That is the whole engine of the game.** Act I hands the player a story about a hero. Act III
+hands them the woman, at the bottom, still at her post. The gap between the two is the game, and
+it only works if Act I is generous and unironic about the legend.
+
+**Already written:** `gate.1`, `hall.1`, `hall.2`, `assay.1`, `forge.1`.
+
+**Needed:** miner legend-fragments — the version of Uttara that is told above ground, including at
+least one detail the player will later discover was wrong. And the first preta testimony, in a
+mine, on a kill: the first crack, and it must arrive before any fort room admits anything.
 
 > **Turn I** — *the supply does not add up.* `phys.1`. The order sends you to find out why the
-> price is rising.
+> price is rising. The world stops being a backdrop and becomes a problem.
 
-### Act II — The complicity (runs 8–25, Talatala to Rasatala)
+---
 
-Every step is a conversation with a decision:
+### Act II — What it is doing to people *(runs 8–25, Talatala to Rasatala)*
 
-1. **The trader.** Argue the price down. What you offer costs the order something.
-2. **The shortage.** Explain it — to the registrar, or the physician. What you say is recorded.
-3. **The armourer.** The order wants supplies the province will not release, because the army
-   has first call on everything.
-4. **The house.** Vasudatta hires the order to clear his cellars. See §8 — the shortage turns
-   out to be a hoard, the uncounted turn out to include servants, and the player comes back up
-   with a household register.
-5. **The inspection is announced.** The books do not balance, and now somebody has paper.
-6. **The fort falls.** Rooms are held. Instability arrives as plot rather than weather.
-7. **The questions.** You start asking the clerk, then the governor, what nobody asks.
+**The act is a descent through the society rather than the mountain.** Each beat is a different
+stratum, in order, and each is a conversation with a decision in it — never a delivery.
 
-> **Turn II** — *the first Bhagiratha.* `gov.2`. Her name, and that she went down to close it.
-> The governor does not tell you she succeeded, because he does not know.
+1. **The trader.** Argue the price down. What you offer costs the order something. *Commerce
+   feels it first, and feels it least.*
+2. **The physician.** Explain the shortage to a woman who buys prana for people who will die
+   without it, and who cannot afford it this month. *The poor, who were always paying with
+   something else.*
+3. **The armourer.** The order wants supplies the province will not release, because the army has
+   first call on everything and does not have to say why. *The state, which is not short.*
+4. **The house.** Vasudatta hires the order to clear his cellars. The shortage turns out to be a
+   hoard, the uncounted turn out to include his own servants, and you come back up with a
+   household register. *The rich, who caused it and are safest from it.* See §9.
+5. **The inspection is announced.** The books do not balance and now somebody has paper.
+6. **The fort falls.** Rooms are held; occupants and services are lost. *The order itself.*
+   Instability arrives as plot rather than weather — and the player did most of the burning.
+7. **The questions.** You start asking the clerk, and then the governor, what nobody asks.
 
-### Act III — The seam, and the choice
+**Read down that list and it is a K.** The great houses grow, everybody else falls, and the
+player is the only person in the province who walks the whole height of it in a single week.
+The premise from §1 stops being background and becomes the level design.
 
-**The seam.** One authored descent. You find Uttara, learn that it worked, and learn what it
-cost. The only hand-authored level in the game, and this is why it earns it.
+> **Turn II** — *what actually happened to her.* `gov.2`. The governor knows she went down to
+> close it and that the order broke it open. He does not know she succeeded, because nobody ever
+> went to look.
+
+---
+
+### Act III — The decision, and what it does *(runs 25+, Patala)*
+
+**The seam.** One authored descent, the only one in the game, and this is what earns it. You find
+Uttara. You learn that it worked — the door held five years and would have held forever — and you
+learn what holding it costs, because she is still paying.
+
+The legend from Act I is confirmed and ruined in the same room. Everything the miners say about
+her is true. None of it is a comfort.
 
 **The fort falls properly.** What happens at the seam destabilises everything. The finale is the
-fort overrun, cleared room by room against a clock, and each room you reach is one more person
+fort overrun, cleared room by room against a clock, and every room you reach is one more person
 telling you what they would do.
 
-**The choice**, with all three prices known.
+**The choice**, with all three prices known and none of them cheap. §10.
+
+**And then the world answers.** This act is not finished at the choice — it is finished when the
+player sees what the choice did. Each ending gets an **epilogue** that reports consequences the
+player did not get to weigh:
+
+- **What happens to the province** — the lower town, the mines, the order, the fifty-seven.
+- **What happens to the people the player knows by name**, including the ones their decision
+  ruins. Revati, Tissa and the physician all have to appear in every ending.
+- **And what happens everywhere else.** §1 establishes that Ratna Bay is the oldest seam and the
+  empire has opened others: *the province is not special, it is early.* So the epilogue's last
+  beat is the same argument arriving somewhere the player has never been, and being settled the
+  way this one was.
+
+**Nothing here is a score.** The epilogue reports, it does not grade — there is no good ending to
+have found and no reveal that one of them was correct.
 
 ---
 
@@ -463,6 +524,35 @@ years of what it costs and broke the door open rather than finish them.
 **Default: The Lamp.** A player who committed to nothing gets the ending for people who commit to
 nothing, and the province goes on as it was. That is not a punishment; it is the truest outcome
 of indifference, and it should be delivered without comment.
+
+### The epilogue, which is half of Act III
+
+Per §8, the act is not over at the choice. **Every ending owes the player three things, in this
+order**, and they are cheap because they are text over the fort screen:
+
+**One — the people, by name.** Revati, Tissa and Visakha appear in all three. The player knows
+what those three want; the ending has to say whether they got it. An ending that reports a
+province and not a person is a policy summary, and the player did not spend forty hours on
+policy.
+
+**Two — the fifty-seven.** The men Uttara brought out are alive somewhere in the lower town and
+are the only people in the province with an uncomplicated opinion of her. Each ending should say
+what happens to them, because they are the measure of whether her act meant anything.
+
+**Three — somewhere else.** §1 establishes that Ratna Bay is the oldest seam and the empire has
+opened others: **the province is not special, it is early.** So the last beat of every ending is
+the same argument starting in a place the player has never seen, with different names — and being
+settled the way this one was, because a precedent is now available.
+
+| | Elsewhere |
+|---|---|
+| **The Ledger** | The count is demanded in every province with a seam, and several of them cannot survive answering it |
+| **The Lamp** | The arrangement is copied, competently, by people who never met Uttara and have no reason to stop at rationing |
+| **The Release** | Nobody follows. They watch what closing a seam did to Ratna Bay and quietly resolve never to do it |
+
+**The epilogue reports; it never grades.** No ending is revealed to have been correct, no counter
+is shown, and nothing is unlocked. The last thing the player reads should be a fact, not a
+verdict.
 
 ---
 
