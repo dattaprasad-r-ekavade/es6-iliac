@@ -70,6 +70,37 @@ public sealed class FaceField
 
     public Point Output { get; }
 
+    /// <summary>Set while resolving a fresco, which paints its own wall behind the figure.</summary>
+    private bool Opaque { get; set; }
+
+    /// <summary>Displacement collected by the stroke in progress, if there is one.</summary>
+    private float[]? _stroke;
+
+    /// <summary>
+    /// Group the next run of bumps and carves into one stroke.
+    ///
+    /// **Displacement accumulates, and that was quietly wrong everywhere it mattered.** A ridge
+    /// drawn as a line of overlapping bumps had its overlaps *added*, so the middle rose to
+    /// several times the depth asked for and the result was a string of beads instead of a
+    /// ridge — visible down every nose and along both folds beside every mouth.
+    ///
+    /// Inside a stroke, overlapping calls take the deepest instead of the sum, so a shape can
+    /// be drawn from as many small pieces as it needs without any of them showing.
+    /// </summary>
+    public void BeginStroke() => _stroke = new float[_z.Length];
+
+    /// <summary>Apply the stroke in progress to the surface and end it.</summary>
+    public void EndStroke()
+    {
+        if (_stroke is null) return;
+
+        for (var i = 0; i < _z.Length; i++)
+            if (_stroke[i] != 0f && _alpha[i] > 0f)
+                _z[i] -= _stroke[i];
+
+        _stroke = null;
+    }
+
     private static Vector3 Linear(Color colour) =>
         new(colour.R / 255f, colour.G / 255f, colour.B / 255f);
 
@@ -186,8 +217,17 @@ public sealed class FaceField
             var index = py * _width + px;
             if (_alpha[index] <= 0f) continue;
 
-            var falloff = MathF.Pow(1f - d2, softness);
-            _z[index] -= depth * falloff;
+            var displacement = depth * MathF.Pow(1f - d2, softness);
+
+            if (_stroke is null)
+            {
+                _z[index] -= displacement;
+                continue;
+            }
+
+            _stroke[index] = depth >= 0f
+                ? MathF.Max(_stroke[index], displacement)
+                : MathF.Min(_stroke[index], displacement);
         }
     }
 
@@ -354,6 +394,148 @@ public sealed class FaceField
         return blurred;
     }
 
+    // ------------------------------------------------------------------ fresco
+
+    /// <summary>
+    /// The palette a mural is painted from. Six colours, and that is the point.
+    /// </summary>
+    public readonly record struct Fresco(
+        Color Line, Color Shade, Color Highlight, Color Ground, Color GroundDark);
+
+    /// <summary>
+    /// Resolve as wall painting rather than as a lit object.
+    ///
+    /// The Ajanta and Bagh painters worked in flat earth colour with a drawn contour over it,
+    /// and that is a style code can actually reach — clean curves, exact fills and crisp line
+    /// are what a machine is good at, where subsurface-lit skin is what it is worst at.
+    ///
+    /// **The height field is still doing all the work, it is just being read differently.**
+    /// Instead of shading continuously, the light term is quantised into three flat tones; and
+    /// instead of a rim light, the *gradient* of the surface becomes the contour line, because
+    /// where a surface turns hard is exactly where a painter puts one. That is why expressions
+    /// survive the change of style: the brows, lids and lip corners are still geometry, so the
+    /// lines that describe them move when the geometry does.
+    /// </summary>
+    public Color[] ResolveFresco(Fresco fresco)
+    {
+        var key = Vector3.Normalize(new Vector3(-0.42f, -0.66f, 0.62f));
+
+        var occlusion = Occlusion();
+        var painted = new Vector3[_z.Length];
+
+        var line = Linear(fresco.Line);
+        var shade = Linear(fresco.Shade);
+        var highlight = Linear(fresco.Highlight);
+        var ground = Linear(fresco.Ground);
+        var groundDark = Linear(fresco.GroundDark);
+
+        for (var y = 0; y < _height; y++)
+        for (var x = 0; x < _width; x++)
+        {
+            var index = y * _width + x;
+
+            // Lime plaster: a warm ground with slow mottling across it, so the panel behind the
+            // figure is a wall rather than a colour.
+            var mottle = Noise(x * 0.010f, y * 0.010f) * 0.70f + Noise(x * 0.048f, y * 0.048f) * 0.30f;
+            painted[index] = Vector3.Lerp(groundDark, ground,
+                Math.Clamp(0.42f + mottle * 0.58f, 0f, 1f));
+
+            if (_alpha[index] <= 0f) continue;
+
+            var normal = NormalAt(x, y);
+            var light = MathF.Max(0f, Vector3.Dot(normal, key)) * occlusion[index];
+            var albedo = _albedo[index];
+
+            // Three tones, and which pixel gets which is the whole style.
+            //
+            // The first version thresholded on the light term alone and it was wrong: on a
+            // smooth skull the light varies slowly, so the threshold cut a meandering contour
+            // across the forehead and the result looked like damp on a wall rather than like
+            // shading. This tradition does something much simpler and much more graphic —
+            // **it darkens toward the outline.** Occlusion is exactly that measurement, so the
+            // shade band follows the edges of forms and the hollows between them, and the
+            // light is left to decide only where the few lime-white accents land.
+            var buried = 1f - occlusion[index];
+
+            Vector3 tone;
+            if (buried > 0.30f) tone = Vector3.Lerp(albedo, shade, 0.80f);
+            else if (buried > 0.13f) tone = Vector3.Lerp(albedo, shade, 0.42f);
+            else if (light > 0.95f) tone = Vector3.Lerp(albedo, highlight, 0.38f);
+            else tone = albedo;
+
+            painted[index] = Vector3.Lerp(tone, albedo, 0.07f * mottle);
+        }
+
+        DrawContour(painted, line);
+        Opaque = true;
+        return Downsample(painted);
+    }
+
+    /// <summary>
+    /// The drawing, taken from the shape of the surface.
+    ///
+    /// Two sources. The silhouette gets a heavier line, because a mural figure is always closed
+    /// by one. And anywhere the surface turns fast — the rim of a socket, the edge of a nostril,
+    /// the seam of the lips, the fold beside the nose — gets a lighter one, which is both what a
+    /// painter would draw and, conveniently, exactly what the height field already knows.
+    /// </summary>
+    private void DrawContour(Vector3[] painted, Vector3 line)
+    {
+        const int Outline = 2 * Supersample;
+
+        for (var y = 0; y < _height; y++)
+        for (var x = 0; x < _width; x++)
+        {
+            var index = y * _width + x;
+            if (_alpha[index] <= 0.35f) continue;
+
+            var edge = false;
+            for (var d = 1; d <= Outline && !edge; d++)
+            {
+                edge |= x - d < 0 || _alpha[index - d] <= 0.35f;
+                edge |= x + d >= _width || _alpha[index + d] <= 0.35f;
+                edge |= y - d < 0 || _alpha[index - d * _width] <= 0.35f;
+                edge |= y + d >= _height || _alpha[index + d * _width] <= 0.35f;
+            }
+
+            if (edge)
+            {
+                painted[index] = line;
+                continue;
+            }
+
+            var normal = NormalAt(x, y);
+            var slope = MathF.Sqrt(normal.X * normal.X + normal.Y * normal.Y);
+            if (slope < 0.82f) continue;
+
+            var weight = Math.Clamp((slope - 0.82f) / 0.12f, 0f, 1f);
+            painted[index] = Vector3.Lerp(painted[index], line, weight * 0.92f);
+        }
+    }
+
+    /// <summary>Cheap value noise, for plaster rather than for anything that must repeat.</summary>
+    private static float Noise(float x, float y)
+    {
+        var xi = (int)MathF.Floor(x);
+        var yi = (int)MathF.Floor(y);
+        var xf = x - xi;
+        var yf = y - yi;
+
+        static float Hash(int a, int b)
+        {
+            var h = a * 374761393 + b * 668265263;
+            h = (h ^ (h >> 13)) * 1274126177;
+            return ((h ^ (h >> 16)) & 0xFFFF) / 65535f;
+        }
+
+        var sx = xf * xf * (3f - 2f * xf);
+        var sy = yf * yf * (3f - 2f * yf);
+
+        var top = Hash(xi, yi) + (Hash(xi + 1, yi) - Hash(xi, yi)) * sx;
+        var bottom = Hash(xi, yi + 1) + (Hash(xi + 1, yi + 1) - Hash(xi, yi + 1)) * sx;
+        return top + (bottom - top) * sy;
+    }
+
     private Vector3 NormalAt(int x, int y)
     {
         float At(int sx, int sy)
@@ -396,7 +578,7 @@ public sealed class FaceField
                 Math.Clamp(colour.X, 0f, 1f),
                 Math.Clamp(colour.Y, 0f, 1f),
                 Math.Clamp(colour.Z, 0f, 1f),
-                Math.Clamp(alpha, 0f, 1f));
+                Opaque ? 1f : Math.Clamp(alpha, 0f, 1f));
         }
 
         return pixels;

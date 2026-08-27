@@ -121,7 +121,7 @@ public static class PortraitForge
         const float MouthY = 274f;
         var eyeDx = headRx * 0.42f;
         var browY = 166f + mood.BrowRaise - (face.Age - 0.5f) * 5f;
-        var lipHalf = Mix(26f, 34f, face.Width);
+        var lipHalf = Mix(21f, 27f, face.Width);
 
         // --- shoulders and neck ----------------------------------------------------
         field.Ellipsoid(Cx, 452f, shoulder, 100f, 62f, -104f, face.Palette.Garment, blend: 20f);
@@ -142,8 +142,8 @@ public static class PortraitForge
 
         // Jaw and temples, taken away. The lower face pulls in toward the chin and the skull
         // narrows above the ears, which is what stops a head reading as an egg.
-        field.Carve(Cx - headRx, 278f, 52f, 62f, depth: Mix(30f, 15f, face.Width), softness: 1.3f);
-        field.Carve(Cx + headRx, 278f, 52f, 62f, depth: Mix(30f, 15f, face.Width), softness: 1.3f);
+        field.Carve(Cx - headRx, 278f, 52f, 62f, depth: Mix(22f, 11f, face.Width), softness: 1.9f);
+        field.Carve(Cx + headRx, 278f, 52f, 62f, depth: Mix(22f, 11f, face.Width), softness: 1.9f);
         field.Carve(Cx - headRx, 132f, 42f, 62f, depth: 26f, softness: 1.2f);
         field.Carve(Cx + headRx, 132f, 42f, 62f, depth: 26f, softness: 1.2f);
         field.Carve(Cx, 78f, headRx * 0.92f, 50f, depth: 16f, softness: 1.4f);
@@ -170,47 +170,79 @@ public static class PortraitForge
 
         // --- nose ------------------------------------------------------------------
         var noseBase = 240f + Mix(0f, 12f, face.NoseLength);
-        for (var i = 0; i <= 12; i++)
+
+        field.BeginStroke();
+        for (var i = 0; i <= 24; i++)
         {
-            var t = i / 12f;
+            var t = i / 24f;
             var y = Mix(browY + 14f, noseBase - 4f, t);
             field.Bump(Cx, y, Mix(15f, 21f, t), 14f, amount: Mix(4f, 11f, t), softness: 2.2f);
         }
 
-        field.Bump(Cx, noseBase, 20f, 15f, amount: 15f, softness: 1.8f);
-        field.Bump(Cx - 18f, noseBase + 4f, 13f, 10f, amount: 8f, softness: 1.8f);
-        field.Bump(Cx + 18f, noseBase + 4f, 13f, 10f, amount: 8f, softness: 1.8f);
-        field.Carve(Cx - 11f, noseBase + 7f, 6f, 4.5f, depth: 16f, softness: 1.2f);
-        field.Carve(Cx + 11f, noseBase + 7f, 6f, 4.5f, depth: 16f, softness: 1.2f);
-        field.Carve(Cx, noseBase + 16f, 8f, 10f, depth: 5f);
+        field.Bump(Cx, noseBase, 21f, 15f, amount: 13f, softness: 2f);
+        field.Bump(Cx - 18f, noseBase + 4f, 13f, 10f, amount: 7f, softness: 2f);
+        field.Bump(Cx + 18f, noseBase + 4f, 13f, 10f, amount: 7f, softness: 2f);
+        field.EndStroke();
+
+        // In this tradition a nose is **drawn, not modelled**: one line down the shaded side,
+        // the underside of the tip, and two marks for the nostrils. Trying to get it from
+        // geometry alone gave either a blade down the middle of the face or nothing at all,
+        // because a flat style has no gradient to describe a form with.
+        field.BeginStroke();
+        for (var i = 0; i <= 20; i++)
+        {
+            var t = i / 20f;
+            field.Stain(Cx + Mix(9f, 17f, t * t), Mix(noseBase - 42f, noseBase + 1f, t),
+                3.6f, 5f, Darken(skin, 0.42f), strength: Mix(0.10f, 0.62f, t * t),
+                softness: 1.3f);
+        }
+
+        field.EndStroke();
+
+        // Under the tip, and the two wings. These three marks are the nose; everything above
+        // them is only the hint that gets the eye down to them.
+        field.Stain(Cx, noseBase + 8f, 15f, 4.5f, Darken(skin, 0.5f), strength: 0.62f,
+            softness: 1.4f);
+        field.Stain(Cx - 12f, noseBase + 6f, 7f, 5f, Darken(skin, 0.68f), strength: 0.9f,
+            softness: 1.1f);
+        field.Stain(Cx + 12f, noseBase + 6f, 7f, 5f, Darken(skin, 0.68f), strength: 0.9f,
+            softness: 1.1f);
+        field.Carve(Cx, noseBase + 17f, 8f, 9f, depth: 4f);
 
         // The fold from the nostril to the corner of the mouth. Present on everybody, deeper
         // with age, and one of the strongest cues that a face is a face.
-        for (var i = 0; i <= 8; i++)
+        field.BeginStroke();
+        for (var i = 0; i <= 20; i++)
         {
-            var t = i / 8f;
+            var t = i / 20f;
             var cut = 5f + MathF.Max(0f, face.Age - 0.3f) * 16f;
-            field.Carve(Cx - Mix(21f, 33f, t), Mix(noseBase + 4f, 290f, t), 8f, 10f, depth: cut);
-            field.Carve(Cx + Mix(21f, 33f, t), Mix(noseBase + 4f, 290f, t), 8f, 10f, depth: cut);
+            var taper = cut * (1f - t * 0.75f);
+            field.Carve(Cx - Mix(22f, 32f, t), Mix(noseBase + 6f, 278f, t), 8f, 10f, depth: taper);
+            field.Carve(Cx + Mix(22f, 32f, t), Mix(noseBase + 6f, 278f, t), 8f, 10f, depth: taper);
         }
+
+        field.EndStroke();
 
         // --- mouth -----------------------------------------------------------------
         var corner = MouthY - mood.MouthCurve;
         var middle = MouthY + mood.MouthCurve * 0.3f;
         var lip = Toward(skin, new Color(158, 82, 76), 0.5f);
 
-        field.Bump(Cx, middle - 6f, lipHalf, 9f, amount: 7f);
-        field.Bump(Cx, middle + 7f, lipHalf * 0.92f, 11f, amount: 9f);
+        field.Bump(Cx, middle - 6f, lipHalf, 10f, amount: 10f);
+        field.Bump(Cx, middle + 8f, lipHalf * 0.94f, 12f, amount: 13f);
         field.Stain(Cx, middle - 6f, lipHalf, 9f, lip, strength: 0.92f, softness: 0.7f, gloss: 0.2f);
         field.Stain(Cx, middle + 7f, lipHalf * 0.92f, 11f, lip, strength: 0.92f, softness: 0.7f,
             gloss: 0.3f);
 
         // The seam, as a curve of small carves, so the corners travel with the mood.
-        for (var i = -8; i <= 8; i++)
+        field.BeginStroke();
+        for (var i = -16; i <= 16; i++)
         {
-            var t = i / 8f;
+            var t = i / 16f;
             field.Carve(Cx + t * lipHalf, Mix(middle, corner, t * t), 6f, 3.5f, depth: 12f);
         }
+
+        field.EndStroke();
 
         // Chin, and the shadow under the lower lip that gives it a front plane.
         field.Carve(Cx, middle + 22f, 22f, 12f, depth: 8f);
@@ -249,8 +281,22 @@ public static class PortraitForge
         Cover(field, face, headRx);
         Trinket(field, face, headRx);
 
-        return field.Resolve();
+        return field.ResolveFresco(Wall);
     }
+
+    /// <summary>
+    /// The wall these are painted on.
+    ///
+    /// Six colours, taken from what a painter in this period actually had: red ochre for the
+    /// drawn line, a burnt brown for the shaded planes, lime white for the lit ones, and a
+    /// yellow-ochre plaster ground. No blue and no green — lapis existed and was for gods.
+    /// </summary>
+    private static readonly FaceField.Fresco Wall = new(
+        Line: new Color(72, 32, 26),
+        Shade: new Color(104, 52, 38),
+        Highlight: new Color(242, 230, 206),
+        Ground: new Color(146, 112, 76),
+        GroundDark: new Color(104, 78, 54));
 
     /// <summary>
     /// One eye: colour laid into a hollow, not a ball with lids stacked over it.
@@ -264,15 +310,20 @@ public static class PortraitForge
         Mood mood, Color skin, Color hairColour, float browY, float side)
     {
         var open = mood.EyeOpen;
-        var aperture = 11f * open;
+        var aperture = 13f * open;
 
         // A slight convexity where the eyeball presses against the lids.
-        field.Bump(cx, cy, 21f, 16f, amount: 13f, softness: 1.2f);
+        field.Bump(cx, cy, 25f, 17f, amount: 12f, softness: 1.2f);
 
-        field.Stain(cx, cy, 18f, aperture, new Color(196, 190, 182), strength: 1f,
-            softness: 0.32f, gloss: 0.8f);
-        field.Stain(cx, cy - aperture * 0.55f, 17f, aperture * 0.7f, new Color(126, 116, 110),
-            strength: 0.55f, softness: 0.8f);
+        // The almond, built as three overlapping stains rather than one ellipse: full at the
+        // inner corner, tapering past the outer one. That taper is the single most recognisable
+        // thing about a face in this tradition.
+        field.Stain(cx, cy, 22f, aperture, new Color(206, 196, 180), strength: 1f,
+            softness: 0.30f);
+        field.Stain(cx - side * 8f, cy, 16f, aperture * 0.94f, new Color(206, 196, 180),
+            strength: 1f, softness: 0.30f);
+        field.Stain(cx + side * 14f, cy + 1.5f, 13f, aperture * 0.62f,
+            new Color(206, 196, 180), strength: 1f, softness: 0.34f);
 
         // The iris rides high in a wide eye, which is what actually sells fear: a ring of white
         // showing above it.
@@ -285,27 +336,43 @@ public static class PortraitForge
         field.Stain(cx - 3.2f, irisY - 3.2f, 2.6f, 2.6f, new Color(255, 255, 252),
             strength: 0.95f, softness: 0.45f);
 
-        // Lash line along the top of the aperture, and the crease of the lid above it.
-        field.Stain(cx, cy - aperture + 1f, 18f, 3.2f, Darken(skin, 0.66f), strength: 0.7f,
-            softness: 1f);
-        field.Carve(cx, cy - aperture - 6f, 22f, 6f, depth: 6f);
+        // The lid line: heavy, drawn, and carried out past the outer corner into a flick. It
+        // is a painted line rather than eyelashes, and it is what makes the eye read as drawn
+        // instead of rendered.
+        for (var i = -8; i <= 9; i++)
+        {
+            var t = i / 8f;
+            var x = cx + side * t * 24f;
+            var lift = t < 0f ? t * t * 3f : t * t * 5f;
+            field.Stain(x, cy - aperture * (1f - t * t * 0.25f) + 1f - lift,
+                4.5f, 3.4f - MathF.Abs(t) * 1.1f, new Color(58, 30, 26),
+                strength: 0.95f, softness: 0.7f);
+        }
+
+        field.Carve(cx, cy - aperture - 7f, 24f, 7f, depth: 7f);
 
         // --- brow ------------------------------------------------------------------
         var inner = mood.BrowInner - (side < 0f ? mood.Asymmetry : 0f);
         var outer = mood.BrowOuter - (side < 0f ? mood.Asymmetry : 0f);
-        var thickness = Mix(5f, 9f, face.BrowWeight);
+        var thickness = Mix(3.6f, 6.2f, face.BrowWeight);
 
-        for (var i = 0; i <= 12; i++)
+        field.BeginStroke();
+        for (var i = 0; i <= 32; i++)
         {
-            var t = i / 12f;
-            var x = cx + side * Mix(-17f, 23f, t);
-            var y = browY + Mix(inner, outer, t);
-            var r = thickness * (1f - t * 0.4f);
+            var t = i / 32f;
+            var x = cx + side * Mix(-19f, 27f, t);
 
-            field.Bump(x, y, r * 1.9f, r, amount: 4f);
-            field.Stain(x, y, r * 2.1f, r * 1.15f, hairColour, strength: 0.95f, softness: 0.9f,
-                gloss: 0.06f);
+            // The arch: highest in the middle of its own length, which is what separates a brow
+            // from a bar. Mood tilts the two ends and the curve carries between them.
+            var arch = -MathF.Sin(t * MathF.PI) * 5f;
+            var y = browY + Mix(inner, outer, t) + arch;
+            var r = thickness * (1f - t * 0.55f);
+
+            field.Bump(x, y, r * 2.1f, r, amount: 3f);
+            field.Stain(x, y, r * 2.3f, r * 1.2f, hairColour, strength: 0.95f, softness: 0.85f);
         }
+
+        field.EndStroke();
 
         // The corrugator bunch: the vertical pinch between the brows that comes with effort.
         if (mood.Tension > 0.2f)
@@ -331,7 +398,7 @@ public static class PortraitForge
         var recede = MathF.Max(0f, face.Age - 0.55f) * 46f;
 
         field.Ellipsoid(Cx, 128f + recede * 0.5f, headRx + (cloth ? 12f : 6f),
-            80f - recede * 0.35f, cloth ? 66f : 58f, cloth ? 12f : 6f, tint,
+            80f - recede * 0.35f, cloth ? 34f : 30f, cloth ? 42f : 36f, tint,
             blend: cloth ? 22f : 16f, gloss: cloth ? 0.05f : 0.14f);
 
         switch (face.Hair)
@@ -395,10 +462,9 @@ public static class PortraitForge
                 return;
 
             case Beard.Moustache:
-                field.Bump(Cx, mouthY - 19f, lipHalf + 16f, 11f, amount: 10f, softness: 1.5f);
-                field.Stain(Cx, mouthY - 19f, lipHalf + 17f, 11f, colour, strength: 0.96f,
-                    softness: 1.1f);
-                field.Carve(Cx, mouthY - 26f, 7f, 7f, depth: 5f);
+                field.Bump(Cx, mouthY - 19f, lipHalf + 16f, 10f, amount: 4f, softness: 2f);
+                field.Stain(Cx, mouthY - 19f, lipHalf + 17f, 10f, colour, strength: 0.96f,
+                    softness: 1.4f);
                 return;
 
             case Beard.Short:
