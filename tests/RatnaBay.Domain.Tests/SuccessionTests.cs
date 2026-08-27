@@ -11,7 +11,7 @@ namespace RatnaBay.Domain.Tests;
 /// </summary>
 public class SuccessionTests
 {
-    private static PlayerCharacter Deepankar()
+    private static PlayerCharacter Dipadhara()
     {
         var player = PlayerCharacter.NewGame();
         player.SelectLifePath(StoryDirector.RouteMage);
@@ -26,7 +26,7 @@ public class SuccessionTests
     [Test]
     public void LevelsEarnedAreKeptAndProgressTowardTheNextIsNot()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         player.Vitals.AddXp(player.Vitals.XpToLevel);   // level 2
         player.Vitals.AddXp(20);                        // and some of the way to 3
 
@@ -45,7 +45,7 @@ public class SuccessionTests
     {
         // The wall this design must not build: dying over and over should mean standing still,
         // never sliding backwards until the game is unplayable.
-        var player = Deepankar();
+        var player = Dipadhara();
         player.Vitals.AddXp(player.Vitals.XpToLevel * 3);
         var level = player.Vitals.Level;
 
@@ -58,7 +58,7 @@ public class SuccessionTests
     [Test]
     public void TheSuccessorInheritsTheLifePathAndItsTraining()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         var destruction = player.Skills.LevelOf(Skills.Destruction);
 
         Succession.Promote(player, Died(3, 6), mineSeed: 1, roomIndex: 3);
@@ -74,7 +74,7 @@ public class SuccessionTests
     [Test]
     public void TheSuccessorArrivesWhole()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         player.Vitals.TakeDamage(70f);
 
         Succession.Promote(player, Died(2, 3), mineSeed: 1, roomIndex: 2);
@@ -87,7 +87,7 @@ public class SuccessionTests
     [Test]
     public void HalfThePackGoesIntoTheGround()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         player.Inventory.Add("health_potion", "Health Potion", 4, "potion");
 
         var potions = player.Inventory.CountOf("health_potion");
@@ -116,7 +116,7 @@ public class SuccessionTests
     {
         // Losing the key to a door already opened would strand the player behind their own
         // progress, which is the unrecoverable state this whole design avoids.
-        var player = Deepankar();
+        var player = Dipadhara();
         player.Inventory.Add("key.northwatch.dungeon", "Watchpost Key", 1, "key");
 
         Succession.Promote(player, Died(5, 15), mineSeed: 1, roomIndex: 5);
@@ -129,7 +129,7 @@ public class SuccessionTests
     {
         // "Half your gear" cannot include the blade in your hand: a successor who arrives with
         // nothing cannot earn the stones needed to re-equip, and the loss becomes terminal.
-        var player = Deepankar();
+        var player = Dipadhara();
         var weapon = player.Equipment.WeaponId;
 
         for (var death = 0; death < 4; death++)
@@ -147,7 +147,7 @@ public class SuccessionTests
     [Test]
     public void TheFallenLeaveTheirStonesWhereTheyFell()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         Succession.Promote(player, Died(6, 21), mineSeed: 4211, roomIndex: 6);
 
         var cache = player.Legacy.Fallen;
@@ -167,7 +167,7 @@ public class SuccessionTests
     [Test]
     public void DyingWithNothingLeavesNothingToFetch()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         Succession.Promote(player, Died(0, 0), mineSeed: 7, roomIndex: 1);
 
         Assert.Multiple(() =>
@@ -182,7 +182,7 @@ public class SuccessionTests
     {
         // Keeping a queue would turn a losing streak into a stockpile to be collected in one
         // trip, which is the opposite of a cost.
-        var player = Deepankar();
+        var player = Dipadhara();
         Succession.Promote(player, Died(6, 21), mineSeed: 100, roomIndex: 6);
         Succession.Promote(player, Died(2, 3), mineSeed: 200, roomIndex: 2);
 
@@ -197,7 +197,7 @@ public class SuccessionTests
     [Test]
     public void ARecoveredCacheIsGoneForGood()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         Succession.Promote(player, Died(6, 21), mineSeed: 4211, roomIndex: 6);
 
         player.Legacy.Recover();
@@ -212,7 +212,7 @@ public class SuccessionTests
     [Test]
     public void EachSuccessorHasATheirOwnName()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         var first = player.Legacy.CurrentName;
 
         Succession.Promote(player, Died(3, 6), mineSeed: 1, roomIndex: 3);
@@ -236,7 +236,7 @@ public class SuccessionTests
     [Test]
     public void TheBodyAndTheBloodlineSurviveSaveAndReload()
     {
-        var player = Deepankar();
+        var player = Dipadhara();
         player.Vitals.AddXp(player.Vitals.XpToLevel);
         Succession.Promote(player, Died(6, 21), mineSeed: 4211, roomIndex: 6);
 

@@ -20,14 +20,14 @@ public static class EnemyCatalog
     /// The three tiers of risen dead, weakest first.
     ///
     /// One creature at three scales rather than three creatures: a chhaya is what is left of a
-    /// miner, a vetala is one that has kept enough of itself to be deliberate, and a kravyada
+    /// miner, a vetala is one that has kept enough of itself to be deliberate, and a pishacha
     /// is something the mountain took long before there was a town. They are told apart by
     /// size and by how much they still want, which is also exactly how the sprites are built.
     /// </summary>
     public const string ChhayaId = "chhaya";
 
     public const string VetalaId = "vetala";
-    public const string KravyadaId = "kravyada";
+    public const string PishachaId = "pishacha";
 
     /// <summary>
     /// The old id for the common tier.
@@ -86,10 +86,10 @@ public static class EnemyCatalog
 
             // Something the mountain took long before there was a town. Slow, enormously
             // durable, and it hits hard enough that trading blows is never the answer.
-            [KravyadaId] = new EnemyArchetype
+            [PishachaId] = new EnemyArchetype
             {
-                Id = KravyadaId,
-                DisplayName = "Kravyada",
+                Id = PishachaId,
+                DisplayName = "Pishacha",
                 MaxHealth = 260f,
                 MoveSpeed = 3.6f,
                 AggroRange = 24f,

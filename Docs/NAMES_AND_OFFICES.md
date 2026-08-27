@@ -94,6 +94,50 @@ What the ten fort occupants still owe the player is **distinctness**, not lightn
 start with the same letter, because the player has to remember *who to go back to*, and that is a
 recognition problem rather than a pronunciation one.
 
+
+### Key elements carry a second name
+
+Per the practical rule above, the words the player *decides with* stay English — a stone chosen
+mid-fight has to be legible in the half-second it is glanced at. Alongside each sits the word the
+province actually uses, so the fort can be overheard talking about its own world.
+
+**Stones** — the Indic name is the substance, not a poetic gloss:
+
+| Stone | Second name | Meaning |
+|---|---|---|
+| Splitting | **Bhedaka** | splitter, piercer |
+| Cinder | **Angara** | ember, charcoal |
+| Rime | **Tuhina** | frost |
+| Thunder | **Ashani** | thunderbolt |
+| Vessel | **Kumbha** | pot, vessel |
+| Ward | **Kavacha** | armour, a protective charm |
+
+**Spells** — kept deliberately distinct from the stone that shares an element. A Cinder stone is
+*angara*, an ember; the Flame spell is *jvala*, the flame itself. Cousins, not twins:
+
+| Spell | Second name | Meaning |
+|---|---|---|
+| Flame | **Jvala** | flame |
+| Rime | **Hima** | frost, snow |
+| Arc | **Vidyut** | lightning |
+| Mend | **Rohana** | healing, closing over |
+| Emberlight | **Prabha** | radiance |
+
+**Caves** — flatly the material, because miners do not name a seam poetically. They name it after
+what is in it, and the English name is already carrying the atmosphere:
+
+| Cave | Second name | Meaning |
+|---|---|---|
+| The Old Workings | **Shila** | rock |
+| The Burnt Seam | **Tapta** | heated, molten |
+| The Drowned Level | **Jala** | water |
+| The Salt Reach | **Lavana** | salt |
+| The Ossuary | **Asthi** | bone |
+
+**Nothing reads these to make a decision**, and that is the point — they are asserted in
+`IndicNameTests` to exist, to be unique across all three sets, and to stay short enough to say
+aloud, and are otherwise free to be flavour.
+
 ---
 
 ## 2. Offices and duties
@@ -193,7 +237,7 @@ stone is your life. The province's entire moral economy — that the thing every
 thing nobody may take — is a footnote in a 2,000-year-old text about mine management.
 
 Also usable: mining without authorisation draws imprisonment and forced labour. That is what
-happens to a Deepankar who opens a mine they did not pay for.
+happens to a Dipadhara who opens a mine they did not pay for.
 
 ### Two Ashokan reforms worth stealing
 
@@ -228,7 +272,7 @@ And it gives a **tier ladder for free**, which the enemy catalogue currently lac
 |---|---|---|---|
 | Common | **Chhaya** | shadow | Barely a person any more. Most of a mine |
 | Elite | **Vetala** | the corpse-animating spirit of Indian folklore — the *Baital* of the *Baital Pachisi* | Deliberate, and it knows you are there |
-| Boss | **Kravyada** | "flesh-eater" | Old, and it was something before it was this |
+| Boss | **Pishacha** | "flesh-eater" | Old, and it was something before it was this |
 
 *Vetala* is the strongest of the three and worth noting specially: it is a genuine folklore
 category **whose entire definition is a spirit that animates a corpse**. It is exactly the game's
@@ -239,7 +283,7 @@ than to doctrine.
 that, and objects to the other words. One line, and the game has acknowledged what it is doing
 without building its loot economy on it.
 
-### Deepankar → **Dipadhara**, with a second name
+### Dipadhara → **Dipadhara**, with a second name
 
 The problem: *Dipankara* is the name of a Buddha of the past.
 
@@ -256,20 +300,48 @@ The gap between the two names is characterisation for nothing. The registrar say
 The miners say *dipadhara*. What the order calls itself when nobody official is listening is a
 question worth one line of dialogue.
 
-### The rank ladder
+### The rank ladder — the seven patalas
 
-The fort opens by rank, so the ranks should be the empire's own words, bottom to top:
+The fort opens by rank. The first draft used the empire's own civil-service titles, and that was
+wrong twice over.
 
-| Rank | Meaning | Fort rooms opened |
+**It collided with the cast.** The top rung was *mahamatra*, which is the inspector's actual
+office, and the fourth was *adhyaksha*, which is half the registrar's title. A ladder that shares
+words with the people standing on it teaches the player the wrong thing twice.
+
+**And a bureaucracy has no reason to grade you.** The state has exactly one word for a Dipadhara —
+*akara-shantika*, on the tally roll — and no interest in a finer grain. The order ranks its own,
+and the only measure that means anything underground is how far down you have been and come back.
+
+So the rungs are the **seven patalas**, the nether-realms of the Puranas, in their canonical
+descending order:
+
+| Rung | Rank | Fort rooms opened |
 |---|---|---|
-| **Yukta** | subordinate officer | 1–2 |
-| **Sthanika** | district officer | 3–4 |
-| **Pradeshika** | district head, revenue and order | 5–7 |
-| **Adhyaksha** | superintendent | 8–9 |
-| **Mahamatra** | high officer | 10 |
+| 1 | **Atala** | The Gate, The Order's Hall |
+| 2 | **Vitala** | The Assay |
+| 3 | **Sutala** | The Forge |
+| 4 | **Talatala** | The Physician, The Registry |
+| 5 | **Mahatala** | The Shrine |
+| 6 | **Rasatala** | The Barracks, The Clerk's Room |
+| 7 | **Patala** | The Governor |
 
-A player promoted from *yukta* to *sthanika* has been promoted inside a real civil service, and the
-words do the worldbuilding without a codex entry.
+Three things fall out of this and all three are worth having.
+
+***Tala* is a floor** — a storey, a level. The ladder is named in the vocabulary of a mine, which
+is what it measures.
+
+**The shared ending makes them a series on sight.** Nothing about *sthanika* told a player it sat
+below *pradeshika*. Seven words ending in *-tala* announce themselves as one set the first time
+they are seen.
+
+**Every rung opens a door.** Ten rooms across seven rungs, so no promotion is ever a promotion to
+nothing.
+
+They still cannot be ordered by ear, which is a real cost and is paid off in one place rather than
+by renaming them: **the rank is always shown with its position.** A shut door reading *Sutala* tells
+a player nothing about how far off it is. `Sutala (3 of 7)` tells them whether to keep going or come
+back in ten hours. `Ranks.LabelOf` is the only thing the interface is allowed to call.
 
 ---
 

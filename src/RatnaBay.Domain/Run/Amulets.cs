@@ -85,7 +85,7 @@ public static class AmuletCatalog
     private static readonly Dictionary<string, AmuletDefinition> Amulets =
         new(StringComparer.Ordinal)
         {
-            [SocketId] = new(SocketId, "Deepankar's Lamp", AmuletEffect.Socket,
+            [SocketId] = new(SocketId, "Dipadhara's Lamp", AmuletEffect.Socket,
                 "One more socket, in whatever you carry."),
 
             [FirstBloodId] = new(FirstBloodId, "Steady Hand", AmuletEffect.FirstBlood,

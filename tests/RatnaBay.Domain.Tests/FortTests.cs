@@ -23,7 +23,7 @@ public sealed class FortTests
     [Test]
     public void EverybodyStartsAtTheBottom()
     {
-        Assert.That(new ServiceRecord().Rank, Is.EqualTo(Rank.Yukta));
+        Assert.That(new ServiceRecord().Rank, Is.EqualTo(Rank.Atala));
     }
 
     [Test]
@@ -39,9 +39,9 @@ public sealed class FortTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(manyRuns.Rank, Is.EqualTo(Rank.Yukta),
+            Assert.That(manyRuns.Rank, Is.EqualTo(Rank.Atala),
                 "descents alone bought a promotion");
-            Assert.That(oneBigRun.Rank, Is.EqualTo(Rank.Yukta),
+            Assert.That(oneBigRun.Rank, Is.EqualTo(Rank.Atala),
                 "stones alone bought a promotion");
         });
     }
@@ -49,10 +49,13 @@ public sealed class FortTests
     [Test]
     public void DoingBothEarnsThePromotion()
     {
+        // Deliberately not pinned to a named rung: the claim is that descents *and* stones
+        // together move you off the bottom, and re-tuning the ladder must not read as a
+        // regression in the rule it is there to protect.
         var record = new ServiceRecord();
         for (var run = 0; run < 3; run++) record.Record(Banked(4, 10));
 
-        Assert.That(record.Rank, Is.EqualTo(Rank.Sthanika));
+        Assert.That(record.Rank, Is.GreaterThan(Rank.Atala));
     }
 
     [Test]
@@ -67,7 +70,7 @@ public sealed class FortTests
         {
             Assert.That(record.DescentsSurvived, Is.Zero);
             Assert.That(record.StonesBanked, Is.Zero);
-            Assert.That(record.Rank, Is.EqualTo(Rank.Yukta));
+            Assert.That(record.Rank, Is.EqualTo(Rank.Atala));
         });
     }
 
@@ -111,7 +114,7 @@ public sealed class FortTests
             previous = (int)entry.Rank;
         }
 
-        Assert.That(Ranks.Next(Rank.Mahamatra), Is.Null);
+        Assert.That(Ranks.Next(Rank.Patala), Is.Null);
     }
 
     // ------------------------------------------------------------------ the fort
@@ -139,14 +142,14 @@ public sealed class FortTests
     [Test]
     public void SomethingIsOpenFromTheVeryFirstRun()
     {
-        Assert.That(FortRoster.OpenTo(Rank.Yukta), Is.Not.Empty,
+        Assert.That(FortRoster.OpenTo(Rank.Atala), Is.Not.Empty,
             "a new player walked into a fort with every door shut");
     }
 
     [Test]
     public void TheWholeFortOpensEventually()
     {
-        Assert.That(FortRoster.OpenTo(Rank.Mahamatra),
+        Assert.That(FortRoster.OpenTo(Rank.Patala),
             Has.Count.EqualTo(FortRoster.All.Count));
     }
 
@@ -155,7 +158,8 @@ public sealed class FortTests
     {
         var previous = 0;
         foreach (var rank in new[]
-                 { Rank.Yukta, Rank.Sthanika, Rank.Pradeshika, Rank.Adhyaksha, Rank.Mahamatra })
+                 { Rank.Atala, Rank.Vitala, Rank.Sutala, Rank.Talatala, Rank.Mahatala,
+                   Rank.Rasatala, Rank.Patala })
         {
             var open = FortRoster.OpenTo(rank).Count;
             Assert.That(open, Is.GreaterThanOrEqualTo(previous));
@@ -171,15 +175,15 @@ public sealed class FortTests
         // The rule most easily broken by accident, asserted against every fragment with a
         // depth requirement: holding the rank with no depth must not unlock it.
         foreach (var fragment in FortRoster.AllFragments.Where(f => f.RequiredDepth > 1))
-            Assert.That(fragment.IsUnlocked(Rank.Mahamatra, deepestEver: 0), Is.False,
+            Assert.That(fragment.IsUnlocked(Rank.Patala, deepestEver: 0), Is.False,
                 $"{fragment.Id} unlocked on rank alone");
     }
 
     [Test]
     public void NoFragmentFiresOnDepthAlone()
     {
-        foreach (var fragment in FortRoster.AllFragments.Where(f => f.RequiredRank > Rank.Yukta))
-            Assert.That(fragment.IsUnlocked(Rank.Yukta, deepestEver: 999), Is.False,
+        foreach (var fragment in FortRoster.AllFragments.Where(f => f.RequiredRank > Rank.Atala))
+            Assert.That(fragment.IsUnlocked(Rank.Atala, deepestEver: 999), Is.False,
                 $"{fragment.Id} unlocked on depth alone");
     }
 
@@ -187,7 +191,7 @@ public sealed class FortTests
     public void BothTogetherUnlockIt()
     {
         foreach (var fragment in FortRoster.AllFragments)
-            Assert.That(fragment.IsUnlocked(Rank.Mahamatra, 999), Is.True, fragment.Id);
+            Assert.That(fragment.IsUnlocked(Rank.Patala, 999), Is.True, fragment.Id);
     }
 
     [Test]

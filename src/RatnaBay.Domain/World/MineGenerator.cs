@@ -635,7 +635,7 @@ public static class MineGenerator
         // the roll happens. Binding it to one slot is also what caps a room at one elite.
         if (slot == 1)
         {
-            if (roomIndex >= KravyadaFromRoom && random.Next(3) == 0) return EnemyCatalog.KravyadaId;
+            if (roomIndex >= PishachaFromRoom && random.Next(3) == 0) return EnemyCatalog.PishachaId;
             if (roomIndex >= VetalaFromRoom && random.Next(2) == 0) return EnemyCatalog.VetalaId;
         }
 
@@ -646,7 +646,7 @@ public static class MineGenerator
     private const int VetalaFromRoom = 5;
 
     /// <summary>And before the mountain sends something older.</summary>
-    private const int KravyadaFromRoom = 11;
+    private const int PishachaFromRoom = 11;
 
     /// <summary>The middle of the opening on one side of a room.</summary>
     private static (float X, float Z) DoorwayOf(Cell cell, Side side) => side switch

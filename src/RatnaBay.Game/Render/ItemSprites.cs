@@ -221,7 +221,7 @@ public static class ItemSprites
     ///
     /// Three creatures out of one description, because that is what they are in the fiction: a
     /// chhaya is what is left of a miner, a vetala kept enough of itself to be deliberate, and
-    /// a kravyada is something taken long before there was a town. They differ by mass, by
+    /// a pishacha is something taken long before there was a town. They differ by mass, by
     /// posture, and by how much of the stone still burns in them.
     ///
     /// This is the case that was supposed to need an artist, and the honest limit is narrower
@@ -244,7 +244,7 @@ public static class ItemSprites
     private static readonly RisenBuild Vetala =
         new(1.04f, 8.4f, 1.6f, new Color(64, 66, 92), new Color(120, 198, 236), 2);
 
-    private static readonly RisenBuild Kravyada =
+    private static readonly RisenBuild Pishacha =
         new(1.2f, 11.2f, 3.4f, new Color(78, 54, 52), new Color(255, 122, 46), 3);
 
     public static Texture2D ChhayaSprite(GraphicsDevice device) =>
@@ -253,15 +253,15 @@ public static class ItemSprites
     public static Texture2D VetalaSprite(GraphicsDevice device) =>
         Get(device, "risen.vetala", 64, forge => Risen(forge, Vetala));
 
-    public static Texture2D KravyadaSprite(GraphicsDevice device) =>
-        Get(device, "risen.kravyada", 64, forge => Risen(forge, Kravyada));
+    public static Texture2D PishachaSprite(GraphicsDevice device) =>
+        Get(device, "risen.pishacha", 64, forge => Risen(forge, Pishacha));
 
     /// <summary>The sprite for an enemy archetype, or null if it is not one of the risen.</summary>
     public static Texture2D? Risen(GraphicsDevice device, string archetypeId) => archetypeId switch
     {
         "chhaya" or "preta" => ChhayaSprite(device),
         "vetala" => VetalaSprite(device),
-        "kravyada" => KravyadaSprite(device),
+        "pishacha" => PishachaSprite(device),
         _ => null
     };
 

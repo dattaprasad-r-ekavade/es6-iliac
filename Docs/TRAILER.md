@@ -38,12 +38,12 @@ opens on the reason the combat exists.
 | 3 | 0:09–0:11 | Over the rising figure: **"The stones remember who they were."** | Held | Text card |
 | 4 | 0:11–0:18 | Combat. Two sword swings, a guard absorbing a blow, then a **Rime bolt** crossing the cave in pale blue and the target visibly slowing | Impacts, cast | Have |
 | 5 | 0:18–0:20 | **"The town burns them to keep its lamps lit."** | — | Text card |
-| 6 | 0:20–0:27 | **Cut to the fort.** Lamplight, warm after the cave. A Deepankar in conversation — the dialogue panel, a real answer on screen. A shut door **opens** and someone inside turns to look | Room tone, low voices | **Build: fort, one room** |
+| 6 | 0:20–0:27 | **Cut to the fort.** Lamplight, warm after the cave. A Dipadhara in conversation — the dialogue panel, a real answer on screen. A shut door **opens** and someone inside turns to look | Room tone, low voices | **Build: fort, one room** |
 | 7 | 0:27–0:33 | Back down, a **different cave** — water-blue, different preta. **Arc** fires gold and chains to a second target | Crackle | **Build: themes** |
 | 8 | 0:33–0:39 | The camp decision. Banked stones on screen. The camera looks at the camp, then at the unopened door. **Beat.** The door opens | Silence, then one door | **Build: camp UI** |
 | 9 | 0:39–0:43 | It goes wrong. Damage arc from behind, health falling, red at the edges. The player dies | Muffled, dropping out | Have |
 | 10 | 0:43–0:45 | **"When one falls, another takes the lamp."** | A single held note | Text card |
-| 11 | 0:45–0:50 | A **new Deepankar** walks into the same cave, lamp raised, and lifts the fallen one's cache. Cut to the Stambha, the verse lit. Title: **RATNA BAY** | Music resolves | **Build: succession** |
+| 11 | 0:45–0:50 | A **new Dipadhara** walks into the same cave, lamp raised, and lifts the fallen one's cache. Cut to the Stambha, the verse lit. Title: **RATNA BAY** | Music resolves | **Build: succession** |
 
 **Total: 50 seconds.**
 

@@ -2838,7 +2838,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (!room.IsOpen(rank))
         {
             _session.ShowToast(
-                $"That door is shut to a {Ranks.TitleOf(rank)}. It wants a {Ranks.TitleOf(room.RequiredRank)}.");
+                $"That door is shut to a {Ranks.TitleOf(rank)}. It wants a {Ranks.LabelOf(room.RequiredRank)}.");
             _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
             return;
         }
@@ -3127,7 +3127,7 @@ public sealed class Game1 : Game, IConsoleTarget
             Impact(guarded ? weight * 0.5f : MathF.Min(1f, weight * 1.15f));
         };
 
-        // Bigger things land heavier, which is most of what makes a kravyada feel like one.
+        // Bigger things land heavier, which is most of what makes a pishacha feel like one.
         static float Weight(Enemy enemy) =>
             MathHelper.Clamp(enemy.Archetype.MaxHealth / 260f, 0.35f, 1f);
     }
@@ -3279,7 +3279,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_session is not null && _session.Player.Legacy.Service.Record(result))
         {
             var rank = _session.Player.Legacy.Service;
-            _session.ShowToast($"The order raises you. You are {rank.Title}.");
+            _session.ShowToast($"The order raises you. You are {Ranks.LabelOf(rank.Rank)}.");
             _sfx?.Play(Sfx.Chime, 0.85f);
         }
 
@@ -3666,7 +3666,7 @@ public sealed class Game1 : Game, IConsoleTarget
     private const string CachePickupId = "cache.fallen";
 
     /// <summary>
-    /// Put the last Deepankar's cache into the mine that killed them.
+    /// Put the last Dipadhara's cache into the mine that killed them.
     ///
     /// Added to the manifest rather than special-cased at runtime, so it is found, taken,
     /// saved and remembered by exactly the same machinery as everything else on the floor.
@@ -3687,7 +3687,7 @@ public sealed class Game1 : Game, IConsoleTarget
             Id = CachePickupId,
             ItemId = SoulCrystals.LesserId,
             Name = string.IsNullOrWhiteSpace(cache.Name)
-                ? "A Deepankar's Cache"
+                ? "A Dipadhara's Cache"
                 : $"{cache.Name}'s Cache",
             Kind = SoulCrystals.ItemKind,
             Count = cache.Stones,
@@ -4283,7 +4283,7 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// Names over the three things in the yard, and a line saying what a Deepankar is for.
+    /// Names over the three things in the yard, and a line saying what a Dipadhara is for.
     ///
     /// Reported as not knowing what to do here, which was fair: a walled yard with no labels
     /// and no instruction is a room, not a hub. A name floating over each fixture answers
@@ -5054,7 +5054,7 @@ public sealed class Game1 : Game, IConsoleTarget
         {
             ItemSprites.ChhayaSprite(GraphicsDevice),
             ItemSprites.VetalaSprite(GraphicsDevice),
-            ItemSprites.KravyadaSprite(GraphicsDevice)
+            ItemSprites.PishachaSprite(GraphicsDevice)
         };
 
         for (var i = 0; i < tiers.Length; i++)

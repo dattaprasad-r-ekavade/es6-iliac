@@ -19,6 +19,15 @@ public sealed record CaveTheme(
     /// <summary>What the stone is called, for the line shown before the player pays.</summary>
     string Rock,
 
+    /// <summary>
+    /// What the miners call this level. See the note on <c>StoneDefinition.Indic</c>.
+    ///
+    /// Each is simply the material: *shila* rock, *tapta* heated, *jala* water, *lavana* salt,
+    /// *asthi* bone. Miners do not name a seam poetically — they name it after what is in it,
+    /// and the English name above is already carrying the atmosphere.
+    /// </summary>
+    string Indic,
+
     /// <summary>Takes reduced damage from this. Never zero — see <see cref="ResistedFactor"/>.</summary>
     SpellEffect Resists,
 
@@ -65,23 +74,23 @@ public static class CaveThemeCatalog
 
     private static readonly CaveTheme[] Themes =
     {
-        new("cave.granite", "The Old Workings", "Cold grey granite",
+        new("cave.granite", "The Old Workings", "Cold grey granite", "Shila",
             SpellEffect.Shock, SpellEffect.Frost,
             new ThemeColour(86, 86, 92), new ThemeColour(34, 33, 36), new ThemeColour(120, 118, 122)),
 
-        new("cave.lava", "The Burnt Seam", "Scorched red rock, still warm",
+        new("cave.lava", "The Burnt Seam", "Scorched red rock, still warm", "Tapta",
             SpellEffect.Fire, SpellEffect.Frost,
             new ThemeColour(104, 62, 52), new ThemeColour(48, 24, 20), new ThemeColour(148, 92, 70)),
 
-        new("cave.water", "The Drowned Level", "Wet black stone, running with water",
+        new("cave.water", "The Drowned Level", "Wet black stone, running with water", "Jala",
             SpellEffect.Frost, SpellEffect.Shock,
             new ThemeColour(58, 74, 88), new ThemeColour(24, 32, 40), new ThemeColour(92, 116, 132)),
 
-        new("cave.salt", "The Salt Reach", "Pale salt, crusted and brittle",
+        new("cave.salt", "The Salt Reach", "Pale salt, crusted and brittle", "Lavana",
             SpellEffect.Frost, SpellEffect.Fire,
             new ThemeColour(132, 128, 116), new ThemeColour(78, 74, 66), new ThemeColour(172, 168, 154)),
 
-        new("cave.bone", "The Ossuary", "Grey rock threaded with old bone",
+        new("cave.bone", "The Ossuary", "Grey rock threaded with old bone", "Asthi",
             SpellEffect.Shock, SpellEffect.Fire,
             new ThemeColour(96, 90, 78), new ThemeColour(44, 40, 34), new ThemeColour(136, 128, 112))
     };

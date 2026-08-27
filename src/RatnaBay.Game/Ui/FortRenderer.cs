@@ -35,7 +35,7 @@ internal sealed class FortRenderer
 
         _ui.TextCentred("THE FORT", 640f, 118f, 24, UiTheme.Heading);
         _ui.TextCentred(
-            $"{legacy.CurrentName}, {service.Title}"
+            $"{legacy.CurrentName}, {Ranks.LabelOf(service.Rank)}"
             + $"  ·  {service.DescentsSurvived} descents  ·  {service.StonesBanked} stones banked",
             640f, 150f, 14, UiTheme.Accent);
 
@@ -79,7 +79,7 @@ internal sealed class FortRenderer
             }
             else
             {
-                _ui.TextRight($"shut — {Ranks.TitleOf(room.RequiredRank)}",
+                _ui.TextRight($"shut — {Ranks.LabelOf(room.RequiredRank)}",
                     row.Right - 16, row.Y + 10, 13, UiTheme.Warning);
             }
         }

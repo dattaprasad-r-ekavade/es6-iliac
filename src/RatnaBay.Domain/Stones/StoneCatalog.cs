@@ -46,8 +46,23 @@ public sealed record StoneDefinition(
     /// <summary>One line, in the player's terms. Shown in the socketing screen.</summary>
     string Description,
 
+    /// <summary>
+    /// What the assayer and the miners call it.
+    ///
+    /// The English name is the one that has to work on sight — a player choosing between two
+    /// stones mid-run needs *Cinder* and *Ward*, not a vocabulary test. The Indic name rides
+    /// alongside it and is what the province actually says out loud, so the world has its own
+    /// word for a thing the interface has already explained. Nothing reads this to make a
+    /// decision; it exists so the trader and the assayer can be overheard using it.
+    /// </summary>
+    string Indic,
+
     /// <summary>How deep a mine has to be before this can be found in it.</summary>
-    int MinimumDepth = 1);
+    int MinimumDepth = 1)
+{
+    /// <summary>Both names, for anywhere with room for them.</summary>
+    public string FullName => $"{DisplayName} — {Indic}";
+}
 
 /// <summary>
 /// Every jiva stone that can be socketed.
@@ -95,22 +110,22 @@ public static class StoneCatalog
         new(StringComparer.Ordinal)
         {
             [SplittingId] = new(SplittingId, "Splitting Stone", StoneEffect.Splitting,
-                "Your blade sweeps. Every enemy in the arc is struck."),
+                "Your blade sweeps. Every enemy in the arc is struck.", "Bhedaka"),
 
             [CinderId] = new(CinderId, "Cinder Stone", StoneEffect.Cinder,
-                "What you strike catches fire."),
+                "What you strike catches fire.", "Angara"),
 
             [RimeId] = new(RimeId, "Rime Stone", StoneEffect.Rime,
-                "What you strike slows."),
+                "What you strike slows.", "Tuhina"),
 
             [ThunderId] = new(ThunderId, "Thunder Stone", StoneEffect.Thunder,
-                "Your blows stagger, whatever you are holding.", MinimumDepth: 2),
+                "Your blows stagger, whatever you are holding.", "Ashani", MinimumDepth: 2),
 
             [VesselId] = new(VesselId, "Vessel Stone", StoneEffect.Vessel,
-                "A death gives its prana back to you.", MinimumDepth: 2),
+                "A death gives its prana back to you.", "Kumbha", MinimumDepth: 2),
 
             [WardId] = new(WardId, "Ward Stone", StoneEffect.Ward,
-                "A blow you catch on your guard leaves the striker reeling.", MinimumDepth: 3)
+                "A blow you catch on your guard leaves the striker reeling.", "Kavacha", MinimumDepth: 3)
         };
 
     public static IReadOnlyCollection<StoneDefinition> All => Stones.Values;

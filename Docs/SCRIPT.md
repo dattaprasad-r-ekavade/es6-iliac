@@ -51,7 +51,7 @@ The great houses are sitting on strongboxes bleeding prana into their own cellar
 only hoarding the future — they are where it is arriving first. Nobody in those houses will say
 so, and everybody in them has stopped sleeping well.
 
-### Which makes the Deepankar a job people take out of need
+### Which makes the Dipadhara a job people take out of need
 
 This changes what the order is, and it is the change that makes the player a person rather than
 a class.
@@ -193,7 +193,7 @@ every five years and *"the last one did not reach us."* This one does.
 
 **The order.** Not the player character, who dies repeatedly by design.
 
-Individual Deepankars get a **voice** — one line about who they were, and per §1 that line is
+Individual Dipadharas get a **voice** — one line about who they were, and per §1 that line is
 almost always about money. The **arc** belongs to the Dipadhara: an order founded last spring to
 honour a woman its own founders overruled, staffed by people who have never been told that, and
 handed a chance to finish what she started by somebody who keeps coming back up.
@@ -253,7 +253,7 @@ the proof.
 
 ## 8. The beat sheet
 
-### Act I — The job (runs 1–8, Yukta to Sthanika)
+### Act I — The job (runs 1–8, Atala to Sutala)
 
 The economy, learned by doing. The fort is warm, the work is honest, and the only strange thing
 is that the ledger never balances and the tally-keeper will not discuss it.
@@ -266,7 +266,7 @@ arrive before any fort room admits anything.
 > **Turn I** — *the supply does not add up.* `phys.1`. The order sends you to find out why the
 > price is rising.
 
-### Act II — The complicity (runs 8–25, Pradeshika to Adhyaksha)
+### Act II — The complicity (runs 8–25, Talatala to Rasatala)
 
 Every step is a conversation with a decision:
 
@@ -281,7 +281,7 @@ Every step is a conversation with a decision:
 6. **The fort falls.** Rooms are held. Instability arrives as plot rather than weather.
 7. **The questions.** You start asking the clerk, then the governor, what nobody asks.
 
-> **Turn II** — *the first Deepankar.* `gov.2`. Her name, and that she went down to close it.
+> **Turn II** — *the first Dipadhara.* `gov.2`. Her name, and that she went down to close it.
 > The governor does not tell you she succeeded, because he does not know.
 
 ### Act III — The seam, and the choice
@@ -300,7 +300,7 @@ telling you what they would do.
 ## 9. The house: one descent that is not a mine
 
 Midway through Act II, a great house hires the order to clear its cellars. It is the only place
-in the game where a Deepankar is **invited in** rather than sent down, and everything about the
+in the game where a Dipadhara is **invited in** rather than sent down, and everything about the
 beat runs on that.
 
 ### Vasudatta, of the house of Ratnavardhana

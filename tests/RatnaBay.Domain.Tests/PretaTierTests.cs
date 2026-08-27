@@ -21,7 +21,7 @@ public sealed class PretaTierTests
         {
             Assert.That(EnemyCatalog.Find(EnemyCatalog.ChhayaId), Is.Not.Null);
             Assert.That(EnemyCatalog.Find(EnemyCatalog.VetalaId), Is.Not.Null);
-            Assert.That(EnemyCatalog.Find(EnemyCatalog.KravyadaId), Is.Not.Null);
+            Assert.That(EnemyCatalog.Find(EnemyCatalog.PishachaId), Is.Not.Null);
         });
     }
 
@@ -30,18 +30,18 @@ public sealed class PretaTierTests
     {
         var chhaya = EnemyCatalog.Find(EnemyCatalog.ChhayaId)!;
         var vetala = EnemyCatalog.Find(EnemyCatalog.VetalaId)!;
-        var kravyada = EnemyCatalog.Find(EnemyCatalog.KravyadaId)!;
+        var pishacha = EnemyCatalog.Find(EnemyCatalog.PishachaId)!;
 
         Assert.Multiple(() =>
         {
             Assert.That(vetala.MaxHealth, Is.GreaterThan(chhaya.MaxHealth));
-            Assert.That(kravyada.MaxHealth, Is.GreaterThan(vetala.MaxHealth));
+            Assert.That(pishacha.MaxHealth, Is.GreaterThan(vetala.MaxHealth));
 
             Assert.That(vetala.AttackDamage, Is.GreaterThan(chhaya.AttackDamage));
-            Assert.That(kravyada.AttackDamage, Is.GreaterThan(vetala.AttackDamage));
+            Assert.That(pishacha.AttackDamage, Is.GreaterThan(vetala.AttackDamage));
 
             Assert.That(vetala.XpReward, Is.GreaterThan(chhaya.XpReward));
-            Assert.That(kravyada.XpReward, Is.GreaterThan(vetala.XpReward));
+            Assert.That(pishacha.XpReward, Is.GreaterThan(vetala.XpReward));
         });
     }
 
@@ -55,7 +55,7 @@ public sealed class PretaTierTests
 
         Assert.That(EnemyCatalog.Find(EnemyCatalog.VetalaId)!.MoveSpeed,
             Is.LessThan(chhaya.MoveSpeed));
-        Assert.That(EnemyCatalog.Find(EnemyCatalog.KravyadaId)!.MoveSpeed,
+        Assert.That(EnemyCatalog.Find(EnemyCatalog.PishachaId)!.MoveSpeed,
             Is.LessThan(EnemyCatalog.Find(EnemyCatalog.VetalaId)!.MoveSpeed));
     }
 
@@ -79,8 +79,8 @@ public sealed class PretaTierTests
 
             Assert.That(ids, Has.None.EqualTo(EnemyCatalog.VetalaId),
                 $"seed {seed} put a vetala in a four-room mine");
-            Assert.That(ids, Has.None.EqualTo(EnemyCatalog.KravyadaId),
-                $"seed {seed} put a kravyada in a four-room mine");
+            Assert.That(ids, Has.None.EqualTo(EnemyCatalog.PishachaId),
+                $"seed {seed} put a pishacha in a four-room mine");
         }
     }
 
@@ -88,21 +88,21 @@ public sealed class PretaTierTests
     public void DeepMinesEventuallyProduceTheHigherTiers()
     {
         var sawVetala = false;
-        var sawKravyada = false;
+        var sawPishacha = false;
 
-        for (var seed = 0; seed < 60 && !(sawVetala && sawKravyada); seed++)
+        for (var seed = 0; seed < 60 && !(sawVetala && sawPishacha); seed++)
         {
             var ids = MineGenerator.Generate(seed, rooms: 20, depth: 3)
                 .Spawns.Select(spawn => spawn.ArchetypeId).ToArray();
 
             sawVetala |= ids.Contains(EnemyCatalog.VetalaId);
-            sawKravyada |= ids.Contains(EnemyCatalog.KravyadaId);
+            sawPishacha |= ids.Contains(EnemyCatalog.PishachaId);
         }
 
         Assert.Multiple(() =>
         {
             Assert.That(sawVetala, Is.True, "no vetala in twenty-room mines across sixty seeds");
-            Assert.That(sawKravyada, Is.True, "no kravyada in twenty-room mines across sixty seeds");
+            Assert.That(sawPishacha, Is.True, "no pishacha in twenty-room mines across sixty seeds");
         });
     }
 
@@ -119,7 +119,7 @@ public sealed class PretaTierTests
             {
                 var elites = room.Count(spawn =>
                     spawn.ArchetypeId == EnemyCatalog.VetalaId ||
-                    spawn.ArchetypeId == EnemyCatalog.KravyadaId);
+                    spawn.ArchetypeId == EnemyCatalog.PishachaId);
 
                 Assert.That(elites, Is.LessThanOrEqualTo(1),
                     $"seed {seed} room {room.Key} held {elites} elites");

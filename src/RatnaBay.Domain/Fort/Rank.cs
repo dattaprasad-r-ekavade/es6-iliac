@@ -7,26 +7,45 @@ namespace RatnaBay.Domain;
 /// <summary>
 /// Standing in the order, and therefore in the fort.
 ///
-/// The names are the empire's own, bottom to top, from the offices research. A player promoted
-/// from yukta to sthanika has been promoted inside a real civil service, and the words do the
-/// worldbuilding without a codex entry explaining them.
+/// **These are the order's own rungs, not the empire's.** The state has exactly one word for a
+/// Dipadhara — *akara-shantika* on the tally roll — and no interest in a finer grain than that.
+/// So the order ranks its own the only way that means anything underground: by which floor of
+/// the world below you have been to and come back from.
+///
+/// The names are the seven **patalas**, the nether-realms of the Puranas, in their canonical
+/// descending order, with Patala itself the deepest. Two things fall out of that and both are
+/// worth having. *Tala* is a floor, a storey, a level — so the ladder is literally named in the
+/// vocabulary of a mine. And the shared ending makes the seven read as one series on sight,
+/// which the old civil-service titles never did: nothing about *sthanika* told a player it sat
+/// below *pradeshika*.
+///
+/// It also stops two words meaning two things. The old top rung was *mahamatra*, which is the
+/// inspector's actual office, and the old fourth was *adhyaksha*, which is half the registrar's
+/// title. A rank ladder that collides with the cast is a ladder that teaches the player the
+/// wrong thing twice.
 /// </summary>
 public enum Rank
 {
-    /// <summary>Subordinate officer. Where everybody starts.</summary>
-    Yukta,
+    /// <summary>The first floor down. Where everybody starts.</summary>
+    Atala,
 
-    /// <summary>District officer.</summary>
-    Sthanika,
+    /// <summary>Second.</summary>
+    Vitala,
 
-    /// <summary>District head — revenue, and order.</summary>
-    Pradeshika,
+    /// <summary>Third.</summary>
+    Sutala,
 
-    /// <summary>Superintendent.</summary>
-    Adhyaksha,
+    /// <summary>Fourth.</summary>
+    Talatala,
 
-    /// <summary>High officer. The top of the ladder the province has to offer.</summary>
-    Mahamatra
+    /// <summary>Fifth.</summary>
+    Mahatala,
+
+    /// <summary>Sixth.</summary>
+    Rasatala,
+
+    /// <summary>The bottom. Nothing in the province is offered past this.</summary>
+    Patala
 }
 
 public sealed record RankRequirement(Rank Rank, string Title, int Descents, int Stones);
@@ -43,12 +62,31 @@ public static class Ranks
 {
     private static readonly RankRequirement[] Ladder =
     {
-        new(Rank.Yukta, "Yukta", Descents: 0, Stones: 0),
-        new(Rank.Sthanika, "Sthanika", Descents: 3, Stones: 30),
-        new(Rank.Pradeshika, "Pradeshika", Descents: 8, Stones: 120),
-        new(Rank.Adhyaksha, "Adhyaksha", Descents: 16, Stones: 320),
-        new(Rank.Mahamatra, "Mahamatra", Descents: 28, Stones: 700)
+        new(Rank.Atala, "Atala", Descents: 0, Stones: 0),
+        new(Rank.Vitala, "Vitala", Descents: 2, Stones: 20),
+        new(Rank.Sutala, "Sutala", Descents: 5, Stones: 60),
+        new(Rank.Talatala, "Talatala", Descents: 9, Stones: 140),
+        new(Rank.Mahatala, "Mahatala", Descents: 14, Stones: 260),
+        new(Rank.Rasatala, "Rasatala", Descents: 20, Stones: 440),
+        new(Rank.Patala, "Patala", Descents: 28, Stones: 700)
     };
+
+    /// <summary>
+    /// Which rung this is, counting from one.
+    ///
+    /// Shown wherever a rank is, and the reason the ladder can afford opaque names at all. A
+    /// shut door saying *Sutala* tells a player nothing about how far off it is; the same door
+    /// saying *Sutala, 3rd of 7* tells them whether to keep going or come back in ten hours.
+    /// The flavour survives and the navigation problem goes away.
+    /// </summary>
+    public static int RungOf(Rank rank) => (int)rank + 1;
+
+    /// <summary>Rungs in the ladder.</summary>
+    public static int Rungs => Ladder.Length;
+
+    /// <summary>Title and position together, for anything the player reads.</summary>
+    public static string LabelOf(Rank rank) =>
+        $"{TitleOf(rank)} ({RungOf(rank)} of {Rungs})";
 
     public static IReadOnlyList<RankRequirement> All => Ladder;
 
@@ -67,7 +105,7 @@ public static class Ranks
     /// </summary>
     public static Rank Earned(int descentsSurvived, int stonesBanked)
     {
-        var earned = Rank.Yukta;
+        var earned = Rank.Atala;
 
         foreach (var entry in Ladder)
             if (descentsSurvived >= entry.Descents && stonesBanked >= entry.Stones)
@@ -85,11 +123,11 @@ public static class Ranks
 }
 
 /// <summary>
-/// What the order has done, across every Deepankar who has held the lamp.
+/// What the order has done, across every Dipadhara who has held the lamp.
 ///
 /// Lives on <see cref="Legacy"/> for the same reason amulets do: it has to survive death.
 /// Rank is the order's standing, not one person's, and a successor who arrived to find
-/// themselves demoted to yukta would be a successor nobody wants to play.
+/// themselves demoted to atala would be a successor nobody wants to play.
 /// </summary>
 public sealed class ServiceRecord
 {

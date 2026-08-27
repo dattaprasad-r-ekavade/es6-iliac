@@ -236,7 +236,7 @@ and does not exist; it belongs with succession, which touches the same code.
 **Risk retired:** does death read as continuity rather than punishment?
 
 - Death promotes a named successor: levels kept, unspent progress cleared, half the pack lost.
-- The fallen Deepankar's cache waits in the room they died in. Descending again returns to that
+- The fallen Dipadhara's cache waits in the room they died in. Descending again returns to that
   same mine until it is fetched — a fresh random mine each time would put it somewhere
   unreachable by design.
 - Life path and the order's training are inherited.
@@ -444,7 +444,7 @@ Iterations 13 through 16, the alpha published, and the client reorganised.
   game already loads.
 - **Iteration 14** — the run. `RunState`, the camp decision, the `N x T` payout curve, the
   summary screen.
-- **Iteration 15** — succession. Named Deepankars, the fallen cache, half the pack lost, keys
+- **Iteration 15** — succession. Named Dipadharas, the fallen cache, half the pack lost, keys
   and the equipped weapon spared.
 - **The loop closed** — the yard, tiers bought with stones, gear worth saving for, and levels
   that stop outgrowing the mine.

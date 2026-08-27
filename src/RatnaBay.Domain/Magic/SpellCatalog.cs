@@ -31,6 +31,16 @@ public sealed class SpellDefinition
 {
     public required string Id { get; init; }
     public required string DisplayName { get; init; }
+
+    /// <summary>
+    /// What the province calls it. See the note on <c>StoneDefinition.Indic</c>.
+    ///
+    /// Kept distinct from the stone that shares its element on purpose: a Cinder stone is
+    /// *angara*, an ember, and the Flame spell is *jvala*, the flame itself. The words are
+    /// cousins rather than twins, which is what they are.
+    /// </summary>
+    public required string IndicName { get; init; }
+
     public required SpellSchool School { get; init; }
     public required SpellEffect Effect { get; init; }
 
@@ -76,32 +86,32 @@ public static class SpellCatalog
         //
         // The three keep their shapes: fire has the lowest burst and the highest total,
         // frost sits between and buys distance, shock hits hardest once and jumps.
-        Add(FireId, "Flame", SpellSchool.Destruction, SpellEffect.Fire,
+        Add(FireId, "Flame", "Jvala", SpellSchool.Destruction, SpellEffect.Fire,
             cost: 16f, range: 18f, power: 22f, duration: 4f);
 
-        Add(FrostId, "Rime", SpellSchool.Destruction, SpellEffect.Frost,
+        Add(FrostId, "Rime", "Hima", SpellSchool.Destruction, SpellEffect.Frost,
             cost: 14f, range: 18f, power: 34f, duration: 4f);
 
-        Add(ShockId, "Arc", SpellSchool.Destruction, SpellEffect.Shock,
+        Add(ShockId, "Arc", "Vidyut", SpellSchool.Destruction, SpellEffect.Shock,
             cost: 18f, range: 18f, power: 38f, duration: 1.2f);
 
         // A potion restores 40 and costs nothing to carry, so a heal bought with prana has
         // to beat one or there is no reason ever to cast it.
-        Add(HealId, "Mend", SpellSchool.Restoration, SpellEffect.Heal,
+        Add(HealId, "Mend", "Rohana", SpellSchool.Restoration, SpellEffect.Heal,
             cost: 20f, range: 0f, power: 48f, duration: 0f);
 
         // Light is deliberately cheap but not free: carrying a light in a crystal-lit world
         // is consuming the resource, so every dark corridor is a small decision.
-        Add(LightId, "Emberlight", SpellSchool.Restoration, SpellEffect.Light,
+        Add(LightId, "Emberlight", "Prabha", SpellSchool.Restoration, SpellEffect.Light,
             cost: 6f, range: 0f, power: 0f, duration: 60f);
     }
 
-    private static void Add(string id, string name, SpellSchool school, SpellEffect effect,
-        float cost, float range, float power, float duration)
+    private static void Add(string id, string name, string indic, SpellSchool school,
+        SpellEffect effect, float cost, float range, float power, float duration)
     {
         Spells[id] = new SpellDefinition
         {
-            Id = id, DisplayName = name, School = school, Effect = effect,
+            Id = id, DisplayName = name, IndicName = indic, School = school, Effect = effect,
             BaseCost = cost, Range = range, Power = power, Duration = duration
         };
     }
