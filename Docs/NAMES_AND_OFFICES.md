@@ -292,9 +292,10 @@ lamp-bearer — accurate, unobjectionable, and completely inert. It described th
 **The name is now Bhagiratha, and in the fiction it is nothing more than a dead man's name.**
 
 Bhagiratha was a miner. He was married to Uttara, who ran the mines and counted her people in and
-out, and in 312 BCE he went down one morning and did not come back up. Her year-long campaign into
-the deep workings — which the province remembers as a supply operation — was a woman looking for
-one specific person. She went in after him and did not come out either.
+out, and in 312 BCE he was one of sixty-one men who went down and did not come back up. Her
+year-long campaign into the deep workings brought fifty-seven of them out alive. Four were never
+found and he was one of the four, so she went back in for them, was warned by the men she had just
+rescued, went anyway, and did not come out.
 
 The miners named the order, not the committee, and they named it **after the man who was lost
 rather than the woman who went after him.** The reason is a superstition and a kindness:
@@ -318,13 +319,21 @@ period-plausible name for a miner and the resonance is free. **Nothing should ev
 
 **Two names, because a real bureaucracy always produces two.**
 
-- **Formally, on the tally roll: `Akara-shantika`** — "mine-pacifiers." *Shantika* is a real
-  category: one who performs *shanti* rites, the pacification of what is dangerous or unquiet.
-  Period-plausible, precisely their job, and exactly what a state calls a contractor.
+- **Formally, on the tally roll: `Khanaka`** — "diggers." An ordinary, attested word for exactly
+  what it says. In the *Arthashastra* it also covers the sappers who tunnel under a besieged wall,
+  which is free resonance and should never be pointed at.
 - **Commonly, to everyone else: `Bhagiratha`.**
 
-The gap between the two is characterisation for nothing. The registrar says *akara-shantika*. The
-miners say *bhagiratha*. `hall.1` puts both in front of the player in their first ten minutes.
+**Khanaka replaced an earlier `akara-shantika`, "mine-pacifiers," and the reason is the whole
+point of having a second name.** *Pacifier* concedes that there is something down there to
+pacify — and a state that writes that word on a roll has admitted, in its own ledger, that the
+mines are haunted. It never will. **The empire has no word for what these people do, because
+inventing one is the admission.** So they are filed as diggers, paid as diggers, and counted as
+diggers, and the gap between the roll and the work is left for somebody else to notice.
+
+That gap is characterisation for nothing. The registrar says *khanaka*. The miners say
+*bhagiratha*. `hall.1` puts both in front of the player in their first ten minutes and lets them
+sit.
 
 **The lamp survives all of this.** It was never in the etymology — it is Revati's wall, one lamp
 per member, lit again when its person goes out, and the trailer's closing line depends on the
@@ -340,7 +349,7 @@ office, and the fourth was *adhyaksha*, which is half the registrar's title. A l
 words with the people standing on it teaches the player the wrong thing twice.
 
 **And a bureaucracy has no reason to grade you.** The state has exactly one word for a Bhagiratha —
-*akara-shantika*, on the tally roll — and no interest in a finer grain. The order ranks its own,
+*khanaka*, digger, on the tally roll — and no interest in a finer grain. The order ranks its own,
 and the only measure that means anything underground is how far down you have been and come back.
 
 So the rungs are the **seven patalas**, the nether-realms of the Puranas, in their canonical

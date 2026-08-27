@@ -95,16 +95,18 @@ public static class FortRoster
                 F("hall.1", Rank.Atala, 1,
                     "Bhagiratha, they call us. Bhagirathi, if that suits you better. He was "
                     + "a miner, and he went down one morning and did not come back up. On "
-                    + "the tally roll we are akara-shantika. Mine-pacifiers. The state "
-                    + "prefers its own word."),
+                    + "the tally roll we are khanaka. Diggers. The state has never written "
+                    + "down a word for what we actually do."),
                 F("hall.2", Rank.Sutala, 8,
-                    "We are one year old. The woman who ran these mines counted her people "
-                    + "in and counted them out, which nobody had thought to do before. The "
-                    + "night the count came up one short, it was her husband."),
+                    "The woman who ran these mines counted her people in and counted them "
+                    + "out, which nobody had thought to do before. One season the count came "
+                    + "up sixty-one short. She went in and brought fifty-seven of them back "
+                    + "up alive, and that is not a story, that is the roll."),
                 F("hall.3", Rank.Rasatala, 18,
-                    "She went in after him and she did not come out either. So the miners "
-                    + "put his name on the rest of us. Anybody lost down there is somebody "
-                    + "she is still looking for. That is the whole of it.")
+                    "Four she never found, and her husband was one of them, so she went "
+                    + "further in. The miners she had just carried out told her what was "
+                    + "down there. She thanked them and went anyway, and she did not come "
+                    + "back. So they put his name on the rest of us.")
             }),
 
         new("fort.assay", "The Assay", "Nagadatta", "Assayer", Rank.Vitala,

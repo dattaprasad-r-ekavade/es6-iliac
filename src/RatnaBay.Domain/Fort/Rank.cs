@@ -8,7 +8,7 @@ namespace RatnaBay.Domain;
 /// Standing in the order, and therefore in the fort.
 ///
 /// **These are the order's own rungs, not the empire's.** The state has exactly one word for a
-/// Bhagiratha — *akara-shantika* on the tally roll — and no interest in a finer grain than that.
+/// Bhagiratha — *khanaka*, digger, on the tally roll — and no interest in a finer grain than that.
 /// So the order ranks its own the only way that means anything underground: by which floor of
 /// the world below you have been to and come back from.
 ///

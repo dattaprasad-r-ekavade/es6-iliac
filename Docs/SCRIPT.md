@@ -103,9 +103,9 @@ anchor — the offices, the courts and the decision to carve in Brahmi all depen
 | **325 BCE** | They are found to hold power — and then to hold *life*. Twenty years of curiosity ends the day somebody proves a stone can carry what leaves a dying man |
 | **322 BCE** | **The committee reports.** It calls the stones the most powerful thing the empire has held and asks that they be regulated before they are used. The king refuses. The skeptics say the effect is exaggerated |
 | **315 BCE** | **War**, and the first campaign decided by prana. A mining body is founded *to regulate supply* and does not — it mines, and it supplies. **Uttara is given the mines.** She delivers her quotas, and she is known for something else: she counts her people in and she counts them out |
-| **312 BCE** | Miners stop coming back. Not many. Enough that her tallies stop matching, and she is the only official in the province who notices because she is the only one keeping that column. **One of the names that does not come back out is Bhagiratha, her husband** |
-| **311 BCE** | **Her campaign.** A year spent clearing the deep workings — for the province, a delivery problem solved; for her, a search. It opens more of the mountain than anyone had reached before, and ends with her going in alone. **Prices soar**, and the committee asks a second time for research into what the stones do. Nobody answers |
-| **310 BCE** | **She does not come out.** The entrance she went in by is shut, and it is shut *from the inside*. Nobody knows why, and the deep workings are lost with her |
+| **312 BCE** | **Sixty-one men do not come out.** A season of small losses ends in one large one, and she is the only official in the province who can say the number, because she is the only one keeping that column. **Bhagiratha, her husband, is on it** |
+| **311 BCE** | **Her campaign, and the rescue.** A year spent clearing the deep workings. She brings **fifty-seven of the sixty-one back out alive** — the largest thing anyone in the province has ever seen done, and the reason her name means anything. It opens more of the mountain than anybody had reached before. **Prices soar**, and the committee asks a second time for research into what the stones do. Nobody answers |
+| **310 BCE** | **Four were never found, and she goes back for them.** The men she had just carried out tell her what is down there and ask her not to. She goes alone. **She does not come out**, and the entrance she went in by is shut *from the inside*. Nobody knows why, and the deep workings are lost with her |
 | **305 BCE** | Five years of a sealed seam and a rising quota. Demand has outrun what the shallow workings can give, and the province needs what is behind that door. **New miners force it open** |
 | **304 BCE** | **The first preta.** The province learns what she had shut in, seven years after asking a question nobody answered |
 | **301 BCE** | **The supply collapses** under what is now coming out of the mountain to meet it. The economy splits — the great houses hoard and grow, everybody else falls, and the two never meet again |
@@ -137,10 +137,16 @@ Everything hangs on one fact, and the province has never had it.
 > and been told about quotas every time. So she took the only decision that was hers to take,
 > went in, and sealed it behind her.
 >
-> **And she was not only doing her job.** Bhagiratha, her husband, was one of the names that had
-> not come back out. The year-long campaign the province remembers as a supply operation was a
-> woman looking for one specific person, and it is why she went in alone and why she did not
-> come back out to argue her case.
+> **She had already succeeded once, publicly, and that is what makes the ending land.** Sixty-one
+> men did not come out. She went in and brought fifty-seven of them back alive, which is the
+> largest thing anybody in the province has ever seen done and the reason her name means anything
+> at all. Four were never found. Her husband was one of the four.
+>
+> **So she went back for them, and this time she was warned.** The men she had just carried out
+> told her what was in the deep workings — spirits, they said, the dead not staying down — and
+> asked her not to. She was not a woman ignoring superstition; she was a woman who had just spent
+> a year underground and believed every word of it. She went anyway, because four of her people
+> were still down there and one of them was hers.
 >
 > **It held for five years.** Then the quota rose past what the shallow seams could give, and men
 > with orders broke it open.
@@ -152,6 +158,14 @@ Everything hangs on one fact, and the province has never had it.
   *counting* — that the dead in the mountain are owed.
 - **Her reason is one sentence and needs no explaining.** Her husband did not come up. A player
   does not have to be told what that means, in any language, at any age.
+- **The rescue makes her practical rather than tragic.** She is not a woman who walked into a
+  mountain out of grief. She is the best mine manager the province ever had, who ran the largest
+  successful rescue in its history and then went back for the last four, which is what somebody
+  competent does. That she was warned and went anyway is a decision, not a spiral.
+- **And the warning came from the miners, not from officials.** The people underground already
+  knew what was down there. Nobody upstairs had asked them. That gap is the province in one
+  detail, and it is why the order the miners later named means something the committee does not
+  understand.
 - **The catastrophe is not hers.** She solved it. It was undone because the empire needed the
   stones, which is the theme with nobody to blame and no way around it.
 - **The precedent still exists, and it is economic rather than apocalyptic.** The province knows
@@ -270,7 +284,7 @@ everybody is somewhere between complicit and trapped.
 | **Chandrashri**, clerk | The true figures read | Three replies telling her to check her arithmetic |
 | **Vasumitra**, governor | To hand it to somebody else | Thirty years of choosing none of the options |
 | **The mahamatra** | The province audited | Nothing. He is the only free person in it |
-| **The committee** | To have been listened to in 322 | Being right twice and heeded neither time. They named the order for Uttara and employ the men who broke her door open |
+| **The committee** | To have been listened to in 322 | Being right twice and heeded neither time. They founded the order and did not name it; the miners did. They employ the men who broke her door open |
 
 **The inspector is the antagonist and is not evil.** He is doing his job correctly, which is what
 makes him frightening: no argument works on him, because he is not wrong about anything he is
