@@ -636,8 +636,26 @@ public sealed class Game1 : Game, IConsoleTarget
         // and mentions it in a settings menu is disclosed in the technical sense and not in
         // any other, and the tester who finds out afterwards is right to be annoyed.
         _uploader = new TelemetryUploader(_consent);
-        _askingConsent = !_consent.Asked && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
-        if (!_askingConsent) _uploader.SendPending();
+
+        // Never asked during a capture.
+        //
+        // The question owns the screen until it is answered, so on any machine that has not
+        // answered it yet — a fresh clone, a build agent, a contributor's first run — every
+        // --screenshot and every --cover came out as a picture of the consent dialog. The
+        // store assets the board is waiting on were being generated wrong and looked fine
+        // until somebody opened the file.
+        //
+        // Suppressing it is also correct rather than merely convenient: a capture run renders
+        // a few frames and exits, nobody is playing, and there is no session to consent to
+        // sending. Nothing is uploaded either way, because SendPending is not reached.
+        // --cover already funnels into _screenshotPath, so this covers both.
+        var capturing = _screenshotPath is not null;
+
+        _askingConsent = !capturing
+            && !_consent.Asked
+            && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
+
+        if (!_askingConsent && !capturing) _uploader.SendPending();
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.
