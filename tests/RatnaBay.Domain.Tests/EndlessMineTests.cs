@@ -161,9 +161,18 @@ public class EndlessMineTests
             .Select(group => group.Max(spawn => spawn.Level))
             .ToList();
 
-        foreach (var pair in byRoom.Zip(byRoom.Skip(1)))
-            Assert.That(pair.Second, Is.GreaterThanOrEqualTo(pair.First),
+        // The band is what must never go backwards; an individual roll may. Levels are drawn
+        // per body now, so comparing sampled maxima across a join measures the dice.
+        var rooms = mine.Spawns.Select(spawn => spawn.RoomIndex).Distinct().OrderBy(i => i).ToList();
+
+        foreach (var pair in rooms.Zip(rooms.Skip(1)))
+            Assert.That(EnemyLevels.Band(tier: 1, pair.Second).Low,
+                Is.GreaterThanOrEqualTo(EnemyLevels.Band(tier: 1, pair.First).Low),
                 "a segment join must not be a step backwards");
+
+        // And the mine still gets harder end to end, which is the point the band serves.
+        Assert.That(byRoom[^1], Is.GreaterThan(byRoom[0]),
+            "three segments in and the far end is no worse than the entrance");
     }
 
     // ---------------------------------------------------------------- determinism

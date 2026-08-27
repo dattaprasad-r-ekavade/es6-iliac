@@ -30,6 +30,16 @@ public static class EnemyCatalog
     public const string PishachaId = "pishacha";
 
     /// <summary>
+    /// Whether this archetype leads a room rather than filling it.
+    ///
+    /// Asked by the level roll, which gives a leader a step over the band its room was drawn
+    /// from. Kept beside the ids rather than as a flag on the archetype so that the generator
+    /// can ask before it has built anything.
+    /// </summary>
+    public static bool LeadsARoom(string? archetypeId) =>
+        archetypeId is VetalaId or PishachaId;
+
+    /// <summary>
     /// The old id for the common tier.
     ///
     /// Kept so that saves and mine manifests written before the rename still load. Nothing new

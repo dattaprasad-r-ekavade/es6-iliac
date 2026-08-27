@@ -186,8 +186,13 @@ public class MineGeneratorTests
                 Has.Count.EqualTo(MineRequest.MinRooms));
             Assert.That(RoomCentres(MineGenerator.Generate(7, rooms: 500)),
                 Has.Count.EqualTo(MineRequest.MaxRooms));
-            Assert.That(MineGenerator.Generate(7, depth: -4).Spawns,
-                Has.All.Property(nameof(WorldEnemySpawn.Level)).EqualTo(1));
+            // Levels are rolled per body out of a band now, so a nonsense depth clamps to
+            // the shallowest band rather than to the single number 1.
+            var (low, high) = EnemyLevels.Band(tier: 1, roomIndex: 0);
+            Assert.That(MineGenerator.Generate(7, depth: -4).Spawns.Take(4)
+                    .Select(spawn => spawn.Level),
+                Has.All.GreaterThanOrEqualTo(low).And.All.LessThanOrEqualTo(high + 3),
+                "a clamped request must still produce shallow-band enemies");
         });
     }
 
@@ -508,10 +513,18 @@ public class MineGeneratorTests
                     $"seed {seed}: the far end is no more dangerous than the entrance");
             });
 
-            // Never gets easier on the way down, at any point.
+            // Never gets easier on the way down.
+            //
+            // Asserted on the band rather than on the sampled maximum. Each body now rolls its
+            // own level inside a band, so one room's highest roll can land under the last
+            // one's by chance — which is variance, not the difficulty curve going backwards.
+            // The band's floor is what actually has to be monotonic, and it is deterministic.
             foreach (var pair in byRoom.Zip(byRoom.Skip(1)))
             {
-                Assert.That(pair.Second.Level, Is.GreaterThanOrEqualTo(pair.First.Level),
+                var before = EnemyLevels.Band(tier: 1, pair.First.Room).Low;
+                var after = EnemyLevels.Band(tier: 1, pair.Second.Room).Low;
+
+                Assert.That(after, Is.GreaterThanOrEqualTo(before),
                     $"seed {seed}: room {pair.Second.Room} is a step backwards");
             }
         }

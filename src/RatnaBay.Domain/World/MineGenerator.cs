@@ -557,10 +557,13 @@ public static class MineGenerator
             var isLast = local == cells.Count - 1;
             var count = Math.Min(MaxEnemiesPerRoom, 1 + index / 2 + (isLast ? 1 : 0));
 
-            // Depth has to bite, or a long mine is only a long walk. Enemies gain a level
-            // every few rooms, so the room after the door is always worse than the one behind
+            // Depth has to bite, or a long mine is only a long walk. Enemies gain levels as
+            // the mine goes on, so the room after the door is always worse than the one behind
             // it — which is the only thing that makes pressing on a risk rather than a chore.
-            var level = request.Depth + index / RoomsPerLevel;
+            //
+            // Rolled per body rather than per room. One number for the whole room made every
+            // room a squad of clones; EnemyLevels gives each one its own level out of a band
+            // that the cave's tier and the walk so far decide between them.
             var placed = new List<WorldVector>();
 
             for (var slot = 0; slot < count; slot++)
@@ -568,12 +571,15 @@ public static class MineGenerator
                 var position = FindSpawnPoint(cell, placed, random);
                 if (position is null) continue;
 
+                var archetypeId = ChooseArchetype(index, slot, random);
+
                 placed.Add(position);
                 manifest.Spawns.Add(new WorldEnemySpawn
                 {
                     Id = $"{request.MineId}.room{index:00}.enemy{slot:00}",
-                    ArchetypeId = ChooseArchetype(index, slot, random),
-                    Level = level,
+                    ArchetypeId = archetypeId,
+                    Level = EnemyLevels.Roll(request.Depth, index,
+                        EnemyCatalog.LeadsARoom(archetypeId), random),
                     Position = position,
                     RoomIndex = index
                 });
@@ -677,42 +683,4 @@ public static class MineGenerator
         2 => new WorldColor(68, 66, 72),
         _ => new WorldColor(62, 58, 56)
     };
-
-    /// <summary>
-    /// A deliberately small generator, written out rather than taken from the framework.
-    ///
-    /// Seeds get quoted in bug reports and shared between players, so "seed 4211 is the same
-    /// mine everywhere, forever" has to be a property of this file — not of whichever runtime
-    /// happens to be installed.
-    ///
-    /// This is SplitMix32: a counter plus an avalanche. The first version here was a bare
-    /// xorshift, and its low bits were correlated enough that `% 5` returned the same direction
-    /// several steps running — every mine came out a straight corridor. The mixing step is not
-    /// decoration; without it the layout variety this whole class exists for does not happen.
-    /// </summary>
-    private sealed class Prng
-    {
-        private uint _state;
-
-        public Prng(int seed) => _state = unchecked((uint)seed);
-
-        public uint NextUInt()
-        {
-            unchecked
-            {
-                _state += 0x9E3779B9u;
-                var z = _state;
-                z = (z ^ (z >> 16)) * 0x21F0AAADu;
-                z = (z ^ (z >> 15)) * 0x735A2D97u;
-                return z ^ (z >> 15);
-            }
-        }
-
-        /// <summary>Scaled from the high bits, which are the well-mixed ones.</summary>
-        public int Next(int exclusiveMax) =>
-            exclusiveMax <= 1 ? 0 : (int)(((ulong)NextUInt() * (ulong)exclusiveMax) >> 32);
-
-        public float NextFloat(float min, float max) =>
-            min + (max - min) * (NextUInt() / (float)uint.MaxValue);
-    }
 }
