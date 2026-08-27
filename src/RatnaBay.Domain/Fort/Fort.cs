@@ -83,8 +83,8 @@ public static class FortRoster
                 F("gate.2", Rank.Sthanika, 6,
                     "Your column is longer than most. That is not always a compliment here."),
                 F("gate.3", Rank.Pradeshika, 12,
-                    "I have kept this ledger eleven years. The totals never balance, and I am "
-                    + "not permitted to say so in writing.")
+                    "I have kept this ledger eleven years. The totals never balance. The last "
+                    + "person who said so out loud is behind a door at the bottom of a mine.")
             }),
 
         new("fort.hall", "The Order's Hall", "Sona", "Lamp-keeper", Rank.Yukta,
@@ -96,11 +96,11 @@ public static class FortRoster
                     "Dipadhara, they call us. Lamp-bearers. On the tally roll we are "
                     + "akara-shantika — mine-pacifiers. The state prefers its own word."),
                 F("hall.2", Rank.Sthanika, 8,
-                    "We are one year old. The committee gave us the name and never said who "
-                    + "chose it, and it has never once fitted the work."),
+                    "We are one year old. We are named for a woman who ran the mines and "
+                    + "counted her people in and out, which nobody had thought to do before."),
                 F("hall.3", Rank.Adhyaksha, 18,
-                    "There is no lamp for the first one. She died the winter before we were "
-                    + "founded, so the roll says she was never one of ours. I light one anyway.")
+                    "Her lamp is the first on the wall and her name is on no roll in this "
+                    + "province. We remembered her and never once wrote her down.")
             }),
 
         new("fort.assay", "The Assay", "Nagadatta", "Assayer", Rank.Sthanika,
@@ -204,8 +204,8 @@ public static class FortRoster
                     "I inherited an arrangement. I have kept it because the alternative is a "
                     + "province that starves in a season."),
                 F("gov.2", Rank.Mahamatra, 26,
-                    "Uttara went down last winter to close the seam, and did not come back. "
-                    + "Whatever stopped her is between you and the bottom."),
+                    "Uttara shut that door from the inside and it held five years. We did not "
+                    + "lose it. We ordered it broken open, because the quota came."),
                 F("gov.3", Rank.Mahamatra, 30,
                     "You can expose it, take it, or end it. I have had thirty years to choose "
                     + "and I chose none of them.")
