@@ -21,12 +21,16 @@ public sealed class StoneSlots
 {
     private readonly PlayerEquipment _equipment;
 
+    /// <summary>The order's permanent gains, which can add a socket. Null in isolated tests.</summary>
+    private readonly Legacy? _legacy;
+
     private readonly List<string> _socketed = new();
     private readonly List<string> _loose = new();
 
-    public StoneSlots(PlayerEquipment equipment)
+    public StoneSlots(PlayerEquipment equipment, Legacy? legacy = null)
     {
         _equipment = equipment;
+        _legacy = legacy;
 
         // Changing gear mid-run can shrink the sockets available. Anything that no longer
         // fits falls back into the pack rather than vanishing.
@@ -37,7 +41,8 @@ public sealed class StoneSlots
 
     /// <summary>Sockets in the weapon and armour currently held.</summary>
     public int Capacity => SocketsOf(_equipment.Weapon.Tier, _equipment.WeaponId)
-        + SocketsOf(_equipment.Armour?.Tier ?? 0, _equipment.ArmourId);
+        + SocketsOf(_equipment.Armour?.Tier ?? 0, _equipment.ArmourId)
+        + (_legacy?.Has(AmuletEffect.Socket) == true ? 1 : 0);
 
     /// <summary>
     /// How many sockets a piece has.

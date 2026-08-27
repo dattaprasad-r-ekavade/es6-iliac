@@ -55,8 +55,24 @@ public sealed class PlayerCombat
     /// <summary>Sockets, when there are any. Null in the isolated tests that predate them.</summary>
     private readonly StoneSlots? _stones;
 
+    /// <summary>The order's permanent gains. Null in isolated tests.</summary>
+    private readonly Legacy? _legacy;
+
+    /// <summary>
+    /// False until the first blow lands in the current room.
+    ///
+    /// Steady Hand makes that blow an opening, which is worth double. Tracked per room rather
+    /// than per fight so it cannot be farmed by backing out of a doorway and re-entering — a
+    /// room is entered once, and the game layer says when.
+    /// </summary>
+    private bool _firstBloodSpent;
+
+    /// <summary>Called when a room is entered, so Steady Hand can arm again.</summary>
+    public void EnterRoom() => _firstBloodSpent = false;
+
     public PlayerCombat(PlayerVitals vitals, PlayerEquipment equipment, SkillProgression skills,
-        LifePath? path = null, Inventory? inventory = null, StoneSlots? stones = null)
+        LifePath? path = null, Inventory? inventory = null, StoneSlots? stones = null,
+        Legacy? legacy = null)
     {
         _vitals = vitals;
         _equipment = equipment;
@@ -64,6 +80,7 @@ public sealed class PlayerCombat
         _path = path ?? new LifePath();
         _inventory = inventory;
         _stones = stones;
+        _legacy = legacy;
     }
 
     /// <summary>True when a stone with this effect is socketed right now.</summary>
@@ -151,6 +168,16 @@ public sealed class PlayerCombat
         // the reward for being in the room rather than waiting in the doorway, and it is what
         // the parked stealth pillar was really for.
         var opening = target.IsVulnerable;
+
+        // Steady Hand: the first blow landed in a room is an opening whether or not the target
+        // was actually helpless. Spent even when the target was already vulnerable, so the
+        // amulet cannot be banked through an ambush and used later in the same room.
+        if (!_firstBloodSpent && _legacy?.Has(AmuletEffect.FirstBlood) == true)
+        {
+            opening = true;
+            _firstBloodSpent = true;
+        }
+
         var damage = opening ? WeaponDamage * OpeningStrikeMultiplier : WeaponDamage;
         var dealt = target.TakeDamage(damage, ActiveWeapon.DisplayName);
 

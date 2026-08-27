@@ -78,7 +78,15 @@ public static class Succession
         if (player is null) throw new ArgumentNullException(nameof(player));
 
         var unspent = player.Vitals.Xp;
-        var lost = HalveThePack(player.Inventory);
+
+        // Long Memory is the one amulet that pays out at the worst moment, which is when a
+        // permanent buff is worth most: the run that earns nothing else still leaves the
+        // successor better off than the last one was.
+        var kept = player.Legacy.Has(AmuletEffect.LongMemory)
+            ? AmuletCatalog.LongMemoryPackKept
+            : 0f;
+
+        var lost = HalveThePack(player.Inventory, PackLost - kept);
 
         player.Vitals.ClearUnspentXp();
         player.Vitals.FullRestore();
@@ -102,9 +110,14 @@ public static class Succession
     /// Rounding down means a single potion is a single potion lost. That is the intended
     /// weight of a death; rounding the other way would make small packs immortal.
     /// </summary>
-    private static int HalveThePack(Inventory inventory)
+    /// <param name="share">
+    /// The fraction taken. Passed in rather than read from the constant so Long Memory can
+    /// reduce it, and clamped here so no amulet can ever make death free.
+    /// </param>
+    private static int HalveThePack(Inventory inventory, float share)
     {
         var lost = 0;
+        var taken = Math.Clamp(share, 0.1f, 1f);
 
         foreach (var stack in inventory.Items.ToList())
         {
@@ -112,7 +125,7 @@ public static class Succession
             // player behind their own progress.
             if (string.Equals(stack.Kind, "key", StringComparison.OrdinalIgnoreCase)) continue;
 
-            var take = (int)MathF.Ceiling(stack.Count * PackLost);
+            var take = (int)MathF.Ceiling(stack.Count * taken);
             if (take <= 0) continue;
 
             inventory.Consume(stack.Id, take);
@@ -132,9 +145,67 @@ public static class Succession
 public sealed class Legacy
 {
     private int _generation;
+    private readonly List<string> _amulets = new();
 
     /// <summary>How many have died. The first Deepankar is generation zero.</summary>
     public int Generation => _generation;
+
+    /// <summary>
+    /// Everything permanent the order has earned.
+    ///
+    /// Held here rather than on the character because that is what makes them survive death
+    /// without anybody remembering to copy them: <see cref="Succession.Promote"/> replaces the
+    /// person and never touches the legacy. A list on the character would have to be exempted
+    /// from the reset by hand, and the one that got forgotten would be the bug nobody found
+    /// until a player lost an amulet they had earned.
+    /// </summary>
+    public IReadOnlyList<string> Amulets => _amulets;
+
+    /// <summary>
+    /// The deepest room reached by anybody in this line, ever.
+    ///
+    /// A high-water mark rather than a per-run figure, because amulets are earned by beating
+    /// it. Dying does not lower it — the order remembers how far it got even when the person
+    /// who got there did not come back.
+    /// </summary>
+    public int DeepestEver { get; private set; }
+
+    public bool Has(AmuletEffect effect) =>
+        _amulets.Any(id => AmuletCatalog.Find(id)?.Effect == effect);
+
+    /// <summary>
+    /// Record how deep a run reached and award whatever that earns.
+    ///
+    /// Called whether the run was banked or lost, which is the entire point of the mechanism.
+    /// Returns what was earned so the summary screen can say so.
+    /// </summary>
+    public IReadOnlyList<string> RecordDepth(int roomsReached)
+    {
+        if (roomsReached <= DeepestEver) return Array.Empty<string>();
+
+        var earned = AmuletCatalog.EarnedBetween(DeepestEver, roomsReached);
+        DeepestEver = roomsReached;
+
+        foreach (var id in earned)
+            if (AmuletCatalog.Find(id) is not null && !_amulets.Contains(id))
+                _amulets.Add(id);
+
+        Changed?.Invoke();
+        return earned;
+    }
+
+    /// <summary>Restore from a save.</summary>
+    public void RestoreAmulets(IEnumerable<string>? amulets, int deepestEver)
+    {
+        _amulets.Clear();
+
+        foreach (var id in amulets ?? Enumerable.Empty<string>())
+            if (AmuletCatalog.Find(id) is not null && !_amulets.Contains(id))
+                _amulets.Add(id);
+
+        DeepestEver = Math.Max(0, deepestEver);
+        Changed?.Invoke();
+    }
 
     /// <summary>The body waiting to be found, if there is one.</summary>
     public FallenCache? Fallen { get; private set; }
@@ -174,7 +245,9 @@ public sealed class Legacy
         RoomIndex = Fallen?.RoomIndex ?? 0,
         Stones = Fallen?.Stones ?? 0,
         Name = Fallen?.Name ?? string.Empty,
-        HasFallen = Fallen is not null
+        HasFallen = Fallen is not null,
+        Amulets = _amulets.ToList(),
+        DeepestEver = DeepestEver
     };
 
     public void Restore(SavedLegacy? saved)
@@ -191,6 +264,10 @@ public sealed class Legacy
             }
             : null;
 
+        // Restored rather than merged, and unknown ids dropped, so an amulet removed from the
+        // catalogue cannot resurrect itself out of an old save.
+        RestoreAmulets(saved?.Amulets, saved?.DeepestEver ?? 0);
+
         Changed?.Invoke();
     }
 
@@ -198,6 +275,8 @@ public sealed class Legacy
     {
         _generation = 0;
         Fallen = null;
+        _amulets.Clear();
+        DeepestEver = 0;
         Changed?.Invoke();
     }
 }
@@ -211,4 +290,10 @@ public sealed class SavedLegacy
     public int RoomIndex { get; init; }
     public int Stones { get; init; }
     public string Name { get; init; } = string.Empty;
+
+    /// <summary>Permanent gains. Everything here survives death by definition.</summary>
+    public List<string> Amulets { get; init; } = new();
+
+    /// <summary>The high-water mark amulets are earned against.</summary>
+    public int DeepestEver { get; init; }
 }

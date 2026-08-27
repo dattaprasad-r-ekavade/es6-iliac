@@ -14,10 +14,15 @@ public sealed class PlayerCharacter
         Inventory = inventory ?? new Inventory();
         Skills = new SkillProgression();
         LifePath = new LifePath();
-        Vitals = new PlayerVitals(Inventory);
+        Vitals = new PlayerVitals(Inventory, Legacy);
         Equipment = new PlayerEquipment(Inventory);
-        Stones = new StoneSlots(Equipment);
-        Combat = new PlayerCombat(Vitals, Equipment, Skills, LifePath, Inventory, Stones);
+        Stones = new StoneSlots(Equipment, Legacy);
+        Combat = new PlayerCombat(Vitals, Equipment, Skills, LifePath, Inventory, Stones, Legacy);
+
+        // The experience track is now the only source of character level, and a level is worth
+        // points to spend. Wired here rather than inside either component so neither has to
+        // know the other exists.
+        Vitals.LevelGained += _ => Skills.GrantPoints();
         Spells = new SpellCaster(Vitals, Skills, LifePath);
         Detection = new Detection(Skills);
         Story = new StoryDirector();

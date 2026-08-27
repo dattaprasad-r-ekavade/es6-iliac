@@ -3069,6 +3069,12 @@ public sealed class Game1 : Game, IConsoleTarget
         // the window — and only clearing here cannot leave last run's stones in the sockets.
         _session?.Player.Stones.ClearForDescent();
 
+        // Bearer's Mark: one more stone than was bought, every descent. Given on entry rather
+        // than held in the pack, so it cannot be stockpiled by starting runs and backing out.
+        if (_session?.Player.Legacy.Has(AmuletEffect.Bearer) == true)
+            _session.Player.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 1,
+                SoulCrystals.ItemKind);
+
         // A deterministic stream per mine, so the same seed gives the same stones. A run worth
         // reporting can be asked for again exactly, which the recorder depends on.
         _stoneDrops = new Random(seed * 397 + _mineDepth);
@@ -3079,6 +3085,8 @@ public sealed class Game1 : Game, IConsoleTarget
 
         _run.RoomEntered += room =>
         {
+            _session?.Player.Combat.EnterRoom();
+
             _recorder.Record(PlayEventKind.RoomEntered,
                 $"room {room}", room, 0f, _session?.Player.Vitals.Health ?? 0f,
                 _session?.Player.Vitals.Prana ?? 0f);
@@ -3110,11 +3118,28 @@ public sealed class Game1 : Game, IConsoleTarget
     /// Camping pays out here rather than in the domain because this is where the inventory
     /// lives; the ledger's job ends at deciding the number.
     /// </summary>
+    /// <summary>What the run that just ended earned permanently, for the summary screen.</summary>
+    private IReadOnlyList<string> _earnedAmulets = Array.Empty<string>();
+
     private void EndRun(RunResult result)
     {
         _runSummary = result;
         if (result.Survived) _succession = null;
         SetMouseLook(false, forPanel: true);
+
+        // The ratchet, and the reason it is recorded here rather than on a successful bank:
+        // amulets are earned by going deeper than the order ever has, whether the person who
+        // went there came back or not. A run that ends in a corpse two rooms past the previous
+        // best still pays, which is the whole question this iteration exists to answer.
+        _earnedAmulets = _session is null
+            ? Array.Empty<string>()
+            : _session.Player.Legacy.RecordDepth(result.RoomsCleared);
+
+        foreach (var id in _earnedAmulets)
+        {
+            _session?.ShowToast($"{AmuletCatalog.Find(id)?.DisplayName} — kept for good.");
+            _sfx?.Play(Sfx.Chime, 0.7f);
+        }
 
         // A descent is a supply run for the stall as much as for the player. Restocking here
         // is also what keeps a death from being unrecoverable: half the pack is gone, and the
@@ -4098,7 +4123,8 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         var pointer = LogicalMouse(_input.CurrentMouse);
         var hovered = UiLayout.SummaryButton.Contains((int)pointer.X, (int)pointer.Y);
-        _screens.Descent.DrawRunSummary(summary, _session?.Player, _succession, hovered);
+        _screens.Descent.DrawRunSummary(summary, _session?.Player, _succession, hovered,
+            _earnedAmulets);
     }
 
     /// <summary>
