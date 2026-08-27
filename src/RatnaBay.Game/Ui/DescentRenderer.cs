@@ -240,7 +240,7 @@ internal sealed class DescentRenderer
             var legacy = player.Legacy;
             var successor = legacy.CurrentName;
 
-            _ui.TextCentred($"{successor} takes the lamp  ·  Dipadhara the {Ordinal(legacy.Generation + 1)}",
+            _ui.TextCentred($"{successor} takes the lamp  ·  Bhagiratha the {Ordinal(legacy.Generation + 1)}",
                 panel.Center.X, panel.Bottom - 88f, 15, new Color(214, 200, 170));
 
             if (legacy.Fallen is { } cache)

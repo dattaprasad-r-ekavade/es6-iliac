@@ -3666,7 +3666,7 @@ public sealed class Game1 : Game, IConsoleTarget
     private const string CachePickupId = "cache.fallen";
 
     /// <summary>
-    /// Put the last Dipadhara's cache into the mine that killed them.
+    /// Put the last Bhagiratha's cache into the mine that killed them.
     ///
     /// Added to the manifest rather than special-cased at runtime, so it is found, taken,
     /// saved and remembered by exactly the same machinery as everything else on the floor.
@@ -3687,7 +3687,7 @@ public sealed class Game1 : Game, IConsoleTarget
             Id = CachePickupId,
             ItemId = SoulCrystals.LesserId,
             Name = string.IsNullOrWhiteSpace(cache.Name)
-                ? "A Dipadhara's Cache"
+                ? "A Bhagiratha's Cache"
                 : $"{cache.Name}'s Cache",
             Kind = SoulCrystals.ItemKind,
             Count = cache.Stones,
@@ -4283,7 +4283,7 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// Names over the three things in the yard, and a line saying what a Dipadhara is for.
+    /// Names over the three things in the yard, and a line saying what a Bhagiratha is for.
     ///
     /// Reported as not knowing what to do here, which was fair: a walled yard with no labels
     /// and no instruction is a room, not a hub. A name floating over each fixture answers

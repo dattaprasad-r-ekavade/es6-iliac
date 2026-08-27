@@ -130,7 +130,7 @@ no cost to the loop. Worth trying after the fort version is in.
 
 ## 4. The order, and why it should be the one talking
 
-Story delivered as **the Dipadhara managing a failing supply**, with the player as their agent.
+Story delivered as **the Bhagiratha managing a failing supply**, with the player as their agent.
 
 The fort's twenty-four fragments are good and they are passive: the player reads them. Giving
 the order a problem, and the player a part in it, turns a fort visit from reading into doing —
@@ -188,7 +188,7 @@ The acts from `STORY.md` against the systems that exist. The conjunction rule st
 | **Turn I — the supply does not add up** | `Talatala` + depth 10 | ✅ `phys.1` |
 | The order was founded to stop this | `Sutala` + depth 8 | ✅ `hall.2` |
 | A stone taken is your life | `Rasatala` + depth 18 | ✅ `reg.2` |
-| **Turn II — the first Dipadhara** | `Patala` + depth 26 | ✅ `gov.2` |
+| **Turn II — the first Bhagiratha** | `Patala` + depth 26 | ✅ `gov.2` |
 | Act III — the choice | `Patala` + depth 30 | ✅ `gov.3` |
 
 **The acts are already placed.** What the turns lack is consequence — each is a line that changes
@@ -196,7 +196,7 @@ nothing about what the player can do next. Each should hand something over:
 
 - **Turn I** — the supply is admitted to be short — starts the **errand chain** in §4. The story
   stops being something you read and becomes something you are sent to do.
-- **Turn II** — the first Dipadhara is named — opens **the seam**: one fixed descent to the
+- **Turn II** — the first Bhagiratha is named — opens **the seam**: one fixed descent to the
   bottom. `STORY.md` §10 asks whether a hand-authored level ever earns its cost. This is the one
   place, and one is enough.
 
@@ -245,7 +245,7 @@ answer for somebody who never committed to anything.
 Still unbuilt, still the strongest single idea available, and cheaper than when `STORY.md`
 proposed it: `Legacy.Fallen` exists, the vetala tier exists, the generator places elites.
 
-> A fallen Dipadhara whose cache is never recovered rises, in the mine where they fell, wearing
+> A fallen Bhagiratha whose cache is never recovered rises, in the mine where they fell, wearing
 > what they died in and named for who they were.
 
 And it should read the ledger: **a predecessor who burned heavily comes back as something
@@ -282,4 +282,4 @@ voice, and turn an inert counter into the spine the design has always claimed it
   Probably the latter — paying for it would make instability farmable.
 - Can instability ever be *reduced* deliberately, or only decay on its own? A way to spend
   stones on calming the mountain is elegant and risks becoming a chore tax.
-- What the first Dipadhara actually found. Named in `gov.2`, and nothing behind it is written.
+- What the first Bhagiratha actually found. Named in `gov.2`, and nothing behind it is written.

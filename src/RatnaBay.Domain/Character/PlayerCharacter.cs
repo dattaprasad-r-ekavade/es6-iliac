@@ -60,7 +60,7 @@ public sealed class PlayerCharacter
     public ObjectiveService Objective { get; }
     public WorldState World { get; }
 
-    /// <summary>The line of Dipadharas this save has spent, and the last body left below.</summary>
+    /// <summary>The line of Bhagirathas this save has spent, and the last body left below.</summary>
     public Legacy Legacy { get; } = new();
 
     public static string QuestCompletedFlag(string questId) =>

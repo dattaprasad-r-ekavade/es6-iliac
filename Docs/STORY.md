@@ -56,7 +56,7 @@ Right now that is a rule in a design document. It should be a scene.
 
 ### Successors are people
 
-Each new Dipadhara arrives with **one line about who they were before the order**. That is the
+Each new Bhagiratha arrives with **one line about who they were before the order**. That is the
 whole feature.
 
 > *"I dug this mountain nine years. I know what is down there."*
@@ -70,7 +70,7 @@ losing gets *more* story, not less, which is exactly the right way round.
 
 The mountain raises the dead. The order's dead are in the mountain. Therefore:
 
-> **A fallen Dipadhara whose cache is never recovered eventually rises.**
+> **A fallen Bhagiratha whose cache is never recovered eventually rises.**
 
 The design already has body recovery — once, on the next descent. The natural extension is that
 declining it, or dying before reaching it, has a consequence with a face on it. Meeting a
@@ -105,7 +105,7 @@ opens a room and each room admits a little more.
 The verses start reading as accusation rather than decoration. *Covet not — for whose is wealth?*
 is carved by the state, in a mine the state opened, to extract wealth.
 
-> **Turn:** deep in the mountain, the first Dipadhara. The order was founded to **stop** this, and
+> **Turn:** deep in the mountain, the first Bhagiratha. The order was founded to **stop** this, and
 > the state captured it — not by force, but by making it the most reliable employer in the
 > province.
 
@@ -241,7 +241,7 @@ the fort closed.
 
 ## 10. Open
 
-- Names for the province, the governor, and the first Dipadhara.
+- Names for the province, the governor, and the first Bhagiratha.
 - Whether the three endings are chosen or earned — a menu at the end is weak; an ending you have
   been walking toward for ten hours without being told is much stronger and much harder.
 - Whether Act III is playable or a resolution. A final descent is expensive and might be the only

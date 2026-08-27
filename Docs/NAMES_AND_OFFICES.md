@@ -237,7 +237,7 @@ stone is your life. The province's entire moral economy — that the thing every
 thing nobody may take — is a footnote in a 2,000-year-old text about mine management.
 
 Also usable: mining without authorisation draws imprisonment and forced labour. That is what
-happens to a Dipadhara who opens a mine they did not pay for.
+happens to a Bhagiratha who opens a mine they did not pay for.
 
 ### Two Ashokan reforms worth stealing
 
@@ -283,22 +283,57 @@ than to doctrine.
 that, and objects to the other words. One line, and the game has acknowledged what it is doing
 without building its loot economy on it.
 
-### Dipadhara → **Dipadhara**, with a second name
+### Deepankar → **Bhagiratha**, with a second name
 
-The problem: *Dipankara* is the name of a Buddha of the past.
+The original problem was small: *Dipankara* is the name of a Buddha of the past, and an order
+called that is stumbling into an irony rather than authoring one. The first fix was *Dipadhara*,
+lamp-bearer — accurate, unobjectionable, and completely inert. It described the equipment.
 
-**Recommendation: two names, because a real bureaucracy always produces two.**
+**The name is now Bhagiratha, and it is the only one of a dozen candidates that is about the job
+rather than the kit.**
+
+The myth, from the Ramayana and the Puranas: the sixty thousand sons of Sagara dug into the earth
+after a lost sacrificial horse, broke through into the netherworld, found a sage there, and were
+burnt to ash where they stood. Nobody counted them and nobody buried them, and they lay in the
+ground unredeemed for three generations — until **Bhagiratha** gave up his kingdom and spent his
+whole life on the austerities that brought the Ganga down from heaven so that men who had been
+dead for a century could finally have water poured for them.
+
+Everything this game is about is already in that story:
+
+- **It is a mining catastrophe.** Diggers went too deep, hit something that was not ore, and died
+  in numbers nobody wrote down. That is Ratna Bay's premise, told two thousand years earlier.
+- **The hero is not the one who descends.** He is the one who spends a life on the dead who
+  already did — which is precisely the order's stated purpose and precisely what the quota has
+  turned it into a pretext for.
+- **It is proverbial.** *Bhagiratha prayatna* — a Bhagiratha effort — still means impossible,
+  relentless, generation-long labour in most Indian languages. The name comes pre-loaded for a
+  large part of the audience, and for everyone else it is four clean syllables.
+
+**And it answers the open question about Uttara's second name.**
+
+The miners called her **Bhagirathi** — the feminine — because she was the one who went down after
+people nobody had counted. When the committee founded the order a year after she failed to come
+back, they took the name and put it back to **Bhagiratha**, the form the story has, the man's.
+
+One letter. It is the smallest possible act of erasure, it is completely deniable, and nobody who
+did it thought of it as anything at all. That is the whole thesis of the game in a vowel, and it
+is delivered in `hall.3`.
+
+**Two names, because a real bureaucracy always produces two.**
 
 - **Formally, on the tally roll: `Akara-shantika`** — "mine-pacifiers." *Shantika* is a real
   category: one who performs *shanti* rites, the pacification of what is dangerous or unquiet.
-  It is period-plausible, it is precisely their job, and it is what a state calls a contractor.
-- **Commonly, to everyone else: `Dipadhara`** — "lamp-bearer." A clean compound with no existing
-  referent, and it keeps the lamp, which the trailer's closing line depends on: *"When one falls,
-  another takes the lamp."*
+  Period-plausible, precisely their job, and exactly what a state calls a contractor.
+- **Commonly, to everyone else: `Bhagiratha`.**
 
-The gap between the two names is characterisation for nothing. The registrar says *akara-shantika*.
-The miners say *dipadhara*. What the order calls itself when nobody official is listening is a
-question worth one line of dialogue.
+The gap between the two is characterisation for nothing. The registrar says *akara-shantika*. The
+miners say *bhagiratha*. `hall.1` is the line that puts both in front of the player in their first
+ten minutes.
+
+**The lamp survives all of this.** It was never in the etymology — it is Revati's wall, one lamp
+per member, lit again when its person goes out, and the trailer's closing line depends on the
+image rather than the word: *"When one falls, another takes the lamp."*
 
 ### The rank ladder — the seven patalas
 
@@ -309,7 +344,7 @@ wrong twice over.
 office, and the fourth was *adhyaksha*, which is half the registrar's title. A ladder that shares
 words with the people standing on it teaches the player the wrong thing twice.
 
-**And a bureaucracy has no reason to grade you.** The state has exactly one word for a Dipadhara —
+**And a bureaucracy has no reason to grade you.** The state has exactly one word for a Bhagiratha —
 *akara-shantika*, on the tally roll — and no interest in a finer grain. The order ranks its own,
 and the only measure that means anything underground is how far down you have been and come back.
 

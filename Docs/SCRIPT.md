@@ -51,12 +51,12 @@ The great houses are sitting on strongboxes bleeding prana into their own cellar
 only hoarding the future — they are where it is arriving first. Nobody in those houses will say
 so, and everybody in them has stopped sleeping well.
 
-### Which makes the Dipadhara a job people take out of need
+### Which makes the Bhagiratha a job people take out of need
 
 This changes what the order is, and it is the change that makes the player a person rather than
 a class.
 
-**Nobody joins the Dipadhara for glory.** The work is lethal, everybody knows it is lethal, and
+**Nobody joins the Bhagiratha for glory.** The work is lethal, everybody knows it is lethal, and
 it is also one of the only ways in the province for somebody with nothing to end a year with
 something. They join for a debt, for a family, for a place in a queue, for a winter.
 
@@ -193,8 +193,8 @@ every five years and *"the last one did not reach us."* This one does.
 
 **The order.** Not the player character, who dies repeatedly by design.
 
-Individual Dipadharas get a **voice** — one line about who they were, and per §1 that line is
-almost always about money. The **arc** belongs to the Dipadhara: an order founded last spring to
+Individual Bhagirathas get a **voice** — one line about who they were, and per §1 that line is
+almost always about money. The **arc** belongs to the Bhagiratha: an order founded last spring to
 honour a woman its own founders overruled, staffed by people who have never been told that, and
 handed a chance to finish what she started by somebody who keeps coming back up.
 
@@ -281,7 +281,7 @@ Every step is a conversation with a decision:
 6. **The fort falls.** Rooms are held. Instability arrives as plot rather than weather.
 7. **The questions.** You start asking the clerk, then the governor, what nobody asks.
 
-> **Turn II** — *the first Dipadhara.* `gov.2`. Her name, and that she went down to close it.
+> **Turn II** — *the first Bhagiratha.* `gov.2`. Her name, and that she went down to close it.
 > The governor does not tell you she succeeded, because he does not know.
 
 ### Act III — The seam, and the choice
@@ -300,7 +300,7 @@ telling you what they would do.
 ## 9. The house: one descent that is not a mine
 
 Midway through Act II, a great house hires the order to clear its cellars. It is the only place
-in the game where a Dipadhara is **invited in** rather than sent down, and everything about the
+in the game where a Bhagiratha is **invited in** rather than sent down, and everything about the
 beat runs on that.
 
 ### Vasudatta, of the house of Ratnavardhana
@@ -478,4 +478,8 @@ rather than left contradicting it:
 - **Whether the mahamatra can be turned.** Currently no, and that is stronger. Worth one pass to
   be sure the game is not refusing something a player will reasonably expect.
 - **Names** for the province, the empire, and the governor's house.
-- **Uttara's second name** — the one the order kept and the register never had.
+- ~~**Uttara's second name**~~ — **closed.** She was **Bhagirathi** to the miners, for the
+  Ramayana's king who spent his life bringing water to sixty thousand diggers who died unburied
+  and uncounted. The order took the name and put it back to the masculine **Bhagiratha**, the
+  form the story has. One letter, entirely deniable, and nobody who did it thought of it as
+  anything. Delivered in `hall.3`; see `NAMES_AND_OFFICES.md`.

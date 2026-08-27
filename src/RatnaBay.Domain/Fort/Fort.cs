@@ -93,14 +93,17 @@ public static class FortRoster
             new[]
             {
                 F("hall.1", Rank.Atala, 1,
-                    "Dipadhara, they call us. Lamp-bearers. On the tally roll we are "
-                    + "akara-shantika — mine-pacifiers. The state prefers its own word."),
+                    "Bhagiratha, they call us, after the man who spent his whole life "
+                    + "fetching water for sixty thousand diggers nobody counted. On the "
+                    + "tally roll we are akara-shantika. Mine-pacifiers. The state prefers "
+                    + "its own word."),
                 F("hall.2", Rank.Sutala, 8,
                     "We are one year old. We are named for a woman who ran the mines and "
                     + "counted her people in and out, which nobody had thought to do before."),
                 F("hall.3", Rank.Rasatala, 18,
-                    "Her lamp is the first on the wall and her name is on no roll in this "
-                    + "province. We remembered her and never once wrote her down.")
+                    "The miners called her Bhagirathi. We are Bhagiratha. One letter, and "
+                    + "she is a story about a man again. Her lamp is first on that wall and "
+                    + "her name is on no roll in this province.")
             }),
 
         new("fort.assay", "The Assay", "Nagadatta", "Assayer", Rank.Vitala,
@@ -124,7 +127,7 @@ public static class FortRoster
                     + "most of what you are paying for."),
                 F("forge.2", Rank.Rasatala, 16,
                     "I have made the same six things for twenty years. The registrar decides "
-                    + "what a Dipadhara is allowed to carry.")
+                    + "what a Bhagiratha is allowed to carry.")
             }),
 
         new("fort.physician", "The Physician", "Visakha", "Physician", Rank.Talatala,

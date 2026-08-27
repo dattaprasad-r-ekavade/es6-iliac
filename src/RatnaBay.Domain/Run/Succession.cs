@@ -5,7 +5,7 @@ using System.Linq;
 namespace RatnaBay.Domain;
 
 /// <summary>
-/// What a fallen Dipadhara left where they fell.
+/// What a fallen Bhagiratha left where they fell.
 ///
 /// Recoverable once, on the next descent into that mine. This is what keeps a death costly
 /// without ever being terminal: stones are also what opens mines, so a total wipe could
@@ -28,7 +28,7 @@ public sealed class FallenCache
     public bool IsWorthFetching => Stones > 0;
 }
 
-/// <summary>What changed when one Dipadhara replaced another.</summary>
+/// <summary>What changed when one Bhagiratha replaced another.</summary>
 public readonly record struct SuccessionResult(
     int Level,
     int UnspentXpCleared,
@@ -137,7 +137,7 @@ public static class Succession
 }
 
 /// <summary>
-/// The line of Dipadharas this save has spent, and what the last one left behind.
+/// The line of Bhagirathas this save has spent, and what the last one left behind.
 ///
 /// Kept apart from <see cref="PlayerVitals"/> because it outlives a character: the vitals
 /// belong to whoever is currently holding the lamp, and this belongs to the save.
@@ -172,7 +172,7 @@ public sealed class Legacy
     public bool HasHeard(string? fragmentId) =>
         fragmentId is not null && _heard.Contains(fragmentId);
 
-    /// <summary>How many have died. The first Dipadhara is generation zero.</summary>
+    /// <summary>How many have died. The first Bhagiratha is generation zero.</summary>
     public int Generation => _generation;
 
     /// <summary>

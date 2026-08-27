@@ -82,9 +82,10 @@ in earlier reigns, and older things from before the province had a name.
 This makes mining lethal in a way the state cannot tax its way around, so it does what states do
 and contracts the problem out.
 
-### The Dipadhara
+### The Bhagiratha
 
-The **Dipadhara** — light-givers — are the order the province hires to go down and clear the
+The **Bhagiratha** — named for the king who spent a lifetime bringing water to sixty thousand
+diggers who died unburied — are the order the province hires to go down and clear the
 caves before the miners follow.
 
 They are paid in what they bring up. They are not soldiers, not priests, and not quite
@@ -105,7 +106,7 @@ This matters for tone and it matters for how the game reads to a large part of i
 suffering — hunger that cannot be satisfied, want that outlives the body. They are objects of
 compassion in the source material, not of disgust.
 
-**So the verb is release, not exterminate.** The Dipadhara do not kill preta; they finish
+**So the verb is release, not exterminate.** The Bhagiratha do not kill preta; they finish
 something that was left unfinished. That is what a light-giver is for. This costs nothing
 mechanically — the fight is the same fight — and it buys three things:
 
@@ -180,7 +181,7 @@ pillar in a cave two hundred metres down means somebody official came this far, 
 - **Ring-wells**, stacked terracotta rings — a silhouette nobody has seen in a game.
 - **Iron tools**: hand-hammered picks, wedges, and the timber cribbing of a shaft.
 - **Palm-leaf records** and clay sealings — the fort's paperwork, and the province's real weapon.
-- **Oil lamps** — the Dipadhara's own emblem, and a light source that justifies itself.
+- **Oil lamps** — the Bhagiratha's own emblem, and a light source that justifies itself.
 
 ### The fort
 

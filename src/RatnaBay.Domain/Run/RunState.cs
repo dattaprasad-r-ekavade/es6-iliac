@@ -224,7 +224,7 @@ public sealed class RunState
     /// <summary>
     /// Death forfeits the pot entirely.
     ///
-    /// It is recoverable: the fallen Dipadhara's cache is found once on the next descent into
+    /// It is recoverable: the fallen Bhagiratha's cache is found once on the next descent into
     /// this mine. That is succession's job, not this one — but the amount is recorded here
     /// because this is the only place that still knows it.
     /// </summary>

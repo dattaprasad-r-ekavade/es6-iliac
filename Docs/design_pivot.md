@@ -28,7 +28,7 @@ it — the past lives of dead miners, warriors, and whoever else the mountain ha
 therefore lethal work, and the town hires people to go down and clear the caves before the
 miners follow.
 
-You are a stranger who joins the **Dipadhara** — the Light-givers — the order that does that
+You are a stranger who joins the **Bhagiratha** — the Light-givers — the order that does that
 clearing.
 
 ---
@@ -110,7 +110,7 @@ correct play at every step, because the pot grows while the prize does not. Risi
 level. Levels already earned are kept.
 
 **But the body can be recovered.** Your successor's next descent into that mine finds the fallen
-Dipadhara's cache, once. This keeps the loss real without creating an unrecoverable state —
+Bhagiratha's cache, once. This keeps the loss real without creating an unrecoverable state —
 stones are also what opens mines, so a total wipe could otherwise leave a player unable to
 descend at all. It is also simply what an order like this would do for its own.
 
@@ -167,7 +167,7 @@ Each path is a different difficulty curve rather than a different power level.
 
 **You do not resurrect. You are replaced.**
 
-When you die in a mine, another Dipadhara takes up the work. The new one inherits:
+When you die in a mine, another Bhagiratha takes up the work. The new one inherits:
 
 - **All amulets.** Everything permanent carries over.
 - **Half your gear.** The rest stays in the mountain.
@@ -207,7 +207,7 @@ successor. This is the ratchet that makes a losing run still worth something.
 ### Access — rank and jiva stones
 
 - **Jiva stones** crack open deeper mines. Money gates depth.
-- **Dipadhara rank** gates the town. The town is not a capital — it is a **fort** of about
+- **Bhagiratha rank** gates the town. The town is not a capital — it is a **fort** of about
   **ten rooms**. Each successful run and the gold it earns opens **one more**, and every room
   adds to the story: the history, the past, and the truth about the jiva stones.
 

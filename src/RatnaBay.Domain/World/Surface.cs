@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace RatnaBay.Domain;
 
 /// <summary>
-/// The yard above the mines: where a Dipadhara stands between descents.
+/// The yard above the mines: where a Bhagiratha stands between descents.
 ///
 /// Built in code for the same reasons the mines are — it is testable, it is a few hundred
 /// lines rather than a few thousand of hand-written JSON, and it emits the manifest format

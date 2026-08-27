@@ -8,7 +8,7 @@ namespace RatnaBay.Domain;
 /// Standing in the order, and therefore in the fort.
 ///
 /// **These are the order's own rungs, not the empire's.** The state has exactly one word for a
-/// Dipadhara — *akara-shantika* on the tally roll — and no interest in a finer grain than that.
+/// Bhagiratha — *akara-shantika* on the tally roll — and no interest in a finer grain than that.
 /// So the order ranks its own the only way that means anything underground: by which floor of
 /// the world below you have been to and come back from.
 ///
@@ -123,7 +123,7 @@ public static class Ranks
 }
 
 /// <summary>
-/// What the order has done, across every Dipadhara who has held the lamp.
+/// What the order has done, across every Bhagiratha who has held the lamp.
 ///
 /// Lives on <see cref="Legacy"/> for the same reason amulets do: it has to survive death.
 /// Rank is the order's standing, not one person's, and a successor who arrived to find
