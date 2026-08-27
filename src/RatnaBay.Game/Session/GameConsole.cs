@@ -141,8 +141,8 @@ internal static class GameConsole
 
                 var yaw = game.CameraYaw;
                 var position = game.CameraPosition
-                    + new Vector3(-MathF.Sin(yaw), 0f, -MathF.Cos(yaw)) * forward
-                    + new Vector3(MathF.Cos(yaw), 0f, -MathF.Sin(yaw)) * right
+                    + new Vector3(MathF.Sin(yaw), 0f, -MathF.Cos(yaw)) * forward
+                    + new Vector3(MathF.Cos(yaw), 0f, MathF.Sin(yaw)) * right
                     + new Vector3(0f, up, 0f);
 
                 game.PlaceAt(position);
@@ -160,7 +160,7 @@ internal static class GameConsole
                         return $"No landmark '{args.Text(1)}'. Try: {LandmarkNames}.";
 
                     var here = game.CameraPosition;
-                    var yaw = MathF.Atan2(-(landmark.X - here.X), -(landmark.Z - here.Z));
+                    var yaw = YawTowards(landmark.X - here.X, landmark.Z - here.Z);
                     game.LookAt(yaw, args.Number(2, -0.05f));
                     return $"Facing the {args.Text(1)} (yaw {yaw:0.00}).";
                 }
@@ -413,13 +413,11 @@ internal static class GameConsole
 
                 if (target is null) return "The room is clear.";
 
-                var yaw = MathF.Atan2(-(target.Position.X - here.X), -(target.Position.Z - here.Z));
+                var yaw = YawTowards(target.Position.X - here.X, target.Position.Z - here.Z);
 
-                // Pitch as well, and this is not a nicety. The camera is at eye height and an
-                // enemy's middle is about a metre off the floor, so at two metres the target
-                // sits some thirty-four degrees below level -- outside the 0.6 rad targeting
-                // cone. Facing with pitch zero aimed over its head, and every swing in the
-                // first scripted fight missed for exactly that reason.
+                // Pitch is cosmetic here: Targeting works on a flat cone and a flat distance,
+                // so where the crosshair sits vertically has no bearing on what a swing lands
+                // on. It is set anyway so a capture looks like a person aiming at a person.
                 var flat = target.Position.FlatDistanceTo(here);
                 var rise = target.Position.Y + 0.9f - here.Y;
                 var pitch = MathF.Atan2(rise, MathF.Max(0.01f, flat));
@@ -721,6 +719,18 @@ internal static class GameConsole
     /// console's idea of standing somewhere underground or in the air.
     /// </summary>
     private static float PlayerEye => Surface.Spawn.Y;
+
+    /// <summary>
+    /// The yaw that points at something offset by this much.
+    ///
+    /// Derived from Targeting.FlatForward, which is (sin yaw, 0, -cos yaw) and is also what
+    /// the camera transform produces. Three commands here had written their own version with
+    /// the X term negated, so they aimed at the mirror image of the target about the Z axis:
+    /// dead on when the thing was straight ahead, and wrong by twice the bearing when it was
+    /// not. That is why a scripted swing landed on an enemy at 1.6 m and missed one at 2.2 m
+    /// -- nothing to do with reach, everything to do with facing the wrong way.
+    /// </summary>
+    private static float YawTowards(float dx, float dz) => MathF.Atan2(dx, -dz);
 
     /// <summary>A readable name from an id, for things given by id rather than chosen.</summary>
     private static string PrettyName(string id)
