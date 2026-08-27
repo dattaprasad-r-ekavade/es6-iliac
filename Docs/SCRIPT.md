@@ -310,6 +310,21 @@ depth, finished rather than pressed.
 A player who has done the house arrives at the finale already knowing how to fight indoors. That
 is worth more than any tutorial and it costs nothing extra, because the beat exists anyway.
 
+### He is not seen again
+
+**Decided: Vasudatta's fate is unknown, and he is not needed after this.** The job ends, the
+player goes back to the fort, and nothing in the rest of the story returns to him.
+
+That is the right answer rather than a gap. He is a *condition*, not a plot thread — resolving
+him would turn the hoarding into one man's problem with one man's ending, when the point of the
+beat is that every great house in the province has the same cellar. A province full of people
+nobody wrote down is the correct place for one more name that simply stops appearing.
+
+**The one rule that makes it work: nothing later gestures at him.** No character wonders aloud
+what became of him, no follow-up job at his address, no epilogue line. An unresolved thread the
+writing keeps touching reads as a loose end; one it never mentions again reads as the world
+carrying on without him, which is what actually happens to people here.
+
 ### Afterwards: contracts
 
 The first house is authored, because it carries the reveal. **Later houses can be generated** —
@@ -378,8 +393,6 @@ and never self-pitying.
   said, and nobody in the province knowing is better than any answer.
 - **How much of the rich quarter is ever walkable** beyond the one house. The streets above are
   probably better as a place seen and not entered; the cellars are the level.
-- **Whether Vasudatta survives the story.** He is still hoarding at the end of §8, and the fort
-  falls afterwards.
 - **Does the player ever learn the order reopened the seam?** The darkest fact in the game.
   Suggested: from Sona, at the highest rank, in the hall — the only person who would say it, and
   only to somebody who has come back often enough to be worth telling.
