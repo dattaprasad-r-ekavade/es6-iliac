@@ -197,6 +197,9 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>Set by a failed 'assert'. Becomes the process exit code.</summary>
     private bool _scriptFailed;
 
+    /// <summary>A --script path that does not exist, reported once there is a screen to say so on.</summary>
+    private string? _scriptMissing;
+
     /// <summary>1 when a scripted run found a failure, 0 otherwise. Read by Program.</summary>
     public int ScriptExitCode => _scriptFailed ? 1 : 0;
 
@@ -495,18 +498,30 @@ public sealed class Game1 : Game, IConsoleTarget
         // A file of them, for a test that is longer than a command line. Read here and folded
         // into the same queue, so --script and --exec behave identically from then on.
         var scriptFile = ParseOption(args, "--script");
-        if (scriptFile is not null && File.Exists(scriptFile))
+        if (scriptFile is not null)
         {
-            var statements = File.ReadAllLines(scriptFile)
-                .Select(line => line.Trim())
-                .Where(line => line.Length > 0 && !line.StartsWith('#'));
-
-            var joined = string.Join(';', statements);
-            _consoleScript = _consoleScript is null ? joined : _consoleScript + ";" + joined;
+            // A named script that is not there is a broken invocation, not an empty one. It
+            // used to be ignored, so a mistyped path ran the game with no commands at all and
+            // exited zero -- a gate that passes by doing nothing.
+            if (!File.Exists(scriptFile))
+            {
+                _scriptMissing = scriptFile;
+            }
+            else
+            {
+                var joined = string.Join(';',
+                    ConsoleRouter.ReadScript(File.ReadAllLines(scriptFile)));
+                _consoleScript = _consoleScript is null ? joined : _consoleScript + ";" + joined;
+            }
         }
 
         // --yard opens on the surface rather than the menu, so the one place the player
         // starts and returns to can be looked at rather than described.
+        //
+        // A script implies one. Commands run against the world, and the menu has none: the
+        // smoke script asked where it was standing and was told "no world", which made the
+        // documented invocation unable to pass. Anything that names a scene of its own --
+        // a mine, the moodboard, the pillar -- still gets that instead.
         _startOnTheSurface = HasArgument(args, "--yard");
         _moodboard = HasArgument(args, "--moodboard");
         _assetCase = HasArgument(args, "--assets");
@@ -517,6 +532,13 @@ public sealed class Game1 : Game, IConsoleTarget
 
         // Asking for a mine and being shown the title screen is a papercut; --mine means play it.
         if (_mineSeed is not null) _screen = GameScreen.WorldScene;
+
+        if (_consoleScript is not null
+            && _mineSeed is null
+            && !_moodboard
+            && !_stambhaPreview
+            && _screen == GameScreen.MainMenu)
+            _startOnTheSurface = true;
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
         if (_coverMode)
@@ -708,9 +730,32 @@ public sealed class Game1 : Game, IConsoleTarget
 
         // --exec runs against a world that now exists, and before the first frame is drawn,
         // so a capture taken after it sees where the commands put the player.
-        if (_consoleScript is not null)
-            foreach (var statement in ConsoleRouter.SplitStatements(_consoleScript))
-                _scriptQueue.Enqueue(statement);
+        if (_scriptMissing is not null)
+        {
+            FailScript($"No script file '{_scriptMissing}'.");
+            _scriptQuitWhenDone = true;
+            return;
+        }
+
+        if (_consoleScript is null) return;
+
+        var statements = ConsoleRouter.SplitStatements(_consoleScript);
+
+        // Checked as a whole before the first one runs. A script that names a command nothing
+        // registered is a script that was written against a different build, and finding that
+        // out at statement forty means the thirty-nine asserts before it already reported
+        // success on a run that was never going to finish.
+        _console ??= GameConsole.Build(this);
+        var unknown = _console.UnknownCommands(statements);
+        if (unknown.Count > 0)
+        {
+            FailScript($"Unknown command(s): {string.Join(", ", unknown)}. Try 'help'.");
+            _scriptQuitWhenDone = true;
+            return;
+        }
+
+        foreach (var statement in statements)
+            _scriptQueue.Enqueue(statement);
     }
 
     protected override void UnloadContent()
@@ -5454,7 +5499,10 @@ public sealed class Game1 : Game, IConsoleTarget
 
     void IConsoleTarget.WaitSeconds(float seconds) => _scriptWaitSeconds = seconds;
 
-    void IConsoleTarget.FailScript(string why)
+    void IConsoleTarget.FailScript(string why) => FailScript(why);
+
+    /// <summary>Record a scripted failure, and say so on stdout for an unattended run.</summary>
+    private void FailScript(string why)
     {
         _scriptFailed = true;
         Console.WriteLine("[!] " + why);

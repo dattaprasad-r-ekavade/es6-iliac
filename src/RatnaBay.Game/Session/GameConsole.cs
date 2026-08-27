@@ -503,10 +503,7 @@ internal static class GameConsole
                 if (string.IsNullOrWhiteSpace(path)) return "script what?";
                 if (!File.Exists(path)) return $"No file '{path}'.";
 
-                var lines = File.ReadAllLines(path)
-                    .Select(line => line.Trim())
-                    .Where(line => line.Length > 0 && !line.StartsWith('#'))
-                    .ToList();
+                var lines = ConsoleRouter.ReadScript(File.ReadAllLines(path));
 
                 game.Queue(string.Join(';', lines));
                 return $"{lines.Count} statements queued from {Path.GetFileName(path)}.";

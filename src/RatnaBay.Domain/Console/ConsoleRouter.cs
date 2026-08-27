@@ -266,6 +266,45 @@ public sealed class ConsoleRouter
         if (_history.Count > MaxHistory) _history.RemoveAt(0);
     }
 
+    /// <summary>
+    /// The statements in a script file: one per line, blank lines and <c>#</c> comments dropped.
+    ///
+    /// One reader for both callers. The command line reads a script before there is a console,
+    /// and the <c>script</c> command reads one while there is; when they each had their own copy
+    /// of "trim, skip blanks, skip hashes" a change to the format only ever landed in one.
+    /// </summary>
+    public static IReadOnlyList<string> ReadScript(IEnumerable<string> lines) => lines
+        .Select(line => line.Trim())
+        .Where(line => line.Length > 0 && !line.StartsWith('#'))
+        .ToList();
+
+    /// <summary>
+    /// The command names in these statements that nothing has registered.
+    ///
+    /// Checked before a script runs rather than as each statement comes up. A typo halfway
+    /// down a script otherwise costs the whole run before it reports, and a scripted gate that
+    /// half-ran is worse than one that refused: the asserts that never executed are silent
+    /// rather than failed, so the run can still exit zero.
+    /// </summary>
+    public IReadOnlyList<string> UnknownCommands(IEnumerable<string> statements)
+    {
+        var unknown = new List<string>();
+
+        foreach (var statement in statements)
+        {
+            var tokens = Tokenise(statement);
+            if (tokens.Count == 0) continue;
+
+            var name = tokens[0];
+            if (_commands.ContainsKey(name) || unknown.Contains(name, StringComparer.OrdinalIgnoreCase))
+                continue;
+
+            unknown.Add(name);
+        }
+
+        return unknown;
+    }
+
     /// <summary>Split on semicolons, respecting quotes.</summary>
     public static IReadOnlyList<string> SplitStatements(string input)
     {
