@@ -1068,31 +1068,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private readonly List<string> _watchOutput = new();
 
-    /// <summary>
-    /// The watch panel: whatever 'watch' was pointed at, updated every frame.
-    ///
-    /// This is the live-debugging half. Typing 'enemies' tells you what is in the room now;
-    /// watching it tells you what happens to them while you fight, which is the question that
-    /// actually comes up.
-    /// </summary>
-    private void DrawWatches()
-    {
-        if (_watchOutput.Count == 0) return;
-
-        var height = 26 + _watchOutput.Count * 18;
-        var panel = new Rectangle(LogicalWidth - 430, 150, 410, height);
-
-        Fill(panel, new Color(4, 8, 13, 214));
-        Border(panel, new Color(96, 132, 142));
-
-        var y = panel.Y + 12f;
-        foreach (var line in _watchOutput)
-        {
-            TextFit(line, new Vector2(panel.X + 12, y), panel.Width - 24, 13,
-                new Color(196, 214, 212));
-            y += 18f;
-        }
-    }
+    private void DrawWatches() => _screens.Console.DrawWatches(_watchOutput);
 
     private void WalkHistory(int direction)
     {
@@ -4152,28 +4128,11 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private void Sign(string title, string subtitle, WorldPoint at, float height, Color colour)
     {
-        if (!TryProjectToScreen(new Vector3(at.X, at.Y + height, at.Z), out var screen)) return;
-
         var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
-        var distance = player.FlatDistanceTo(at);
 
-        // Fades in with distance rather than out: a label is most useful from across the yard
-        // and just noise when you are stood at the thing it names.
-        var fade = MathHelper.Clamp((distance - 3f) / 5f, 0f, 1f);
-        if (fade <= 0.02f) return;
-
-        // A heavier shadow than the mine needs. These sit against sunlit sandstone now, and a
-        // pale label on a pale wall is a label nobody reads.
-        for (var dx = -2; dx <= 2; dx += 2)
-        for (var dy = -2; dy <= 2; dy += 2)
-        {
-            if (dx == 0 && dy == 0) continue;
-            TextCentred(title, screen.X + dx, screen.Y + dy, 17, new Color(0, 0, 0, 190) * fade);
-        }
-
-        TextCentred(title, screen.X, screen.Y, 17, colour * fade);
-        TextCentred(subtitle, screen.X + 1f, screen.Y + 21f, 12, new Color(0, 0, 0, 170) * fade);
-        TextCentred(subtitle, screen.X, screen.Y + 20f, 12, new Color(228, 232, 236) * fade);
+        _screens.Markers.DrawSign(title, subtitle,
+            new Vector3(at.X, at.Y + height, at.Z), player.FlatDistanceTo(at), colour,
+            Projector());
     }
 
     /// <summary>
@@ -4200,55 +4159,11 @@ public sealed class Game1 : Game, IConsoleTarget
             new Color(226, 232, 232) * fade);
     }
 
-    /// <summary>
-    /// The console: a band of output, and a line to type into.
-    ///
-    /// Top of the screen rather than bottom, because the bottom is where the vitals are and
-    /// the one time anybody opens this is when they want to see what is happening to them
-    /// while they type.
-    /// </summary>
     private void DrawConsole()
     {
         if (!_consoleOpen) return;
 
-        var panel = new Rectangle(0, 0, LogicalWidth, 330);
-        Fill(panel, new Color(4, 8, 13, 242));
-        Fill(new Rectangle(0, panel.Bottom - 2, LogicalWidth, 2), new Color(151, 206, 210));
-
-        // Newest at the bottom, next to the prompt, so the eye does not have to travel.
-        var y = panel.Bottom - 62f;
-        for (var index = _consoleOutput.Count - 1; index >= 0 && y > 8f; index--)
-        {
-            var line = _consoleOutput[index];
-            var colour = line.Tone switch
-            {
-                ConsoleTone.Echo => new Color(151, 206, 210),
-                ConsoleTone.Error => new Color(228, 128, 118),
-                _ => new Color(206, 216, 214)
-            };
-
-            TextFit(line.Text, new Vector2(16, y), LogicalWidth - 32, 14, colour);
-            y -= 20f;
-        }
-
-        var prompt = new Rectangle(8, panel.Bottom - 44, LogicalWidth - 16, 30);
-        Fill(prompt, new Color(12, 22, 30, 250));
-        Border(prompt, new Color(76, 112, 124));
-
-        Text(">", new Vector2(prompt.X + 10, prompt.Y + 6), 15, new Color(232, 194, 116));
-        TextFit(_consoleInput, new Vector2(prompt.X + 28, prompt.Y + 6), prompt.Width - 48, 15,
-            Color.White);
-
-        // A caret that blinks, so an empty prompt still looks alive.
-        if ((int)(_clock * 2f) % 2 == 0)
-        {
-            var width = _consoleInput.Length * 7.4f;
-            Fill(new Rectangle((int)(prompt.X + 30 + width), prompt.Y + 7, 2, 17),
-                new Color(232, 194, 116));
-        }
-
-        TextRight("~ or Esc closes   ·   Tab completes   ·   Up walks back",
-            prompt.Right - 12, prompt.Y + 8, 12, new Color(120, 140, 148));
+        _screens.Console.Draw(_consoleOutput, _consoleInput, _clock);
     }
 
     private void DrawDoorPrompt()
@@ -5001,16 +4916,11 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// A nameplate over each enemy: name, level, health, and whatever is currently wrong with it.
+    /// Nameplates for everything alive and close enough to matter.
     ///
-    /// This used to be one bar pinned to the middle of the player's screen, showing only
-    /// whatever the crosshair was over. Moving it onto the enemies themselves does three things
-    /// the centred bar could not: it says which of five things in a room is hurt, it stops the
-    /// interface sitting between the player and the fight, and it puts the information where
-    /// the player is already looking.
-    ///
-    /// Drawn in the UI pass rather than as a billboard, so the text stays crisp at any distance
-    /// and is never clipped into a wall.
+    /// The projection happens here, where the camera is, and the renderer receives points on
+    /// the canvas -- so a marker can never be projected with a different frame's camera than
+    /// the one it is drawn over.
     /// </summary>
     private void DrawEnemyNameplates()
     {
@@ -5020,66 +4930,46 @@ public sealed class Game1 : Game, IConsoleTarget
         var sorted = new List<Enemy>(_encounter.Enemies);
         sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
 
+        var projector = Projector();
+        var plates = new List<NameplateState>();
+
         foreach (var enemy in sorted)
         {
             if (!enemy.IsAlive) continue;
 
             var distance = DistanceToCamera(enemy);
-            if (distance > NameplateRange) continue;
+            if (distance > MarkerRenderer.NameplateRange) continue;
 
             var feet = _encounter.DrawPositionOf(enemy);
             var head = feet + Vector3.Up * (_encounter.DrawHeightOf(enemy) + 0.34f);
-            if (!TryProjectToScreen(head, out var anchor)) continue;
+            if (!projector.TryProject(head, out var anchor)) continue;
 
             // Shrink with distance, but never past readable. A plate that scales all the way
             // down is unreadable exactly when a player most wants to know what is coming.
-            var scale = MathHelper.Clamp(1.25f - distance / NameplateRange, 0.62f, 1f);
-            DrawNameplate(enemy, anchor, scale, focused: ReferenceEquals(_encounter.Focused, enemy));
+            var scale = MathHelper.Clamp(
+                1.25f - distance / MarkerRenderer.NameplateRange, 0.62f, 1f);
+
+            plates.Add(new NameplateState(
+                Anchor: anchor,
+                Scale: scale,
+                Label: enemy.Archetype.Level > 1
+                    ? $"{enemy.DisplayName}  ·  {enemy.Archetype.Level}"
+                    : enemy.DisplayName,
+                Status: enemy.IsStaggered ? "staggered"
+                    : enemy.IsBurning ? "burning"
+                    : enemy.IsChilled ? "chilled"
+                    : _encounter.IsLunging(enemy) ? "striking"
+                    : string.Empty,
+                HealthFraction: MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f),
+                Vulnerable: enemy.IsVulnerable,
+                Focused: ReferenceEquals(_encounter.Focused, enemy)));
         }
+
+        _screens.Markers.DrawNameplates(plates);
     }
 
-    /// <summary>Past this, a nameplate is clutter rather than information.</summary>
-    private const float NameplateRange = 26f;
 
-    private void DrawNameplate(Enemy enemy, Vector2 anchor, float scale, bool focused)
-    {
-        var width = (int)(150 * scale);
-        var barHeight = (int)(7 * scale);
-        var nameSize = 13f * scale;
 
-        var bar = new Rectangle((int)(anchor.X - width / 2f), (int)anchor.Y, width, barHeight);
-        var fraction = MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f);
-
-        // Name and level above the bar; the level is the only warning a player gets that this
-        // room is deeper than the last one.
-        var label = enemy.Archetype.Level > 1
-            ? $"{enemy.DisplayName}  ·  {enemy.Archetype.Level}"
-            : enemy.DisplayName;
-
-        TextCentred(label, anchor.X, bar.Y - nameSize - 3f * scale, nameSize,
-            focused ? Color.White : new Color(214, 206, 194));
-
-        Fill(bar, new Color(12, 10, 12, 220));
-        Fill(new Rectangle(bar.X, bar.Y, (int)(bar.Width * fraction), bar.Height),
-            enemy.IsVulnerable ? new Color(232, 186, 96) : new Color(178, 62, 66));
-
-        // The focused enemy gets a brighter rule, so "will this swing connect?" is still
-        // answered — that was the one thing the centred bar was genuinely good at.
-        Border(bar, focused ? new Color(238, 226, 200, 210) : new Color(0, 0, 0, 150));
-
-        var status = enemy.IsStaggered ? "staggered"
-            : enemy.IsBurning ? "burning"
-            : enemy.IsChilled ? "chilled"
-            : _encounter is not null && _encounter.IsLunging(enemy) ? "striking"
-            : string.Empty;
-
-        if (status.Length == 0) return;
-
-        TextCentred(status, anchor.X, bar.Bottom + 2f * scale, 12f * scale,
-            status == "striking" ? new Color(236, 148, 122) : new Color(232, 194, 116));
-    }
-
-    /// <summary>Where a swing or a spell will go. Small, and always centred.</summary>
     /// <summary>
     /// Our own mouse pointer.
     ///
@@ -5120,77 +5010,18 @@ public sealed class Game1 : Game, IConsoleTarget
         }
     }
 
-    /// <summary>Damage and status, floating up from where it happened.</summary>
     private void DrawFloatingNumbers()
     {
         if (_encounter is null) return;
 
-        foreach (var number in _encounter.Feedback.Numbers)
-        {
-            var fade = 1f - number.Age;
-            var rise = number.Age * 46f;
-            Vector2 position;
-
-            if (CombatFeedback.IsSelfInflicted(number))
-            {
-                // Damage taken belongs on the player, not out in the world.
-                position = new Vector2(LogicalWidth / 2f, LogicalHeight / 2f + 78f - rise);
-            }
-            else
-            {
-                if (!TryProjectToScreen(
-                        new Vector3(number.Origin.X, number.Origin.Y + 1.9f, number.Origin.Z),
-                        out position))
-                    continue;
-
-                position.X += number.Drift;
-                position.Y -= rise;
-            }
-
-            // Numbers were already being drawn for sword hits, but at melee range they sat
-            // pale over a pale sprite and went unnoticed. A dark shadow behind them is what
-            // makes them read against anything.
-            var size = CombatFeedback.IsSelfInflicted(number) ? 19 : 24;
-            TextCentred(number.Text, position.X + 2f, position.Y + 2f, size,
-                new Color(0, 0, 0, 190) * fade);
-            TextCentred(number.Text, position.X, position.Y, size, number.Colour * fade);
-        }
+        _screens.Markers.DrawFloatingNumbers(_encounter.Feedback.Numbers, Projector());
     }
 
-    /// <summary>
-    /// Small markers around the crosshair for living enemies nearby.
-    ///
-    /// Testers lost track of bandits the moment they left the view. The marker fades with
-    /// distance so it reads as "something is over there", not as a wallhack.
-    /// </summary>
     private void DrawThreatArrows()
     {
         if (_encounter is null) return;
 
-        const float centreX = LogicalWidth / 2f;
-        const float centreY = LogicalHeight / 2f;
-        const float radius = 172f;
-
-        foreach (var (enemy, bearing, distance) in _encounter.NearbyThreats())
-        {
-            // Anything comfortably in front is already visible; do not clutter the view.
-            if (MathF.Abs(bearing) < 0.42f) continue;
-
-            var nearness = MathHelper.Clamp(1f - distance / 26f, 0.25f, 1f);
-            var colour = new Color(226, 168, 96) * (0.5f + nearness * 0.45f);
-
-            var x = centreX + MathF.Sin(bearing) * radius;
-            var y = centreY - MathF.Cos(bearing) * radius;
-
-            // A small triangle pointing outward along the bearing.
-            for (var step = 0; step < 8; step++)
-            {
-                var width = 8 - step;
-                var px = x + MathF.Sin(bearing) * step;
-                var py = y - MathF.Cos(bearing) * step;
-                Fill(new Rectangle((int)px - width / 2, (int)py - 1, Math.Max(1, width), 2), colour);
-            }
-        }
+        _screens.Markers.DrawThreatArrows(_encounter.NearbyThreats());
     }
 
 
@@ -5232,49 +5063,11 @@ public sealed class Game1 : Game, IConsoleTarget
 
     }
 
-    /// <summary>
-    /// World position to logical UI pixels. False when the point is behind the camera, which
-    /// would otherwise project to a mirrored position in front of it.
-    /// </summary>
-    private bool TryProjectToScreen(Vector3 world, out Vector2 screen)
-    {
-        screen = Vector2.Zero;
+    /// <summary>This frame's world-to-canvas projection, for anything anchored in the world.</summary>
+    private WorldProjector Projector() =>
+        new(GraphicsDevice.Viewport, _view, _projection, _uiScale);
 
-        var viewport = GraphicsDevice.Viewport;
-        var projected = viewport.Project(world, _projection, _view, Matrix.Identity);
-        if (projected.Z is < 0f or > 1f) return false;
-
-        if (_uiScale <= 0f) return false;
-        var offsetX = (viewport.Width - LogicalWidth * _uiScale) * 0.5f;
-        var offsetY = (viewport.Height - LogicalHeight * _uiScale) * 0.5f;
-
-        screen = new Vector2((projected.X - offsetX) / _uiScale, (projected.Y - offsetY) / _uiScale);
-        return true;
-    }
-
-    /// <summary>
-    /// Content that failed to load, said out loud.
-    ///
-    /// These were only ever shown on the Renderer Lab screen, so a damaged install dropped
-    /// the player into an empty void with a working HUD and no explanation. Saves already
-    /// follow the rule that a half-load must fail loudly; content now does too.
-    /// </summary>
-    private void DrawContentErrors()
-    {
-        if (_assetErrors.Count == 0) return;
-
-        var panel = new Rectangle(300, 84, 680, 44 + _assetErrors.Count * 22);
-        DrawPanel(panel, new Color(38, 12, 12, 238), new Color(198, 96, 88));
-        Text("CONTENT FAILED TO LOAD", new Vector2(panel.X + 16, panel.Y + 12), 14,
-            new Color(255, 196, 186));
-
-        var y = panel.Y + 36f;
-        foreach (var error in _assetErrors)
-        {
-            TextFit(error, new Vector2(panel.X + 16, y), 648f, 13, new Color(240, 208, 202));
-            y += 22f;
-        }
-    }
+    private void DrawContentErrors() => _screens.Markers.DrawContentErrors(_assetErrors);
 
 
 
