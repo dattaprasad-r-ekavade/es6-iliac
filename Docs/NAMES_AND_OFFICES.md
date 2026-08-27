@@ -81,8 +81,18 @@ player has to remember who to go back to:
 **Tissa · Revati · Uttara · Yasa · Nandi · Siha · Bhadda · Visakha · Kanha · Sivali ·
 Sanghamita · Ujjeni**
 
-**Practical rule:** the ten fort occupants should have names of two syllables or three, and no two
-should start with the same letter. Authenticity that a player cannot keep straight is decoration.
+**Practical rule, and where it applies.** Ease of pronunciation is spent on the **title and the
+key elements** — the words a player reads on every screen, says out loud to a friend, and searches
+for: the stones, the spells, the risen, the ranks, and what the order calls itself. Those must be
+sayable on sight.
+
+**Character names are not on that list.** An NPC's name is a label the player points at, not a word
+they have to carry, so a heavy compound like *Suvarnapala* or *Bhadrasena* costs nothing and buys
+period texture. Let them be long.
+
+What the ten fort occupants still owe the player is **distinctness**, not lightness: no two should
+start with the same letter, because the player has to remember *who to go back to*, and that is a
+recognition problem rather than a pronunciation one.
 
 ---
 
