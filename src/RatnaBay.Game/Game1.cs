@@ -360,6 +360,32 @@ public sealed class Game1 : Game, IConsoleTarget
 
     /// <summary>The shaft panel is open and a depth is being chosen.</summary>
     private bool _choosingDepth;
+
+    /// <summary>
+    /// The mine each tier is offering right now, one seed per tier.
+    ///
+    /// Rolled when the shaft is opened rather than when a tier is confirmed, because the
+    /// design requires the cave's element to be shown *before* the player pays: entry already
+    /// costs stones, so the information belongs at the point of payment. A seed picked after
+    /// the money changed hands cannot be previewed, and a preview of a different mine than the
+    /// one you get is worse than none.
+    /// </summary>
+    private readonly int[] _shaftSeeds = new int[MineEntry.MaxTier + 1];
+
+    /// <summary>The cave currently being descended, or null on the surface.</summary>
+    private CaveTheme? _cave;
+
+    /// <summary>
+    /// Tell the caster which cave it is standing in.
+    ///
+    /// Called after the session exists rather than alongside the derivation, because starting
+    /// a new character replaces the session — and the assignment made before that replacement
+    /// went to the object that was about to be thrown away.
+    /// </summary>
+    private void ApplyCave()
+    {
+        if (_session is not null) _session.Player.Spells.Cave = _cave;
+    }
     private int _depthSelection = 1;
 
     /// <summary>
@@ -661,9 +687,18 @@ public sealed class Game1 : Game, IConsoleTarget
         // character and a data-authored room, or the HUD has nothing to show.
         if (_screen == GameScreen.WorldScene)
         {
+            // The launch flags set _mineSeed and _mineDepth directly rather than going through
+            // EnterWorld, so the cave has to be derived here too. Without it every --mine
+            // capture came out in the default granite whatever seed was asked for, which is
+            // exactly the kind of thing a screenshot is supposed to prove.
+            _cave = _mineSeed is { } launchSeed
+                ? CaveThemeCatalog.For(launchSeed, _mineDepth)
+                : null;
+
             LoadWorldManifest();
             ResetCamera();
             StartSession(GameSession.NewGame());
+            ApplyCave();
         }
 
         if (_startYaw is { } forcedYaw) _cameraYaw = forcedYaw;
@@ -1592,7 +1627,11 @@ public sealed class Game1 : Game, IConsoleTarget
         _mineSeed = descent.Seed;
         _world = null;
 
+        // A resumed descent is the same cave it was when it was set aside.
+        _cave = CaveThemeCatalog.For(descent.Seed, descent.Depth);
+
         StartSession(_session);
+        ApplyCave();
 
         // Where they were standing, not the mine's entrance.
         _cameraPosition = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
@@ -1639,12 +1678,17 @@ public sealed class Game1 : Game, IConsoleTarget
         _mineRooms = RoomsPerSegment;
         _mineDepth = Math.Clamp(tier, MineEntry.MinTier, MineEntry.MaxTier);
 
+        // One derivation, read by the renderer for its palette and by the caster for its
+        // resistances. Neither stores it, so they cannot disagree with the shaft screen.
+        _cave = mineSeed is { } seed ? CaveThemeCatalog.For(seed, _mineDepth) : null;
+
         _world = null;
         _run = null;
         _runSummary = null;
 
         var session = newCharacter || _session is null ? GameSession.NewGame() : _session;
         StartSession(session);
+        ApplyCave();
         ResetCamera();
 
         _menuStatus = string.Empty;
@@ -1800,6 +1844,14 @@ public sealed class Game1 : Game, IConsoleTarget
         _choosingDepth = true;
         _depthSelection = Math.Clamp(
             MineEntry.DeepestAffordable(_session.Player.Inventory), 1, MineEntry.MaxTier);
+
+        // A fresh set of offers each time the shaft is opened. Backing out and looking again
+        // re-rolls them, which is deliberate: it is free, it costs no stones, and a player who
+        // does not like any of today's caves should be able to come back tomorrow.
+        var roll = new Random(Environment.TickCount);
+        for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
+            _shaftSeeds[tier] = roll.Next(int.MinValue, int.MaxValue);
+
         SetMouseLook(false, forPanel: true);
     }
 
@@ -1848,7 +1900,7 @@ public sealed class Game1 : Game, IConsoleTarget
         var fallen = _session.Player.Legacy.Fallen;
         var returning = fallen is not null && fallen.Tier == _depthSelection;
 
-        EnterMine(returning ? fallen!.MineSeed : Environment.TickCount, _depthSelection);
+        EnterMine(returning ? fallen!.MineSeed : _shaftSeeds[_depthSelection], _depthSelection);
 
         _session.ShowToast(returning
             ? $"The same shaft. {fallen!.Name} is still down there, in room {fallen.RoomIndex}."
@@ -3441,7 +3493,11 @@ public sealed class Game1 : Game, IConsoleTarget
     private string LocationCaption() => _mineSeed is { } seed
         // The decimal seed, because that is what --mine takes: a mine worth replaying or
         // reporting can be asked for again exactly.
-        ? $"MINE {seed}  ·  TIER {_mineDepth}"
+        // The cave's name, not only its number. A player who has learned that the Drowned
+        // Level fears Arc needs to be told which cave they are in without opening anything.
+        ? _cave is null
+            ? $"MINE {seed}  ·  TIER {_mineDepth}"
+            : $"{_cave.DisplayName.ToUpperInvariant()}  ·  TIER {_mineDepth}  ·  MINE {seed}"
         : "THE YARD  ·  RATNA BAY";
 
     private void ResetCamera()
@@ -4116,7 +4172,8 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_session is null) return;
         _screens.Descent.DrawDepthChoice(
-            _session.Player.Inventory.CountOf(SoulCrystals.LesserId), _depthSelection);
+            _session.Player.Inventory.CountOf(SoulCrystals.LesserId), _depthSelection,
+            tier => CaveThemeCatalog.For(_shaftSeeds[tier], tier));
     }
 
     private void DrawRunSummary(RunResult summary)
@@ -4454,6 +4511,15 @@ public sealed class Game1 : Game, IConsoleTarget
             var tint = _encounter.TintOf(enemy);
 
             // A chilled enemy is visibly cold, so frost reads as more than a slower walk.
+            // The cave's own colour, lightly. A quarter rather than a wash, because the three
+            // tiers of risen are told apart by their flesh colours and a full tint would make
+            // a chhaya in the Ossuary look like a vetala anywhere else. The spec asks for a
+            // preta set per theme; a palette shift is what that means in a game whose art is
+            // generated rather than drawn.
+            if (_cave is not null)
+                tint = Color.Lerp(tint,
+                    new Color(_cave.Accent.R, _cave.Accent.G, _cave.Accent.B), 0.25f);
+
             // Burning had no tint at all, which was a gap for Flame long before Cinder
             // existed: a spell whose whole identity is "lowest burst, highest total once it
             // burns" was invisible for the entire part that matters.
@@ -5160,7 +5226,12 @@ public sealed class Game1 : Game, IConsoleTarget
         }
         else
         {
-            _stone = StoneTextures.StonePalette.Granite;
+            // The cave's own rock. Derived from the seed, so it matches what the shaft screen
+            // promised without either side storing the answer.
+            _stone = _cave is null
+                ? StoneTextures.StonePalette.Granite
+                : StoneTextures.StonePalette.FromTheme(_cave);
+
             SetCaveAmbience(
                 ambient: new Vector3(0.10f, 0.10f, 0.12f),
                 keyDirection: new Vector3(-0.4f, -1f, -0.25f),

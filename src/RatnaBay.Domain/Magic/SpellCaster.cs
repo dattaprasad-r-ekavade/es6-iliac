@@ -165,6 +165,15 @@ public sealed class SpellCaster
     /// <summary>
     /// Apply a spell that has already been paid for. Returns true when it found something.
     /// </summary>
+    /// <summary>
+    /// The cave the caster is currently standing in, or null above ground.
+    ///
+    /// Set by the game layer when a descent begins. Held here rather than passed to every call
+    /// because a spell's power is the caster's business and the cave is a property of where
+    /// they are, not of the individual cast.
+    /// </summary>
+    public CaveTheme? Cave { get; set; }
+
     public bool Deliver(SpellDefinition spell, IEnemy? target, IEnemy? chainTarget = null)
     {
         var landed = Apply(spell, target, chainTarget);
@@ -205,9 +214,15 @@ public sealed class SpellCaster
         }
     }
 
-    private static void ApplyTo(IEnemy enemy, SpellDefinition spell, float power,
+    private void ApplyTo(IEnemy enemy, SpellDefinition spell, float power,
         IEnemy? chainTarget)
     {
+        // The cave's opinion of this element, applied once and to everything the spell does —
+        // the hit, the burn it leaves, and the jump to a second target. Applying it only to
+        // the direct damage would make Flame's burn ignore a lava cave entirely, which is the
+        // half of Flame that matters.
+        power *= CaveThemeCatalog.DamageFactor(Cave, spell.Effect);
+
         enemy.TakeDamage(power, spell.DisplayName);
 
         switch (spell.Effect)

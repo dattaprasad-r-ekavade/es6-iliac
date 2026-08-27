@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using RatnaBay.Domain;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
@@ -41,6 +42,19 @@ public static class StoneTextures
         /// blockwork under daylight simply reads as another room with a sky over it. Warmth is
         /// doing the work the fiction needs at the cheapest possible price.
         /// </summary>
+        /// <summary>
+        /// The stone a cave theme is cut from.
+        ///
+        /// Built from the domain's own colours rather than a parallel table here, so a theme
+        /// that says it is scorched red rock cannot be drawn in grey. The texture cache keys
+        /// on the id, so five themes cost five textures and no more.
+        /// </summary>
+        public static StonePalette FromTheme(CaveTheme theme) => new(
+            theme.Id,
+            new Color(theme.Base.R, theme.Base.G, theme.Base.B),
+            new Color(theme.Mortar.R, theme.Mortar.G, theme.Mortar.B),
+            new Color(theme.Accent.R, theme.Accent.G, theme.Accent.B));
+
         public static readonly StonePalette Sandstone =
             new("sandstone", new Color(146, 122, 92), new Color(96, 78, 58), new Color(178, 152, 116));
     }

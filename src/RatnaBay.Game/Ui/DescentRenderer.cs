@@ -147,7 +147,7 @@ internal sealed class DescentRenderer
     /// <summary>
     /// The price of every depth, and what each is worth, at the moment of committing.
     /// </summary>
-    public void DrawDepthChoice(int stones, int selection)
+    public void DrawDepthChoice(int stones, int selection, Func<int, CaveTheme>? themeOf = null)
     {
         var panel = new Rectangle(320, 148, 640, 452);
 
@@ -174,7 +174,14 @@ internal sealed class DescentRenderer
             _ui.Text($"Tier {tier}", new Vector2(row.X + 18, row.Y + 6), 18, ink);
             _ui.TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 18, row.Y + 8, 16,
                 affordable ? new Color(214, 186, 120) : UiTheme.Warning);
-            _ui.TextFit(MineEntry.DescriptionOf(tier), new Vector2(row.X + 18, row.Y + 28),
+            // The cave itself, not just the tier. Choosing which cave to buy into knowing what
+            // is down there is the decision the whole loop rests on, and it cannot be made
+            // after the stones are spent.
+            var line = themeOf is null
+                ? MineEntry.DescriptionOf(tier)
+                : themeOf(tier).Summary;
+
+            _ui.TextFit(line, new Vector2(row.X + 18, row.Y + 28),
                 row.Width - 150, 12, UiTheme.Muted);
         }
 
