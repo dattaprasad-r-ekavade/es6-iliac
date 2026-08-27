@@ -1350,7 +1350,6 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private void SaveFaceSheet(string path)
     {
-        var moods = Enum.GetValues<Expression>();
         var rooms = FortRoster.All.Where(room => FaceCatalog.Find(room.Id) is not null).ToList();
 
         // --face narrows the sheet to one occupant, which is the only way to get a useful
@@ -1366,6 +1365,29 @@ public sealed class Game1 : Game, IConsoleTarget
             return;
         }
 
+        var perPage = Math.Max(1, (2048 - 32) / (PortraitForge.Height + 16));
+        if (rooms.Count > perPage)
+        {
+            var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
+            var stem = Path.GetFileNameWithoutExtension(path);
+            var extension = Path.GetExtension(path);
+
+            for (var page = 0; page * perPage < rooms.Count; page++)
+            {
+                var slice = rooms.Skip(page * perPage).Take(perPage).ToList();
+                WriteFaceSheet(slice,
+                    Path.Combine(directory, $"{stem}-{page + 1}{extension}"));
+            }
+
+            return;
+        }
+
+        WriteFaceSheet(rooms, path);
+    }
+
+    private void WriteFaceSheet(List<FortRoom> rooms, string path)
+    {
+        var moods = Enum.GetValues<Expression>();
         var scale = _faceSheetScale;
         var cellInner = new Point(PortraitForge.Width * scale, PortraitForge.Height * scale);
 
@@ -1407,7 +1429,7 @@ public sealed class Game1 : Game, IConsoleTarget
             texture.SaveAsPng(stream, sheetW, sheetH);
 
         Console.WriteLine(
-            $"Saved {rooms.Count} faces x {moods.Length} moods ({sheetW}x{sheetH}) to {fullPath}");
+            $"Saved {rooms.Count} face(s) x {moods.Length} moods ({sheetW}x{sheetH}) to {fullPath}");
     }
 
     /// <summary>itch.io's cover shape, at twice its stated size so the type stays sharp.</summary>

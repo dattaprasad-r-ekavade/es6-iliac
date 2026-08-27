@@ -29,9 +29,9 @@ internal sealed class FortRenderer
         _device = device;
     }
 
-    /// <summary>Where the occupant's portrait sits. One to one with its stored texture.</summary>
+    /// <summary>Where the occupant's portrait sits. One to one with its generated size.</summary>
     private static readonly Rectangle Portrait =
-        new(280, 268, PortraitForge.TextureWidth, PortraitForge.TextureHeight);
+        new(268, 214, PortraitForge.Width, PortraitForge.Height);
 
     /// <summary>Where each door sits, so drawing and hit-testing cannot drift apart.</summary>
     public static Rectangle DoorRow(int index) => new(280, 176 + index * 42, 720, 38);
@@ -121,10 +121,10 @@ internal sealed class FortRenderer
 
         DrawPortrait(room, mood);
 
-        const float TextLeft = 500f;
-        const float TextWidth = 512f;
+        const float TextLeft = 580f;
+        const float TextWidth = 434f;
 
-        var y = 276f;
+        var y = 224f;
         _ui.TextFit($"“{room.Greeting}”", new Vector2(TextLeft, y), TextWidth, 15,
             new Color(226, 220, 208));
         y += 40f;
@@ -142,7 +142,7 @@ internal sealed class FortRenderer
             // been told.
             var isNew = legacy.Hear(fragment.Id);
 
-            foreach (var line in Wrap(fragment.Text, 62))
+            foreach (var line in Wrap(fragment.Text, 52))
             {
                 _ui.TextFit(line, new Vector2(TextLeft, y), TextWidth, 14,
                     isNew ? new Color(232, 226, 212) : new Color(168, 172, 174));
@@ -156,12 +156,12 @@ internal sealed class FortRenderer
     }
 
     /// <summary>
-    /// The occupant.
+    /// The occupant, drawn at the size they were painted.
     ///
-    /// Drawn at one to one against a texture that was already doubled by exact pixel
-    /// replication, so the UI's linear sampler has nothing to interpolate. A portrait filtered
-    /// up to fit a panel looks like a low-resolution image somebody forgot about; the same
-    /// portrait doubled exactly looks deliberate.
+    /// No scaling in either direction: the portrait is generated at its final resolution, so
+    /// the UI sampler has nothing to interpolate and nothing to blur. Everything about the
+    /// close-up depends on that — a supersampled, continuously-lit face resampled by a
+    /// sprite batch would give back exactly the softness it was built to avoid.
     /// </summary>
     private void DrawPortrait(FortRoom room, Expression mood)
     {
