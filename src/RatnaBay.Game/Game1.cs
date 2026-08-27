@@ -5267,6 +5267,25 @@ public sealed class Game1 : Game, IConsoleTarget
     /// the canvas -- so a marker can never be projected with a different frame's camera than
     /// the one it is drawn over.
     /// </summary>
+    /// <summary>
+    /// Everything currently true of an enemy, in the order it matters to the player.
+    ///
+    /// Striking first because it is the one with a deadline attached — it is the moment to
+    /// guard. Then what is being done to it, which is what tells a player their last spell or
+    /// stone did something and is still doing it.
+    /// </summary>
+    private string StatusOf(Enemy enemy)
+    {
+        var states = new List<string>(4);
+
+        if (_encounter is not null && _encounter.IsLunging(enemy)) states.Add("striking");
+        if (enemy.IsStaggered) states.Add("staggered");
+        if (enemy.IsBurning) states.Add("burning");
+        if (enemy.IsChilled) states.Add("chilled");
+
+        return string.Join(" · ", states);
+    }
+
     private void DrawEnemyNameplates()
     {
         if (_encounter is null || _encounter.Enemies.Count == 0) return;
@@ -5306,11 +5325,14 @@ public sealed class Game1 : Game, IConsoleTarget
                 // on entry: five bandits at Lv 3 and one at Lv 6 is a different room from six
                 // at Lv 3, and it should be legible from the doorway.
                 Label: $"{enemy.DisplayName}   Lv {enemy.Archetype.Level}",
-                Status: enemy.IsStaggered ? "staggered"
-                    : enemy.IsBurning ? "burning"
-                    : enemy.IsChilled ? "chilled"
-                    : _encounter.IsLunging(enemy) ? "striking"
-                    : string.Empty,
+                // Every state that is true, not the first one.
+                //
+                // This was a priority chain, so a burning enemy that got staggered stopped
+                // saying it was burning. The burn was still running -- Enemy.Tick counts it
+                // down and applies it whatever else is happening -- but the readout said
+                // otherwise, and a player reasonably concluded the stagger had cancelled it.
+                // An effect the player cannot see is an effect they will not build on.
+                Status: StatusOf(enemy),
                 HealthFraction: MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f),
                 Vulnerable: enemy.IsVulnerable,
                 Focused: ReferenceEquals(_encounter.Focused, enemy)));

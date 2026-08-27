@@ -361,6 +361,41 @@ internal static class GameConsole
                 return $"Room {wanted} at {room.Centre.X:0.0}, {room.Centre.Z:0.0}.";
             });
 
+        console.Register("effect",
+            "effect <burn|chill|stagger> [seconds]",
+            "Put a status on the nearest enemy, to see what stacking looks like.",
+            args =>
+            {
+                if (game.Encounter is not { } encounter) return "Nothing to affect.";
+
+                var here = new WorldPoint(game.CameraPosition.X, game.CameraPosition.Y,
+                    game.CameraPosition.Z);
+
+                var target = encounter.Enemies
+                    .Where(enemy => enemy.IsAlive)
+                    .OrderBy(enemy => enemy.Position.FlatDistanceTo(here))
+                    .FirstOrDefault();
+
+                if (target is null) return "The room is clear.";
+
+                var seconds = Math.Clamp(args.Number(1, 6f), 0.1f, 60f);
+
+                switch (args.Text(0).ToLowerInvariant())
+                {
+                    case "burn" or "fire": target.ApplyBurn(4f, seconds, "console"); break;
+                    case "chill" or "rime": target.ApplyChill(0.5f, seconds); break;
+                    case "stagger" or "thunder": target.ApplyStagger(seconds); break;
+                    default: return "effect burn | chill | stagger";
+                }
+
+                var states = new List<string>();
+                if (target.IsBurning) states.Add("burning");
+                if (target.IsChilled) states.Add("chilled");
+                if (target.IsStaggered) states.Add("staggered");
+
+                return $"{target.DisplayName} is " + string.Join(" and ", states);
+            });
+
         console.Register("face",
             "face",
             "Turn to the nearest living enemy. Attacks go where the crosshair points.",

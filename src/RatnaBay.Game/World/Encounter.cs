@@ -320,11 +320,7 @@ public sealed class Encounter
         var step = enemy.CurrentMoveSpeed * 0.8f * deltaSeconds;
 
         var next = Nudge(enemy.Position, away.X * step, away.Z * step);
-        foreach (var other in _enemies)
-        {
-            if (ReferenceEquals(other, enemy) || !other.IsAlive) continue;
-            if (next.FlatDistanceTo(other.Position) < Separation) return;
-        }
+        if (Crowded(enemy, next)) return;
 
         enemy.Position = next;
     }
@@ -407,7 +403,22 @@ public sealed class Encounter
         return Vector3.Distance(point, from + along * t);
     }
 
-    /// <summary>Slide toward the player, stopping short of anything already standing there.</summary>
+    /// <summary>How far off the direct line a blocked body will try, in radians.</summary>
+    private static readonly float[] AvoidanceAngles = { 0f, 0.7f, -0.7f, 1.35f, -1.35f };
+
+    /// <summary>
+    /// Slide toward the player, going around anything already standing there.
+    ///
+    /// The straight step used to be the only one considered: if it landed too close to another
+    /// body the whole move was abandoned and the enemy stood still. Anything directly behind a
+    /// companion was therefore frozen for as long as the companion stayed put — reported as
+    /// enemies stuck behind each other, and it is worst exactly when it matters most, because
+    /// a crowd forms when several of them are converging on the same player.
+    ///
+    /// So a blocked body tries the same step turned off the line, a little and then a lot,
+    /// before giving up. That is enough to walk round a neighbour without any pathfinding, and
+    /// it keeps the rule the separation check exists for: no two bodies share a spot.
+    /// </summary>
     private void Advance(Enemy enemy, WorldPoint player, float deltaSeconds)
     {
         var dx = player.X - enemy.Position.X;
@@ -416,16 +427,40 @@ public sealed class Encounter
         if (distance < 0.001f) return;
 
         var step = enemy.CurrentMoveSpeed * deltaSeconds;
-        var next = Nudge(enemy.Position, dx / distance * step, dz / distance * step);
+        var toX = dx / distance;
+        var toZ = dz / distance;
 
-        // Without this the whole camp converges into a single overlapping sprite.
+        foreach (var angle in AvoidanceAngles)
+        {
+            var cos = MathF.Cos(angle);
+            var sin = MathF.Sin(angle);
+
+            var next = Nudge(enemy.Position,
+                (toX * cos - toZ * sin) * step,
+                (toX * sin + toZ * cos) * step);
+
+            // Without this the whole camp converges into a single overlapping sprite.
+            if (Crowded(enemy, next)) continue;
+
+            // A sidestep that does not get closer is pacing on the spot. Straight ahead is
+            // exempt: the mover may have slid it along a wall, which is still progress.
+            if (angle != 0f && next.FlatDistanceTo(player) >= distance) continue;
+
+            enemy.Position = next;
+            return;
+        }
+    }
+
+    /// <summary>Is another living body already standing within a stride of here?</summary>
+    private bool Crowded(Enemy mover, WorldPoint at)
+    {
         foreach (var other in _enemies)
         {
-            if (ReferenceEquals(other, enemy) || !other.IsAlive) continue;
-            if (next.FlatDistanceTo(other.Position) < Separation) return;
+            if (ReferenceEquals(other, mover) || !other.IsAlive) continue;
+            if (at.FlatDistanceTo(other.Position) < Separation) return true;
         }
 
-        enemy.Position = next;
+        return false;
     }
 
     /// <summary>
