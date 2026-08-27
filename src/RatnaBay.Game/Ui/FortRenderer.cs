@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
@@ -20,8 +21,17 @@ namespace RatnaBay.Client;
 internal sealed class FortRenderer
 {
     private readonly UiCanvas _ui;
+    private readonly GraphicsDevice _device;
 
-    public FortRenderer(UiCanvas ui) => _ui = ui;
+    public FortRenderer(UiCanvas ui, GraphicsDevice device)
+    {
+        _ui = ui;
+        _device = device;
+    }
+
+    /// <summary>Where the occupant's portrait sits. One to one with its stored texture.</summary>
+    private static readonly Rectangle Portrait =
+        new(280, 268, PortraitForge.TextureWidth, PortraitForge.TextureHeight);
 
     /// <summary>Where each door sits, so drawing and hit-testing cannot drift apart.</summary>
     public static Rectangle DoorRow(int index) => new(280, 176 + index * 42, 720, 38);
@@ -100,17 +110,29 @@ internal sealed class FortRenderer
         _ui.TextCentred($"{room.Occupant}  ·  {room.Office}", 640f, 222f, 15, UiTheme.Accent);
         _ui.TextCentred(room.Description, 640f, 248f, 13, UiTheme.Muted);
 
-        var y = 292f;
-        _ui.TextFit($"“{room.Greeting}”", new Vector2(300, y), 680f, 16,
+        var fragments = room.AvailableTo(legacy.Service.Rank, legacy.DeepestEver);
+
+        // The portrait wears the mood of the *last* thing they say, so the face the player is
+        // left looking at is the one the room ends on. Choosing the first would put a grieving
+        // face over three lines of paperwork.
+        var mood = fragments.Count > 0
+            ? fragments[^1].Mood
+            : FaceCatalog.Find(room.Id)?.Resting ?? Expression.Neutral;
+
+        DrawPortrait(room, mood);
+
+        const float TextLeft = 500f;
+        const float TextWidth = 512f;
+
+        var y = 276f;
+        _ui.TextFit($"“{room.Greeting}”", new Vector2(TextLeft, y), TextWidth, 15,
             new Color(226, 220, 208));
         y += 40f;
 
-        var fragments = room.AvailableTo(legacy.Service.Rank, legacy.DeepestEver);
-
         if (fragments.Count == 0)
         {
-            _ui.TextCentred("They have nothing more to say to you yet.", 640f, y, 14,
-                UiTheme.Muted);
+            _ui.TextFit("They have nothing more to say to you yet.",
+                new Vector2(TextLeft, y), TextWidth, 14, UiTheme.Muted);
         }
 
         foreach (var fragment in fragments)
@@ -120,9 +142,9 @@ internal sealed class FortRenderer
             // been told.
             var isNew = legacy.Hear(fragment.Id);
 
-            foreach (var line in Wrap(fragment.Text, 92))
+            foreach (var line in Wrap(fragment.Text, 62))
             {
-                _ui.TextFit(line, new Vector2(300, y), 680f, 14,
+                _ui.TextFit(line, new Vector2(TextLeft, y), TextWidth, 14,
                     isNew ? new Color(232, 226, 212) : new Color(168, 172, 174));
                 y += 22f;
             }
@@ -131,6 +153,24 @@ internal sealed class FortRenderer
         }
 
         _ui.TextCentred("Esc  step back into the corridor", 640f, 632f, 13, UiTheme.HintDim);
+    }
+
+    /// <summary>
+    /// The occupant.
+    ///
+    /// Drawn at one to one against a texture that was already doubled by exact pixel
+    /// replication, so the UI's linear sampler has nothing to interpolate. A portrait filtered
+    /// up to fit a panel looks like a low-resolution image somebody forgot about; the same
+    /// portrait doubled exactly looks deliberate.
+    /// </summary>
+    private void DrawPortrait(FortRoom room, Expression mood)
+    {
+        if (FaceCatalog.Find(room.Id) is null) return;
+
+        _ui.Panel(new Rectangle(Portrait.X - 8, Portrait.Y - 8, Portrait.Width + 16,
+            Portrait.Height + 16), UiTheme.Panel, UiTheme.Bronze);
+
+        _ui.Sprite(PortraitForge.Get(_device, room.Id, mood), Portrait, Color.White);
     }
 
     /// <summary>Break a line at word boundaries so a long fragment does not run off the panel.</summary>

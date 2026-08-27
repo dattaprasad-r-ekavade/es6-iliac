@@ -8,7 +8,7 @@ namespace RatnaBay.Client;
 /// </summary>
 internal sealed class UiScreens
 {
-    public UiScreens(UiCanvas canvas)
+    public UiScreens(UiCanvas canvas, Microsoft.Xna.Framework.Graphics.GraphicsDevice device)
     {
         Canvas = canvas;
         Hud = new HudRenderer(canvas);
@@ -20,7 +20,7 @@ internal sealed class UiScreens
         Journal = new JournalRenderer(canvas);
         Consent = new ConsentRenderer(canvas);
         Descent = new DescentRenderer(canvas);
-        Fort = new FortRenderer(canvas);
+        Fort = new FortRenderer(canvas, device);
         Markers = new MarkerRenderer(canvas);
         Console = new ConsoleRenderer(canvas);
     }

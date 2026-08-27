@@ -106,6 +106,7 @@ public static class SessionSelfTest
             RunShopChecks(failures);
             RunMineChecks(failures);
             RunSuccession(failures);
+            RunPortraitChecks(failures);
             RunSuspendAndResume(failures);
             CheckMinesRepopulate(failures);
         }
@@ -135,6 +136,89 @@ public static class SessionSelfTest
     }
 
     /// <summary>A camp reward must still exist after the next process starts.</summary>
+    /// <summary>
+    /// The ten faces, and the two promises they make.
+    ///
+    /// **Distinctness**, because ten procedurally described people converge on the same face
+    /// the moment somebody adds an eleventh without checking, and nothing at runtime complains.
+    /// **Legibility**, because an expression that does not actually change enough pixels is a
+    /// feature that exists in the code and not on the screen — the failure mode where six moods
+    /// ship and a player cannot tell any of them apart.
+    ///
+    /// Both run on raw pixel buffers, so no graphics device is needed and this stays inside the
+    /// headless gate.
+    /// </summary>
+    private static void RunPortraitChecks(List<string> failures)
+    {
+        var faces = FaceCatalog.All;
+
+        Check(failures, $"every fort room has a face ({faces.Count} of {FortRoster.All.Count})",
+            FortRoster.All.All(room => faces.ContainsKey(room.Id)));
+
+        // Silhouette is what a player tells two people apart by while reading text underneath
+        // them, so this triple has to be unique rather than the whole record.
+        //
+        // Beard is in here and it is not padding: a full beard changes the outline of a head
+        // more than any hairstyle does, and the first version of this check left it out and
+        // immediately failed on two shaven men who are in fact easy to tell apart.
+        var silhouettes = faces.Values.Select(f => (f.Hair, f.Headwear, f.Beard)).ToList();
+        Check(failures, $"no two occupants share a silhouette ({silhouettes.Distinct().Count()} of 10)",
+            silhouettes.Distinct().Count() == silhouettes.Count);
+
+        Check(failures, "no two occupants are the same person",
+            faces.Values.Distinct().Count() == faces.Count);
+
+        var moods = Enum.GetValues<Expression>();
+
+        foreach (var (roomId, face) in faces)
+        {
+            var neutral = PortraitForge.Render(face, Expression.Neutral);
+
+            Check(failures, $"{roomId} draws something",
+                neutral.Any(pixel => pixel.A > 0));
+
+            foreach (var mood in moods)
+            {
+                if (mood == Expression.Neutral) continue;
+
+                var changed = 0;
+                var pixels = PortraitForge.Render(face, mood);
+                for (var i = 0; i < pixels.Length; i++)
+                    if (pixels[i] != neutral[i]) changed++;
+
+                // Twenty-five pixels of a 96x112 face is roughly a brow moving one row. Below
+                // that a mood is indistinguishable from neutral at any size a player sees.
+                Check(failures, $"{roomId} shows {mood} ({changed} pixels differ)", changed >= 25);
+            }
+        }
+
+        // Two faces that differ only in palette would pass every check above and still be the
+        // same person on screen at a glance.
+        var shapes = faces.Values
+            .Select(f => PortraitForge.Render(f with
+            {
+                Palette = faces.Values.First().Palette
+            }, Expression.Neutral))
+            .ToList();
+
+        // Not merely "not identical": two faces have to differ by enough pixels that the
+        // difference survives being glanced at. A hundred is roughly a jawline moving.
+        var closest = int.MaxValue;
+        for (var a = 0; a < shapes.Count; a++)
+        for (var b = a + 1; b < shapes.Count; b++)
+        {
+            var differing = 0;
+            for (var i = 0; i < shapes[a].Length; i++)
+                if (shapes[a][i] != shapes[b][i]) differing++;
+
+            closest = Math.Min(closest, differing);
+        }
+
+        Check(failures,
+            $"no two faces are near-identical once palette is removed ({closest} pixels apart at closest)",
+            closest >= 100);
+    }
+
     private static void RunBetweenRunPersistenceChecks(List<string> failures, string savePath)
     {
         var session = GameSession.NewGame(savePath);

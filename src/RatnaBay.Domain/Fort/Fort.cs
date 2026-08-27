@@ -20,7 +20,16 @@ public sealed record StoryFragment(
     /// <summary>Deepest room the order has ever reached.</summary>
     int RequiredDepth,
 
-    string Text)
+    string Text,
+
+    /// <summary>
+    /// How it is said.
+    ///
+    /// Authored with the line rather than looked up beside the renderer, because the two drift
+    /// apart the moment they are kept in different files. Defaults to <see cref="Expression
+    /// .Neutral"/>, which is the right answer for most of a ledger.
+    /// </summary>
+    Expression Mood = Expression.Neutral)
 {
     public bool IsUnlocked(Rank rank, int deepestEver) =>
         Ranks.AtLeast(rank, RequiredRank) && deepestEver >= RequiredDepth;
@@ -68,8 +77,8 @@ public sealed record FortRoom(
 /// </summary>
 public static class FortRoster
 {
-    private static StoryFragment F(string id, Rank rank, int depth, string text) =>
-        new(id, rank, depth, text);
+    private static StoryFragment F(string id, Rank rank, int depth, string text,
+        Expression mood = Expression.Neutral) => new(id, rank, depth, text, mood);
 
     private static readonly FortRoom[] Rooms =
     {
@@ -81,10 +90,12 @@ public static class FortRoster
                 F("gate.1", Rank.Atala, 1,
                     "Everything that comes up goes in the book. The book goes to the capital."),
                 F("gate.2", Rank.Sutala, 6,
-                    "Your column is longer than most. That is not always a compliment here."),
+                    "Your column is longer than most. That is not always a compliment here.",
+                    Expression.Wary),
                 F("gate.3", Rank.Talatala, 12,
                     "I have kept this ledger eleven years. The totals never balance. The last "
-                    + "person who said so out loud is behind a door at the bottom of a mine.")
+                    + "person who said so out loud is behind a door at the bottom of a mine.",
+                    Expression.Afraid)
             }),
 
         new("fort.hall", "The Order's Hall", "Revati", "Lamp-keeper", Rank.Atala,
@@ -96,17 +107,20 @@ public static class FortRoster
                     "Bhagiratha, they call us. Bhagirathi, if that suits you better. He was "
                     + "a miner, and he went down one morning and did not come back up. On "
                     + "the tally roll we are khanaka. Diggers. The state has never written "
-                    + "down a word for what we actually do."),
+                    + "down a word for what we actually do.",
+                    Expression.Warm),
                 F("hall.2", Rank.Sutala, 8,
                     "The woman who ran these mines counted her people in and counted them "
                     + "out, which nobody had thought to do before. One season the count came "
                     + "up sixty-one short. She went in and brought fifty-seven of them back "
-                    + "up alive, and that is not a story, that is the roll."),
+                    + "up alive, and that is not a story, that is the roll.",
+                    Expression.Warm),
                 F("hall.3", Rank.Rasatala, 18,
                     "Four she never found, and her husband was one of them, so she went "
                     + "further in. The miners she had just carried out told her what was "
                     + "down there. She thanked them and went anyway, and she did not come "
-                    + "back. So they put his name on the rest of us.")
+                    + "back. So they put his name on the rest of us.",
+                    Expression.Grieved)
             }),
 
         new("fort.assay", "The Assay", "Nagadatta", "Assayer", Rank.Vitala,
@@ -117,7 +131,8 @@ public static class FortRoster
                 F("assay.1", Rank.Vitala, 4,
                     "Full and empty weigh the same. Only the light tells you which is which."),
                 F("assay.2", Rank.Talatala, 12,
-                    "Some of what comes across this table was never in a mine. I weigh that too.")
+                    "Some of what comes across this table was never in a mine. I weigh that too.",
+                    Expression.Wary)
             }),
 
         new("fort.forge", "The Forge", "Lohasena", "Smith", Rank.Sutala,
@@ -130,7 +145,8 @@ public static class FortRoster
                     + "most of what you are paying for."),
                 F("forge.2", Rank.Rasatala, 16,
                     "I have made the same six things for twenty years. The registrar decides "
-                    + "what a Bhagiratha is allowed to carry.")
+                    + "what a Bhagiratha is allowed to carry.",
+                    Expression.Angry)
             }),
 
         new("fort.physician", "The Physician", "Visakha", "Physician", Rank.Talatala,
@@ -139,13 +155,15 @@ public static class FortRoster
             new[]
             {
                 F("phys.1", Rank.Talatala, 10,
-                    "I buy prana. Do not ask me where it comes from; I have stopped asking."),
+                    "I buy prana. Do not ask me where it comes from; I have stopped asking.",
+                    Expression.Wary),
                 F("phys.2", Rank.Talatala, 14,
                     "The lawful supply is what the almost-dead give up. It has never once been "
                     + "enough for a province this size."),
                 F("phys.3", Rank.Rasatala, 20,
                     "There are people in the lower town who sleep eighteen hours and cannot "
-                    + "say why. They are paid, if that helps.")
+                    + "say why. They are paid, if that helps.",
+                    Expression.Grieved)
             }),
 
         new("fort.registrar", "The Registry", "Suvarnapala", "Akaradhyaksha", Rank.Talatala,
@@ -158,7 +176,8 @@ public static class FortRoster
                     + "of it, and it does not run the other way."),
                 F("reg.2", Rank.Rasatala, 18,
                     "Ore taken is a fine of eight times its worth. A jiva stone taken is your "
-                    + "life. I did not write that law and I do enforce it.")
+                    + "life. I did not write that law and I do enforce it.",
+                    Expression.Angry)
             }),
 
         new("fort.shrine", "The Shrine", "Isidata", "Priest", Rank.Mahatala,
@@ -168,11 +187,13 @@ public static class FortRoster
             {
                 F("shrine.1", Rank.Mahatala, 9,
                     "You call them chhaya. Shadows. The word is preta, and it means something "
-                    + "that cannot stop wanting. They are owed pity, not a sword."),
+                    + "that cannot stop wanting. They are owed pity, not a sword.",
+                    Expression.Grieved),
                 F("shrine.2", Rank.Rasatala, 17,
                     "The verse on the pillar was cut by the state, in a mine the state opened, "
                     + "to take wealth out of it. Covet not — for whose is wealth? Nobody here "
-                    + "finds that funny.")
+                    + "finds that funny.",
+                    Expression.Angry)
             }),
 
         new("fort.barracks", "The Barracks", "Bhadrasena", "Garrison captain", Rank.Rasatala,
@@ -182,10 +203,12 @@ public static class FortRoster
             {
                 F("barracks.1", Rank.Rasatala, 15,
                     "We guard the convoys. You clear the holes. Nobody has ever asked us to "
-                    + "go down there and I would refuse."),
+                    + "go down there and I would refuse.",
+                    Expression.Afraid),
                 F("barracks.2", Rank.Rasatala, 22,
                     "An inspection comes every five years. The last one did not reach us. "
-                    + "The books were sent ahead and came back approved.")
+                    + "The books were sent ahead and came back approved.",
+                    Expression.Wary)
             }),
 
         new("fort.clerk", "The Clerk's Room", "Chandrashri", "Governor's clerk", Rank.Rasatala,
@@ -195,10 +218,12 @@ public static class FortRoster
             {
                 F("clerk.1", Rank.Rasatala, 16,
                     "The province exports more prana than it lawfully collects. The difference "
-                    + "has been growing for nine years."),
+                    + "has been growing for nine years.",
+                    Expression.Wary),
                 F("clerk.2", Rank.Patala, 24,
                     "I have written the true figures three times. Each time the reply asks me "
-                    + "to check my arithmetic.")
+                    + "to check my arithmetic.",
+                    Expression.Angry)
             }),
 
         new("fort.governor", "The Governor", "Vasumitra", "Governor", Rank.Patala,
@@ -211,10 +236,12 @@ public static class FortRoster
                     + "province that starves in a season."),
                 F("gov.2", Rank.Patala, 26,
                     "Uttara shut that door from the inside and it held five years. We did not "
-                    + "lose it. We ordered it broken open, because the quota came."),
+                    + "lose it. We ordered it broken open, because the quota came.",
+                    Expression.Grieved),
                 F("gov.3", Rank.Patala, 30,
                     "You can expose it, take it, or end it. I have had thirty years to choose "
-                    + "and I chose none of them.")
+                    + "and I chose none of them.",
+                    Expression.Grieved)
             })
     };
 

@@ -275,6 +275,15 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
     private string? _screenshotPath;
 
+    /// <summary>Set by --faces: write the portrait contact sheet and quit without a frame.</summary>
+    private string? _facesPath;
+
+    /// <summary>--face-scale: how far to blow the sheet up. Four is where a brow is arguable.</summary>
+    private int _faceSheetScale = 2;
+
+    /// <summary>--face: restrict the sheet to occupants whose room id contains this.</summary>
+    private string? _faceOnly;
+
 
     /// <summary>
     /// Set by --cover: render the store cover instead of the HUD, at itch.io's aspect.
@@ -499,6 +508,11 @@ public sealed class Game1 : Game, IConsoleTarget
 
         _screen = ParseMode(args);
         _screenshotPath = ParseOption(args, "--screenshot");
+        _facesPath = ParseOption(args, "--faces");
+        _faceOnly = ParseOption(args, "--face");
+        _faceSheetScale = Math.Clamp(
+            int.TryParse(ParseOption(args, "--face-scale"), out var faceScale) ? faceScale : 2,
+            1, 8);
 
         // --cover is --screenshot with a different composition and a different shape.
         var coverPath = ParseOption(args, "--cover");
@@ -607,7 +621,7 @@ public sealed class Game1 : Game, IConsoleTarget
             (value, position, maxWidth, scale, color, maxLines) =>
                 TextWrapped(value, position, maxWidth, scale, color, maxLines),
             Fill, Border, DrawSprite);
-        _screens = new UiScreens(_ui);
+        _screens = new UiScreens(_ui, GraphicsDevice);
     }
 
     private static bool HasArgument(string[] args, string argument)
@@ -715,6 +729,15 @@ public sealed class Game1 : Game, IConsoleTarget
 
     protected override void LoadContent()
     {
+        // Before anything else loads: this needs a graphics device and nothing more, and the
+        // point of it is to be runnable on a machine where the rest of the game will not start.
+        if (_facesPath is not null)
+        {
+            SaveFaceSheet(_facesPath);
+            Exit();
+            return;
+        }
+
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         _billboards = new BillboardRenderer(GraphicsDevice);
         var fontsDirectory = Path.Combine(
@@ -817,6 +840,10 @@ public sealed class Game1 : Game, IConsoleTarget
 
     protected override void UnloadContent()
     {
+        // --faces returns out of LoadContent before any of this exists, so there is nothing
+        // here to release and every line below would throw on a null.
+        if (_facesPath is not null) return;
+
         _fontSystem.Dispose();
         _headingFontSystem.Dispose();
         _white.Dispose();
@@ -825,6 +852,7 @@ public sealed class Game1 : Game, IConsoleTarget
         StoneTextures.Clear();
         PropTextures.Clear();
         ItemSprites.Clear();
+        PortraitForge.Clear();
         // A sitting that ends by closing the window is still a sitting worth reading back.
         _recorder.Flush();
 
@@ -1310,6 +1338,76 @@ public sealed class Game1 : Game, IConsoleTarget
             texture.SaveAsPng(stream, captureWidth, captureHeight);
 
         Console.WriteLine($"Saved {captureWidth}x{captureHeight} screenshot to {fullPath}");
+    }
+
+    /// <summary>
+    /// Every face in every mood, as one PNG.
+    ///
+    /// The whole reason procedural portraits are affordable is that a change to a brow can be
+    /// judged in one picture instead of ten conversations. One row per occupant, one column
+    /// per expression, generated at authoring size so what is written to disk is exactly the
+    /// pixels the forge produced.
+    /// </summary>
+    private void SaveFaceSheet(string path)
+    {
+        var moods = Enum.GetValues<Expression>();
+        var rooms = FortRoster.All.Where(room => FaceCatalog.Find(room.Id) is not null).ToList();
+
+        // --face narrows the sheet to one occupant, which is the only way to get a useful
+        // --face-scale: the Reach profile caps a texture at 2048 on a side, and ten rows of
+        // anything past double blows straight through it.
+        if (_faceOnly is not null)
+            rooms = rooms.Where(room =>
+                room.Id.Contains(_faceOnly, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (rooms.Count == 0)
+        {
+            Console.WriteLine($"No face matched '{_faceOnly}'.");
+            return;
+        }
+
+        var scale = _faceSheetScale;
+        var cellInner = new Point(PortraitForge.Width * scale, PortraitForge.Height * scale);
+
+        var Pad = 4 * scale;
+        var cellW = cellInner.X + Pad;
+        var cellH = cellInner.Y + Pad;
+        var sheetW = cellW * moods.Length + Pad;
+        var sheetH = cellH * rooms.Count + Pad;
+
+        var sheet = new Color[sheetW * sheetH];
+        Array.Fill(sheet, new Color(18, 22, 28));
+
+        for (var row = 0; row < rooms.Count; row++)
+        {
+            var face = FaceCatalog.Find(rooms[row].Id)!;
+
+            for (var column = 0; column < moods.Length; column++)
+            {
+                var pixels = PortraitForge.Render(face, moods[column]);
+                var originX = Pad + column * cellW;
+                var originY = Pad + row * cellH;
+
+                for (var y = 0; y < cellInner.Y; y++)
+                for (var x = 0; x < cellInner.X; x++)
+                {
+                    var source = pixels[y / scale * PortraitForge.Width + x / scale];
+                    if (source.A == 0) continue;
+                    sheet[(originY + y) * sheetW + originX + x] = source;
+                }
+            }
+        }
+
+        using var texture = new Texture2D(GraphicsDevice, sheetW, sheetH);
+        texture.SetData(sheet);
+
+        var fullPath = Path.GetFullPath(path);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        using (var stream = File.Create(fullPath))
+            texture.SaveAsPng(stream, sheetW, sheetH);
+
+        Console.WriteLine(
+            $"Saved {rooms.Count} faces x {moods.Length} moods ({sheetW}x{sheetH}) to {fullPath}");
     }
 
     /// <summary>itch.io's cover shape, at twice its stated size so the type stays sharp.</summary>
