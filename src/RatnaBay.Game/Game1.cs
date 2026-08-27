@@ -197,6 +197,9 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>Set by a failed 'assert'. Becomes the process exit code.</summary>
     private bool _scriptFailed;
 
+    /// <summary>A --script path that does not exist, reported once there is a screen to say so on.</summary>
+    private string? _scriptMissing;
+
     /// <summary>1 when a scripted run found a failure, 0 otherwise. Read by Program.</summary>
     public int ScriptExitCode => _scriptFailed ? 1 : 0;
 
@@ -415,14 +418,8 @@ public sealed class Game1 : Game, IConsoleTarget
     private int _fpsFrames;
     private readonly System.Diagnostics.Stopwatch _fpsClock = System.Diagnostics.Stopwatch.StartNew();
 
-    /// <summary>Real seconds the last frame took, for spotting a stall.</summary>
-    private float _lastFrameMs;
     private int _framesDrawn;
 
-    /// <summary>
-    /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
-    /// pixel so glyphs land 1:1 on the display instead of being resampled.
-    /// </summary>
     /// <summary>
     /// Seconds since the game started, for anything that moves on its own.
     ///
@@ -432,6 +429,10 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private float _clock;
 
+    /// <summary>
+    /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
+    /// pixel so glyphs land 1:1 on the display instead of being resampled.
+    /// </summary>
     private float _uiScale = 1f;
     private float _uiScalePreference = 1f;
     private bool _showSettings;
@@ -495,18 +496,30 @@ public sealed class Game1 : Game, IConsoleTarget
         // A file of them, for a test that is longer than a command line. Read here and folded
         // into the same queue, so --script and --exec behave identically from then on.
         var scriptFile = ParseOption(args, "--script");
-        if (scriptFile is not null && File.Exists(scriptFile))
+        if (scriptFile is not null)
         {
-            var statements = File.ReadAllLines(scriptFile)
-                .Select(line => line.Trim())
-                .Where(line => line.Length > 0 && !line.StartsWith('#'));
-
-            var joined = string.Join(';', statements);
-            _consoleScript = _consoleScript is null ? joined : _consoleScript + ";" + joined;
+            // A named script that is not there is a broken invocation, not an empty one. It
+            // used to be ignored, so a mistyped path ran the game with no commands at all and
+            // exited zero -- a gate that passes by doing nothing.
+            if (!File.Exists(scriptFile))
+            {
+                _scriptMissing = scriptFile;
+            }
+            else
+            {
+                var joined = string.Join(';',
+                    ConsoleRouter.ReadScript(File.ReadAllLines(scriptFile)));
+                _consoleScript = _consoleScript is null ? joined : _consoleScript + ";" + joined;
+            }
         }
 
         // --yard opens on the surface rather than the menu, so the one place the player
         // starts and returns to can be looked at rather than described.
+        //
+        // A script implies one. Commands run against the world, and the menu has none: the
+        // smoke script asked where it was standing and was told "no world", which made the
+        // documented invocation unable to pass. Anything that names a scene of its own --
+        // a mine, the moodboard, the pillar -- still gets that instead.
         _startOnTheSurface = HasArgument(args, "--yard");
         _moodboard = HasArgument(args, "--moodboard");
         _assetCase = HasArgument(args, "--assets");
@@ -517,6 +530,13 @@ public sealed class Game1 : Game, IConsoleTarget
 
         // Asking for a mine and being shown the title screen is a papercut; --mine means play it.
         if (_mineSeed is not null) _screen = GameScreen.WorldScene;
+
+        if (_consoleScript is not null
+            && _mineSeed is null
+            && !_moodboard
+            && !_stambhaPreview
+            && _screen == GameScreen.MainMenu)
+            _startOnTheSurface = true;
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
         if (_coverMode)
@@ -708,9 +728,32 @@ public sealed class Game1 : Game, IConsoleTarget
 
         // --exec runs against a world that now exists, and before the first frame is drawn,
         // so a capture taken after it sees where the commands put the player.
-        if (_consoleScript is not null)
-            foreach (var statement in ConsoleRouter.SplitStatements(_consoleScript))
-                _scriptQueue.Enqueue(statement);
+        if (_scriptMissing is not null)
+        {
+            FailScript($"No script file '{_scriptMissing}'.");
+            _scriptQuitWhenDone = true;
+            return;
+        }
+
+        if (_consoleScript is null) return;
+
+        var statements = ConsoleRouter.SplitStatements(_consoleScript);
+
+        // Checked as a whole before the first one runs. A script that names a command nothing
+        // registered is a script that was written against a different build, and finding that
+        // out at statement forty means the thirty-nine asserts before it already reported
+        // success on a run that was never going to finish.
+        _console ??= GameConsole.Build(this);
+        var unknown = _console.UnknownCommands(statements);
+        if (unknown.Count > 0)
+        {
+            FailScript($"Unknown command(s): {string.Join(", ", unknown)}. Try 'help'.");
+            _scriptQuitWhenDone = true;
+            return;
+        }
+
+        foreach (var statement in statements)
+            _scriptQueue.Enqueue(statement);
     }
 
     protected override void UnloadContent()
@@ -745,19 +788,16 @@ public sealed class Game1 : Game, IConsoleTarget
         MathF.Min((float)gameTime.ElapsedGameTime.TotalSeconds, MaxFrameSeconds);
 
     /// <summary>
-    /// The step the simulation is allowed this frame, which is zero while a hit is landing.
+    /// Simulated seconds this frame: zero while a hit is landing, scaled by the console's 'time'.
     ///
     /// Everything that moves reads this rather than the clock, so hitstop freezes the world
     /// without any of it knowing why. The input layer deliberately does not: a player who
     /// presses a key during those four frames should still be heard, or the freeze reads as
     /// dropped input rather than as impact.
-    /// </summary>
-    /// <summary>
-    /// Simulated seconds this frame.
     ///
-    /// Scaled by the console's 'time', which is what makes a fight watchable: at 0.2 a swing
-    /// can be followed through, and at 0 the frame holds still while the camera is moved.
-    /// Real time is untouched, so fire keeps flickering and the console stays responsive.
+    /// The time scale is what makes a fight watchable — at 0.2 a swing can be followed through,
+    /// and at 0 the frame holds still while the camera is moved. Real time is untouched, so
+    /// fire keeps flickering and the console stays responsive.
     /// </summary>
     private float StepSeconds(GameTime gameTime) =>
         _hitstop > 0f ? 0f : RealSeconds(gameTime) * _timeScale;
@@ -1028,31 +1068,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private readonly List<string> _watchOutput = new();
 
-    /// <summary>
-    /// The watch panel: whatever 'watch' was pointed at, updated every frame.
-    ///
-    /// This is the live-debugging half. Typing 'enemies' tells you what is in the room now;
-    /// watching it tells you what happens to them while you fight, which is the question that
-    /// actually comes up.
-    /// </summary>
-    private void DrawWatches()
-    {
-        if (_watchOutput.Count == 0) return;
-
-        var height = 26 + _watchOutput.Count * 18;
-        var panel = new Rectangle(LogicalWidth - 430, 150, 410, height);
-
-        Fill(panel, new Color(4, 8, 13, 214));
-        Border(panel, new Color(96, 132, 142));
-
-        var y = panel.Y + 12f;
-        foreach (var line in _watchOutput)
-        {
-            TextFit(line, new Vector2(panel.X + 12, y), panel.Width - 24, 13,
-                new Color(196, 214, 212));
-            y += 18f;
-        }
-    }
+    private void DrawWatches() => _screens.Console.DrawWatches(_watchOutput);
 
     private void WalkHistory(int direction)
     {
@@ -1136,7 +1152,6 @@ public sealed class Game1 : Game, IConsoleTarget
         if (elapsed >= 0.5)
         {
             _framesPerSecond = (float)(_fpsFrames / elapsed);
-            _lastFrameMs = (float)(elapsed * 1000.0 / _fpsFrames);
             _fpsFrames = 0;
             _fpsClock.Restart();
         }
@@ -1529,13 +1544,6 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// Drop into a world, generated or authored.
-    ///
-    /// Both paths go through here because the world has to be discarded and rebuilt when the
-    /// kind of world changes. Leaving the old one in place is how "Start New Game" after a
-    /// descent used to hand back the mine you had just left.
-    /// </summary>
-    /// <summary>
     /// Walk back into the mine that was put down.
     ///
     /// The mine is rebuilt from its seed rather than stored, the ledger is adopted by the run
@@ -1596,6 +1604,13 @@ public sealed class Game1 : Game, IConsoleTarget
         EnterWorld(null);
     }
 
+    /// <summary>
+    /// Drop into a world, generated or authored.
+    ///
+    /// Both paths go through here because the world has to be discarded and rebuilt when the
+    /// kind of world changes. Leaving the old one in place is how "Start New Game" after a
+    /// descent used to hand back the mine you had just left.
+    /// </summary>
     private void EnterWorld(int? mineSeed, bool newCharacter = false, int tier = 1)
     {
         _mineSeed = mineSeed;
@@ -1685,7 +1700,7 @@ public sealed class Game1 : Game, IConsoleTarget
         }
     }
 
-    /// <summary>A row of the camp trader's pack. Selling is row zero.</summary>
+    /// <summary>
     /// The trader at a cleared room's exit.
     ///
     /// Everything here is priced in the pot, because down a mine the pot is the purse: what is
@@ -2294,20 +2309,7 @@ public sealed class Game1 : Game, IConsoleTarget
                 }
                 else
                 {
-                    var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
-                    if (door is not null && door.Lock.IsOpen)
-                        _recorder.Record(PlayEventKind.DoorOpened, door.Definition.Id, 0f, 0f,
-                            _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
-                    if (door is not null)
-                    {
-                        _session.ShowToast(result switch
-                        {
-                            LockResult.Opened => $"{door.Definition.Id} opened.",
-                            LockResult.Unlocked => "The key turns. The door opens.",
-                            LockResult.Failed => $"The lock resists. Security {door.Definition.Difficulty:0} required.",
-                            _ => "The door is already open."
-                        });
-                    }
+                    TryOpenDoorAhead(player);
                 }
             }
         }
@@ -2501,9 +2503,28 @@ public sealed class Game1 : Game, IConsoleTarget
             return true;
         }
 
-        if (_world is null) return false;
+        return TryOpenDoorAhead(player);
+    }
+
+    /// <summary>
+    /// Open whatever door the player is facing, and say so.
+    ///
+    /// One method because there are two ways to ask -- the key and the on-screen prompt -- and
+    /// they had a copy each. The copies had already drifted in both directions: pressing E
+    /// recorded the opening for telemetry and played no sound, while clicking the prompt played
+    /// the sound and recorded nothing. Every door opened by hand was missing from the recording
+    /// or missing from the audio depending on which the player used.
+    /// </summary>
+    private bool TryOpenDoorAhead(WorldPoint player)
+    {
+        if (_world is null || _session is null) return false;
+
         var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
         if (door is null) return false;
+
+        if (door.Lock.IsOpen)
+            _recorder.Record(PlayEventKind.DoorOpened, door.Definition.Id, 0f, 0f,
+                _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
 
         _session.ShowToast(result switch
         {
@@ -2516,7 +2537,6 @@ public sealed class Game1 : Game, IConsoleTarget
         _sfx?.Play(result switch
         {
             LockResult.Opened or LockResult.Unlocked => Sfx.Door,
-            LockResult.Failed => Sfx.Denied,
             _ => Sfx.Denied
         }, 0.6f);
 
@@ -2879,13 +2899,6 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// Subscribe the recorder to the fight.
-    ///
-    /// Everything here is something that already happened for its own reasons; the recorder
-    /// only listens. Nothing in the game asks whether it is recording, which is what keeps it
-    /// impossible for telemetry to change how the game plays.
-    /// </summary>
-    /// <summary>
     /// Freeze the world briefly, and shove the camera.
     ///
     /// Called from wherever a blow lands. <paramref name="weight"/> is 0 for a graze and 1 for
@@ -2963,6 +2976,13 @@ public sealed class Game1 : Game, IConsoleTarget
             MathHelper.Clamp(enemy.Archetype.MaxHealth / 260f, 0.35f, 1f);
     }
 
+    /// <summary>
+    /// Subscribe the recorder to the fight.
+    ///
+    /// Everything here is something that already happened for its own reasons; the recorder
+    /// only listens. Nothing in the game asks whether it is recording, which is what keeps it
+    /// impossible for telemetry to change how the game plays.
+    /// </summary>
     private void WatchForTheRecord(Encounter encounter, GameSession session)
     {
         encounter.EnemyDefeated += enemy => _recorder.Record(PlayEventKind.EnemyKilled,
@@ -4108,28 +4128,11 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private void Sign(string title, string subtitle, WorldPoint at, float height, Color colour)
     {
-        if (!TryProjectToScreen(new Vector3(at.X, at.Y + height, at.Z), out var screen)) return;
-
         var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
-        var distance = player.FlatDistanceTo(at);
 
-        // Fades in with distance rather than out: a label is most useful from across the yard
-        // and just noise when you are stood at the thing it names.
-        var fade = MathHelper.Clamp((distance - 3f) / 5f, 0f, 1f);
-        if (fade <= 0.02f) return;
-
-        // A heavier shadow than the mine needs. These sit against sunlit sandstone now, and a
-        // pale label on a pale wall is a label nobody reads.
-        for (var dx = -2; dx <= 2; dx += 2)
-        for (var dy = -2; dy <= 2; dy += 2)
-        {
-            if (dx == 0 && dy == 0) continue;
-            TextCentred(title, screen.X + dx, screen.Y + dy, 17, new Color(0, 0, 0, 190) * fade);
-        }
-
-        TextCentred(title, screen.X, screen.Y, 17, colour * fade);
-        TextCentred(subtitle, screen.X + 1f, screen.Y + 21f, 12, new Color(0, 0, 0, 170) * fade);
-        TextCentred(subtitle, screen.X, screen.Y + 20f, 12, new Color(228, 232, 236) * fade);
+        _screens.Markers.DrawSign(title, subtitle,
+            new Vector3(at.X, at.Y + height, at.Z), player.FlatDistanceTo(at), colour,
+            Projector());
     }
 
     /// <summary>
@@ -4156,55 +4159,11 @@ public sealed class Game1 : Game, IConsoleTarget
             new Color(226, 232, 232) * fade);
     }
 
-    /// <summary>
-    /// The console: a band of output, and a line to type into.
-    ///
-    /// Top of the screen rather than bottom, because the bottom is where the vitals are and
-    /// the one time anybody opens this is when they want to see what is happening to them
-    /// while they type.
-    /// </summary>
     private void DrawConsole()
     {
         if (!_consoleOpen) return;
 
-        var panel = new Rectangle(0, 0, LogicalWidth, 330);
-        Fill(panel, new Color(4, 8, 13, 242));
-        Fill(new Rectangle(0, panel.Bottom - 2, LogicalWidth, 2), new Color(151, 206, 210));
-
-        // Newest at the bottom, next to the prompt, so the eye does not have to travel.
-        var y = panel.Bottom - 62f;
-        for (var index = _consoleOutput.Count - 1; index >= 0 && y > 8f; index--)
-        {
-            var line = _consoleOutput[index];
-            var colour = line.Tone switch
-            {
-                ConsoleTone.Echo => new Color(151, 206, 210),
-                ConsoleTone.Error => new Color(228, 128, 118),
-                _ => new Color(206, 216, 214)
-            };
-
-            TextFit(line.Text, new Vector2(16, y), LogicalWidth - 32, 14, colour);
-            y -= 20f;
-        }
-
-        var prompt = new Rectangle(8, panel.Bottom - 44, LogicalWidth - 16, 30);
-        Fill(prompt, new Color(12, 22, 30, 250));
-        Border(prompt, new Color(76, 112, 124));
-
-        Text(">", new Vector2(prompt.X + 10, prompt.Y + 6), 15, new Color(232, 194, 116));
-        TextFit(_consoleInput, new Vector2(prompt.X + 28, prompt.Y + 6), prompt.Width - 48, 15,
-            Color.White);
-
-        // A caret that blinks, so an empty prompt still looks alive.
-        if ((int)(_clock * 2f) % 2 == 0)
-        {
-            var width = _consoleInput.Length * 7.4f;
-            Fill(new Rectangle((int)(prompt.X + 30 + width), prompt.Y + 7, 2, 17),
-                new Color(232, 194, 116));
-        }
-
-        TextRight("~ or Esc closes   ·   Tab completes   ·   Up walks back",
-            prompt.Right - 12, prompt.Y + 8, 12, new Color(120, 140, 148));
+        _screens.Console.Draw(_consoleOutput, _consoleInput, _clock);
     }
 
     private void DrawDoorPrompt()
@@ -4227,7 +4186,7 @@ public sealed class Game1 : Game, IConsoleTarget
             };
 
             DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-            Text(line, new Vector2(404, 608), 15, Color.White);
+            Text(line, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
             return;
         }
 
@@ -4266,7 +4225,8 @@ public sealed class Game1 : Game, IConsoleTarget
             DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225),
                 new Color(151, 206, 210));
             TextFit($"Click / E  Take {pickup.Name} x{pickup.Count}",
-                new Vector2(404, 608), 472f, 15, Color.White);
+                UiLayout.PromptText(UiLayout.SinglePrompt),
+                UiLayout.PromptTextWidth(UiLayout.SinglePrompt), 15, Color.White);
             return;
         }
 
@@ -4282,7 +4242,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_run is { BarsTheWay: true })
         {
             DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(150, 120, 110));
-            Text("Barred  |  clear this room first", new Vector2(404, 608), 15,
+            Text("Barred  |  clear this room first", UiLayout.PromptText(UiLayout.SinglePrompt), 15,
                 new Color(224, 196, 186));
             return;
         }
@@ -4291,7 +4251,7 @@ public sealed class Game1 : Game, IConsoleTarget
             : hasKey ? "Click / E  Unlock with your key"
             : $"Locked  |  a key, or Security {door.Definition.Difficulty:0}";
         DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-        Text(text, new Vector2(404, 608), 15, Color.White);
+        Text(text, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
     }
 
     private void DrawSpeakingActors()
@@ -4410,12 +4370,6 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// The enemies, as camera-facing sprites.
-    ///
-    /// Drawn far to near so the alpha-tested cutouts never punch a hole in something behind
-    /// them that has not been drawn yet.
-    /// </summary>
-    /// <summary>
     /// The sprite an enemy is drawn with.
     ///
     /// Every enemy used to be a bandit. That was survivable while there was one kind of thing
@@ -4435,6 +4389,12 @@ public sealed class Game1 : Game, IConsoleTarget
             : CharacterSprites.Get(GraphicsDevice, "bandit", CharacterPalette.Bandit);
     }
 
+    /// <summary>
+    /// The enemies, as camera-facing sprites.
+    ///
+    /// Drawn far to near so the alpha-tested cutouts never punch a hole in something behind
+    /// them that has not been drawn yet.
+    /// </summary>
     private void DrawEnemies()
     {
         if (_encounter is null || _encounter.Enemies.Count == 0) return;
@@ -4956,16 +4916,11 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     /// <summary>
-    /// A nameplate over each enemy: name, level, health, and whatever is currently wrong with it.
+    /// Nameplates for everything alive and close enough to matter.
     ///
-    /// This used to be one bar pinned to the middle of the player's screen, showing only
-    /// whatever the crosshair was over. Moving it onto the enemies themselves does three things
-    /// the centred bar could not: it says which of five things in a room is hurt, it stops the
-    /// interface sitting between the player and the fight, and it puts the information where
-    /// the player is already looking.
-    ///
-    /// Drawn in the UI pass rather than as a billboard, so the text stays crisp at any distance
-    /// and is never clipped into a wall.
+    /// The projection happens here, where the camera is, and the renderer receives points on
+    /// the canvas -- so a marker can never be projected with a different frame's camera than
+    /// the one it is drawn over.
     /// </summary>
     private void DrawEnemyNameplates()
     {
@@ -4975,66 +4930,46 @@ public sealed class Game1 : Game, IConsoleTarget
         var sorted = new List<Enemy>(_encounter.Enemies);
         sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
 
+        var projector = Projector();
+        var plates = new List<NameplateState>();
+
         foreach (var enemy in sorted)
         {
             if (!enemy.IsAlive) continue;
 
             var distance = DistanceToCamera(enemy);
-            if (distance > NameplateRange) continue;
+            if (distance > MarkerRenderer.NameplateRange) continue;
 
             var feet = _encounter.DrawPositionOf(enemy);
             var head = feet + Vector3.Up * (_encounter.DrawHeightOf(enemy) + 0.34f);
-            if (!TryProjectToScreen(head, out var anchor)) continue;
+            if (!projector.TryProject(head, out var anchor)) continue;
 
             // Shrink with distance, but never past readable. A plate that scales all the way
             // down is unreadable exactly when a player most wants to know what is coming.
-            var scale = MathHelper.Clamp(1.25f - distance / NameplateRange, 0.62f, 1f);
-            DrawNameplate(enemy, anchor, scale, focused: ReferenceEquals(_encounter.Focused, enemy));
+            var scale = MathHelper.Clamp(
+                1.25f - distance / MarkerRenderer.NameplateRange, 0.62f, 1f);
+
+            plates.Add(new NameplateState(
+                Anchor: anchor,
+                Scale: scale,
+                Label: enemy.Archetype.Level > 1
+                    ? $"{enemy.DisplayName}  ·  {enemy.Archetype.Level}"
+                    : enemy.DisplayName,
+                Status: enemy.IsStaggered ? "staggered"
+                    : enemy.IsBurning ? "burning"
+                    : enemy.IsChilled ? "chilled"
+                    : _encounter.IsLunging(enemy) ? "striking"
+                    : string.Empty,
+                HealthFraction: MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f),
+                Vulnerable: enemy.IsVulnerable,
+                Focused: ReferenceEquals(_encounter.Focused, enemy)));
         }
+
+        _screens.Markers.DrawNameplates(plates);
     }
 
-    /// <summary>Past this, a nameplate is clutter rather than information.</summary>
-    private const float NameplateRange = 26f;
 
-    private void DrawNameplate(Enemy enemy, Vector2 anchor, float scale, bool focused)
-    {
-        var width = (int)(150 * scale);
-        var barHeight = (int)(7 * scale);
-        var nameSize = 13f * scale;
 
-        var bar = new Rectangle((int)(anchor.X - width / 2f), (int)anchor.Y, width, barHeight);
-        var fraction = MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f);
-
-        // Name and level above the bar; the level is the only warning a player gets that this
-        // room is deeper than the last one.
-        var label = enemy.Archetype.Level > 1
-            ? $"{enemy.DisplayName}  ·  {enemy.Archetype.Level}"
-            : enemy.DisplayName;
-
-        TextCentred(label, anchor.X, bar.Y - nameSize - 3f * scale, nameSize,
-            focused ? Color.White : new Color(214, 206, 194));
-
-        Fill(bar, new Color(12, 10, 12, 220));
-        Fill(new Rectangle(bar.X, bar.Y, (int)(bar.Width * fraction), bar.Height),
-            enemy.IsVulnerable ? new Color(232, 186, 96) : new Color(178, 62, 66));
-
-        // The focused enemy gets a brighter rule, so "will this swing connect?" is still
-        // answered — that was the one thing the centred bar was genuinely good at.
-        Border(bar, focused ? new Color(238, 226, 200, 210) : new Color(0, 0, 0, 150));
-
-        var status = enemy.IsStaggered ? "staggered"
-            : enemy.IsBurning ? "burning"
-            : enemy.IsChilled ? "chilled"
-            : _encounter is not null && _encounter.IsLunging(enemy) ? "striking"
-            : string.Empty;
-
-        if (status.Length == 0) return;
-
-        TextCentred(status, anchor.X, bar.Bottom + 2f * scale, 12f * scale,
-            status == "striking" ? new Color(236, 148, 122) : new Color(232, 194, 116));
-    }
-
-    /// <summary>Where a swing or a spell will go. Small, and always centred.</summary>
     /// <summary>
     /// Our own mouse pointer.
     ///
@@ -5075,77 +5010,18 @@ public sealed class Game1 : Game, IConsoleTarget
         }
     }
 
-    /// <summary>Damage and status, floating up from where it happened.</summary>
     private void DrawFloatingNumbers()
     {
         if (_encounter is null) return;
 
-        foreach (var number in _encounter.Feedback.Numbers)
-        {
-            var fade = 1f - number.Age;
-            var rise = number.Age * 46f;
-            Vector2 position;
-
-            if (CombatFeedback.IsSelfInflicted(number))
-            {
-                // Damage taken belongs on the player, not out in the world.
-                position = new Vector2(LogicalWidth / 2f, LogicalHeight / 2f + 78f - rise);
-            }
-            else
-            {
-                if (!TryProjectToScreen(
-                        new Vector3(number.Origin.X, number.Origin.Y + 1.9f, number.Origin.Z),
-                        out position))
-                    continue;
-
-                position.X += number.Drift;
-                position.Y -= rise;
-            }
-
-            // Numbers were already being drawn for sword hits, but at melee range they sat
-            // pale over a pale sprite and went unnoticed. A dark shadow behind them is what
-            // makes them read against anything.
-            var size = CombatFeedback.IsSelfInflicted(number) ? 19 : 24;
-            TextCentred(number.Text, position.X + 2f, position.Y + 2f, size,
-                new Color(0, 0, 0, 190) * fade);
-            TextCentred(number.Text, position.X, position.Y, size, number.Colour * fade);
-        }
+        _screens.Markers.DrawFloatingNumbers(_encounter.Feedback.Numbers, Projector());
     }
 
-    /// <summary>
-    /// Small markers around the crosshair for living enemies nearby.
-    ///
-    /// Testers lost track of bandits the moment they left the view. The marker fades with
-    /// distance so it reads as "something is over there", not as a wallhack.
-    /// </summary>
     private void DrawThreatArrows()
     {
         if (_encounter is null) return;
 
-        const float centreX = LogicalWidth / 2f;
-        const float centreY = LogicalHeight / 2f;
-        const float radius = 172f;
-
-        foreach (var (enemy, bearing, distance) in _encounter.NearbyThreats())
-        {
-            // Anything comfortably in front is already visible; do not clutter the view.
-            if (MathF.Abs(bearing) < 0.42f) continue;
-
-            var nearness = MathHelper.Clamp(1f - distance / 26f, 0.25f, 1f);
-            var colour = new Color(226, 168, 96) * (0.5f + nearness * 0.45f);
-
-            var x = centreX + MathF.Sin(bearing) * radius;
-            var y = centreY - MathF.Cos(bearing) * radius;
-
-            // A small triangle pointing outward along the bearing.
-            for (var step = 0; step < 8; step++)
-            {
-                var width = 8 - step;
-                var px = x + MathF.Sin(bearing) * step;
-                var py = y - MathF.Cos(bearing) * step;
-                Fill(new Rectangle((int)px - width / 2, (int)py - 1, Math.Max(1, width), 2), colour);
-            }
-        }
+        _screens.Markers.DrawThreatArrows(_encounter.NearbyThreats());
     }
 
 
@@ -5187,49 +5063,11 @@ public sealed class Game1 : Game, IConsoleTarget
 
     }
 
-    /// <summary>
-    /// World position to logical UI pixels. False when the point is behind the camera, which
-    /// would otherwise project to a mirrored position in front of it.
-    /// </summary>
-    private bool TryProjectToScreen(Vector3 world, out Vector2 screen)
-    {
-        screen = Vector2.Zero;
+    /// <summary>This frame's world-to-canvas projection, for anything anchored in the world.</summary>
+    private WorldProjector Projector() =>
+        new(GraphicsDevice.Viewport, _view, _projection, _uiScale);
 
-        var viewport = GraphicsDevice.Viewport;
-        var projected = viewport.Project(world, _projection, _view, Matrix.Identity);
-        if (projected.Z is < 0f or > 1f) return false;
-
-        if (_uiScale <= 0f) return false;
-        var offsetX = (viewport.Width - LogicalWidth * _uiScale) * 0.5f;
-        var offsetY = (viewport.Height - LogicalHeight * _uiScale) * 0.5f;
-
-        screen = new Vector2((projected.X - offsetX) / _uiScale, (projected.Y - offsetY) / _uiScale);
-        return true;
-    }
-
-    /// <summary>
-    /// Content that failed to load, said out loud.
-    ///
-    /// These were only ever shown on the Renderer Lab screen, so a damaged install dropped
-    /// the player into an empty void with a working HUD and no explanation. Saves already
-    /// follow the rule that a half-load must fail loudly; content now does too.
-    /// </summary>
-    private void DrawContentErrors()
-    {
-        if (_assetErrors.Count == 0) return;
-
-        var panel = new Rectangle(300, 84, 680, 44 + _assetErrors.Count * 22);
-        DrawPanel(panel, new Color(38, 12, 12, 238), new Color(198, 96, 88));
-        Text("CONTENT FAILED TO LOAD", new Vector2(panel.X + 16, panel.Y + 12), 14,
-            new Color(255, 196, 186));
-
-        var y = panel.Y + 36f;
-        foreach (var error in _assetErrors)
-        {
-            TextFit(error, new Vector2(panel.X + 16, y), 648f, 13, new Color(240, 208, 202));
-            y += 22f;
-        }
-    }
+    private void DrawContentErrors() => _screens.Markers.DrawContentErrors(_assetErrors);
 
 
 
@@ -5454,7 +5292,10 @@ public sealed class Game1 : Game, IConsoleTarget
 
     void IConsoleTarget.WaitSeconds(float seconds) => _scriptWaitSeconds = seconds;
 
-    void IConsoleTarget.FailScript(string why)
+    void IConsoleTarget.FailScript(string why) => FailScript(why);
+
+    /// <summary>Record a scripted failure, and say so on stdout for an unattended run.</summary>
+    private void FailScript(string why)
     {
         _scriptFailed = true;
         Console.WriteLine("[!] " + why);
@@ -5598,12 +5439,6 @@ public sealed class Game1 : Game, IConsoleTarget
         (byte)Math.Clamp(color.G, 0, 255),
         (byte)Math.Clamp(color.B, 0, 255),
         (byte)Math.Clamp(color.A, 0, 255));
-
-    private void DrawWorldBase(Color sky, Color horizon)
-    {
-        GraphicsDevice.Clear(sky);
-        DrawCube(new Vector3(0f, -0.45f, 0f), new Vector3(22f, 0.3f, 22f), horizon, 0f);
-    }
 
     private void DrawModel(string key, Vector3 position, float scale, float rotation)
     {

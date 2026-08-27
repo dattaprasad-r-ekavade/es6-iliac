@@ -3,8 +3,13 @@
 # Run it with:
 #     build\RatnaBay.exe --script Docs\scripts\smoke.rbs
 #
+# A script opens in the yard, because commands act on a world and the menu has
+# none. Pass --mine, --moodboard or --stambha to script one of those instead.
+#
 # Every line is one console statement. Blank lines and # comments are ignored.
-# The process exits 1 if any assert fails, so this can gate a build.
+# The process exits 1 if any assert fails, so this can gate a build. A command
+# nothing registers fails the run before the first statement, rather than
+# halfway down with the asserts above it already reported as passing.
 #
 # 'wait' takes SECONDS of simulated time, not frames. Capture mode runs uncapped,
 # so a frame count buys an unpredictable and usually tiny amount of game time --
@@ -12,8 +17,11 @@
 
 echo === the yard ===
 
-assert where has yard
+# Named geometry rather than 'where has yard' on its own: "the yard" is also what
+# 'where' answers when there is no run at all, so that assert passed on the title
+# screen -- a green gate for a build that never loaded a world.
 assert geo has surface.ground
+assert where has yard
 
 # The mouth of the mine has to be a hole you can see down, and the path must not
 # be laid across it. Both of those were wrong at once, and neither was visible

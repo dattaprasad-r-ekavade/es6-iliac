@@ -23,7 +23,7 @@ internal sealed class ConsentRenderer
         // version put the buttons through the last three lines of the explanation, which
         // is a poor look on the one screen that is asking permission.
         var panel = new Rectangle(300, 120, 680, 484);
-        _ui.Panel(panel, new Color(8, 16, 24, 250), new Color(151, 206, 210));
+        _ui.Panel(panel, new Color(8, 16, 24, 250), UiTheme.Accent);
 
         _ui.TextCentred("BEFORE YOU PLAY", panel.Center.X, panel.Y + 30f, 26, Color.White);
         _ui.TextCentred("This is an alpha, and it is being tuned from how people actually play.",
@@ -46,7 +46,7 @@ internal sealed class ConsentRenderer
 
         for (var index = 0; index < lines.Length; index++)
             _ui.TextCentred(lines[index], panel.Center.X, panel.Y + 128f + index * 24f, 14,
-                index == 0 ? new Color(214, 226, 226) : new Color(172, 186, 190));
+                index == 0 ? UiTheme.Heading : new Color(172, 186, 190));
 
         string[] answers = { "Yes, send them", "No, keep them here" };
         for (var index = 0; index < answers.Length; index++)
@@ -54,11 +54,9 @@ internal sealed class ConsentRenderer
             var bounds = UiLayout.ConsentButton(index);
             var selected = index == selection;
 
-            _ui.Panel(bounds,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
+            _ui.Row(bounds, selected);
             _ui.TextCentred(answers[index], bounds.Center.X, bounds.Y + 14f, 16,
-                selected ? Color.White : new Color(192, 207, 205));
+                UiTheme.RowText(selected));
         }
     }
 }

@@ -152,4 +152,65 @@ public sealed class ConsoleRouterTests
         Assert.That(console.History, Is.Empty);
         Assert.That(seen, Is.Empty);
     }
+
+    /// <summary>
+    /// One reader for script files, used by both the command line and the 'script' command.
+    /// When each had its own copy, a change to the format only ever landed in one of them.
+    /// </summary>
+    [Test]
+    public void ReadingAScriptDropsBlankLinesAndComments()
+    {
+        var statements = ConsoleRouter.ReadScript(new[]
+        {
+            "# a comment",
+            "",
+            "  goto shaft  ",
+            "   ",
+            "assert pick has shaft",
+            "# trailing note"
+        });
+
+        Assert.That(statements, Is.EqualTo(new[] { "goto shaft", "assert pick has shaft" }));
+    }
+
+    /// <summary>
+    /// A scripted gate that half-ran is worse than one that refused: the asserts that never
+    /// executed are silent rather than failed, so the run can still exit zero.
+    /// </summary>
+    [Test]
+    public void UnknownCommandsInAScriptAreFoundBeforeItRuns()
+    {
+        var console = WithEcho(out var seen);
+
+        var unknown = console.UnknownCommands(new[]
+        {
+            "goto 1 2",
+            "teleport 3 4",
+            "say hello",
+            "descend 3"
+        });
+
+        Assert.That(unknown, Is.EqualTo(new[] { "teleport", "descend" }),
+            "'tp' is the registered alias, and nothing here registers 'descend'");
+        Assert.That(seen, Is.Empty, "checking a script must not run any of it");
+    }
+
+    [Test]
+    public void AScriptOfKnownCommandsReportsNothingUnknown()
+    {
+        var console = WithEcho(out _);
+
+        Assert.That(console.UnknownCommands(new[] { "goto 1 2", "tp 3 4", "say hi" }), Is.Empty,
+            "aliases count as known");
+    }
+
+    [Test]
+    public void EachUnknownCommandIsReportedOnce()
+    {
+        var console = WithEcho(out _);
+
+        Assert.That(console.UnknownCommands(new[] { "nope a", "nope b", "NOPE c" }),
+            Is.EqualTo(new[] { "nope" }),
+            "a name repeated down a script is one thing to fix, not three");
+    }
 }

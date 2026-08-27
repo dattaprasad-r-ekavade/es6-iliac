@@ -19,18 +19,18 @@ internal sealed class OverlayRenderer
 
     public void DrawPause(OverlayState state)
     {
-        _ui.Panel(UiLayout.FullScreen, new Color(3, 6, 10, 214), new Color(3, 6, 10, 0));
+        _ui.Scrim();
 
         var panel = UiLayout.PausePanel(state.InRun);
-        _ui.Panel(panel, new Color(6, 12, 19, 246), new Color(151, 206, 210));
-        _ui.TextCentred("PAUSED", panel.Center.X, panel.Y + 26f, 24, new Color(214, 226, 226));
+        _ui.Panel(panel, UiTheme.PanelRaised, UiTheme.Accent);
+        _ui.TextCentred("PAUSED", panel.Center.X, panel.Y + 26f, 24, UiTheme.Heading);
 
         if (state.InRun)
         {
             _ui.TextCentred($"{state.RoomsCleared} rooms cleared  ·  {state.PendingStones} stones at risk",
-                panel.Center.X, panel.Y + 62f, 14, new Color(151, 206, 210));
+                panel.Center.X, panel.Y + 62f, 14, UiTheme.Accent);
             _ui.TextCentred("Setting it aside keeps all of it. Giving up keeps none.",
-                panel.Center.X, panel.Y + 84f, 13, new Color(150, 162, 170));
+                panel.Center.X, panel.Y + 84f, 13, UiTheme.Muted);
         }
 
         for (var index = 0; index < state.PauseItems.Count; index++)
@@ -39,47 +39,42 @@ internal sealed class OverlayRenderer
             var selected = index == state.PauseSelection;
             var giveUp = state.PauseItems[index].StartsWith("Give up", StringComparison.Ordinal);
 
-            _ui.Panel(bounds,
-                selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected
-                    ? giveUp ? new Color(214, 118, 96) : new Color(224, 181, 88)
-                    : new Color(54, 82, 91));
+            _ui.Row(bounds, selected, danger: giveUp);
             _ui.TextCentred(state.PauseItems[index], bounds.Center.X, bounds.Y + 10f, 16,
-                selected ? Color.White : new Color(192, 207, 205));
+                UiTheme.RowText(selected));
         }
 
         _ui.TextCentred("Click or arrows select      Enter confirm      Esc resume",
-            panel.Center.X, panel.Bottom - 30f, 13, new Color(140, 156, 164));
+            panel.Center.X, panel.Bottom - 30f, 13, UiTheme.HintDim);
     }
 
     public void DrawSettings(OverlayState state)
     {
         _ui.Fill(UiLayout.FullScreen, new Color(3, 7, 12, 214));
         var panel = new Rectangle(260, 92, 760, 536);
-        _ui.Panel(panel, new Color(7, 14, 21, 248), new Color(91, 146, 159));
+        _ui.Panel(panel, new Color(7, 14, 21, 248), UiTheme.Border);
         _ui.Text("SETTINGS", new Vector2(panel.X + 32, panel.Y + 28), 28, Color.White);
         _ui.Text("Display, interface and current bindings", new Vector2(panel.X + 34, panel.Y + 70), 15,
-            new Color(163, 191, 194));
+            UiTheme.Hint);
 
         for (var index = 0; index < state.SettingsOptions.Count; index++)
         {
             var selected = index == state.SettingsSelection;
             var row = UiLayout.SettingsRow(index);
-            _ui.Panel(row, selected ? new Color(74, 67, 43, 245) : new Color(17, 27, 35, 220),
-                selected ? new Color(224, 181, 88) : new Color(54, 82, 91));
+            _ui.Row(row, selected);
             _ui.TextFit(state.SettingsOptions[index], new Vector2(row.X + 16, row.Y + 10), row.Width - 32,
-                16, selected ? Color.White : new Color(203, 216, 214));
+                16, selected ? Color.White : UiTheme.Body);
         }
 
         _ui.Text("Up / Down select   Left / Right change value   Enter toggle display   Esc close",
-            new Vector2(panel.X + 32, panel.Bottom - 38), 13, new Color(163, 191, 194));
+            new Vector2(panel.X + 32, panel.Bottom - 38), 13, UiTheme.Hint);
     }
 
     public void DrawHelpOverlay(OverlayState state)
     {
         _ui.Fill(UiLayout.FullScreen, new Color(3, 7, 12, 200));
         var panel = new Rectangle(300, 96, 680, 476);
-        _ui.Panel(panel, new Color(7, 14, 21, 244), new Color(91, 146, 159));
+        _ui.Panel(panel, new Color(7, 14, 21, 244), UiTheme.Border);
         _ui.TextCentred("CONTROLS", panel.X + panel.Width / 2f, panel.Y + 26, 24, Color.White);
 
         (string Heading, (string Key, string Action)[] Rows)[] sections =
@@ -133,14 +128,14 @@ internal sealed class OverlayRenderer
 
             var x = panel.X + 40f + column * 316f;
             _ui.Text(heading, new Vector2(x, panel.Y + 82f + line * 30f), 13,
-                new Color(151, 206, 210));
+                UiTheme.Accent);
             line++;
             placed++;
 
             foreach (var (key, action) in rows)
             {
                 var y = panel.Y + 76f + line * 30f;
-                _ui.Text(key, new Vector2(x, y), 16, new Color(232, 194, 116));
+                _ui.Text(key, new Vector2(x, y), 16, UiTheme.Gold);
                 _ui.TextFit(action, new Vector2(x + 112f, y), 184f, 16, new Color(214, 226, 222));
                 line++;
                 placed++;
@@ -148,6 +143,6 @@ internal sealed class OverlayRenderer
         }
 
         _ui.TextCentred($"This session is being recorded to {state.RecordingDirectory}",
-            panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, new Color(140, 156, 164));
+            panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, UiTheme.HintDim);
     }
 }

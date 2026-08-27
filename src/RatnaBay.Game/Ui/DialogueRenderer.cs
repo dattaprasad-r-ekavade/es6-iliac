@@ -13,7 +13,7 @@ internal sealed class DialogueRenderer
     {
         var topics = actor.AvailableTopics();
         var panel = UiLayout.DialoguePanel;
-        _ui.Panel(panel, new Color(5, 11, 18, 248), new Color(151, 206, 210));
+        _ui.Panel(panel, UiTheme.Panel, UiTheme.Accent);
 
         _ui.Text(actor.DisplayName, new Vector2(panel.X + 24, panel.Y + 20), 26, Color.White);
         _ui.TextWrapped(response, new Vector2(panel.X + 24, panel.Y + 62),
@@ -23,7 +23,7 @@ internal sealed class DialogueRenderer
         {
             _ui.Text("Nothing you know to ask reaches them.",
                 new Vector2(panel.X + 24, UiLayout.DialogueTopic(0).Y + 6), 17,
-                new Color(174, 188, 186));
+                UiTheme.Prompt);
         }
         else
         {
@@ -39,7 +39,7 @@ internal sealed class DialogueRenderer
             if (topics.Count > UiLayout.DialogueRows)
                 _ui.Text($"+{topics.Count - UiLayout.DialogueRows} more",
                     new Vector2(panel.X + 24, UiLayout.DialogueTopic(UiLayout.DialogueRows).Y + 4), 14,
-                    new Color(142, 157, 157));
+                    UiTheme.Faint);
         }
 
         _ui.Text("Enter ask      Esc close", new Vector2(panel.X + 24, panel.Bottom - 30), 15,

@@ -48,6 +48,28 @@ internal sealed class UiCanvas
 
     public void Panel(Rectangle bounds, Color fill, Color border) => _panel(bounds, fill, border);
 
+    /// <summary>
+    /// One row of a list, styled by whether the player is on it.
+    ///
+    /// Every menu, every stall, every pause screen drew this same pair of colours by hand,
+    /// which is nine places to edit and eight chances to leave one behind.
+    /// </summary>
+    public void Row(Rectangle bounds, bool selected)
+    {
+        var (fill, border) = UiTheme.Row(selected);
+        _panel(bounds, fill, border);
+    }
+
+    /// <summary>A row whose selected border warns rather than invites.</summary>
+    public void Row(Rectangle bounds, bool selected, bool danger)
+    {
+        var (fill, border) = UiTheme.Row(selected);
+        _panel(bounds, fill, selected && danger ? UiTheme.RowDangerBorder : border);
+    }
+
+    /// <summary>Dim everything already drawn, for a modal to sit on.</summary>
+    public void Scrim() => _panel(UiLayout.FullScreen, UiTheme.Scrim, UiTheme.NoBorder);
+
     public void Text(string value, Vector2 position, float scale, Color color) =>
         _text(value, position, scale, color);
 

@@ -20,6 +20,8 @@ internal sealed class UiScreens
         Journal = new JournalRenderer(canvas);
         Consent = new ConsentRenderer(canvas);
         Descent = new DescentRenderer(canvas);
+        Markers = new MarkerRenderer(canvas);
+        Console = new ConsoleRenderer(canvas);
     }
 
     public UiCanvas Canvas { get; }
@@ -32,4 +34,9 @@ internal sealed class UiScreens
     public JournalRenderer Journal { get; }
     public ConsentRenderer Consent { get; }
     public DescentRenderer Descent { get; }
+
+    /// <summary>Flat interface anchored to things in the world.</summary>
+    public MarkerRenderer Markers { get; }
+
+    public ConsoleRenderer Console { get; }
 }

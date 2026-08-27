@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace RatnaBay.Domain;
 
@@ -346,6 +347,50 @@ public static class Surface
         if (player.FlatDistanceTo(Trader) <= InteractRange) return SurfaceFixture.Trader;
         if (player.FlatDistanceTo(Stambha) <= InteractRange) return SurfaceFixture.Stambha;
         return SurfaceFixture.None;
+    }
+
+    /// <summary>Where a fixture stands.</summary>
+    public static WorldPoint PositionOf(SurfaceFixture fixture) => fixture switch
+    {
+        SurfaceFixture.Shaft => Shaft,
+        SurfaceFixture.Trader => Trader,
+        SurfaceFixture.Stambha => Stambha,
+        _ => Spawn
+    };
+
+    /// <summary>
+    /// The names a person types for the places in the yard.
+    ///
+    /// Here rather than in the console's command table because it is a fact about the yard,
+    /// not about the console: the table held its own copy of every name and coordinate, so
+    /// moving a fixture or adding one meant editing the place and then remembering to edit
+    /// the way of getting to it. Several names each, because "stall" and "shop" are the same
+    /// request and guessing which one the author chose is not a game.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, SurfaceFixture> Landmarks =
+        new Dictionary<string, SurfaceFixture>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["spawn"] = SurfaceFixture.None,
+            ["shaft"] = SurfaceFixture.Shaft,
+            // Deliberately not "mine": that is already the console's alias for 'descend', and
+            // one word meaning two things is what this table exists to stop.
+            ["well"] = SurfaceFixture.Shaft,
+            ["stall"] = SurfaceFixture.Trader,
+            ["trader"] = SurfaceFixture.Trader,
+            ["shop"] = SurfaceFixture.Trader,
+            ["stambha"] = SurfaceFixture.Stambha,
+            ["pillar"] = SurfaceFixture.Stambha
+        };
+
+    /// <summary>Look up a landmark by the name somebody typed.</summary>
+    public static bool TryLandmark(string? name, out WorldPoint position)
+    {
+        position = Spawn;
+        if (string.IsNullOrWhiteSpace(name)) return false;
+        if (!Landmarks.TryGetValue(name, out var fixture)) return false;
+
+        position = PositionOf(fixture);
+        return true;
     }
 }
 

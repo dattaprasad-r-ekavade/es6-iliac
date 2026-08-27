@@ -120,4 +120,51 @@ public sealed class SurfaceYardTests
     {
         Assert.That(new WorldGeometry().Material, Is.EqualTo(WorldMaterials.Stone));
     }
+
+    /// <summary>
+    /// The names the console types must reach the places the yard actually builds.
+    ///
+    /// The command table held its own copy of every name and coordinate, so moving a fixture
+    /// moved the place without moving the way of getting to it — and 'goto stall' would have
+    /// walked to where the stall used to be, silently, in a tool whose whole job is to be
+    /// trusted about where the camera is.
+    /// </summary>
+    [Test]
+    public void EveryLandmarkStandsWhereItsFixtureDoes()
+    {
+        foreach (var (name, fixture) in Surface.Landmarks)
+        {
+            Assert.That(Surface.TryLandmark(name, out var position), Is.True, name);
+            Assert.That(position, Is.EqualTo(Surface.PositionOf(fixture)), name);
+        }
+    }
+
+    [Test]
+    public void StandingAtALandmarkIsStandingAtItsFixture()
+    {
+        foreach (var (name, fixture) in Surface.Landmarks)
+        {
+            if (fixture == SurfaceFixture.None) continue;
+
+            Surface.TryLandmark(name, out var position);
+
+            Assert.That(Surface.FixtureAt(position), Is.EqualTo(fixture),
+                $"'{name}' should put the player in reach of the {fixture}");
+        }
+    }
+
+    [Test]
+    public void AnUnknownLandmarkIsRefusedRatherThanGuessed()
+    {
+        Assert.That(Surface.TryLandmark("tavern", out _), Is.False);
+        Assert.That(Surface.TryLandmark(null, out _), Is.False);
+        Assert.That(Surface.TryLandmark("  ", out _), Is.False);
+    }
+
+    [Test]
+    public void LandmarkNamesAreCaseInsensitive()
+    {
+        Assert.That(Surface.TryLandmark("SHAFT", out var shouted), Is.True);
+        Assert.That(shouted, Is.EqualTo(Surface.Shaft));
+    }
 }
