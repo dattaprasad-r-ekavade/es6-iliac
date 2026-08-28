@@ -3,12 +3,12 @@
 This document describes how ready the Ratna Bay repository is for ongoing work with AI coding
 tools, and the next changes that will make that work safer and more predictable.
 
-Assessment date: 2026-08-28 (updated after SceneRenderer, ModelCache, UiCanvas owning its
-primitives, and the remaining 2D overlay extraction)
+Assessment date: 2026-08-28 (updated after FirstPersonView, WorldPresenter, and the engine
+reuse map in `Docs/ENGINE.md`)
 
 ## Current assessment
 
-The repository is approximately **90% complete** for AI-friendly architecture.
+The repository is approximately **91% complete** for AI-friendly architecture.
 
 | Area | Done | Pending |
 | --- | ---: | ---: |
@@ -17,10 +17,10 @@ The repository is approximately **90% complete** for AI-friendly architecture.
 | Runtime verification of a client change | 85% | UI panels and saves unreachable from a script |
 | Contributor guidance | 100% | Keep it current as boundaries move |
 | Input boundary | 100% | Minor future refinements |
-| HUD and rendering boundaries | 98% | Billboard pass; authored-world iteration; spike scenes |
+| HUD and rendering boundaries | 99% | Billboard pass; spike scenes |
 | Styling consistency | 100% | Add to `UiTheme` rather than to a call site |
 | Client-layer testability | 45% | Layout and theme are shared; still no headless Game tests |
-| `Game1` decomposition | 70% | Lifecycle, world iteration, input handlers remain |
+| `Game1` decomposition | 78% | Billboard pass, spike scenes, capture host, screen handlers, then `EngineHost` |
 
 Current repository hygiene: **9/10**
 Current AI-readiness: **9/10**
@@ -46,9 +46,16 @@ unrelated work still concentrated in `Game1`; they are not product-quality ratin
 - `Ui/WorldProjector` is the seam for anything anchored in the world and drawn flat;
   `Ui/MarkerRenderer` uses it for nameplates, floating damage, threat arrows and yard signs.
 - `Render/SceneRenderer` is the 3D primitive seam: boxes, the crystal, the carved quad, the
-  glow, and the two shaders. Per-frame state is set once through `Begin`.
+  glow, and the two shaders. Per-frame state is set once through `Begin`. Material is a
+  string (`stone`, `timber`, `cloth`, `earth`, `rope`); the renderer does not import Domain.
 - `Render/ModelCache` loads, measures, normalises and draws imported props. Lighting is
   applied at load, not per mesh per frame.
+- `Engine/FirstPersonView` is look, walk, jump and crouch. Collision is a callback. Spawn
+  and speeds are constructor/property values, not Ratna Bay types.
+- `World/WorldPresenter` walks a Ratna Bay manifest onto `SceneRenderer` / `ModelCache`. A
+  second game writes a different presenter against the same primitives.
+- [`Docs/ENGINE.md`](ENGINE.md) is the reuse map: three layers, the engine table, how a
+  second game starts, and the gate for cutting a `RatnaBay.Engine` project.
 
 ## The scripted gate
 
@@ -68,31 +75,36 @@ loudly and early.
 
 ## Next changes
 
-### 1. Lift authored-world iteration and the spike scenes
+Each of these is a Game1 cut that has to be provably separable. Do not take two in one pass.
+Do not add `RatnaBay.Engine.csproj` until every type in the `Docs/ENGINE.md` table compiles
+without `using RatnaBay.Domain`. `StoneTextures.FromTheme(CaveTheme)` is the remaining leak.
 
-`DrawAuthoredWorld` still lives in `Game1`: it walks the manifest, rebuilds the light list,
-picks a stone palette, and asks `SceneRenderer` / `ModelCache` to draw. That walk can move
-now that the primitive seam exists. The moodboard, stambha and asset-case scenes can follow,
-because they are the same boxes with different lighting.
+### 1. Lift the billboard pass and the spike scenes
 
-The billboard pass (actors, enemies, bolts) is the other remaining world draw. It already
-goes through `BillboardRenderer`; what is left in `Game1` is sorting and texture lookup.
+Actors, enemies and bolts already draw through `BillboardRenderer`; Game1 still sorts and
+picks textures. The moodboard, stambha and asset-case scenes are `SceneRenderer` with
+different lights and can move once nothing in them reaches through to a session.
 
-### 2. Separate update logic from the game shell
+### 2. Capture / screenshot host, then screen input handlers
 
-Split input and simulation coordination into focused controllers that return explicit commands
-to `Game1`. Screen handlers already interpret `InputRouter` snapshots, so they can move next.
-`UpdateGameScreen` and `StartSession` should not be attempted in one pass — they touch too many
-fields; split the dependencies first.
+`--screenshot`, `--cover` and warmup are an engine concern still tangled with Game1 fields.
+Menu, pause and inventory handlers already read `InputRouter` snapshots — move one screen at
+a time. Do not take `UpdateGameScreen` in one pass.
 
-### 3. Add client-layer tests
+### 3. `EngineHost : Game`
+
+Devices, timestep, fonts, the canvas attach. `Game1` then only contains Ratna Bay. That is
+the last cut, and the one that makes a second executable cheap. A second game subclasses
+`EngineHost` (or `Microsoft.Xna.Framework.Game`), not `Game1`.
+
+### 4. Add client-layer tests
 
 `UiLayout` and `UiTheme` are the seam: both are pure data, but they live in the WindowsDX
 project so `RatnaBay.Domain.Tests` cannot see them. A net9.0 layout/theme assembly would let a
 test assert that a clickable row is the row on screen, and that every colour a renderer asks
 for exists, without a graphics device.
 
-### 4. Widen what a script can assert
+### 5. Widen what a script can assert
 
 `IConsoleTarget` cannot reach the shop or dialogue panels, equipping, save/load round trips, or
 story flags. Each addition should be deliberate — the value of the interface is that it is
