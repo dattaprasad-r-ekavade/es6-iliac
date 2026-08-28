@@ -27,6 +27,7 @@ unchanged:
 | `ModelCache` | Load, measure, normalise, draw imported models. |
 | `BillboardRenderer` | Camera-facing cutout quads. |
 | `FirstPersonView` | Look, walk, jump, crouch. Collision is a callback. |
+| `CaptureHost` | Screenshot warmup, cover-sized render target, PNG write. A script hold is a bool. |
 | `InputRouter` | One keyboard/mouse sample per frame. |
 | `UiCanvas` | 2D primitives. Logical size is constructor arguments, not a Ratna Bay constant. `Scrim` still uses this game's `UiTheme` colours — a second game should call `Panel` itself until that takes arguments. |
 | `WorldProjector` | World point → logical canvas. Logical size is passed in. |
@@ -36,11 +37,14 @@ one Ratna Bay leak — a second game constructs `StonePalette` itself.
 
 ## What stays this game
 
-- `Game1` — lifecycle, screen dispatch, the console, capture flags.
+- `Game1` — lifecycle, screen dispatch, the console.
 - `World/WorldPresenter` — walks a Ratna Bay manifest onto `SceneRenderer` / `ModelCache`. A
   different game writes a different presenter.
 - `World/FigurePresenter` — speakers, watchers, enemies, bolts onto `BillboardRenderer`.
 - `World/SpikeScenes` — moodboard, stambha, asset case. Lighting studies, not engine.
+- `Ui/CoverRenderer` — the store cover composition (MineEntry ladder). The target size is engine;
+  the words are this game.
+- `Render/FaceSheet` — `--faces` portrait contact sheet. Fort roster, not a frame capture.
 - Every renderer under `Ui/` except the canvas itself. `UiLayout` and `UiTheme` are this
   game's panels and palette.
 - `WorldRuntime`, `Encounter`, `GameSession`.
@@ -49,9 +53,10 @@ one Ratna Bay leak — a second game constructs `StonePalette` itself.
 
 1. Copy or reference the engine types above. Do not copy `Game1`.
 2. Subclass `Microsoft.Xna.Framework.Game` (or a future `EngineHost` once one exists).
-3. Own a `FirstPersonView`, a `SceneRenderer`, a `ModelCache`, a `UiCanvas`.
+3. Own a `FirstPersonView`, a `SceneRenderer`, a `ModelCache`, a `UiCanvas`, a `CaptureHost`.
 4. Each frame: sample `InputRouter`, `view.Step(...)`, `view.RebuildView()`,
-   `scene.Begin(...)`, draw your own world, `canvas.Begin()` / your HUD / `canvas.End()`.
+   `capture.BeginFrame(...)`, `scene.Begin(...)`, draw your own world, `canvas.Begin()` /
+   your HUD / `canvas.End()`, `capture.EndFrame(...)`.
 5. Write a presenter that turns *your* world data into `DrawCube` / `DrawWorldBox` / `ModelCache.Draw`.
 6. Keep your rules in an engine-free project, the way `RatnaBay.Domain` is.
 
@@ -63,11 +68,9 @@ does not; move it (or stop calling it from the texture type) before cutting the 
 
 In this order, because each cut has to be provably separable:
 
-1. **Capture / screenshot host** — `--screenshot`, `--cover`, warmup. Engine concern, still
-   tangled with Game1 fields.
-2. **Screen input handlers** — menu, pause, inventory. They already read `InputRouter`
+1. **Screen input handlers** — menu, pause, inventory. They already read `InputRouter`
    snapshots. Move one screen at a time; do not take `UpdateGameScreen` in one pass.
-3. **`EngineHost : Game`** — devices, timestep, fonts, the canvas attach. `Game1` then only
+2. **`EngineHost : Game`** — devices, timestep, fonts, the canvas attach. `Game1` then only
    contains Ratna Bay. That is the last cut, and it is the one that makes a second executable
    cheap.
 

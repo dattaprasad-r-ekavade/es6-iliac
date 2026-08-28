@@ -25,6 +25,7 @@ internal sealed class UiScreens
         Console = new ConsoleRenderer(canvas);
         Prompt = new PromptRenderer(canvas);
         Weapon = new WeaponRenderer(canvas, device);
+        Cover = new CoverRenderer(canvas);
     }
 
     public UiCanvas Canvas { get; }
@@ -51,4 +52,7 @@ internal sealed class UiScreens
 
     /// <summary>The weapon sprite at the edge of the screen.</summary>
     public WeaponRenderer Weapon { get; }
+
+    /// <summary>The store cover, drawn 1:1 over a real mine. Not letterboxed.</summary>
+    public CoverRenderer Cover { get; }
 }
