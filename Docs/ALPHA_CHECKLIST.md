@@ -54,6 +54,11 @@ and you still learn nothing.
       the highest-value unbuilt item on the whole list**, because without it the playtest
       produces opinions and no data.
 
+- [ ] **Build the feedback form and link it from the page.** Template ready in
+      [`PLAYTEST_FORM.md`](PLAYTEST_FORM.md) — twelve questions, one required, under three
+      minutes. It is the only channel that works for a tester with no itch.io account and no
+      wish to send an email.
+
 - [ ] **Record which route each tester took** (`ITCHIO_APP`), so "did not play" can be told apart
       from "played and the data never arrived."
 
@@ -87,6 +92,11 @@ Found by visual inspection on 2026-08-28. None of these stop a run finishing.
       beard is invisible against grey hair; the side hair on Revati and Visakha reads as
       headphones; Visakha's skin is washed out. The mural technique is settled, so these are
       tuning rounds, and `--faces --face <room> --face-scale N` makes each one fast.
+
+- [ ] **The sound effects.** Owner judgement is that they do not sound good. Sourcing and a
+      recommended synth/sample split are in [`AUDIO_SOURCING.md`](AUDIO_SOURCING.md); the short
+      version is that the Sonniss GDC bundle is free and professional, and Soundsnap is a
+      $249/year subscription that can wait until after a playtest says it is the bottleneck.
 
 - [ ] **Gold pacing is a guess.** Roughly 250 a run against a 450 sword, never measured. A tester
       who finds the economy broken spends their whole session on that and answers nothing else.
