@@ -42,9 +42,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// drawn additively with depth-write off, after everything else, and it faces the camera.
     /// It shares nothing with the lit world but the vertex format.
     /// </summary>
-    private readonly VertexPositionNormalTexture[] _glowQuad = new VertexPositionNormalTexture[4];
 
-    private readonly short[] _glowIndices = { 0, 1, 2, 0, 2, 3 };
 
     /// <summary>
     /// Bone transforms, resolved once at load. Nothing here is animated, so recomputing them
@@ -1262,7 +1260,8 @@ public sealed class Game1 : Game, IConsoleTarget
         // The one point per frame where the camera is settled and nothing has drawn yet. The
         // scene renderer takes its whole per-frame context here rather than as six arguments
         // on each of forty draw calls, which is how one of them ends up passing a stale view.
-        _scene.Begin(_primitiveEffect, _view, _projection, _cameraPosition, _stone, _lights);
+        _scene.Begin(_primitiveEffect, _view, _projection, _cameraPosition, _cameraYaw,
+            _stone, _lights);
 
         // The question owns the screen until it is answered.
         if (_askingConsent)
@@ -5104,7 +5103,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // One small glow left, tight around the flame itself. The shader lights the room;
         // this is only the bloom around the fire, which no amount of surface lighting can
         // produce because the flame is not a surface.
-        DrawGlow(torch, 1.15f * flicker, new Color(210, 148, 74, 255));
+        _scene.DrawGlow(torch, 1.15f * flicker, new Color(210, 148, 74, 255));
 
         _primitiveEffect.AmbientLightColor = ambient;
         _primitiveEffect.DirectionalLight0.Direction = keyDirection;
@@ -5735,56 +5734,6 @@ public sealed class Game1 : Game, IConsoleTarget
         (byte)Math.Clamp(color.B, 0, 255),
         (byte)Math.Clamp(color.A, 0, 255));
 
-
-    /// <summary>
-    /// An unlit additive quad, for the pool of light a flame throws onto the surface behind it.
-    ///
-    /// This is the honest stopgap for having no point lights. It is drawn after the geometry,
-    /// facing the camera, and it adds rather than replaces, so it brightens stone without
-    /// flattening the texture underneath.
-    /// </summary>
-    private void DrawGlow(Vector3 centre, float radius, Color colour)
-    {
-        var previousBlend = GraphicsDevice.BlendState;
-        var previousDepth = GraphicsDevice.DepthStencilState;
-
-        _primitiveEffect.World = Matrix.Identity;
-        _primitiveEffect.View = _view;
-        _primitiveEffect.Projection = _projection;
-        _primitiveEffect.TextureEnabled = true;
-        _primitiveEffect.Texture = StoneTextures.Glow(GraphicsDevice);
-        _primitiveEffect.LightingEnabled = false;
-        _primitiveEffect.DiffuseColor = colour.ToVector3();
-        _primitiveEffect.Alpha = colour.A / 255f;
-
-        GraphicsDevice.BlendState = BlendState.Additive;
-
-        // Reads depth so a glow behind a wall stays behind it, writes none so two overlapping
-        // torches do not punch holes in each other.
-        GraphicsDevice.DepthStencilState = DepthStencilState.DepthRead;
-        GraphicsDevice.SamplerStates[0] = SamplerState.LinearClamp;
-
-        var right = new Vector3(MathF.Cos(_cameraYaw), 0f, MathF.Sin(_cameraYaw)) * radius;
-        var up = Vector3.Up * radius;
-
-        _glowQuad[0] = new VertexPositionNormalTexture(centre - right + up, Vector3.Forward, new Vector2(0f, 0f));
-        _glowQuad[1] = new VertexPositionNormalTexture(centre + right + up, Vector3.Forward, new Vector2(1f, 0f));
-        _glowQuad[2] = new VertexPositionNormalTexture(centre + right - up, Vector3.Forward, new Vector2(1f, 1f));
-        _glowQuad[3] = new VertexPositionNormalTexture(centre - right - up, Vector3.Forward, new Vector2(0f, 1f));
-
-        foreach (var pass in _primitiveEffect.CurrentTechnique.Passes)
-        {
-            pass.Apply();
-            GraphicsDevice.DrawUserIndexedPrimitives(
-                PrimitiveType.TriangleList, _glowQuad, 0, 4, _glowIndices, 0, 2);
-        }
-
-        _primitiveEffect.LightingEnabled = true;
-        _primitiveEffect.TextureEnabled = false;
-        _primitiveEffect.Texture = null;
-        GraphicsDevice.BlendState = previousBlend;
-        GraphicsDevice.DepthStencilState = previousDepth;
-    }
 
     private void BeginUi()
     {

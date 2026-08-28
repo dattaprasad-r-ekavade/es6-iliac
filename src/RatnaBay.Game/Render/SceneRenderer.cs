@@ -61,6 +61,9 @@ public sealed class SceneRenderer
     private readonly VertexPositionNormalTexture[] _quad = new VertexPositionNormalTexture[4];
     private readonly short[] _quadIndices = { 0, 1, 2, 0, 2, 3 };
 
+    /// <summary>The glow quad's own vertices: camera-facing, so rebuilt per draw.</summary>
+    private readonly VertexPositionNormalTexture[] _glow = new VertexPositionNormalTexture[4];
+
     private readonly Vector3[] _lightPositions = new Vector3[MaxPointLights];
     private readonly Vector4[] _lightColours = new Vector4[MaxPointLights];
 
@@ -69,6 +72,7 @@ public sealed class SceneRenderer
     private Matrix _view;
     private Matrix _projection;
     private Vector3 _cameraPosition;
+    private float _cameraYaw;
     private StoneTextures.StonePalette _stone;
     private List<PointLight> _lights = new();
 
@@ -90,8 +94,9 @@ public sealed class SceneRenderer
 
     /// <summary>Everything that changes once a frame, rather than once a draw.</summary>
     public void Begin(BasicEffect effect, Matrix view, Matrix projection, Vector3 cameraPosition,
-        StoneTextures.StonePalette stone, List<PointLight> lights)
+        float cameraYaw, StoneTextures.StonePalette stone, List<PointLight> lights)
     {
+        _cameraYaw = cameraYaw;
         _effect = effect;
         _view = view;
         _projection = projection;
@@ -390,6 +395,58 @@ public sealed class SceneRenderer
 
         _effect.TextureEnabled = wasTextured;
         _effect.Texture = null;
+    }
+
+    /// <summary>
+    /// An unlit additive quad, for the pool of light a flame throws onto the surface behind it.
+    ///
+    /// This is the honest stopgap for having no point lights everywhere, and it is still scene
+    /// geometry: world-space, drawn through the same view and projection as the walls it lands
+    /// on. What is different is only its state — additive, unlit, and depth-read rather than
+    /// depth-write, so two overlapping torches do not punch holes in each other and a glow
+    /// behind a wall stays behind it.
+    ///
+    /// It turns to face the camera, which is why its vertices are rebuilt per draw rather than
+    /// built once like the cube.
+    /// </summary>
+    public void DrawGlow(Vector3 centre, float radius, Color colour)
+    {
+        var previousBlend = _device.BlendState;
+        var previousDepth = _device.DepthStencilState;
+
+        _effect.World = Matrix.Identity;
+        _effect.View = _view;
+        _effect.Projection = _projection;
+        _effect.TextureEnabled = true;
+        _effect.Texture = StoneTextures.Glow(_device);
+        _effect.LightingEnabled = false;
+        _effect.DiffuseColor = colour.ToVector3();
+        _effect.Alpha = colour.A / 255f;
+
+        _device.BlendState = BlendState.Additive;
+        _device.DepthStencilState = DepthStencilState.DepthRead;
+        _device.SamplerStates[0] = SamplerState.LinearClamp;
+
+        var right = new Vector3(MathF.Cos(_cameraYaw), 0f, MathF.Sin(_cameraYaw)) * radius;
+        var up = Vector3.Up * radius;
+
+        _glow[0] = new VertexPositionNormalTexture(centre - right + up, Vector3.Forward, new Vector2(0f, 0f));
+        _glow[1] = new VertexPositionNormalTexture(centre + right + up, Vector3.Forward, new Vector2(1f, 0f));
+        _glow[2] = new VertexPositionNormalTexture(centre + right - up, Vector3.Forward, new Vector2(1f, 1f));
+        _glow[3] = new VertexPositionNormalTexture(centre - right - up, Vector3.Forward, new Vector2(0f, 1f));
+
+        foreach (var pass in _effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            _device.DrawUserIndexedPrimitives(
+                PrimitiveType.TriangleList, _glow, 0, 4, _quadIndices, 0, 2);
+        }
+
+        _effect.LightingEnabled = true;
+        _effect.TextureEnabled = false;
+        _effect.Texture = null;
+        _device.BlendState = previousBlend;
+        _device.DepthStencilState = previousDepth;
     }
 
     // ------------------------------------------------------------------ the meshes
