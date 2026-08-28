@@ -12,7 +12,7 @@ renders, samples input, and loads content. Read this file before changing code.
 | `src/RatnaBay.Game/Engine/` | First-person view (look, walk, jump, crouch). No mines or Ratna Bay. |
 | `src/RatnaBay.Game/Ui/` | Every 2D screen and HUD renderer, plus shared canvas and hit-test layout. |
 | `src/RatnaBay.Game/Render/` | 3D primitives (`SceneRenderer`), imported models (`ModelCache`), generated sprites. |
-| `src/RatnaBay.Game/World/` | Live world, encounters, and `WorldPresenter` (this game's walk onto the primitives). |
+| `src/RatnaBay.Game/World/` | Live world, encounters, `WorldPresenter`, `FigurePresenter`, spike scenes. |
 | `src/RatnaBay.Game/Input/` | Device sampling (`InputRouter`). |
 | `src/RatnaBay.Game/Content/` | JSON manifests (world, dialogue, quests, shops) and bundled fonts. |
 | `tools/RatnaBay.Tools/` | `doctor`, `validate`, `sim`, `mine`, `review`. |
@@ -104,6 +104,8 @@ the interface to all of `Game1`.
   put mines in the view.
 - Authored world boxes, lights and imported props go through `WorldPresenter`. A second game
   writes a different presenter; it should not subclass `Game1`. See `Docs/ENGINE.md`.
+- Speakers, watchers, enemies and bolts go through `FigurePresenter`. Moodboard, stambha and
+  the asset case go through `SpikeScenes`.
 - Anything anchored to a point in the world but drawn flat goes through `WorldProjector` and
   `MarkerRenderer`. Do not hand a renderer the camera to get a screen position.
 - Build presentation snapshots (`WorldHudState`, `OverlayState`, `MenuState`, `NameplateState`,
@@ -136,12 +138,14 @@ the interface to all of `Game1`.
 | Developer console and watches | `Ui/ConsoleRenderer.cs` | local panels |
 | Lit boxes, crystal, carved faces, glow | `Render/SceneRenderer.cs` | per-frame `Begin` |
 | Imported props | `Render/ModelCache.cs` | loaded once, drawn by key |
+| Speakers, watchers, enemies, bolts | `World/FigurePresenter.cs` | `BillboardRenderer` |
+| Moodboard, stambha, asset case | `World/SpikeScenes.cs` | SceneRenderer + canvas; `--moodboard` / `--stambha` |
 
-Still in `Game1` and not yet extracted: the billboard pass (actors, enemies, bolts), the
-moodboard/stambha/asset spike scenes, capture/screenshot host, and the screen input handlers.
-Extract those when a change needs to touch them, not speculatively. Do not put look/walk,
-3D primitive drawing, or authored-world iteration back into `Game1` — those seams are
-`FirstPersonView`, `SceneRenderer` and `WorldPresenter`. A second game should not subclass
+Still in `Game1` and not yet extracted: the capture/screenshot host (`--screenshot`, `--cover`,
+warmup), and the screen input handlers. Extract those when a change needs to touch them, not
+speculatively. Do not put look/walk, 3D primitive drawing, authored-world iteration, figures or
+spike scenes back into `Game1` — those seams are `FirstPersonView`, `SceneRenderer`,
+`WorldPresenter`, `FigurePresenter` and `SpikeScenes`. A second game should not subclass
 `Game1`; see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 
 ## Recipes
