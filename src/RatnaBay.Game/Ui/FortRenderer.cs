@@ -40,7 +40,7 @@ internal sealed class FortRenderer
     {
         var service = legacy.Service;
 
-        _ui.Scrim();
+        _ui.Scrim(UiTheme.Scrim, UiTheme.NoBorder);
         _ui.Panel(new Rectangle(240, 96, 800, 560), UiTheme.PanelRaised, UiTheme.Bronze);
 
         _ui.TextCentred("THE FORT", 640f, 118f, 24, UiTheme.Heading);
@@ -64,7 +64,8 @@ internal sealed class FortRenderer
             var isOpen = room.IsOpen(rank);
             var selected = index == selection;
 
-            _ui.Row(row, selected && isOpen);
+            var (fill, border) = UiTheme.Row(selected && isOpen);
+            _ui.Row(row, fill, border);
 
             var ink = !isOpen ? new Color(104, 96, 92)
                 : selected ? Color.White

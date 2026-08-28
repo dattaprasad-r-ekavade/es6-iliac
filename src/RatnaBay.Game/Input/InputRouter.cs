@@ -9,7 +9,7 @@ namespace RatnaBay.Client;
 /// the same snapshot. Keeping sampling here prevents a handler from seeing a different mouse
 /// state than the one used by the frame coordinator.
 /// </summary>
-internal sealed class InputRouter
+public sealed class InputRouter
 {
     private KeyboardState _previousKeyboard;
     private MouseState _previousMouse;

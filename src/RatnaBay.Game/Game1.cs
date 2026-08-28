@@ -1,4 +1,3 @@
-using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -11,40 +10,22 @@ using System.Linq;
 namespace RatnaBay.Client;
 
 /// <summary>
-/// MonoGame lifecycle coordinator: devices, the frame, and draw order.
+/// Ratna Bay's lifecycle coordinator: screens, the session, draw order.
 ///
-/// Screens, HUD and overlay layout live in <c>Ui/</c>. Input sampling lives in
-/// <c>Input/InputRouter</c>. Overlay-stack selection lives in <c>Input/OverlayInput</c>.
-/// Look and walk live in <c>Engine/FirstPersonView</c>. Game rules live in
-/// <c>RatnaBay.Domain</c>. New work belongs in one of those, not in this class, unless
-/// it is genuinely a lifecycle concern. A second game should not subclass this type — see
+/// Devices, fonts and the canvas live on <c>EngineHost</c>. Overlay-stack selection lives
+/// in <c>OverlayInput</c>; world-panel selection in <c>WorldPanelInput</c>; console typing
+/// in <c>ConsoleInput</c>. Look and walk live in <c>FirstPersonView</c>. Game rules live in
+/// <c>RatnaBay.Domain</c>. A second game subclasses <c>EngineHost</c>, not this type — see
 /// <c>Docs/ENGINE.md</c>.
 /// </summary>
-public sealed class Game1 : Game, IConsoleTarget
+public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 {
-    private const int LogicalWidth = UiLayout.Width;
-    private const int LogicalHeight = UiLayout.Height;
-
-    private enum GameScreen
-    {
-        MainMenu,
-        WorldScene
-    }
-
-    private readonly GraphicsDeviceManager _graphics;
-
-    /// <summary>Imported props: loading, measuring, normalising and drawing.</summary>
     private readonly ModelCache _modelCache = new();
 
     /// <summary>Boxes, the crystal and the carved quad, with the two shaders.</summary>
     private SceneRenderer _scene = null!;
 
     private readonly List<string> _assetErrors = new();
-    private FontSystem _fontSystem = null!;
-    private FontSystem _headingFontSystem = null!;
-
-    /// <summary>One white pixel, stretched for every filled rectangle. Painted by the canvas.</summary>
-    private Texture2D _white = null!;
 
     /// <summary>
     /// Shared by SceneRenderer. Begin takes it each frame so the spike scenes can retune it
@@ -63,13 +44,29 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private readonly List<PointLight> _lights = new();
 
-    private readonly InputRouter _input = new();
-
     /// <summary>
     /// Consent, title menu, pause and settings: selection, hover and confirm.
     /// Side effects of a confirmed row stay in this class.
     /// </summary>
     private readonly OverlayInput _overlay = new();
+
+    /// <summary>Which world panels are open, and which one owns the frame.</summary>
+    private readonly ScreenStack _stack = new();
+
+    /// <summary>The live descent, the yard, and the character walking them.</summary>
+    private readonly PlayState _play = new();
+    private SessionDirector _director = null!;
+    private readonly CombatFeel _feel = new();
+    private readonly CombatDirector _combat;
+
+    /// <summary>
+    /// Inventory, shop, dialogue, shaft, camp trader, fort and the run-summary button.
+    /// Side effects of a confirmed row stay in this class.
+    /// </summary>
+    private readonly WorldPanelInput _panels = new();
+
+    /// <summary>Typing, history and toggle. Running a line stays in this class.</summary>
+    private readonly ConsoleInput _consoleKeys = new();
 
     /// <summary>
     /// Look, walk, jump and crouch. Collision is a callback so this type does not know about
@@ -100,12 +97,10 @@ public sealed class Game1 : Game, IConsoleTarget
     /// for it. Closing that panel hands the camera back; pressing Tab does not.
     /// </summary>
     private bool _mouseFreedForPanel;
-    private bool _showHelp;
     private bool _ignoreMouseDeltaThisFrame;
 
     private GameScreen _screen = GameScreen.MainMenu;
     private string _menuStatus = string.Empty;
-    private bool _borderlessFullscreen = true;
 
     /// <summary>
     /// Metres walked since the last footstep.
@@ -115,67 +110,59 @@ public sealed class Game1 : Game, IConsoleTarget
     /// moment they sprint. Distance is also free — the collision resolver already reports how
     /// far the body actually moved, which is not the same as how far it tried to.
     /// </summary>
-    private float _stride;
+    private float _stride
+    {
+        get => _feel.Stride;
+        set => _feel.Stride = value;
+    }
     private bool _crouchToggled;
     private bool _forceCrouch;
 
     /// <summary>The live character. Null until a game is started or loaded.</summary>
-    private GameSession? _session;
+    private GameSession? _session
+    {
+        get => _play.Session;
+        set => _play.Session = value;
+    }
 
     /// <summary>
     /// The developer console, and what it has said.
     ///
-    /// Kept here rather than in a screen renderer because it acts on the game rather than
-    /// drawing it: everything it can reach is on IConsoleTarget, implemented below.
+    /// Typing is <see cref="ConsoleInput"/>. Running a line, pumping a script and watches
+    /// live on <see cref="ConsoleHost"/>. Everything a script can reach is still
+    /// <see cref="IConsoleTarget"/>, implemented below.
     /// </summary>
-    private ConsoleRouter? _console;
+    private readonly ConsoleHost _scripts = new();
+    private ConsoleRouter? _console
+    {
+        get => _scripts.Router;
+        set => _scripts.Router = value;
+    }
 
-    private readonly List<ConsoleLine> _consoleOutput = new();
-    private string _consoleInput = string.Empty;
-    private bool _consoleOpen;
-
-    /// <summary>Where the player is in their own history, walking back with Up.</summary>
-    private int _consoleHistory = -1;
+    private List<ConsoleLine> _consoleOutput => _scripts.Output;
 
     /// <summary>--exec / --script: commands to run once the world exists.</summary>
     private string? _consoleScript;
 
-    /// <summary>
-    /// Statements still to run, and the frames to let pass before the next one.
-    ///
-    /// A script cannot be run all at once. --exec used to execute inside LoadContent, before a
-    /// single Update had happened, so anything that asked about the simulation got the state
-    /// the world was built with: 'descend; enemies' reported an empty room because nothing had
-    /// yet ticked to notice the player was standing in it. Statements are pumped one per frame
-    /// instead, and 'wait' holds the rest of the script while the game runs.
-    /// </summary>
-    private readonly Queue<string> _scriptQueue = new();
-
-    /// <summary>
-    /// Simulated seconds still to let pass before the next statement.
-    ///
-    /// Seconds rather than frames, and this is not a detail. Capture mode runs uncapped, so
-    /// "wait 120 frames" was about a tenth of a second of game time -- long enough to make a
-    /// script look like it had waited and short enough that an enemy was still coming up out
-    /// of the floor. It read as a rendering bug for an hour. A script asks for time; how many
-    /// frames that takes is the machine's business.
-    /// </summary>
-    private float _scriptWaitSeconds;
-
-    /// <summary>Set by a failed 'assert'. Becomes the process exit code.</summary>
-    private bool _scriptFailed;
-
-    /// <summary>A --script path that does not exist, reported once there is a screen to say so on.</summary>
+    private Queue<string> _scriptQueue => _scripts.Queue;
+    private float _scriptWaitSeconds
+    {
+        get => _scripts.WaitSeconds;
+        set => _scripts.WaitSeconds = value;
+    }
+    private bool _scriptFailed
+    {
+        get => _scripts.Failed;
+        set => _scripts.Failed = value;
+    }
     private string? _scriptMissing;
-
-    /// <summary>1 when a scripted run found a failure, 0 otherwise. Read by Program.</summary>
-    public int ScriptExitCode => _scriptFailed ? 1 : 0;
-
-    /// <summary>Set by 'quit', so a test script can end the run itself.</summary>
-    private bool _scriptQuitWhenDone;
-
-    /// <summary>Commands re-run every frame and pinned to the screen, for watching a value move.</summary>
-    private readonly List<string> _watches = new();
+    public int ScriptExitCode => _scripts.ScriptExitCode;
+    private bool _scriptQuitWhenDone
+    {
+        get => _scripts.QuitWhenDone;
+        set => _scripts.QuitWhenDone = value;
+    }
+    private List<string> _watches => _scripts.Watches;
 
     /// <summary>How fast simulated time runs. Set by 'time'; 1 is normal.</summary>
     private float _timeScale = 1f;
@@ -184,31 +171,36 @@ public sealed class Game1 : Game, IConsoleTarget
     private bool _hideInterface;
 
     /// <summary>The enemies in the scene and the fight with them.</summary>
-    private Encounter? _encounter;
-    private WorldRuntime? _world;
-    private DialogueRuntime? _dialogue;
+    private Encounter? _encounter
+    {
+        get => _play.Encounter;
+        set => _play.Encounter = value;
+    }
+    private WorldRuntime? _world
+    {
+        get => _play.World;
+        set => _play.World = value;
+    }
+    private DialogueRuntime? _dialogue
+    {
+        get => _play.Dialogue;
+        set => _play.Dialogue = value;
+    }
     private SpeakingActor? _conversationActor;
-    private int _dialogueSelection;
     private string _dialogueResponse = string.Empty;
-    private bool _dialogueOpen;
-    private bool _showJournal;
-
-    /// <summary>The fort, opened with F on the surface. Null room id means the corridor.</summary>
-    private bool _showFort;
-
-    private int _fortSelection;
-    private string? _openFortRoom;
-
-    /// <summary>Which inventory row is selected on the character screen.</summary>
-    private int _inventorySelection;
-    private bool _showCharacter;
     private string _questObjectiveId = string.Empty;
-    private WatcherRuntime? _watchers;
+    private WatcherRuntime? _watchers
+    {
+        get => _play.Watchers;
+        set => _play.Watchers = value;
+    }
     private readonly Dictionary<string, PickpocketTarget> _pockets = new(StringComparer.Ordinal);
-    private Shop? _shop;
-    private bool _showShop;
-    private int _shopSelection;
-    private readonly List<WorldPickup> _pickups = new();
+    private Shop? _shop
+    {
+        get => _play.Shop;
+        set => _play.Shop = value;
+    }
+    private List<WorldPickup> _pickups => _play.Pickups;
     private AmbientAudio? _ambientAudio;
 
     /// <summary>Every sound effect in the game, synthesised at startup.</summary>
@@ -223,19 +215,29 @@ public sealed class Game1 : Game, IConsoleTarget
     /// particles or numbers. Held to a few frames because past about 120ms it stops reading as
     /// impact and starts reading as the game stuttering.
     /// </summary>
-    private float _hitstop;
+    private float _hitstop
+    {
+        get => _feel.Hitstop;
+        set => _feel.Hitstop = value;
+    }
 
     /// <summary>How far the camera is still owed a shake, and how hard.</summary>
-    private float _shake;
-    private float _shakeStrength;
+    private float _shake
+    {
+        get => _feel.Shake;
+        set => _feel.Shake = value;
+    }
+    private float _shakeStrength
+    {
+        get => _feel.ShakeStrength;
+        set => _feel.ShakeStrength = value;
+    }
 
     private BillboardRenderer _billboards = null!;
 
     /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
     private readonly WeaponView _weaponView = new();
-    private readonly UiCanvas _ui;
-    private readonly UiScreens _screens;
-    private readonly CaptureHost _capture;
+    private UiScreens _screens = null!;
 
     /// <summary>Set by --faces: write the portrait contact sheet and quit without a frame.</summary>
     private string? _facesPath;
@@ -283,10 +285,26 @@ public sealed class Game1 : Game, IConsoleTarget
     /// restores health or prana — a potion, a stone, a heal, whatever is added later — reports
     /// itself without the domain needing to know that a HUD exists.
     /// </summary>
-    private float _healthPulse;
-    private float _pranaPulse;
-    private float _lastHealth;
-    private float _lastPrana;
+    private float _healthPulse
+    {
+        get => _feel.HealthPulse;
+        set => _feel.HealthPulse = value;
+    }
+    private float _pranaPulse
+    {
+        get => _feel.PranaPulse;
+        set => _feel.PranaPulse = value;
+    }
+    private float _lastHealth
+    {
+        get => _feel.LastHealth;
+        set => _feel.LastHealth = value;
+    }
+    private float _lastPrana
+    {
+        get => _feel.LastPrana;
+        set => _feel.LastPrana = value;
+    }
 
     /// <summary>How long a restored bar stays lit.</summary>
     private const float PulseSeconds = 0.7f;
@@ -306,23 +324,32 @@ public sealed class Game1 : Game, IConsoleTarget
     private bool _askingConsent;
 
     /// <summary>True once the camp panel has been shown for the current door.</summary>
-    private bool _decisionRecorded;
+    private bool _decisionRecorded
+    {
+        get => _play.DecisionRecorded;
+        set => _play.DecisionRecorded = value;
+    }
 
     /// <summary>The descent in progress, when the loaded world is a mine.</summary>
-    private RunRuntime? _run;
+    private RunRuntime? _run
+    {
+        get => _play.Run;
+        set => _play.Run = value;
+    }
 
     /// <summary>The run that just ended, while its summary is on screen.</summary>
-    private RunResult? _runSummary;
+    private RunResult? _runSummary
+    {
+        get => _play.Summary;
+        set => _play.Summary = value;
+    }
 
     /// <summary>What the last death cost, shown beside the run summary.</summary>
-    private SuccessionResult? _succession;
-
-    /// <summary>A trader has been whistled down and is unpacking.</summary>
-    private bool _campTraderOpen;
-    private int _campSelection;
-
-    /// <summary>The shaft panel is open and a depth is being chosen.</summary>
-    private bool _choosingDepth;
+    private SuccessionResult? _succession
+    {
+        get => _play.Succession;
+        set => _play.Succession = value;
+    }
 
     /// <summary>
     /// The mine each tier is offering right now, one seed per tier.
@@ -336,7 +363,11 @@ public sealed class Game1 : Game, IConsoleTarget
     private readonly int[] _shaftSeeds = new int[MineEntry.MaxTier + 1];
 
     /// <summary>The cave currently being descended, or null on the surface.</summary>
-    private CaveTheme? _cave;
+    private CaveTheme? _cave
+    {
+        get => _play.Cave;
+        set => _play.Cave = value;
+    }
 
     /// <summary>
     /// Tell the caster which cave it is standing in.
@@ -345,11 +376,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// a new character replaces the session — and the assignment made before that replacement
     /// went to the object that was about to be thrown away.
     /// </summary>
-    private void ApplyCave()
-    {
-        if (_session is not null) _session.Player.Spells.Cave = _cave;
-    }
-    private int _depthSelection = 1;
+    private void ApplyCave() => _director.ApplyCave();
 
     /// <summary>
     /// True while walking back into a descent that was set aside.
@@ -357,7 +384,11 @@ public sealed class Game1 : Game, IConsoleTarget
     /// The one case where a mine's dead must stay dead: the rooms already cleared before the
     /// game was put down are still cleared when it is picked up.
     /// </summary>
-    private bool _resumingDescent;
+    private bool _resumingDescent
+    {
+        get => _play.ResumingDescent;
+        set => _play.ResumingDescent = value;
+    }
 
     /// <summary>
     /// Rooms built per segment of mine.
@@ -368,7 +399,11 @@ public sealed class Game1 : Game, IConsoleTarget
     private const int RoomsPerSegment = 8;
 
     /// <summary>Seconds left on a click that arrived before the last swing had finished.</summary>
-    private float _swingBuffered;
+    private float _swingBuffered
+    {
+        get => _feel.SwingBuffered;
+        set => _feel.SwingBuffered = value;
+    }
 
     /// <summary>
     /// How long a click is remembered while the weapon is still swinging.
@@ -398,24 +433,27 @@ public sealed class Game1 : Game, IConsoleTarget
     private const float StanceSampleSeconds = 1f;
 
     /// <summary>Northwatch's safe surface checkpoint between descents.</summary>
-    private static readonly WorldPoint SurfaceCheckpoint = new(0f, 2.4f, 14.5f);
+    private static WorldPoint SurfaceCheckpoint => SessionDirector.SurfaceCheckpoint;
 
     /// <summary>--mine N: play a generated mine instead of the authored world.</summary>
-    private int? _mineSeed;
-    private int _mineRooms = 4;
-    private int _mineDepth = 1;
+    private int? _mineSeed
+    {
+        get => _play.MineSeed;
+        set => _play.MineSeed = value;
+    }
+    private int _mineRooms
+    {
+        get => _play.MineRooms;
+        set => _play.MineRooms = value;
+    }
+    private int _mineDepth
+    {
+        get => _play.MineDepth;
+        set => _play.MineDepth = value;
+    }
 
     /// <summary>Screen to force open for --screenshot: inventory, journal, shop or help.</summary>
     private string? _captureScreen;
-
-    /// <summary>
-    /// Wall-clock frame rate. Deliberately not derived from GameTime: under a fixed
-    /// timestep ElapsedGameTime is always 1/60 no matter how slowly the game is really
-    /// running, which is exactly the failure this number exists to expose.
-    /// </summary>
-    private float _framesPerSecond;
-    private int _fpsFrames;
-    private readonly System.Diagnostics.Stopwatch _fpsClock = System.Diagnostics.Stopwatch.StartNew();
 
     /// <summary>
     /// Seconds since the game started, for anything that moves on its own.
@@ -426,173 +464,31 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private float _clock;
 
-    /// <summary>
-    /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
-    /// pixel so glyphs land 1:1 on the display instead of being resampled.
-    /// </summary>
-    private float _uiScalePreference = 1f;
-
-    public Game1(string[] args)
+    public Game1(string[] args) : base(args, UiLayout.Width, UiLayout.Height, "Ratna Bay")
     {
-        var displayMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
-        _graphics = new GraphicsDeviceManager(this)
-        {
-            PreferredBackBufferWidth = Math.Max(displayMode.Width, LogicalWidth),
-            PreferredBackBufferHeight = Math.Max(displayMode.Height, LogicalHeight),
-            SynchronizeWithVerticalRetrace = true,
-            IsFullScreen = true,
-            HardwareModeSwitch = false
-        };
+        var launch = LaunchOptions.Parse(args, _capture.CoverMode, ParseOption, HasArgument);
+        _screen = launch.Screen;
+        _facesPath = launch.FacesPath;
+        _faceOnly = launch.FaceOnly;
+        _faceSheetScale = launch.FaceSheetScale;
+        _forceCrouch = launch.ForceCrouch;
+        _captureSwing = launch.CaptureSwing;
+        _captureCast = launch.CaptureCast;
+        _captureScreen = launch.CaptureScreen;
+        _stambhaPreview = launch.StambhaPreview;
+        _consoleScript = launch.ConsoleScript;
+        _scriptMissing = launch.ScriptMissing;
+        _startOnTheSurface = launch.StartOnTheSurface;
+        _moodboard = launch.Moodboard;
+        _assetCase = launch.AssetCase;
+        if (launch.MineSeed is { } seed) _mineSeed = seed;
+        if (launch.MineRooms is { } rooms) _mineRooms = rooms;
+        if (launch.MineDepth is { } depth) _mineDepth = depth;
+        _startYaw = launch.StartYaw;
+        _startPitch = launch.StartPitch;
 
-        Content.RootDirectory = "Content";
-        IsMouseVisible = false;
-
-        // MonoGame defaults to a fixed timestep, where ElapsedGameTime is always 1/60 no
-        // matter how long the frame really took. At 43 fps that advanced game time at 72%
-        // of real time, so walking was a quarter slower than its own speed constant said.
-        // A variable timestep makes elapsed time mean elapsed time.
-        IsFixedTimeStep = false;
-        Window.Title = "Ratna Bay";
-        Window.IsBorderless = true;
-
-        _screen = ParseMode(args);
-        _capture = new CaptureHost(
-            ParseOption(args, "--screenshot"),
-            ParseOption(args, "--cover"),
-            int.TryParse(ParseOption(args, "--warmup"), out var warmup) ? warmup : null);
-        _facesPath = ParseOption(args, "--faces");
-        _faceOnly = ParseOption(args, "--face");
-        _faceSheetScale = Math.Clamp(
-            int.TryParse(ParseOption(args, "--face-scale"), out var faceScale) ? faceScale : 2,
-            1, 8);
-
-        _forceCrouch = HasArgument(args, "--sneak");
-
-        // Deterministic camera for screenshots, so a change to look or movement can be
-        // compared frame against frame instead of described.
-        if (float.TryParse(ParseOption(args, "--swing"), out var swing)) _captureSwing = swing;
-        if (float.TryParse(ParseOption(args, "--cast"), out var cast)) _captureCast = cast;
-
-        // Opens a screen for a capture, so an interface change can be looked at rather than
-        // described. Screenshot mode only.
-        _captureScreen = ParseOption(args, "--show");
-        _stambhaPreview = HasArgument(args, "--stambha");
-
-        // Commands to run once there is a world to run them against. This is what makes the
-        // game inspectable from outside: --yard --exec "goto shaft; look at shaft" --screenshot
-        // takes a picture of a thing nobody could previously walk to.
-        _consoleScript = ParseOption(args, "--exec");
-
-        // A file of them, for a test that is longer than a command line. Read here and folded
-        // into the same queue, so --script and --exec behave identically from then on.
-        var scriptFile = ParseOption(args, "--script");
-        if (scriptFile is not null)
-        {
-            // A named script that is not there is a broken invocation, not an empty one. It
-            // used to be ignored, so a mistyped path ran the game with no commands at all and
-            // exited zero -- a gate that passes by doing nothing.
-            if (!File.Exists(scriptFile))
-            {
-                _scriptMissing = scriptFile;
-            }
-            else
-            {
-                var joined = string.Join(';',
-                    ConsoleRouter.ReadScript(File.ReadAllLines(scriptFile)));
-                _consoleScript = _consoleScript is null ? joined : _consoleScript + ";" + joined;
-            }
-        }
-
-        // --yard opens on the surface rather than the menu, so the one place the player
-        // starts and returns to can be looked at rather than described.
-        //
-        // A script implies one. Commands run against the world, and the menu has none: the
-        // smoke script asked where it was standing and was told "no world", which made the
-        // documented invocation unable to pass. Anything that names a scene of its own --
-        // a mine, the moodboard, the pillar -- still gets that instead.
-        _startOnTheSurface = HasArgument(args, "--yard");
-        _moodboard = HasArgument(args, "--moodboard");
-        _assetCase = HasArgument(args, "--assets");
-        if (_assetCase) _moodboard = true;
-        if (int.TryParse(ParseOption(args, "--mine"), out var mineSeed)) _mineSeed = mineSeed;
-        if (int.TryParse(ParseOption(args, "--rooms"), out var mineRooms)) _mineRooms = mineRooms;
-        if (int.TryParse(ParseOption(args, "--depth"), out var mineDepth)) _mineDepth = mineDepth;
-
-        // Asking for a mine and being shown the title screen is a papercut; --mine means play it.
-        if (_mineSeed is not null) _screen = GameScreen.WorldScene;
-
-        if (_consoleScript is not null
-            && _mineSeed is null
-            && !_moodboard
-            && !_stambhaPreview
-            && _screen == GameScreen.MainMenu)
-            _startOnTheSurface = true;
-        if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
-        if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
-        if (_capture.CoverMode)
-        {
-            // itch.io wants 630x500 and displays it at 315x250. Rendered at double that so
-            // the type survives a high-density screen, and so the same file can be cropped
-            // for a banner later without going back to the game.
-            _mineSeed ??= 20789;
-            _mineDepth = 4;
-            _screen = GameScreen.WorldScene;
-            _startPitch ??= -0.06f;
-        }
-
-        if (_capture.ApplyWindow(_graphics, Window, LogicalWidth, LogicalHeight))
-            _borderlessFullscreen = false;
-
-        if (HasArgument(args, "--windowed"))
-        {
-            _borderlessFullscreen = false;
-            _graphics.PreferredBackBufferWidth = LogicalWidth;
-            _graphics.PreferredBackBufferHeight = LogicalHeight;
-            _graphics.IsFullScreen = false;
-            Window.IsBorderless = false;
-        }
-
-        _ui = new UiCanvas(LogicalWidth, LogicalHeight);
-        _screens = new UiScreens(_ui, GraphicsDevice);
-    }
-
-    private static bool HasArgument(string[] args, string argument)
-    {
-        foreach (var value in args)
-        {
-            if (string.Equals(value, argument, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>Reads `--name value` from the command line.</summary>
-    private static string? ParseOption(string[] args, string name)
-    {
-        for (var index = 0; index < args.Length - 1; index++)
-            if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
-                return args[index + 1];
-
-        return null;
-    }
-
-    private static GameScreen ParseMode(string[] args)
-    {
-        for (var index = 0; index < args.Length - 1; index++)
-        {
-            if (!string.Equals(args[index], "--mode", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            return args[index + 1].ToLowerInvariant() switch
-            {
-                "menu" or "title" => GameScreen.MainMenu,
-                "scene" or "game" or "world" => GameScreen.WorldScene,
-                _ => GameScreen.MainMenu
-            };
-        }
-
-        return GameScreen.MainMenu;
+        _director = new SessionDirector(_play, this);
+        _combat = new CombatDirector(_feel);
     }
 
     protected override void Initialize()
@@ -665,36 +561,23 @@ public sealed class Game1 : Game, IConsoleTarget
             return;
         }
 
-        var spriteBatch = new SpriteBatch(GraphicsDevice);
-        _billboards = new BillboardRenderer(GraphicsDevice);
         var fontsDirectory = Path.Combine(
             AppContext.BaseDirectory,
             "Content",
             "Feasibility",
             "Fonts");
 
-        // Glyphs are rasterised at their real device size by SelectFont, so no resolution
-        // multiplier is needed here — one would just double every atlas for no sharpness.
-        _fontSystem = new FontSystem();
-        _fontSystem.UseKernings = true;
-        _fontSystem.AddFont(File.ReadAllBytes(Path.Combine(fontsDirectory, "NotoSans", "NotoSans-wght.ttf")));
-
-        _headingFontSystem = new FontSystem();
-        _headingFontSystem.UseKernings = true;
-        _headingFontSystem.AddFont(File.ReadAllBytes(Path.Combine(fontsDirectory, "Cinzel", "Cinzel-wght.ttf")));
+        _billboards = new BillboardRenderer(GraphicsDevice);
+        AttachCanvas(
+            Path.Combine(fontsDirectory, "NotoSans", "NotoSans-wght.ttf"),
+            Path.Combine(fontsDirectory, "Cinzel", "Cinzel-wght.ttf"));
+        _screens = new UiScreens(_ui, GraphicsDevice);
 
         // Devanagari for the carved verses. Absent, the pillar simply stands blank.
         StambhaCarving.Load(fontsDirectory);
 
         if (_scene.LoadCaveShader(Content, "Effects/CaveLighting") is { } shaderFault)
             _assetErrors.Add($"cave lighting: {shaderFault}");
-
-        _white = new Texture2D(GraphicsDevice, 1, 1);
-        _white.SetData(new[] { Color.White });
-
-        // Everything the canvas paints with, handed over once. It is constructed before
-        // LoadContent runs, so it cannot take these in its constructor.
-        _ui.Attach(spriteBatch, _white, _fontSystem, _headingFontSystem);
 
         if (!AmbientAudio.TryStart(out _ambientAudio, out var ambientError)
             && !string.IsNullOrWhiteSpace(ambientError))
@@ -767,12 +650,9 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         // --faces returns out of LoadContent before any of this exists, so there is nothing
         // here to release and every line below would throw on a null.
+        DisposeHost();
         if (_facesPath is not null) return;
 
-        _capture.Dispose();
-        _fontSystem.Dispose();
-        _headingFontSystem.Dispose();
-        _white.Dispose();
         _primitiveEffect.Dispose();
         _billboards.Dispose();
         StoneTextures.Clear();
@@ -790,15 +670,6 @@ public sealed class Game1 : Game, IConsoleTarget
         StambhaCarving.Clear();
         base.UnloadContent();
     }
-
-    /// <summary>
-    /// Longest step any system is given. Without this a stall, a dragged window or a
-    /// breakpoint resumes with one enormous frame and the player arrives somewhere else.
-    /// </summary>
-    private const float MaxFrameSeconds = 0.1f;
-
-    private static float RealSeconds(GameTime gameTime) =>
-        MathF.Min((float)gameTime.ElapsedGameTime.TotalSeconds, MaxFrameSeconds);
 
     /// <summary>
     /// Simulated seconds this frame: zero while a hit is landing, scaled by the console's 'time'.
@@ -825,9 +696,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // the freeze looks like the game locked up rather than like a blow landing.
         var real = RealSeconds(gameTime);
         _clock += real;
-
-        if (_hitstop > 0f) _hitstop = MathF.Max(0f, _hitstop - real);
-        if (_shake > 0f) _shake = MathF.Max(0f, _shake - real);
+        _feel.TickRealTime(real);
 
         PumpScript(RealSeconds(gameTime) * _timeScale);
         UpdateWatches();
@@ -835,7 +704,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // First, and it swallows the frame when it is open: a console you cannot type an S
         // into without walking backwards is not a console.
         UpdateConsole(keyboard);
-        if (_consoleOpen)
+        if (_consoleKeys.Open)
         {
             _input.Commit();
             return;
@@ -850,13 +719,13 @@ public sealed class Game1 : Game, IConsoleTarget
             {
                 if (_overlay.ShowSettings) _overlay.ShowSettings = false;
             }
-            else if (_paused)
+            else if (_stack.Paused)
             {
                 ResumeFromPause();
             }
-            else if (_choosingDepth)
+            else if (_stack.Shaft)
             {
-                _choosingDepth = false;
+                _stack.Shaft = false;
                 SetMouseLook(true);
             }
             else if (_runSummary is not null)
@@ -930,12 +799,6 @@ public sealed class Game1 : Game, IConsoleTarget
         }
     }
 
-    private void CentreMouse()
-    {
-        var viewport = GraphicsDevice.Viewport;
-        Mouse.SetPosition(viewport.Width / 2, viewport.Height / 2);
-    }
-
     /// <summary>Mouse travel since the last frame, in pixels, while looking.</summary>
     private Vector2 ReadMouseDelta(MouseState mouse)
     {
@@ -956,74 +819,40 @@ public sealed class Game1 : Game, IConsoleTarget
         return delta;
     }
 
-    /// <summary>The pointer in 1280x720 logical space, so UI hit tests match what is drawn.</summary>
-    private Vector2 LogicalMouse(MouseState mouse)
-    {
-        if (_ui.Scale <= 0f) return Vector2.Zero;
-
-        var viewport = GraphicsDevice.Viewport;
-        var offsetX = (viewport.Width - LogicalWidth * _ui.Scale) * 0.5f;
-        var offsetY = (viewport.Height - LogicalHeight * _ui.Scale) * 0.5f;
-        return new Vector2((mouse.X - offsetX) / _ui.Scale, (mouse.Y - offsetY) / _ui.Scale);
-    }
-
     /// <summary>
     /// The console owns the keyboard while it is open.
     ///
-    /// Typing has to be read from key transitions rather than from a text-input event, because
-    /// MonoGame's TextInput is not wired here and the rest of the game samples keys through
-    /// InputRouter. It is enough for a command line: letters, digits, and the handful of
-    /// punctuation a command needs.
+    /// Typing is read from key transitions rather than a text-input event, because MonoGame's
+    /// TextInput is not wired here and the rest of the game samples keys through InputRouter.
     /// </summary>
     private void UpdateConsole(KeyboardState keyboard)
     {
-        if (Pressed(keyboard, Keys.OemTilde) || Pressed(keyboard, Keys.Oem8))
+        switch (_consoleKeys.Step(_input, keyboard))
         {
-            _consoleOpen = !_consoleOpen;
-            SetMouseLook(!_consoleOpen, forPanel: true);
-            return;
-        }
-
-        if (!_consoleOpen) return;
-
-        if (Pressed(keyboard, Keys.Escape))
-        {
-            _consoleOpen = false;
-            SetMouseLook(true);
-            return;
-        }
-
-        if (Pressed(keyboard, Keys.Enter))
-        {
-            RunConsole(_consoleInput);
-            _consoleInput = string.Empty;
-            _consoleHistory = -1;
-        }
-        else if (Pressed(keyboard, Keys.Back) && _consoleInput.Length > 0)
-        {
-            _consoleInput = _consoleInput[..^1];
-        }
-        else if (Pressed(keyboard, Keys.Tab))
-        {
-            // Completing the command word only. Arguments differ per command and guessing at
-            // them would be worse than not offering.
-            var candidates = _console?.Complete(_consoleInput) ?? new List<string>();
-            if (candidates.Count == 1) _consoleInput = candidates[0] + " ";
-            else if (candidates.Count > 1)
-                _consoleOutput.Add(new ConsoleLine(string.Join("  ", candidates), ConsoleTone.Info));
-        }
-        else if (Pressed(keyboard, Keys.Up)) WalkHistory(-1);
-        else if (Pressed(keyboard, Keys.Down)) WalkHistory(1);
-        else
-        {
-            foreach (var key in keyboard.GetPressedKeys())
-            {
-                if (_input.WasDown(key)) continue;
-
-                var shift = keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift);
-                var character = CharacterFor(key, shift);
-                if (character != '\0' && _consoleInput.Length < 160) _consoleInput += character;
-            }
+            case ConsoleAction.Toggle:
+                SetMouseLook(!_consoleKeys.Open, forPanel: true);
+                break;
+            case ConsoleAction.Close:
+                SetMouseLook(true);
+                break;
+            case ConsoleAction.Submit:
+                RunConsole(_consoleKeys.Buffer);
+                _consoleKeys.Clear();
+                break;
+            case ConsoleAction.Complete:
+                // Completing the command word only. Arguments differ per command and guessing
+                // at them would be worse than not offering.
+                var candidates = _console?.Complete(_consoleKeys.Buffer) ?? new List<string>();
+                if (candidates.Count == 1) _consoleKeys.Buffer = candidates[0] + " ";
+                else if (candidates.Count > 1)
+                    _consoleOutput.Add(new ConsoleLine(string.Join("  ", candidates), ConsoleTone.Info));
+                break;
+            case ConsoleAction.HistoryUp:
+                _consoleKeys.WalkHistory(_console?.History, -1);
+                break;
+            case ConsoleAction.HistoryDown:
+                _consoleKeys.WalkHistory(_console?.History, 1);
+                break;
         }
     }
 
@@ -1035,124 +864,24 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private void PumpScript(float simulatedSeconds)
     {
-        if (_scriptWaitSeconds > 0f)
-        {
-            _scriptWaitSeconds = MathF.Max(0f, _scriptWaitSeconds - simulatedSeconds);
-            return;
-        }
-
-        if (_scriptQueue.Count == 0)
-        {
-            // A script that asked to quit does so once it has run out of things to say.
-            if (_scriptQuitWhenDone)
-            {
-                _scriptQuitWhenDone = false;
-                Console.WriteLine(_scriptFailed ? "SCRIPT FAILED" : "SCRIPT PASSED");
-                Exit();
-            }
-
-            return;
-        }
-
-        var statement = _scriptQueue.Dequeue();
-        var before = _consoleOutput.Count;
-        RunConsole(statement);
-
-        // Echoed to stdout as well as to the overlay: a scripted run has nobody watching the
-        // screen, and a command that failed silently reads as one that worked.
-        for (var index = before; index < _consoleOutput.Count; index++)
-        {
-            var line = _consoleOutput[index];
-            Console.WriteLine((line.Tone == ConsoleTone.Error ? "[!] " : "    ") + line.Text);
-        }
+        _scripts.Pump(simulatedSeconds, this, out var exit);
+        if (exit) Exit();
     }
 
-    /// <summary>Re-run the pinned commands, so their answers are current when drawn.</summary>
-    private void UpdateWatches()
-    {
-        _watchOutput.Clear();
-        if (_watches.Count == 0 || _console is null) return;
+    private void UpdateWatches() => _scripts.RefreshWatches();
 
-        foreach (var watch in _watches)
-            foreach (var line in _console.RunQuiet(watch)
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries))
-                _watchOutput.Add(line.TrimEnd());
-    }
-
-    private readonly List<string> _watchOutput = new();
+    private List<string> _watchOutput => _scripts.WatchOutput;
 
     private void DrawWatches() => _screens.Console.DrawWatches(_watchOutput);
 
-    private void WalkHistory(int direction)
-    {
-        var history = _console?.History;
-        if (history is null || history.Count == 0) return;
-
-        if (_consoleHistory < 0) _consoleHistory = history.Count;
-        _consoleHistory = Math.Clamp(_consoleHistory + direction, 0, history.Count);
-
-        _consoleInput = _consoleHistory >= history.Count ? string.Empty : history[_consoleHistory];
-    }
-
-    /// <summary>Run a line and keep the output, bounded so a loop cannot eat the frame.</summary>
-    private void RunConsole(string line)
-    {
-        _console ??= GameConsole.Build(this);
-
-        foreach (var output in _console.Execute(line))
-        {
-            // A form feed from 'clear' empties the log rather than printing.
-            if (output.Text == "")
-            {
-                _consoleOutput.Clear();
-                continue;
-            }
-
-            _consoleOutput.Add(output);
-        }
-
-        while (_consoleOutput.Count > 200) _consoleOutput.RemoveAt(0);
-    }
-
-    /// <summary>What a key types. Only what a command line needs.</summary>
-    private static char CharacterFor(Keys key, bool shift)
-    {
-        if (key is >= Keys.A and <= Keys.Z)
-        {
-            var letter = (char)('a' + (key - Keys.A));
-            return shift ? char.ToUpperInvariant(letter) : letter;
-        }
-
-        if (key is >= Keys.D0 and <= Keys.D9 && !shift) return (char)('0' + (key - Keys.D0));
-        if (key is >= Keys.NumPad0 and <= Keys.NumPad9) return (char)('0' + (key - Keys.NumPad0));
-
-        return key switch
-        {
-            Keys.Space => ' ',
-            Keys.OemPeriod or Keys.Decimal => '.',
-            Keys.OemMinus or Keys.Subtract => '-',
-            Keys.OemQuotes => '"',
-            Keys.OemSemicolon => shift ? ':' : ';',
-            Keys.OemComma => ',',
-            _ => '\0'
-        };
-    }
+    private void RunConsole(string line) => _scripts.Run(line, this);
 
     private bool Clicked(MouseState mouse) => _input.Clicked(mouse);
 
     protected override void Draw(GameTime gameTime)
     {
         ApplyCaptureScreen();
-        _capture.BeginFrame(GraphicsDevice);
-
-        _fpsFrames++;
-        var elapsed = _fpsClock.Elapsed.TotalSeconds;
-        if (elapsed >= 0.5)
-        {
-            _framesPerSecond = (float)(_fpsFrames / elapsed);
-            _fpsFrames = 0;
-            _fpsClock.Restart();
-        }
+        BeginHostFrame();
 
         GraphicsDevice.Clear(new Color(9, 15, 25));
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
@@ -1168,28 +897,14 @@ public sealed class Game1 : Game, IConsoleTarget
             _camera.Yaw, _stone, _lights);
 
         // The question owns the screen until it is answered.
-        if (_askingConsent)
-        {
-            _ui.Begin();
-            DrawConsent();
-            EndUi();
-        }
-        else
-        {
-            switch (_screen)
-            {
-                case GameScreen.MainMenu:
-                    DrawMenu();
-                    break;
-                case GameScreen.WorldScene:
-                    DrawWorldScene();
-                    break;
-            }
-        }
+        FramePresenter.Present(_askingConsent, _screen,
+            drawConsent: () => { _ui.Begin(); DrawConsent(); EndUi(); },
+            drawMenu: DrawMenu,
+            drawWorld: DrawWorldScene);
 
         base.Draw(gameTime);
 
-        _capture.EndFrame(GraphicsDevice,
+        EndHostFrame(
             hold: _scriptQueue.Count > 0 || _scriptWaitSeconds > 0f,
             exit: Exit);
     }
@@ -1210,9 +925,6 @@ public sealed class Game1 : Game, IConsoleTarget
 
     /// <summary>Read at startup so the menu can label itself before anything is loaded.</summary>
     private static bool _suspendedDescentOnDisk;
-
-    /// <summary>The game is stopped and the pause screen owns the input.</summary>
-    private bool _paused;
 
     /// <summary>
     /// One door per state.
@@ -1372,12 +1084,7 @@ public sealed class Game1 : Game, IConsoleTarget
     private void EnterMine(int seed, int tier) => EnterWorld(seed, tier: tier);
 
     /// <summary>Come back up. The run is over either way by the time this is called.</summary>
-    private void ReturnToTheSurface()
-    {
-        _runSummary = null;
-        _succession = null;
-        EnterWorld(null);
-    }
+    private void ReturnToTheSurface() => _director.ReturnToTheSurface();
 
     /// <summary>
     /// Drop into a world, generated or authored.
@@ -1386,33 +1093,8 @@ public sealed class Game1 : Game, IConsoleTarget
     /// kind of world changes. Leaving the old one in place is how "Start New Game" after a
     /// descent used to hand back the mine you had just left.
     /// </summary>
-    private void EnterWorld(int? mineSeed, bool newCharacter = false, int tier = 1)
-    {
-        _mineSeed = mineSeed;
-
-        // How much mine is built at a time. There is always another segment underneath: a
-        // level you can finish ends the run for you, and pressing on stops being a risk the
-        // moment the game is the one deciding when to stop.
-        _mineRooms = RoomsPerSegment;
-        _mineDepth = Math.Clamp(tier, MineEntry.MinTier, MineEntry.MaxTier);
-
-        // One derivation, read by the renderer for its palette and by the caster for its
-        // resistances. Neither stores it, so they cannot disagree with the shaft screen.
-        _cave = mineSeed is { } seed ? CaveThemeCatalog.For(seed, _mineDepth) : null;
-
-        _world = null;
-        _run = null;
-        _runSummary = null;
-
-        var session = newCharacter || _session is null ? GameSession.NewGame() : _session;
-        StartSession(session);
-        ApplyCave();
-        ResetCamera();
-
-        _menuStatus = string.Empty;
-        _screen = GameScreen.WorldScene;
-        SetMouseLook(true);
-    }
+    private void EnterWorld(int? mineSeed, bool newCharacter = false, int tier = 1) =>
+        _director.EnterWorld(mineSeed, newCharacter, tier);
 
     private void ActivateMenuItem()
     {
@@ -1468,8 +1150,8 @@ public sealed class Game1 : Game, IConsoleTarget
                     break;
                 }
 
-                _showShop = true;
-                _shopSelection = 0;
+                _stack.Shop = true;
+                _panels.ShopSelection = 0;
                 SetMouseLook(false, forPanel: true);
                 break;
 
@@ -1488,49 +1170,45 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private void UpdateCampTrader(KeyboardState keyboard, MouseState mouse)
     {
-        if (_session is null || _run is null) { _campTraderOpen = false; return; }
+        var cmd = _panels.StepCampCommand(_input, keyboard, mouse, LogicalMouse(mouse),
+            CampRowCount(), _session is not null && _run is not null);
+        switch (cmd.Action)
+        {
+            case CampAction.Dismiss:
+                _stack.CampTrader = false;
+                SetMouseLook(true);
+                return;
+            case CampAction.SellLoot:
+                ApplyCampSell();
+                return;
+            case CampAction.BuyStock:
+                ApplyCampBuy(cmd.StockIndex);
+                return;
+        }
+    }
+
+    private void ApplyCampSell()
+    {
+        if (_session is null || _run is null) return;
 
         var run = _run.Run;
-        var rows = CampRowCount();
+        var paid = CampTrader.SellLoot(_session.Player.Inventory, run);
+        _session.ShowToast(paid > 0
+            ? $"They take the lot. +{paid} stones, and the pot is {run.Pending}."
+            : "Nothing in your pack they want.");
 
-        if (Pressed(keyboard, Keys.Escape) || Pressed(keyboard, Keys.T))
-        {
-            _campTraderOpen = false;
-            SetMouseLook(true);
-            return;
-        }
+        if (paid > 0)
+            _recorder.Record(PlayEventKind.LootSold, "loot", paid, run.Pending,
+                _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+    }
 
-        if (Pressed(keyboard, Keys.Up)) _campSelection = (_campSelection + rows - 1) % rows;
-        if (Pressed(keyboard, Keys.Down)) _campSelection = (_campSelection + 1) % rows;
+    private void ApplyCampBuy(int stockIndex)
+    {
+        if (_session is null || _run is null) return;
+        if (stockIndex < 0 || stockIndex >= CampTrader.Stock.Count) return;
 
-        var chosen = false;
-        var pointer = LogicalMouse(mouse);
-        for (var index = 0; index < rows; index++)
-        {
-            if (!UiLayout.CampRow(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
-
-            _campSelection = index;
-            chosen = Clicked(mouse);
-            break;
-        }
-
-        if (!chosen && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
-
-        if (_campSelection == 0)
-        {
-            var paid = CampTrader.SellLoot(_session.Player.Inventory, run);
-            _session.ShowToast(paid > 0
-                ? $"They take the lot. +{paid} stones, and the pot is {run.Pending}."
-                : "Nothing in your pack they want.");
-
-            if (paid > 0)
-                _recorder.Record(PlayEventKind.LootSold, "loot", paid, run.Pending,
-                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
-
-            return;
-        }
-
-        var good = CampTrader.Stock[_campSelection - 1];
+        var run = _run.Run;
+        var good = CampTrader.Stock[stockIndex];
         if (!run.TrySpend(good.Stones))
         {
             _session.ShowToast($"{good.Name} wants {good.Stones} stones. The pot holds {run.Pending}.");
@@ -1542,6 +1220,48 @@ public sealed class Game1 : Game, IConsoleTarget
             _session.Player.Vitals.Health, _session.Player.Vitals.Prana, "camp");
 
         _session.ShowToast($"{good.Name}. {run.Pending} stones left in the pot.");
+    }
+
+    private void ApplyCampOut(RunRuntime decision)
+    {
+        if (_session is null) return;
+
+        var result = decision.Camp();
+        _recorder.Record(PlayEventKind.Camped, $"after {result.RoomsCleared} rooms",
+            result.StonesCarriedOut, 0f, _session.Player.Vitals.Health);
+        EndRun(result);
+    }
+
+    private void ApplyCallTrader(RunRuntime decision)
+    {
+        if (_session is null) return;
+
+        var fare = decision.Run.TraderCallCost;
+        if (!decision.Run.TrySpend(fare)) return;
+
+        decision.Run.NoteTraderCalled();
+        _stack.CampTrader = true;
+        _panels.CampSelection = 0;
+        SetMouseLook(false, forPanel: true);
+
+        _recorder.Record(PlayEventKind.TraderCalled,
+            $"call {decision.Run.TradersCalled}", fare, decision.Run.Pending,
+            _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+
+        _session.ShowToast($"{fare} stones, and somebody comes down the ladder.");
+    }
+
+    private void ApplyPressOn(RunRuntime decision)
+    {
+        if (_session is null) return;
+
+        _recorder.Record(PlayEventKind.PressedOn,
+            $"into room {decision.Run.RoomsCleared + 1}",
+            decision.Run.Pending, decision.Run.NextRoomPays,
+            _session.Player.Vitals.Health);
+
+        decision.PressOn(_world!, _session.Player);
+        _session.ShowToast("The door swings in. No going back.");
     }
 
     /// <summary>Sell everything, then one row for each thing on offer.</summary>
@@ -1558,8 +1278,8 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_session is null) return;
 
-        _choosingDepth = true;
-        _depthSelection = Math.Clamp(
+        _stack.Shaft = true;
+        _panels.DepthSelection = Math.Clamp(
             MineEntry.DeepestAffordable(_session.Player.Inventory), 1, MineEntry.MaxTier);
 
         // A fresh set of offers each time the shaft is opened. Backing out and looking again
@@ -1574,55 +1294,45 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private void UpdateDepthChoice(KeyboardState keyboard, MouseState mouse)
     {
-        if (_session is null) { _choosingDepth = false; return; }
-
-        if (Pressed(keyboard, Keys.Escape))
+        switch (_panels.StepShaftCommand(_input, keyboard, mouse, LogicalMouse(mouse),
+            _session is not null))
         {
-            _choosingDepth = false;
-            SetMouseLook(true);
-            return;
+            case ShaftAction.Dismiss:
+                _stack.Shaft = false;
+                SetMouseLook(true);
+                return;
+            case ShaftAction.Commit:
+                ApplyShaftCommit();
+                return;
         }
+    }
 
-        if (Pressed(keyboard, Keys.Up))
-            _depthSelection = Math.Max(MineEntry.MinTier, _depthSelection - 1);
-        if (Pressed(keyboard, Keys.Down))
-            _depthSelection = Math.Min(MineEntry.MaxTier, _depthSelection + 1);
+    private void ApplyShaftCommit()
+    {
+        if (_session is null) return;
 
-        var chosen = false;
-        var pointer = LogicalMouse(mouse);
-        for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
-        {
-            if (!UiLayout.DepthRow(tier).Contains((int)pointer.X, (int)pointer.Y)) continue;
-
-            _depthSelection = tier;
-            chosen = Clicked(mouse);
-            break;
-        }
-
-        if (!chosen && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
-
-        var cost = MineEntry.CostOf(_depthSelection);
-        if (!MineEntry.TryOpen(_session.Player.Inventory, _depthSelection))
+        var cost = MineEntry.CostOf(_panels.DepthSelection);
+        if (!MineEntry.TryOpen(_session.Player.Inventory, _panels.DepthSelection))
         {
             _session.ShowToast($"That door wants {cost} stones. You have "
                 + $"{_session.Player.Inventory.CountOf(SoulCrystals.LesserId)}.");
             return;
         }
 
-        _choosingDepth = false;
+        _stack.Shaft = false;
 
         // Back to the mine that killed the last one, if there is a body in it. A fresh random
         // mine would put the cache somewhere unreachable by design, and a loss you are never
         // given the chance to answer is only a loss.
         var fallen = _session.Player.Legacy.Fallen;
-        var returning = fallen is not null && fallen.Tier == _depthSelection;
+        var returning = fallen is not null && fallen.Tier == _panels.DepthSelection;
 
-        EnterMine(returning ? fallen!.MineSeed : _shaftSeeds[_depthSelection], _depthSelection);
+        EnterMine(returning ? fallen!.MineSeed : _shaftSeeds[_panels.DepthSelection], _panels.DepthSelection);
 
         _session.ShowToast(returning
             ? $"The same shaft. {fallen!.Name} is still down there, in room {fallen.RoomIndex}."
             : cost > 0
-                ? $"{cost} stones, and the shaft opens. Tier {_depthSelection}."
+                ? $"{cost} stones, and the shaft opens. Tier {_panels.DepthSelection}."
                 : "The picked-over workings. They cost nothing and pay like it.");
     }
 
@@ -1633,17 +1343,17 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private void Pause()
     {
-        if (_paused) return;
+        if (_stack.Paused) return;
 
         ClosePanels();
-        _paused = true;
+        _stack.Paused = true;
         _overlay.PauseSelection = 0;
         SetMouseLook(false, forPanel: true);
     }
 
     private void ResumeFromPause()
     {
-        _paused = false;
+        _stack.Paused = false;
         _overlay.ShowSettings = false;
         if (_screen == GameScreen.WorldScene) SetMouseLook(true);
     }
@@ -1658,28 +1368,25 @@ public sealed class Game1 : Game, IConsoleTarget
 
         var items = PauseItems;
         var inRun = _run is { Run.IsActive: true };
-        if (!_overlay.StepPause(_input, keyboard, mouse, LogicalMouse(mouse), items.Length, inRun))
-            return;
-
-        switch (items[_overlay.PauseSelection])
+        switch (_overlay.StepPause(_input, keyboard, mouse, LogicalMouse(mouse), items, inRun))
         {
-            case "Resume":
+            case PauseAction.Resume:
                 ResumeFromPause();
                 break;
 
-            case "Settings":
+            case PauseAction.Settings:
                 _overlay.OpenSettings();
                 break;
 
-            case "Set the descent aside":
+            case PauseAction.Suspend:
                 SuspendDescent();
                 break;
 
-            case "Give up the descent":
+            case PauseAction.Abandon:
                 AbandonDescent();
                 break;
 
-            case "Save and quit to menu":
+            case PauseAction.Quit:
                 _session?.ShowToast(_session.Save());
                 LeaveToMenu();
                 break;
@@ -1725,13 +1432,13 @@ public sealed class Game1 : Game, IConsoleTarget
 
         _session.Descent = null;
         _suspendedDescentOnDisk = false;
-        _paused = false;
+        _stack.Paused = false;
         EndRun(result);
     }
 
     private void LeaveToMenu()
     {
-        _paused = false;
+        _stack.Paused = false;
         _overlay.ShowSettings = false;
         SetMouseLook(false);
         _screen = GameScreen.MainMenu;
@@ -1743,7 +1450,9 @@ public sealed class Game1 : Game, IConsoleTarget
         // M was a second silent way out of a run. It opens the same pause screen now.
         if (Pressed(keyboard, Keys.M)) Pause();
 
-        if (_paused)
+        // Pause first, then F1, then the rest of EarlyHold. F1 used to fire on the frame
+        // between pause returning and the summary taking the screen; keep that order.
+        if (_stack.EarlyHold(_runSummary is not null) == WorldHold.Pause)
         {
             UpdatePause(keyboard, mouse);
             return;
@@ -1751,42 +1460,33 @@ public sealed class Game1 : Game, IConsoleTarget
 
         if (Pressed(keyboard, Keys.F1))
         {
-            if (_showHelp) ClosePanels();
-            else { _showHelp = true; SetMouseLook(false, forPanel: true); }
+            if (_stack.Help) ClosePanels();
+            else { _stack.Help = true; SetMouseLook(false, forPanel: true); }
         }
 
         // A screen with no way out but a function key is a screen some players will be stuck
         // on. Anywhere on the controls overlay closes it.
-        if (_showHelp && Clicked(mouse)) ClosePanels();
-        // The run summary owns the screen: nothing else is reachable until it is dismissed.
-        if (_runSummary is not null)
+        if (_stack.ClickClosesHelp(_input, mouse)) ClosePanels();
+
+        switch (_stack.EarlyHold(_runSummary is not null))
         {
-            var onTheWayUp = UiLayout.SummaryButton
-                .Contains((int)LogicalMouse(mouse).X, (int)LogicalMouse(mouse).Y);
+            case WorldHold.Summary:
+                if (_panels.StepSummary(_input, keyboard, mouse, LogicalMouse(mouse))
+                    || Pressed(keyboard, Keys.Escape))
+                {
+                    // Up into the yard rather than out to a menu. A loop that ends at a title
+                    // screen is not a loop; the whole point of the surface is having somewhere
+                    // to arrive with what you carried out.
+                    ReturnToTheSurface();
+                }
 
-            if ((onTheWayUp && Clicked(mouse))
-                || Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Escape)
-                || Pressed(keyboard, Keys.Space))
-            {
-                // Up into the yard rather than out to a menu. A loop that ends at a title
-                // screen is not a loop; the whole point of the surface is having somewhere
-                // to arrive with what you carried out.
-                ReturnToTheSurface();
-            }
-
-            return;
-        }
-
-        if (_campTraderOpen)
-        {
-            UpdateCampTrader(keyboard, mouse);
-            return;
-        }
-
-        if (_choosingDepth)
-        {
-            UpdateDepthChoice(keyboard, mouse);
-            return;
+                return;
+            case WorldHold.CampTrader:
+                UpdateCampTrader(keyboard, mouse);
+                return;
+            case WorldHold.Shaft:
+                UpdateDepthChoice(keyboard, mouse);
+                return;
         }
 
         if (_run is { AtDecision: true } decision && _session is not null)
@@ -1807,50 +1507,18 @@ public sealed class Game1 : Game, IConsoleTarget
                     _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
             }
 
-            if (Pressed(keyboard, Keys.C))
+            switch (WorldPanelInput.StepDoor(_input, keyboard,
+                decision.Run.CanCallTrader, decision.Run.CanPressOn))
             {
-                var result = decision.Camp();
-                _recorder.Record(PlayEventKind.Camped, $"after {result.RoomsCleared} rooms",
-                    result.StonesCarriedOut, 0f, _session.Player.Vitals.Health);
-                EndRun(result);
-                return;
-            }
-
-            // A trader can be whistled for at the same moment, because what is in their pack
-            // is information the press-on choice needs.
-            // No null check on the session here: the enclosing branch already made it, and
-            // repeating it inside an && told the compiler the field might be null on the way
-            // past, which cost a warning further down for nothing.
-            if (Pressed(keyboard, Keys.T) && decision.Run.CanCallTrader)
-            {
-                var fare = decision.Run.TraderCallCost;
-                if (decision.Run.TrySpend(fare))
-                {
-                    decision.Run.NoteTraderCalled();
-                    _campTraderOpen = true;
-                    _campSelection = 0;
-                    SetMouseLook(false, forPanel: true);
-
-                    _recorder.Record(PlayEventKind.TraderCalled,
-                        $"call {decision.Run.TradersCalled}", fare, decision.Run.Pending,
-                        _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
-
-                    _session.ShowToast($"{fare} stones, and somebody comes down the ladder.");
-                }
-
-                return;
-            }
-
-            if (Pressed(keyboard, Keys.E) && decision.Run.CanPressOn)
-            {
-                _recorder.Record(PlayEventKind.PressedOn,
-                    $"into room {decision.Run.RoomsCleared + 1}",
-                    decision.Run.Pending, decision.Run.NextRoomPays,
-                    _session.Player.Vitals.Health);
-
-                decision.PressOn(_world!, _session.Player);
-                _session.ShowToast("The door swings in. No going back.");
-                return;
+                case DoorAction.Camp:
+                    ApplyCampOut(decision);
+                    return;
+                case DoorAction.CallTrader:
+                    ApplyCallTrader(decision);
+                    return;
+                case DoorAction.PressOn:
+                    ApplyPressOn(decision);
+                    return;
             }
         }
         else if (_run is not null)
@@ -1864,52 +1532,49 @@ public sealed class Game1 : Game, IConsoleTarget
         // down a shaft with a door waiting.
         if (Pressed(keyboard, Keys.F) && OnTheSurface)
         {
-            if (_showFort) ClosePanels();
+            if (_stack.Fort) ClosePanels();
             else
             {
-                _showFort = true;
-                _showJournal = false;
-                _showCharacter = false;
-                _openFortRoom = null;
-                _fortSelection = 0;
+                _stack.OpenFort(_panels);
                 SetMouseLook(false, forPanel: true);
             }
         }
         if (Pressed(keyboard, Keys.J))
         {
-            if (_showJournal) ClosePanels();
-            else { _showJournal = true; _showCharacter = false; SetMouseLook(false, forPanel: true); }
+            if (_stack.Journal) ClosePanels();
+            else
+            {
+                _stack.OpenJournal();
+                SetMouseLook(false, forPanel: true);
+            }
         }
         if (Pressed(keyboard, Keys.I) || Pressed(keyboard, Keys.K))
         {
-            if (_showCharacter) ClosePanels();
+            if (_stack.Character) ClosePanels();
             else
             {
-                _showCharacter = true;
-                _showJournal = false;
-                _inventorySelection = 0;
+                _stack.OpenCharacter(_panels);
                 SetMouseLook(false, forPanel: true);
             }
         }
 
-        if (_showFort)
+        switch (_stack.LateHold(_overlay))
         {
-            UpdateFort(keyboard, mouse);
-            return;
+            case WorldHold.Fort:
+                UpdateFort(keyboard, mouse);
+                return;
+            case WorldHold.Character:
+                UpdateInventory(keyboard);
+                return;
         }
 
-        if (_showCharacter)
-        {
-            UpdateInventory(keyboard);
-            return;
-        }
         if (Pressed(keyboard, Keys.F2))
         {
             _overlay.ShowSettings = !_overlay.ShowSettings;
             if (_overlay.ShowSettings) SetMouseLook(false, forPanel: true);
         }
 
-        if (_overlay.ShowSettings)
+        if (_stack.LateHold(_overlay) == WorldHold.Settings)
         {
             ApplySettings(_overlay.StepSettings(_input, keyboard, LogicalMouse(mouse)));
             return;
@@ -1920,7 +1585,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
         // A released pointer can click the active talk/shop/pickup prompt. A click anywhere
         // else returns to mouse-look; this prevents a UI click from becoming an attack.
-        if (!_mouseLook && !_showHelp && !_dialogueOpen && !_showShop && !_showCharacter
+        if (!_mouseLook && !_stack.Help && !_stack.Dialogue && !_stack.Shop && !_stack.Character
             && Clicked(mouse) && IsActive
             && !TryActivateWorldPrompt(mouse))
             SetMouseLook(true);
@@ -1950,7 +1615,8 @@ public sealed class Game1 : Game, IConsoleTarget
 
         // Paused means paused: the camera stops too, or the world keeps moving behind a
         // screen that says it is stopped.
-        if (!AnyPanelOpen) UpdateCamera(gameTime, keyboard, mouse);
+        if (!_stack.AnyOpen(_overlay, _runSummary is not null))
+            UpdateCamera(gameTime, keyboard, mouse);
 
         if (_screen == GameScreen.WorldScene)
             UpdateSession(gameTime, keyboard, mouse);
@@ -1967,10 +1633,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// simply not been written. Adding a screen and forgetting this line is the bug, so the
     /// list lives in exactly one place and both the Escape key and the camera read it.
     /// </summary>
-    private bool AnyPanelOpen =>
-        _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp || _showFort
-        || _overlay.ShowSettings || _paused || _choosingDepth || _campTraderOpen
-        || _runSummary is not null;
+    private bool AnyPanelOpen => _stack.AnyOpen(_overlay, _runSummary is not null);
 
     /// <summary>
     /// Close everything and give the camera straight back.
@@ -1978,20 +1641,15 @@ public sealed class Game1 : Game, IConsoleTarget
     /// Every panel used to close itself in its own way, and dialogue closed itself in two
     /// different places, so whether the camera came back depended on which path you took out.
     /// One exit means one behaviour: the pointer goes, the camera moves, no click needed.
+    ///
+    /// Conversation text is Game1's payload, not the stack's: Close clears the flags, then
+    /// this drops the actor so the next open is a fresh talk.
     /// </summary>
     private void ClosePanels()
     {
-        _dialogueOpen = false;
+        _stack.Close(_overlay);
         _conversationActor = null;
         _dialogueResponse = string.Empty;
-        _showShop = false;
-        _showJournal = false;
-        _showCharacter = false;
-        _showHelp = false;
-        _overlay.ShowSettings = false;
-        _showFort = false;
-        _openFortRoom = null;
-
         if (_screen == GameScreen.WorldScene) SetMouseLook(true);
     }
 
@@ -2029,18 +1687,18 @@ public sealed class Game1 : Game, IConsoleTarget
         _watchers?.Update(step, _session.Position);
         _session.Tick(step);
 
-        if (_showJournal || _showCharacter)
+        if (_stack.Journal || _stack.Character)
         {
             return;
         }
 
-        if (_showShop)
+        if (_stack.Shop)
         {
             UpdateShopInput(keyboard, mouse);
             return;
         }
 
-        if (_dialogueOpen)
+        if (_stack.Dialogue)
         {
             UpdateDialogueInput(keyboard, mouse);
             return;
@@ -2051,67 +1709,53 @@ public sealed class Game1 : Game, IConsoleTarget
         if (keyboard.IsKeyDown(Keys.LeftShift) && IsMoving(keyboard))
             _session.Player.Vitals.SpendStamina(18f * StepSeconds(gameTime));
 
-        // A run cannot be saved out of. Being able to reload the moment a fight turns would
-        // remove the only thing being risked, and the whole loop is the risk. Resuming an
-        // interrupted descent is a separate feature and does not exist yet.
-        if (Pressed(keyboard, Keys.F5))
-            _session.ShowToast(_run is { Run.IsActive: true }
-                ? "Not down here. Camp to bank what you are carrying."
-                : _session.Save());
-
-        if (Pressed(keyboard, Keys.F9) && _run is not { Run.IsActive: true }) LoadSession();
-
-        if (Pressed(keyboard, Keys.P))
-        {
-            var actor = _dialogue?.FindActor(_session.Position, _camera.Yaw);
-            if (actor is not null) TryPickpocket(actor);
-        }
-
-        if (Pressed(keyboard, Keys.B))
-        {
-            var actor = _dialogue?.FindActor(_session.Position, _camera.Yaw);
-            if (actor is not null && actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
-                && _shop is not null)
-            {
-                _showShop = true;
-                _shopSelection = 0;
-                SetMouseLook(false);
-            }
-        }
-
-        if (Pressed(keyboard, Keys.E))
-        {
-            var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
-            var actor = _dialogue?.FindActor(player, _camera.Yaw);
-            if (actor is not null)
-            {
-                OpenDialogue(actor);
-            }
-            else if (_world is not null)
-            {
-                var fixture = OnTheSurface ? Surface.FixtureAt(player) : SurfaceFixture.None;
-                var pickup = FindPickup(player, _camera.Yaw);
-
-                if (fixture != SurfaceFixture.None)
-                {
-                    UseFixture(fixture);
-                }
-                else if (pickup is not null)
-                {
-                    TakePickup(pickup);
-                }
-                else if (_run is { BarsTheWay: true } && _world.FindDoor(player, _camera.Yaw) is not null)
-                {
-                    _session.ShowToast("Not while something in here is still moving.");
-                }
-                else
-                {
-                    TryOpenDoorAhead(player);
-                }
-            }
-        }
+        var cmd = SessionInput.Step(_input, keyboard, _session.Position, _camera.Yaw,
+            _run is { Run.IsActive: true }, _dialogue, _world, OnTheSurface, _pickups);
+        ApplySession(cmd, new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z));
 
         UpdateCombat(gameTime, keyboard);
+    }
+
+    private void ApplySession(SessionCommand cmd, WorldPoint player)
+    {
+        if (_session is null) return;
+
+        switch (cmd.Action)
+        {
+            case SessionAction.BlockedSave:
+                _session.ShowToast("Not down here. Camp to bank what you are carrying.");
+                return;
+            case SessionAction.Save:
+                _session.ShowToast(_session.Save());
+                return;
+            case SessionAction.Load:
+                LoadSession();
+                return;
+            case SessionAction.Pickpocket when cmd.Actor is not null:
+                TryPickpocket(cmd.Actor);
+                return;
+            case SessionAction.OpenShop:
+                if (_shop is null) return;
+                _stack.Shop = true;
+                _panels.ShopSelection = 0;
+                SetMouseLook(false);
+                return;
+            case SessionAction.Talk when cmd.Actor is not null:
+                OpenDialogue(cmd.Actor);
+                return;
+            case SessionAction.UseFixture:
+                UseFixture(cmd.Fixture);
+                return;
+            case SessionAction.TakePickup when cmd.Pickup is not null:
+                TakePickup(cmd.Pickup);
+                return;
+            case SessionAction.OpenDoor:
+                if (_run is { BarsTheWay: true } && _world?.FindDoor(player, _camera.Yaw) is not null)
+                    _session.ShowToast("Not while something in here is still moving.");
+                else
+                    TryOpenDoorAhead(player);
+                return;
+        }
     }
 
     /// <summary>
@@ -2123,137 +1767,34 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_session is null || _encounter is null) return;
 
         var step = StepSeconds(gameTime);
-        _coach.Tick(step);
-        TickVitalPulses(step);
         SampleStance(step);
-        _encounter.Update(step, _camera.Position, _camera.Yaw);
-        if (_world is not null) _run?.Update(_world, _camera.Position, _encounter);
-        _weaponView.Update(step, IsMoving(keyboard), _session.Player.Combat.IsBlocking);
 
-        // Only while the pointer is captured, so a click that is reclaiming the mouse does
-        // not also swing the sword.
-        if (!_mouseLook || _showHelp) return;
+        var cmd = _combat.Tick(step, keyboard, _input.CurrentMouse, Clicked(_input.CurrentMouse),
+            _mouseLook, _stack.Help, IsMoving(keyboard),
+            _session, _encounter, _world, _run, _dialogue, _shop,
+            _camera, _weaponView, _coach, _recorder, _sfx, _input);
 
-        var mouse = _input.CurrentMouse;
-        _session.Player.Combat.SetBlocking(mouse.RightButton == ButtonState.Pressed);
-
-        // A click that arrives a fraction early is remembered rather than thrown away.
-        //
-        // The recordings are blunt about this: between twenty-nine and sixty clicks a run did
-        // nothing at all, because a sword swings every 0.45 seconds and people press faster
-        // than that. A click that produces no swing and no sound reads as the game not
-        // listening, so the player presses harder, and the log fills with nothing.
-        if (_swingBuffered > 0f) _swingBuffered -= step;
-
-        if (Clicked(mouse) && !_session.Player.Combat.IsReady && _encounter.Focused is not null)
-            _swingBuffered = SwingBufferSeconds;
-
-        var releaseBuffered = _swingBuffered > 0f && _session.Player.Combat.IsReady;
-        if (releaseBuffered) _swingBuffered = 0f;
-
-        if (Clicked(mouse) || releaseBuffered)
+        switch (cmd.Action)
         {
-            // Only a real click talks to people. A released buffer is a swing the player asked
-            // for a moment ago and nothing else — letting it fall through here would open a
-            // shop with no click behind it, which is exactly the kind of ghost input this
-            // change exists to remove rather than add.
-            var actor = releaseBuffered
-                ? null
-                : _dialogue?.FindActor(
-                    new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z),
-                    _camera.Yaw);
-
-            if (actor is not null)
-            {
-                if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
-                    && _shop is not null)
-                {
-                    _showShop = true;
-                    _shopSelection = 0;
-                    SetMouseLook(false, forPanel: true);
-                }
-                else
-                {
-                    OpenDialogue(actor);
-                }
+            case CombatAction.OpenShop:
+                _stack.Shop = true;
+                _panels.ShopSelection = 0;
+                SetMouseLook(false, forPanel: true);
                 return;
-            }
-
-            var outcome = _encounter.PlayerAttack();
-
-            // A click that never became a swing is recorded as what it was.
-            //
-            // Cooldown and exhaustion were being folded in with misses, so every impatient
-            // click counted against the hit rate. A sword swings every 0.45 seconds; six
-            // sessions of "melee lands 28%" may be mostly mashing.
-            var struck = _encounter.Focused;
-            if (outcome.Result is AttackResult.OnCooldown or AttackResult.Exhausted)
-            {
-                // A click that was buffered is not a refused click: it fires the moment the
-                // weapon is free, a median 0.17s later. Recording it as balked put 297 clicks
-                // in the log as lost that the player got, which is the log describing a
-                // failure that did not happen -- the same shape as a burning enemy whose
-                // nameplate stopped saying so.
-                if (_swingBuffered <= 0f)
-                    _recorder.Record(PlayEventKind.MeleeBalked,
-                        outcome.Result == AttackResult.OnCooldown ? "too soon" : "no stamina",
-                        0f, 0f, _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
-            }
-            else
-            {
-                _recorder.Record(PlayEventKind.MeleeSwing,
-                    _session.Player.Combat.ActiveWeapon.DisplayName,
-                    outcome.Damage, outcome.Result == AttackResult.Hit ? 1f : 0f,
-                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana,
-                    struck?.Archetype.DisplayName ?? string.Empty,
-                    struck is null ? 0f : _encounter.PlayerPosition.FlatDistanceTo(struck.Position));
-            }
-
-            // The arm moves whenever the swing actually happened — a hit and a miss look the
-            // same from behind the weapon, which is what makes missing feel like missing
-            // rather than like the button not working.
-            if (outcome.Swung)
-                _weaponView.Swing(_session.Player.Combat.ActiveWeapon,
-                    _session.Player.Combat.WeaponSweeps);
-            ReportAttack(outcome);
+            case CombatAction.Talk when cmd.Actor is not null:
+                OpenDialogue(cmd.Actor);
+                return;
+            case CombatAction.SelectSpell when cmd.SpellId is not null:
+                SelectSpell(cmd.SpellId);
+                return;
         }
-        if (Pressed(keyboard, Keys.Q))
-        {
-            var cast = _encounter.PlayerCast(_camera.Position, _camera.Yaw, _camera.Forward);
-            if (cast.WasCast)
-            {
-                _weaponView.Cast();
-                var aimed = _encounter.Focused;
-                _recorder.Record(PlayEventKind.SpellCast, cast.Spell?.DisplayName ?? "spell",
-                    cast.Spell?.Power ?? 0f, 0f,
-                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana,
-                    aimed?.Archetype.DisplayName ?? string.Empty,
-                    _encounter.NearestEnemyRange());
-            }
-            else
-            {
-                // A spell that would not go off is the moment the economy bites, and it is
-                // usually the reason a mage picks the sword back up.
-                _recorder.Record(PlayEventKind.CastFailed, cast.Spell?.DisplayName ?? "spell",
-                    cast.Spell?.BaseCost ?? 0f, 0f,
-                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
-            }
-            ReportCast(cast);
-        }
-
-        // Number keys pick the bound spell.
-        if (Pressed(keyboard, Keys.D4)) SelectSpell(SpellCatalog.FireId);
-        if (Pressed(keyboard, Keys.D5)) SelectSpell(SpellCatalog.FrostId);
-        if (Pressed(keyboard, Keys.D6)) SelectSpell(SpellCatalog.ShockId);
-        if (Pressed(keyboard, Keys.D7)) SelectSpell(SpellCatalog.HealId);
-        if (Pressed(keyboard, Keys.D8)) SelectSpell(SpellCatalog.LightId);
     }
 
     private void OpenDialogue(SpeakingActor actor)
     {
         _conversationActor = actor;
-        _dialogueOpen = true;
-        _dialogueSelection = 0;
+        _stack.Dialogue = true;
+        _panels.DialogueSelection = 0;
         var topics = actor.Talk();
         _dialogueResponse = topics.Count == 0
             ? $"{actor.DisplayName} has nothing to discuss."
@@ -2282,8 +1823,8 @@ public sealed class Game1 : Game, IConsoleTarget
                 if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
                     && _shop is not null)
                 {
-                    _showShop = true;
-                    _shopSelection = 0;
+                    _stack.Shop = true;
+                    _panels.ShopSelection = 0;
                     SetMouseLook(false);
                     return true;
                 }
@@ -2350,45 +1891,21 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_conversationActor is null)
         {
-            _dialogueOpen = false;
+            _stack.Dialogue = false;
             return;
         }
 
-        var topics = _conversationActor.AvailableTopics();
-        if (Pressed(keyboard, Keys.Escape))
+        var cmd = _panels.StepDialogueCommand(_input, keyboard, mouse, LogicalMouse(mouse),
+            _conversationActor.AvailableTopics());
+        switch (cmd.Action)
         {
-            ClosePanels();
-            return;
+            case DialogueAction.Dismiss:
+                ClosePanels();
+                return;
+            case DialogueAction.Ask when cmd.Keyword is not null:
+                AskDialogueTopic(cmd.Keyword);
+                return;
         }
-
-        if (topics.Count == 0) return;
-
-        if (Pressed(keyboard, Keys.Up))
-            _dialogueSelection = (_dialogueSelection + topics.Count - 1) % topics.Count;
-        if (Pressed(keyboard, Keys.Down))
-            _dialogueSelection = (_dialogueSelection + 1) % topics.Count;
-
-        var numberKeys = new[]
-        {
-            Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5,
-            Keys.D6, Keys.D7, Keys.D8, Keys.D9
-        };
-        for (var index = 0; index < numberKeys.Length && index < topics.Count; index++)
-            if (Pressed(keyboard, numberKeys[index])) _dialogueSelection = index;
-
-        var pointer = LogicalMouse(mouse);
-        for (var index = 0; index < topics.Count && index < 9; index++)
-        {
-            var row = UiLayout.DialogueTopic(index);
-            if (!row.Contains((int)pointer.X, (int)pointer.Y)) continue;
-
-            _dialogueSelection = index;
-            if (Clicked(mouse)) AskDialogueTopic(topics[index]);
-            return;
-        }
-
-        if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
-            AskDialogueTopic(topics[_dialogueSelection]);
     }
 
     private void AskDialogueTopic(string keyword)
@@ -2408,83 +1925,13 @@ public sealed class Game1 : Game, IConsoleTarget
         _session.ShowToast($"{SpellCatalog.Get(spellId)!.DisplayName} readied.");
     }
 
-    /// <summary>Only the outcomes the player cannot see for themselves are worth saying.</summary>
-    /// <summary>How heavy the equipped weapon sounds. Two-handed is slow and low; a bow is neither.</summary>
-    private float SwingWeight() => _session?.Player.Equipment.Weapon.Class switch
-    {
-        WeaponClass.TwoHanded => 0.9f,
-        WeaponClass.Ranged => 0.15f,
-        _ => 0.35f
-    };
-
-    private void ReportAttack(AttackOutcome outcome)
-    {
-        if (outcome.Result == AttackResult.Exhausted)
-        {
-            _session?.ShowToast("Too exhausted.");
-            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
-            return;
-        }
-
-        if (outcome.Result == AttackResult.NoAmmunition)
-        {
-            _session?.ShowToast("Out of arrows.");
-            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
-            return;
-        }
-
-        // The swing plays on every swing, landed or not, because it is the sound of the input
-        // being received. A game that is silent when you miss feels unresponsive rather than
-        // feeling like you missed.
-        //
-        // Weight comes from the weapon's class, so a greatsword drops in pitch and gains
-        // volume against a knife without either being written out separately. That is the
-        // whole reason the sounds take a weight rather than being one file each.
-        if (outcome.Swung)
-        {
-            _sfx?.Play(Sfx.Swing, SwingWeight(), volumeScale: 0.75f);
-
-            // A swing puts the weapon in the way. Two-handed costs the most, blunt some, a
-            // blade nothing — which is the whole reason a mage would carry a blade.
-            _session?.Player.Spells.Encumber(
-                _session.Player.Equipment.Weapon.CastDelaySeconds);
-        }
-
-        if (outcome.Result != AttackResult.Hit) return;
-
-        // Landing is the sound and the freeze together. Weight comes from the damage actually
-        // dealt, so a greatsword lands heavier than a knife without either being special-cased.
-        var weight = MathHelper.Clamp(outcome.Damage / 45f, 0.25f, 1f);
-        if (outcome.WasOpening) weight = MathF.Min(1f, weight * 1.4f);
-
-        _sfx?.Play(Sfx.HitFlesh, weight);
-        Impact(weight);
-    }
+    private void ReportAttack(AttackOutcome outcome) =>
+        _feel.ReportAttack(outcome, _session, _sfx);
 
     private void ReportCast(CastOutcome outcome)
     {
         if (_session is null) return;
-
-        if (outcome.Result == CastResult.Landed || outcome.Result == CastResult.Missed)
-            _sfx?.Play(Sfx.Cast, 0.5f, volumeScale: 0.85f);
-
-        switch (outcome.Result)
-        {
-            case CastResult.NoCharge:
-                _session.ShowToast("No prana, and no jiva stone to draw on.");
-                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
-                break;
-            case CastResult.Shouldering:
-                _session.ShowToast($"Both hands are on the {_session.Player.Equipment.Weapon.DisplayName}.");
-                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
-                break;
-            case CastResult.Landed when outcome.Spell?.Effect == SpellEffect.Heal:
-                _session.ShowToast($"{outcome.Spell.DisplayName} — restored.");
-                break;
-            case CastResult.Landed when outcome.Spell?.Effect == SpellEffect.Light:
-                _session.ShowToast($"{outcome.Spell.DisplayName} — the dark pulls back.");
-                break;
-        }
+        _feel.ReportCast(outcome, _session, _sfx);
     }
 
     /// <summary>
@@ -2503,39 +1950,30 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private void UpdateFort(KeyboardState keyboard, MouseState mouse)
     {
-        if (_session is null) { _showFort = false; return; }
-
-        if (Pressed(keyboard, Keys.Escape))
+        var cmd = _panels.StepFortCommand(_input, keyboard, mouse, LogicalMouse(mouse),
+            _session is not null, _stack.FortRoom is not null);
+        switch (cmd.Action)
         {
-            if (_openFortRoom is not null) _openFortRoom = null;
-            else ClosePanels();
-            return;
+            case FortAction.Back:
+                _stack.FortRoom = null;
+                return;
+            case FortAction.Close:
+                ClosePanels();
+                return;
+            case FortAction.Enter:
+                ApplyFortEnter(cmd.RoomIndex);
+                return;
         }
+    }
 
-        if (_openFortRoom is not null) return;
+    private void ApplyFortEnter(int roomIndex)
+    {
+        if (_session is null) return;
 
         var rooms = FortRoster.All;
+        if (roomIndex < 0 || roomIndex >= rooms.Count) return;
 
-        if (Pressed(keyboard, Keys.Up))
-            _fortSelection = Math.Max(0, _fortSelection - 1);
-        if (Pressed(keyboard, Keys.Down))
-            _fortSelection = Math.Min(rooms.Count - 1, _fortSelection + 1);
-
-        var pointer = LogicalMouse(mouse);
-        var clicked = false;
-
-        for (var index = 0; index < rooms.Count; index++)
-        {
-            if (!FortRenderer.DoorRow(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
-
-            _fortSelection = index;
-            clicked = Clicked(mouse);
-            break;
-        }
-
-        if (!clicked && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
-
-        var room = rooms[_fortSelection];
+        var room = rooms[roomIndex];
         var rank = _session.Player.Legacy.Service.Rank;
 
         if (!room.IsOpen(rank))
@@ -2546,7 +1984,7 @@ public sealed class Game1 : Game, IConsoleTarget
             return;
         }
 
-        _openFortRoom = room.Id;
+        _stack.FortRoom = room.Id;
         _sfx?.Play(Sfx.Door, 0.4f, volumeScale: 0.7f);
     }
 
@@ -2557,39 +1995,21 @@ public sealed class Game1 : Game, IConsoleTarget
         UpdateStoneInput(keyboard);
 
         var items = _session.Player.Inventory.Items;
-        if (items.Count == 0)
-        {
-            _inventorySelection = 0;
+        if (!_panels.StepInventoryCommand(_input, keyboard, _input.CurrentMouse,
+            LogicalMouse(_input.CurrentMouse), items.Count))
             return;
-        }
 
-        _inventorySelection = Math.Clamp(_inventorySelection, 0, items.Count - 1);
+        ApplyInventoryUse();
+    }
 
-        // Left and right walk the row; up and down step between rows. A grid navigated as a
-        // list is a grid that fights the player's eyes.
-        if (Pressed(keyboard, Keys.Left) || Pressed(keyboard, Keys.A))
-            _inventorySelection = (_inventorySelection + items.Count - 1) % items.Count;
-        if (Pressed(keyboard, Keys.Right) || Pressed(keyboard, Keys.D))
-            _inventorySelection = (_inventorySelection + 1) % items.Count;
-        if (Pressed(keyboard, Keys.Up) || Pressed(keyboard, Keys.W))
-            _inventorySelection = (_inventorySelection + items.Count - UiLayout.InventoryColumns) % items.Count;
-        if (Pressed(keyboard, Keys.Down) || Pressed(keyboard, Keys.S))
-            _inventorySelection = (_inventorySelection + UiLayout.InventoryColumns) % items.Count;
+    private void ApplyInventoryUse()
+    {
+        if (_session is null) return;
 
-        var mouse = _input.CurrentMouse;
-        var pointer = LogicalMouse(mouse);
-        var hovered = -1;
-        for (var index = 0; index < items.Count && index < UiLayout.InventoryRows; index++)
-            if (UiLayout.InventoryTile(index).Contains((int)pointer.X, (int)pointer.Y))
-                hovered = index;
+        var items = _session.Player.Inventory.Items;
+        if (_panels.InventorySelection < 0 || _panels.InventorySelection >= items.Count) return;
 
-        if (hovered >= 0) _inventorySelection = hovered;
-
-        var activate = Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space)
-            || (hovered >= 0 && Clicked(mouse));
-        if (!activate) return;
-
-        var item = items[_inventorySelection];
+        var item = items[_panels.InventorySelection];
         var name = item.Name;
         var result = ItemUse.Use(item.Id, _session.Player);
         _recorder.Record(PlayEventKind.ItemUsed, item.Name, 0f, 0f,
@@ -2605,7 +2025,7 @@ public sealed class Game1 : Game, IConsoleTarget
         });
 
         // Consuming the last of a stack shortens the list under the selection.
-        _inventorySelection = Math.Clamp(_inventorySelection, 0,
+        _panels.InventorySelection = Math.Clamp(_panels.InventorySelection, 0,
             Math.Max(0, _session.Player.Inventory.Items.Count - 1));
     }
 
@@ -2627,57 +2047,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// than by the session, because where a bandit stands is a scene fact, not a save fact —
     /// the save only remembers which ones are already dead.
     /// </summary>
-    private void StartSession(GameSession session)
-    {
-        // The session goes in first: a generated mine needs to know whose body is lying in
-        // it before it is built.
-        var changingCharacter = !ReferenceEquals(_session, session);
-        _session = session;
-        LoadWorldManifest();
-        LoadQuestManifest();
-        LoadDialogueManifest();
-        LoadWatchers();
-        LoadPockets();
-        LoadPickups();
-        LoadShop();
-        if (changingCharacter) _session.Player.Quests.Changed += RefreshQuestObjective;
-        _dialogueOpen = false;
-        _showJournal = false;
-        _showCharacter = false;
-        _showShop = false;
-        _questObjectiveId = string.Empty;
-        _world?.RestoreOpenedDoors(session.Player.Story.State.OpenedLocks);
-        _encounter = new Encounter(session);
-        WatchForTheRecord(_encounter, session);
-        SpawnEnemies();
-        StartRun();
-
-        if (!changingCharacter) return;
-
-        session.Player.Vitals.Died += () =>
-        {
-            // Down in a mine, dying ends the run and forfeits the pot. Above ground it is
-            // still the old forgiving reset, because there is nothing there to lose.
-            if (_run is { Run.IsActive: true })
-            {
-                var lostRun = _run.Die();
-                _recorder.Record(PlayEventKind.Died, $"after {lostRun.RoomsCleared} rooms",
-                    lostRun.StonesLost, 0f, 0f);
-
-                // Somebody else takes the lamp, and this one stays where they fell.
-                _succession = Succession.Promote(session.Player, lostRun,
-                    _mineSeed ?? 0, _run.DeepestRoom);
-
-                EndRun(lostRun);
-                return;
-            }
-
-            session.ShowToast("You were defeated — returned to safe ground.");
-            session.Player.Vitals.FullRestore();
-            session.Player.Combat.ClearCombat();
-            ResetCamera();
-        };
-    }
+    private void StartSession(GameSession session) => _director.Start(session);
 
     /// <summary>
     /// Fill the scene from the level file, falling back to the authored camp for the hand-made
@@ -2738,102 +2108,18 @@ public sealed class Game1 : Game, IConsoleTarget
             _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
     }
 
-    /// <summary>Light a bar that has just been restored, and fade the light back out.</summary>
-    private void TickVitalPulses(float deltaSeconds)
-    {
-        if (_session is null) return;
+    private void TickVitalPulses(float deltaSeconds) =>
+        _feel.TickVitalPulses(_session, deltaSeconds);
 
-        var vitals = _session.Player.Vitals;
+    private void Impact(float weight) => _feel.Impact(weight);
 
-        // A whole point, so the slow out-of-combat prana trickle does not keep the bar lit.
-        if (vitals.Health > _lastHealth + 1f) _healthPulse = 1f;
-        if (vitals.Prana > _lastPrana + 1f) _pranaPulse = 1f;
+    private (float Yaw, float Pitch) ShakeOffset() => _feel.ShakeOffset(_clock);
 
-        _lastHealth = vitals.Health;
-        _lastPrana = vitals.Prana;
+    private void WatchSessionForTheFeel(GameSession session) =>
+        _feel.WatchSession(session, _sfx);
 
-        var fade = deltaSeconds / PulseSeconds;
-        _healthPulse = MathF.Max(0f, _healthPulse - fade);
-        _pranaPulse = MathF.Max(0f, _pranaPulse - fade);
-    }
-
-    /// <summary>
-    /// Freeze the world briefly, and shove the camera.
-    ///
-    /// Called from wherever a blow lands. <paramref name="weight"/> is 0 for a graze and 1 for
-    /// a killing blow on something large, and everything else scales off it — a light hit gets
-    /// two frames and a nudge, a heavy one gets six and a jolt.
-    /// </summary>
-    private void Impact(float weight)
-    {
-        var w = MathHelper.Clamp(weight, 0f, 1f);
-
-        // Take the longer of the two rather than adding, or a flurry stacks into a lockup.
-        _hitstop = MathF.Max(_hitstop, 0.030f + 0.055f * w);
-
-        _shake = MathF.Max(_shake, 0.10f + 0.14f * w);
-        _shakeStrength = MathF.Max(_shakeStrength, 0.0022f + 0.0075f * w);
-    }
-
-    /// <summary>
-    /// The rotational offset a running shake adds to the view, in yaw and pitch.
-    ///
-    /// Rotation rather than translation, because the camera is the player's head: moving the
-    /// eye through the world clips it into geometry, and turning it does not. Two frequencies
-    /// that do not divide into each other, so a long shake never repeats visibly.
-    ///
-    /// Returned rather than applied. Adding it to <c>_camera.Yaw</c> would be simpler and would
-    /// be a bug: those fields persist, so every shake would leave the player aiming somewhere
-    /// slightly different from where they were, and a long fight would walk the view away by
-    /// degrees with nobody able to say why.
-    /// </summary>
-    private (float Yaw, float Pitch) ShakeOffset()
-    {
-        if (_shake <= 0f) return (0f, 0f);
-
-        var falloff = _shake * _shake;
-        var strength = _shakeStrength * falloff * 60f;
-
-        return (MathF.Sin(_clock * 71f) * strength,
-                MathF.Sin(_clock * 53f) * strength * 0.75f);
-    }
-
-    /// <summary>Wire the session's own good news to a sound.</summary>
-    private void WatchSessionForTheFeel(GameSession session)
-    {
-        session.Player.Vitals.LevelGained += _ => _sfx?.Play(Sfx.Chime, 0.5f);
-    }
-
-    /// <summary>Wire the encounter's events to what the player hears and feels.</summary>
-    private void WatchForTheFeel(Encounter encounter)
-    {
-        encounter.EnemyDefeated += enemy =>
-        {
-            _sfx?.Play(Sfx.Death, Weight(enemy));
-            Impact(0.85f);
-        };
-
-        encounter.SpellLanded += (_, _, _) =>
-        {
-            _sfx?.Play(Sfx.HitFlesh, 0.45f, volumeScale: 0.8f);
-            Impact(0.35f);
-        };
-
-        encounter.PlayerStruck += (damage, guarded) =>
-        {
-            var weight = MathHelper.Clamp(damage / 30f, 0.2f, 1f);
-
-            _sfx?.Play(guarded ? Sfx.Block : Sfx.Hurt, weight);
-
-            // Being hit shakes harder than hitting. The player should not have to read the
-            // health bar to know something went wrong.
-            Impact(guarded ? weight * 0.5f : MathF.Min(1f, weight * 1.15f));
-        };
-
-        // Bigger things land heavier, which is most of what makes a pishacha feel like one.
-        static float Weight(Enemy enemy) =>
-            MathHelper.Clamp(enemy.Archetype.MaxHealth / 260f, 0.35f, 1f);
-    }
+    private void WatchForTheFeel(Encounter encounter) =>
+        _feel.WatchEncounter(encounter, _sfx);
 
     /// <summary>
     /// Subscribe the recorder to the fight.
@@ -2864,9 +2150,12 @@ public sealed class Game1 : Game, IConsoleTarget
         WatchSessionForTheFeel(session);
     }
 
-    /// <summary>Start the ledger for this descent, if the loaded world is a mine at all.</summary>
     /// <summary>The stream that decides what a cleared room gives up. Seeded from the mine.</summary>
-    private Random _stoneDrops = new(0);
+    private Random _stoneDrops
+    {
+        get => _play.StoneDrops;
+        set => _play.StoneDrops = value;
+    }
 
     /// <summary>
     /// A cleared room sometimes gives up a stone.
@@ -2876,82 +2165,13 @@ public sealed class Game1 : Game, IConsoleTarget
     /// stone is variety rather than reward, and tying it to depth would make the deep rooms
     /// the only ones worth clearing for reasons that have nothing to do with the stones.
     /// </summary>
-    private void OfferStone()
-    {
-        if (_session is null || _run is null) return;
-        if (_stoneDrops.NextDouble() > StoneDropChance) return;
-
-        var available = StoneCatalog.AvailableAt(_mineDepth);
-        if (available.Count == 0) return;
-
-        var stone = available[_stoneDrops.Next(available.Count)];
-        _session.Player.Stones.Found(stone.Id);
-
-        _session.ShowToast($"{stone.DisplayName} found.  {stone.Description}");
-        _sfx?.Play(Sfx.Chime, 0.4f);
-        _coach.Teach(Lessons.Stones, Lessons.TextOf(Lessons.Stones));
-    }
+    private void OfferStone() =>
+        _feel.OfferStone(_session, _run, _stoneDrops, _mineDepth, _sfx, _coach);
 
     /// <summary>Roughly one room in two.</summary>
     private const double StoneDropChance = 0.5;
 
-    private void StartRun()
-    {
-        _run = null;
-        _runSummary = null;
-
-        if (_world is null || _mineSeed is not { } seed) return;
-        if (_world.Manifest.Rooms.Count < 2) return;
-
-        _run = new RunRuntime(_world.Manifest, seed, _mineDepth, _mineRooms);
-
-        // Stones are found below and never carried down. Cleared on entry rather than on exit,
-        // because a run can end in ways nobody gets to run code for — dying, quitting, closing
-        // the window — and only clearing here cannot leave last run's stones in the sockets.
-        _session?.Player.Stones.ClearForDescent();
-
-        // Bearer's Mark: one more stone than was bought, every descent. Given on entry rather
-        // than held in the pack, so it cannot be stockpiled by starting runs and backing out.
-        if (_session?.Player.Legacy.Has(AmuletEffect.Bearer) == true)
-            _session.Player.Inventory.Add(SoulCrystals.LesserId, SoulCrystals.LesserName, 1,
-                SoulCrystals.ItemKind);
-
-        // A deterministic stream per mine, so the same seed gives the same stones. A run worth
-        // reporting can be asked for again exactly, which the recorder depends on.
-        _stoneDrops = new Random(seed * 397 + _mineDepth);
-        _decisionRecorded = false;
-
-        _recorder.Record(PlayEventKind.RunStarted, _world.Manifest.Id, seed, _mineDepth,
-            _session?.Player.Vitals.Health ?? 0f);
-
-        _run.RoomEntered += room =>
-        {
-            _session?.Player.Combat.EnterRoom();
-
-            _recorder.Record(PlayEventKind.RoomEntered,
-                $"room {room}", room, 0f, _session?.Player.Vitals.Health ?? 0f,
-                _session?.Player.Vitals.Prana ?? 0f);
-
-            // The door has just shut and the floor is opening. Both halves of that are new,
-            // and neither is obvious from watching it happen once.
-            _coach.Teach(Lessons.FirstRoom, Lessons.TextOf(Lessons.FirstRoom));
-            _coach.Teach(Lessons.Rising, Lessons.TextOf(Lessons.Rising));
-        };
-
-        _run.RoomCleared += paid =>
-        {
-            _session?.ShowToast($"Room clear.  +{paid} stones held  ({_run.Run.Pending} at risk)");
-
-            // The pot growing is the thing the whole loop turns on, so it gets its own sound
-            // rather than sharing the kill that happened to end the room.
-            _sfx?.Play(Sfx.Coin, MathHelper.Clamp(paid / 12f, 0.3f, 1f));
-            _recorder.Record(PlayEventKind.RoomCleared, $"room {_run.DeepestRoom}", paid,
-                _run.Run.Pending, _session?.Player.Vitals.Health ?? 0f,
-                _session?.Player.Vitals.Prana ?? 0f);
-
-            OfferStone();
-        };
-    }
+    private void StartRun() => _director.StartRun();
 
     /// <summary>
     /// Put the run away and show what it was worth.
@@ -2960,120 +2180,18 @@ public sealed class Game1 : Game, IConsoleTarget
     /// lives; the ledger's job ends at deciding the number.
     /// </summary>
     /// <summary>What the run that just ended earned permanently, for the summary screen.</summary>
-    private IReadOnlyList<string> _earnedAmulets = Array.Empty<string>();
-
-    private void EndRun(RunResult result)
+    private IReadOnlyList<string> _earnedAmulets
     {
-        _runSummary = result;
-        if (result.Survived) _succession = null;
-        SetMouseLook(false, forPanel: true);
-
-        // The ratchet, and the reason it is recorded here rather than on a successful bank:
-        // amulets are earned by going deeper than the order ever has, whether the person who
-        // went there came back or not. A run that ends in a corpse two rooms past the previous
-        // best still pays, which is the whole question this iteration exists to answer.
-        _earnedAmulets = _session is null
-            ? Array.Empty<string>()
-            : _session.Player.Legacy.RecordDepth(result.RoomsCleared);
-
-        // Standing is read from what the order has actually done, and only a banked run counts
-        // toward it. The order is not impressed by how deep somebody got if the stones stayed
-        // down there — the promise that a lost run still pays is amulets, deliberately separate.
-        if (_session is not null && _session.Player.Legacy.Service.Record(result))
-        {
-            var rank = _session.Player.Legacy.Service;
-            _session.ShowToast($"The order raises you. You are {Ranks.LabelOf(rank.Rank)}.");
-            _sfx?.Play(Sfx.Chime, 0.85f);
-        }
-
-        foreach (var id in _earnedAmulets)
-        {
-            _session?.ShowToast($"{AmuletCatalog.Find(id)?.DisplayName} — kept for good.");
-            _sfx?.Play(Sfx.Chime, 0.7f);
-        }
-
-        // A descent is a supply run for the stall as much as for the player. Restocking here
-        // is also what keeps a death from being unrecoverable: half the pack is gone, and the
-        // shelf that could replace it has to have something on it.
-        //
-        // The sale is written to the save as a looted object so that it survives a reload, so
-        // restocking has to unwrite it. Clearing only the shop's own set looked right and did
-        // nothing: LoadShop re-reads those marks on every descent and every load, so the
-        // shelf emptied permanently the first time the player went back down.
-        RestockTheStall();
-
-        _coach.Teach(result.Survived ? Lessons.Banked : Lessons.Died,
-            Lessons.TextOf(result.Survived ? Lessons.Banked : Lessons.Died));
-
-        if (!result.Survived && result.StonesLost > 0)
-            _coach.Teach(Lessons.Body, Lessons.TextOf(Lessons.Body));
-
-        _recorder.Record(PlayEventKind.RunEnded,
-            result.Survived ? "camped" : "died", result.RoomsCleared, result.Tier,
-            _session?.Player.Vitals.Health ?? 0f);
-        _recorder.Flush();
-
-        if (_session is null) return;
-
-        var saveMessage = _session.CompleteRun(result, SurfaceCheckpoint);
-        if (!string.Equals(saveMessage, "Saved.", StringComparison.Ordinal))
-            _menuStatus = saveMessage;
+        get => _play.EarnedAmulets;
+        set => _play.EarnedAmulets = value;
     }
 
-    private bool LoadSession()
-    {
-        if (_session is null) StartSession(GameSession.NewGame());
+    private void EndRun(RunResult result) => _director.EndRun(result);
 
-        if (!_session!.TryLoad(out var message))
-        {
-            if (_screen == GameScreen.MainMenu) _menuStatus = message;
-            else _session.ShowToast(message);
-            return false;
-        }
+    private bool LoadSession() => _director.Load();
 
-        _camera.Position = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
-        _camera.Yaw = _session.Yaw;
-        _world?.RestoreOpenedDoors(_session.Player.Story.State.OpenedLocks);
-        LoadPockets();
-        LoadPickups();
-        LoadShop();
-        RefreshQuestObjective();
-
-        _encounter = new Encounter(_session);
-        WatchForTheRecord(_encounter, _session);
-        SpawnEnemies();
-        StartRun();
-
-        _session.ShowToast(message);
-        _menuStatus = string.Empty;
-        return true;
-    }
-
-    private void SetBorderlessFullscreen(bool enabled)
-    {
-        _borderlessFullscreen = enabled;
-
-        if (enabled)
-        {
-            var displayMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
-            _graphics.PreferredBackBufferWidth = Math.Max(displayMode.Width, LogicalWidth);
-            _graphics.PreferredBackBufferHeight = Math.Max(displayMode.Height, LogicalHeight);
-            _graphics.IsFullScreen = true;
-            _graphics.HardwareModeSwitch = false;
-            Window.IsBorderless = true;
-        }
-        else
-        {
-            _graphics.PreferredBackBufferWidth = LogicalWidth;
-            _graphics.PreferredBackBufferHeight = LogicalHeight;
-            _graphics.IsFullScreen = false;
-            Window.IsBorderless = false;
-        }
-
-        _graphics.ApplyChanges();
-        _ui.Resize(GraphicsDevice.Viewport, _uiScalePreference);
+    protected override void OnDisplayChanged() =>
         _camera.SetProjection(GraphicsDevice.Viewport.AspectRatio);
-    }
 
     /// <summary>Roughly a pace. Shorter crouching, longer at a sprint.</summary>
     private const float StrideMetres = 1.9f;
@@ -3085,23 +2203,9 @@ public sealed class Game1 : Game, IConsoleTarget
     /// jumps should not be taking paces in mid-air, and that is exactly what a distance-based
     /// pacer does if nobody stops it.
     /// </summary>
-    private void Stride(float metres, KeyboardState keyboard)
-    {
-        if (_screen != GameScreen.WorldScene || !_camera.Grounded) return;
-
-        _stride += metres;
-
-        var sprinting = keyboard.IsKeyDown(Keys.LeftShift);
-        var length = StrideMetres * (_camera.Crouching ? 0.72f : sprinting ? 1.25f : 1f);
-        if (_stride < length) return;
-
-        _stride = 0f;
-
-        // Quiet, and quieter still when crouching: the sneak is a promise the audio has to
-        // keep, or the stealth read is a lie the moment anybody has headphones on.
-        _sfx?.Play(Sfx.Step, sprinting ? 0.55f : 0.3f,
-            volumeScale: _camera.Crouching ? 0.28f : 0.5f);
-    }
+    private void Stride(float metres, KeyboardState keyboard) =>
+        _feel.Step(metres, keyboard, _screen == GameScreen.WorldScene, _camera.Grounded,
+            _camera.Crouching, _sfx);
 
     private void UpdateCamera(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
@@ -3172,83 +2276,13 @@ public sealed class Game1 : Game, IConsoleTarget
         _crouchToggled = false;
     }
 
-    private void LoadWorldManifest()
-    {
-        if (_world is not null) return;
-
-        if (_mineSeed is { } seed)
-        {
-            var manifest = MineGenerator.Generate(seed, _mineRooms, _mineDepth);
-
-            // A fresh descent finds the mine as it was, not as the last one left it.
-            //
-            // Succession sends a successor back into the mine that killed their predecessor,
-            // and the dead were staying dead: a recorded run cleared eight rooms for five
-            // kills and banked thirty-six stones, because seven of the eight were already
-            // empty when it walked in. Going back for a body has to be a descent, not a walk.
-            if (!_resumingDescent)
-                _session?.Player.World.ForgetKilledIn(manifest.Id);
-
-            PlaceTheFallen(manifest, seed);
-
-            if (!WorldRuntime.TryCreate(manifest, out var generated, out var generationError))
-            {
-                _assetErrors.Add(generationError);
-                return;
-            }
-
-            _world = generated;
-            return;
-        }
-
-        // Above ground is the yard. It is where a run starts, where it ends, and the only
-        // place stones turn into anything — which is the half of the loop that did not exist.
-        if (!WorldRuntime.TryCreate(Surface.Build(), out var yard, out var yardError))
-        {
-            _assetErrors.Add(yardError);
-            return;
-        }
-
-        _world = yard;
-    }
+    private void LoadWorldManifest() => _director.LoadWorldManifest();
 
     /// <summary>True while the player is standing in the yard rather than down a mine.</summary>
     private bool OnTheSurface => _mineSeed is null;
 
     /// <summary>The one pickup that is not part of the level it appears in.</summary>
-    private const string CachePickupId = "cache.fallen";
-
-    /// <summary>
-    /// Put the last Bhagiratha's cache into the mine that killed them.
-    ///
-    /// Added to the manifest rather than special-cased at runtime, so it is found, taken,
-    /// saved and remembered by exactly the same machinery as everything else on the floor.
-    /// </summary>
-    private void PlaceTheFallen(WorldManifest manifest, int seed)
-    {
-        if (_session is null) return;
-
-        var cache = _session.Player.Legacy.Fallen;
-        if (cache is null || cache.MineSeed != seed) return;
-
-        var room = manifest.Rooms.FirstOrDefault(candidate => candidate.Index == cache.RoomIndex)
-            ?? manifest.Rooms.LastOrDefault();
-        if (room is null) return;
-
-        manifest.Pickups.Add(new WorldPickup
-        {
-            Id = CachePickupId,
-            ItemId = SoulCrystals.LesserId,
-            Name = string.IsNullOrWhiteSpace(cache.Name)
-                ? "A Bhagiratha's Cache"
-                : $"{cache.Name}'s Cache",
-            Kind = SoulCrystals.ItemKind,
-            Count = cache.Stones,
-            Position = new WorldVector(room.Centre.X, 0.1f, room.Centre.Z),
-            Model = "cheeseBox",
-            Scale = 0.6f
-        });
-    }
+    private const string CachePickupId = SessionDirector.CachePickupId;
 
     private void LoadDialogueManifest()
     {
@@ -3394,28 +2428,8 @@ public sealed class Game1 : Game, IConsoleTarget
         });
     }
 
-    private WorldPickup? FindPickup(WorldPoint player, float yaw, float range = 3.2f)
-    {
-        var forward = Targeting.FlatForward(yaw);
-        WorldPickup? best = null;
-        var bestDistance = float.MaxValue;
-
-        foreach (var pickup in _pickups)
-        {
-            var distance = player.FlatDistanceTo(pickup.Position.ToWorldPoint());
-            if (distance > range || distance >= bestDistance) continue;
-
-            var dx = pickup.Position.X - player.X;
-            var dz = pickup.Position.Z - player.Z;
-            if (distance > 0.001f && (dx * forward.X + dz * forward.Z) / distance < 0.35f)
-                continue;
-
-            best = pickup;
-            bestDistance = distance;
-        }
-
-        return best;
-    }
+    private WorldPickup? FindPickup(WorldPoint player, float yaw, float range = 3.2f) =>
+        SessionInput.FindPickup(_pickups, player, yaw, range);
 
     private void TakePickup(WorldPickup pickup)
     {
@@ -3441,46 +2455,23 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_shop is null) return;
 
-        var items = _shop.Definition.Items;
-        if (Pressed(keyboard, Keys.Escape) || Pressed(keyboard, Keys.B))
+        switch (_panels.StepShopCommand(_input, keyboard, mouse, LogicalMouse(mouse),
+            _shop.Definition.Items.Count))
         {
-            _showShop = false;
-            return;
+            case ShopAction.Dismiss:
+                _stack.Shop = false;
+                return;
+            case ShopAction.Buy:
+                BuySelectedShopItem();
+                return;
         }
-        if (items.Count == 0) return;
-
-        // Left and right move across a row; up and down move between rows.
-        if (Pressed(keyboard, Keys.Left))
-            _shopSelection = (_shopSelection + items.Count - 1) % items.Count;
-        if (Pressed(keyboard, Keys.Right))
-            _shopSelection = (_shopSelection + 1) % items.Count;
-        if (Pressed(keyboard, Keys.Up))
-            _shopSelection = (_shopSelection + items.Count - UiLayout.ShopColumns) % items.Count;
-        if (Pressed(keyboard, Keys.Down))
-            _shopSelection = (_shopSelection + UiLayout.ShopColumns) % items.Count;
-
-        var pointer = LogicalMouse(mouse);
-        for (var index = 0; index < items.Count; index++)
-        {
-            // Through the same helper the renderer uses, so a scrolled grid cannot end up
-            // drawing one thing where the mouse buys another.
-            if (ShopRenderer.TileFor(index, _shopSelection, items.Count) is not { } row) continue;
-            if (!row.Contains((int)pointer.X, (int)pointer.Y)) continue;
-
-            _shopSelection = index;
-            if (Clicked(mouse)) BuySelectedShopItem();
-            return;
-        }
-
-        if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
-            BuySelectedShopItem();
     }
 
     private void BuySelectedShopItem()
     {
         if (_shop is null || _session is null) return;
 
-        var result = _shop.Buy(_shopSelection, _session.Player.Vitals,
+        var result = _shop.Buy(_panels.ShopSelection, _session.Player.Vitals,
             _session.Player.Inventory, out var item);
         if (result == ShopPurchaseResult.Bought && item is not null)
         {
@@ -3657,7 +2648,7 @@ public sealed class Game1 : Game, IConsoleTarget
             FramesPerSecond: _framesPerSecond,
             ShowFrameRate: !_capture.IsCapturing,
             Spell: BuildSpellHud(),
-            CoachLine: _runSummary is not null || _choosingDepth || _campTraderOpen
+            CoachLine: _runSummary is not null || _stack.Shaft || _stack.CampTrader
                 ? string.Empty
                 : _coach.Line,
             CoachOpacity: _coach.Opacity);
@@ -3744,61 +2735,55 @@ public sealed class Game1 : Game, IConsoleTarget
 
         _ui.Begin();
 
-        // A full-screen panel owns the screen. Leaving the combat HUD drawing underneath it
-        // was most of why testers called the inventory cluttered.
-        // 'hud off' counts as a panel owning the screen here: it is a request for a clean
-        // picture, and a clean picture has no vitals in the corner of it.
-        var panelOpen = _showHelp || _showJournal || _showCharacter || _showShop || _hideInterface;
         var hudState = BuildWorldHudState();
-
-        if (!panelOpen)
-        {
-            DrawWeapon();
-            _screens.Hud.DrawDamageFlash(hudState);
-            // Both of these report on a system with nothing to report: no live world places
-            // a watcher, so the awareness meter has read UNAWARE in every screenshot ever
-            // taken of this game. Crouching still works; it just no longer pretends.
-            if (ParkedFeatures.Sneaking) _screens.Hud.DrawSneakOverlay(hudState);
-            DrawThreatArrows();
-            DrawFloatingNumbers();
-            _screens.Hud.DrawCrosshair(hudState);
-            _screens.Hud.DrawHitMarker(hudState);
-            _screens.Hud.DrawDamageDirections(hudState);
-            _screens.Hud.DrawSpellBar(hudState, ItemSprites.JivaCrystal(GraphicsDevice));
-            _screens.Hud.DrawCastBanner(hudState);
-            DrawSurfaceSigns();
-            _screens.Hud.DrawCoach(hudState);
-            DrawCampDecision();
-            _screens.Prompt.Draw(BuildPromptState());
-            DrawRunLedger();
-            _screens.Hud.DrawLocationBanner(hudState);
-            if (ParkedFeatures.Sneaking) _screens.Hud.DrawAwareness(hudState);
-            DrawEnemyNameplates();
-            _screens.Hud.DrawObjective(hudState);
-            _screens.Hud.DrawVitals(hudState);
-            _screens.Hud.DrawStatusStrip(hudState);
-        }
-
-        if (!_hideInterface)
-        {
-            _screens.Hud.DrawToasts(hudState);
-            DrawContentErrors();
-        }
-
-        if (_showHelp) _screens.Overlay.DrawHelpOverlay(BuildOverlayState());
-        if (_dialogueOpen) DrawDialogue();
-        if (_showJournal) DrawJournal();
-        if (_showFort && _session is not null)
-            _screens.Fort.Draw(_session.Player.Legacy, _fortSelection, _openFortRoom);
-        if (_showCharacter) DrawCharacterSheet();
-        if (_showShop) DrawShop();
-        if (_campTraderOpen) DrawCampTrader();
-        if (_choosingDepth) DrawDepthChoice();
-        if (_paused && _runSummary is null) _screens.Overlay.DrawPause(BuildOverlayState());
-        if (_runSummary is { } summary) DrawRunSummary(summary);
-
-        if (!_hideInterface) DrawWatches();
-        DrawConsole();
+        FramePresenter.DrawWorldInterface(
+            _stack.HidesHud || _hideInterface,
+            _hideInterface,
+            combatHud: () =>
+            {
+                DrawWeapon();
+                _screens.Hud.DrawDamageFlash(hudState);
+                if (ParkedFeatures.Sneaking) _screens.Hud.DrawSneakOverlay(hudState);
+                DrawThreatArrows();
+                DrawFloatingNumbers();
+                _screens.Hud.DrawCrosshair(hudState);
+                _screens.Hud.DrawHitMarker(hudState);
+                _screens.Hud.DrawDamageDirections(hudState);
+                _screens.Hud.DrawSpellBar(hudState, ItemSprites.JivaCrystal(GraphicsDevice));
+                _screens.Hud.DrawCastBanner(hudState);
+                DrawSurfaceSigns();
+                _screens.Hud.DrawCoach(hudState);
+                DrawCampDecision();
+                _screens.Prompt.Draw(BuildPromptState());
+                DrawRunLedger();
+                _screens.Hud.DrawLocationBanner(hudState);
+                if (ParkedFeatures.Sneaking) _screens.Hud.DrawAwareness(hudState);
+                DrawEnemyNameplates();
+                _screens.Hud.DrawObjective(hudState);
+                _screens.Hud.DrawVitals(hudState);
+                _screens.Hud.DrawStatusStrip(hudState);
+            },
+            toasts: () =>
+            {
+                _screens.Hud.DrawToasts(hudState);
+                DrawContentErrors();
+            },
+            panels: () =>
+            {
+                if (_stack.Help) _screens.Overlay.DrawHelpOverlay(BuildOverlayState());
+                if (_stack.Dialogue) DrawDialogue();
+                if (_stack.Journal) DrawJournal();
+                if (_stack.Fort && _session is not null)
+                    _screens.Fort.Draw(_session.Player.Legacy, _panels.FortSelection, _stack.FortRoom);
+                if (_stack.Character) DrawCharacterSheet();
+                if (_stack.Shop) DrawShop();
+                if (_stack.CampTrader) DrawCampTrader();
+                if (_stack.Shaft) DrawDepthChoice();
+                if (_stack.Paused && _runSummary is null) _screens.Overlay.DrawPause(BuildOverlayState());
+                if (_runSummary is { } summary) DrawRunSummary(summary);
+            },
+            watches: DrawWatches,
+            console: DrawConsole);
 
         EndUi();
     }
@@ -3819,14 +2804,14 @@ public sealed class Game1 : Game, IConsoleTarget
     private void DrawCampTrader()
     {
         if (_session is null || _run is null) return;
-        _screens.Descent.DrawCampTrader(_session.Player.Inventory, _run.Run, _campSelection);
+        _screens.Descent.DrawCampTrader(_session.Player.Inventory, _run.Run, _panels.CampSelection);
     }
 
     private void DrawDepthChoice()
     {
         if (_session is null) return;
         _screens.Descent.DrawDepthChoice(
-            _session.Player.Inventory.CountOf(SoulCrystals.LesserId), _depthSelection,
+            _session.Player.Inventory.CountOf(SoulCrystals.LesserId), _panels.DepthSelection,
             tier => CaveThemeCatalog.For(_shaftSeeds[tier], tier));
     }
 
@@ -3892,9 +2877,9 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private void DrawConsole()
     {
-        if (!_consoleOpen) return;
+        if (!_consoleKeys.Open) return;
 
-        _screens.Console.Draw(_consoleOutput, _consoleInput, _clock);
+        _screens.Console.Draw(_consoleOutput, _consoleKeys.Buffer, _clock);
     }
 
     /// <summary>
@@ -3984,7 +2969,7 @@ public sealed class Game1 : Game, IConsoleTarget
     private void DrawDialogue()
     {
         if (_conversationActor is null) return;
-        _screens.Dialogue.Draw(_conversationActor, _dialogueResponse, _dialogueSelection);
+        _screens.Dialogue.Draw(_conversationActor, _dialogueResponse, _panels.DialogueSelection);
     }
 
     private void DrawJournal()
@@ -3996,7 +2981,7 @@ public sealed class Game1 : Game, IConsoleTarget
     private void DrawCharacterSheet()
     {
         if (_session is null) return;
-        _screens.Character.Draw(_session.Player, _inventorySelection,
+        _screens.Character.Draw(_session.Player, _panels.InventorySelection,
             ItemSprites.JivaCrystal(GraphicsDevice));
     }
 
@@ -4036,7 +3021,7 @@ public sealed class Game1 : Game, IConsoleTarget
     private void DrawShop()
     {
         if (_session is null || _shop is null) return;
-        _screens.Shop.Draw(_shop, _session.Player.Vitals.Gold, _shopSelection);
+        _screens.Shop.Draw(_shop, _session.Player.Vitals.Gold, _panels.ShopSelection);
     }
 
     /// <summary>
@@ -4204,20 +3189,20 @@ public sealed class Game1 : Game, IConsoleTarget
 
         switch (_captureScreen?.ToLowerInvariant())
         {
-            case "inventory" or "character": _showCharacter = true; break;
-            case "journal": _showJournal = true; break;
-            case "help": _showHelp = true; break;
+            case "inventory" or "character": _stack.Character = true; break;
+            case "journal": _stack.Journal = true; break;
+            case "help": _stack.Help = true; break;
             case "depth" or "shaft":
-                _depthSelection = 3;
-                _choosingDepth = true;
+                _panels.DepthSelection = 3;
+                _stack.Shaft = true;
                 break;
-            case "shop" or "stall": _showShop = true; break;
-            case "camp" or "trader": _campTraderOpen = true; break;
-            case "fort": _showFort = true; break;
-            case "pause": _paused = true; break;
+            case "shop" or "stall": _stack.Shop = true; break;
+            case "camp" or "trader": _stack.CampTrader = true; break;
+            case "fort": _stack.Fort = true; break;
+            case "pause": _stack.Paused = true; break;
             case "dialogue":
                 _conversationActor = _dialogue?.Actors.FirstOrDefault();
-                _dialogueOpen = _conversationActor is not null;
+                _stack.Dialogue = _conversationActor is not null;
                 _dialogueResponse =
                     "Northwatch is a border camp built around an older stone watchpost. Keep "
                     + "your eyes open on the road north, and do not travel it after dark "
@@ -4240,6 +3225,44 @@ public sealed class Game1 : Game, IConsoleTarget
     private void DrawAuthoredWorld() =>
         _worldView.Draw(GraphicsDevice, _scene, _modelCache, _world, _pickups,
             OnTheSurface, _cave, _camera.View, _camera.Projection, _lights, ref _stone);
+
+    // ------------------------------------------------------------------ session director
+
+    ScreenStack ISessionHooks.Stack => _stack;
+    FirstPersonView ISessionHooks.Camera => _camera;
+    PlayRecorder ISessionHooks.Recorder => _recorder;
+    Coach ISessionHooks.Coach => _coach;
+    SoundBank? ISessionHooks.Sfx => _sfx;
+    GameScreen ISessionHooks.Screen
+    {
+        get => _screen;
+        set => _screen = value;
+    }
+    string ISessionHooks.MenuStatus
+    {
+        get => _menuStatus;
+        set => _menuStatus = value;
+    }
+    string ISessionHooks.QuestObjectiveId
+    {
+        get => _questObjectiveId;
+        set => _questObjectiveId = value;
+    }
+    IList<string> ISessionHooks.AssetErrors => _assetErrors;
+    void ISessionHooks.SetMouseLook(bool enabled, bool forPanel) => SetMouseLook(enabled, forPanel);
+    void ISessionHooks.SpawnEnemies() => SpawnEnemies();
+    void ISessionHooks.WatchForTheRecord(Encounter encounter, GameSession session) =>
+        WatchForTheRecord(encounter, session);
+    void ISessionHooks.LoadQuestManifest() => LoadQuestManifest();
+    void ISessionHooks.LoadDialogueManifest() => LoadDialogueManifest();
+    void ISessionHooks.LoadWatchers() => LoadWatchers();
+    void ISessionHooks.LoadPockets() => LoadPockets();
+    void ISessionHooks.LoadPickups() => LoadPickups();
+    void ISessionHooks.LoadShop() => LoadShop();
+    void ISessionHooks.RefreshQuestObjective() => RefreshQuestObjective();
+    void ISessionHooks.RestockTheStall() => RestockTheStall();
+    void ISessionHooks.ResetCamera() => ResetCamera();
+    void ISessionHooks.OfferStone() => OfferStone();
 
     // ------------------------------------------------------------------ the console's reach
 
@@ -4324,12 +3347,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     void IConsoleTarget.FailScript(string why) => FailScript(why);
 
-    /// <summary>Record a scripted failure, and say so on stdout for an unattended run.</summary>
-    private void FailScript(string why)
-    {
-        _scriptFailed = true;
-        Console.WriteLine("[!] " + why);
-    }
+    private void FailScript(string why) => _scripts.Fail(why);
 
     void IConsoleTarget.QuitWhenDone() => _scriptQuitWhenDone = true;
 
@@ -4341,11 +3359,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     IReadOnlyList<string> IConsoleTarget.Watches => _watches;
 
-    void IConsoleTarget.Queue(string statements)
-    {
-        foreach (var statement in ConsoleRouter.SplitStatements(statements))
-            _scriptQueue.Enqueue(statement);
-    }
+    void IConsoleTarget.Queue(string statements) => _scripts.Enqueue(statements);
 
     /// <summary>Save a frame without ending the run, unlike --screenshot.</summary>
     string IConsoleTarget.Capture(string path)

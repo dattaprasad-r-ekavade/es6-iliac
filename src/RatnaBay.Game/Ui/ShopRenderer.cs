@@ -69,7 +69,8 @@ internal sealed class ShopRenderer
                 var sold = shop.IsSoldOut(item.Id);
                 var affordable = !sold && gold >= item.Price;
 
-                _ui.Row(tile, selected);
+                var (fill, border) = UiTheme.Row(selected);
+                _ui.Row(tile, fill, border);
 
                 var ink = sold ? new Color(112, 122, 122)
                     : !affordable ? new Color(146, 130, 124)

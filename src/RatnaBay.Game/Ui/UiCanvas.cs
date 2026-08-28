@@ -25,7 +25,7 @@ namespace RatnaBay.Client;
 /// Device resources arrive through <see cref="Attach"/> rather than the constructor, because
 /// the canvas is built before <c>LoadContent</c> runs and the batch does not exist yet.
 /// </summary>
-internal sealed class UiCanvas
+public sealed class UiCanvas
 {
     /// <summary>Above this requested size, text is set in the display face rather than the body.</summary>
     private const float HeadingThreshold = 20f;
@@ -115,6 +115,21 @@ internal sealed class UiCanvas
     /// </summary>
     public void OverrideScale(float scale) => Scale = scale;
 
+    /// <summary>
+    /// Device mouse to logical canvas, accounting for letterboxing.
+    ///
+    /// Hit-tests and the pointer sprite both go through this so a click cannot land on a
+    /// different row than the one drawn under it.
+    /// </summary>
+    public Vector2 PointerFromDevice(int deviceX, int deviceY, Viewport viewport)
+    {
+        if (Scale <= 0f) return Vector2.Zero;
+
+        var offsetX = (viewport.Width - _logicalWidth * Scale) * 0.5f;
+        var offsetY = (viewport.Height - _logicalHeight * Scale) * 0.5f;
+        return new Vector2((deviceX - offsetX) / Scale, (deviceY - offsetY) / Scale);
+    }
+
     public void Begin() => _batch.Begin(
         SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp,
         DepthStencilState.None, RasterizerState.CullNone, null, _transform);
@@ -130,27 +145,20 @@ internal sealed class UiCanvas
     }
 
     /// <summary>
-    /// One row of a list, styled by whether the player is on it.
-    ///
-    /// Every menu, every stall, every pause screen drew this same pair of colours by hand,
-    /// which is nine places to edit and eight chances to leave one behind.
+    /// One row of a list. Colours are arguments so this type does not know Ratna Bay's palette.
+    /// Callers pass <c>UiTheme.Row(selected)</c>.
     /// </summary>
-    public void Row(Rectangle bounds, bool selected)
-    {
-        var (fill, border) = UiTheme.Row(selected);
+    public void Row(Rectangle bounds, Color fill, Color border) =>
         Panel(bounds, fill, border);
-    }
 
-    /// <summary>A row whose selected border warns rather than invites.</summary>
-    public void Row(Rectangle bounds, bool selected, bool danger)
-    {
-        var (fill, border) = UiTheme.Row(selected);
-        Panel(bounds, fill, selected && danger ? UiTheme.RowDangerBorder : border);
-    }
-
-    /// <summary>Dim everything already drawn, for a modal to sit on.</summary>
-    public void Scrim() =>
-        Panel(new Rectangle(0, 0, _logicalWidth, _logicalHeight), UiTheme.Scrim, UiTheme.NoBorder);
+    /// <summary>
+    /// Dim everything already drawn, for a modal to sit on.
+    ///
+    /// Colours are arguments so this type does not know Ratna Bay's palette. Callers pass
+    /// <c>UiTheme.Scrim</c> / <c>UiTheme.NoBorder</c>.
+    /// </summary>
+    public void Scrim(Color fill, Color border) =>
+        Panel(new Rectangle(0, 0, _logicalWidth, _logicalHeight), fill, border);
 
     public void Fill(Rectangle bounds, Color color) => _batch.Draw(_white, bounds, color);
 

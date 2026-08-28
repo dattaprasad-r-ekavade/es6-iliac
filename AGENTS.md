@@ -9,19 +9,19 @@ renders, samples input, and loads content. Read this file before changing code.
 | --- | --- |
 | `src/RatnaBay.Domain/` | Engine-independent rules, state, saves, generation. **No MonoGame types.** |
 | `src/RatnaBay.Game/` | WindowsDX client: devices, the frame, world draw, audio. |
-| `src/RatnaBay.Game/Engine/` | First-person view and capture host. No mines or Ratna Bay. |
+| `src/RatnaBay.Game/Engine/` | `EngineHost`, first-person view, capture host. No mines or Ratna Bay. |
 | `src/RatnaBay.Game/Ui/` | Every 2D screen and HUD renderer, plus shared canvas and hit-test layout. |
 | `src/RatnaBay.Game/Render/` | 3D primitives (`SceneRenderer`), imported models (`ModelCache`), generated sprites. |
 | `src/RatnaBay.Game/World/` | Live world, encounters, `WorldPresenter`, `FigurePresenter`, spike scenes. |
-| `src/RatnaBay.Game/Input/` | Device sampling (`InputRouter`), list picking (`ListPicker`), overlay stack (`OverlayInput`). |
+| `src/RatnaBay.Game/Input/` | Device sampling (`InputRouter`), list picking (`ListPicker`), overlay stack (`OverlayInput`), world panels (`WorldPanelInput`), console typing (`ConsoleInput`). |
 | `src/RatnaBay.Game/Content/` | JSON manifests (world, dialogue, quests, shops) and bundled fonts. |
 | `tools/RatnaBay.Tools/` | `doctor`, `validate`, `sim`, `mine`, `review`. |
 | `tests/RatnaBay.Domain.Tests/` | Headless domain tests. |
 | `Docs/` | Design and production records. Update them when a closed decision or behaviour changes. |
 | `ParkedFeatures.cs` | Built, tested, unreachable player-facing surfaces. Do not revive without a product decision. |
 
-`Game1` coordinates lifecycle, device state, and draw order. New independent systems do not
-go in `Game1`.
+`Game1` is Ratna Bay on `EngineHost`. New independent systems do not go in `Game1`. A second
+game subclasses `EngineHost`, not `Game1`.
 
 ## Required checks
 
@@ -108,8 +108,14 @@ the interface to all of `Game1`.
   writes a different presenter; it should not subclass `Game1`. See `Docs/ENGINE.md`.
 - Speakers, watchers, enemies and bolts go through `FigurePresenter`. Moodboard, stambha and
   the asset case go through `SpikeScenes`.
+- Devices, timestep, fonts and the canvas attach live on `EngineHost`. A second game
+  subclasses that, not `Game1`. See `Docs/ENGINE.md`.
+- Overlay-stack selection (consent, title, pause, settings) goes through `OverlayInput`.
+  World-panel selection (inventory, shop, dialogue, shaft, camp, fort, run summary) goes
+  through `WorldPanelInput`. Console typing goes through `ConsoleInput`. List wrap/hover
+  is `ListPicker`; row bounds stay `UiLayout`.
 - Screenshot warmup, the cover render target and PNG write go through `CaptureHost`. The store
-  cover composition is `CoverRenderer`.
+  cover composition is `CoverRenderer`. `--perf` prints a frame-time summary on exit.
 - Anything anchored to a point in the world but drawn flat goes through `WorldProjector` and
   `MarkerRenderer`. Do not hand a renderer the camera to get a screen position.
 - Build presentation snapshots (`WorldHudState`, `OverlayState`, `MenuState`, `NameplateState`,
@@ -130,30 +136,35 @@ the interface to all of `Game1`.
 | World HUD (vitals, toasts, crosshair, spell bar, coach) | `Ui/HudRenderer.cs` | snapshot in `WorldHudState` |
 | Pause / help / settings / pointer | `Ui/OverlayRenderer.cs` | `UiLayout.PauseItem`, `SettingsRow`; input in `OverlayInput` |
 | Title menu | `Ui/MenuRenderer.cs` | `UiLayout.MenuItem`; input in `OverlayInput` |
-| Character / pack / stones | `Ui/CharacterRenderer.cs` | `UiLayout.InventoryTile`, `EquippedSlot` |
-| Dialogue | `Ui/DialogueRenderer.cs` | `UiLayout.DialogueTopic` |
-| Stall | `Ui/ShopRenderer.cs` | `UiLayout.ShopItem` |
+| Character / pack / stones | `Ui/CharacterRenderer.cs` | `UiLayout.InventoryTile`; input in `WorldPanelInput` |
+| Dialogue | `Ui/DialogueRenderer.cs` | `UiLayout.DialogueTopic`; input in `WorldPanelInput` |
+| Stall | `Ui/ShopRenderer.cs` | `UiLayout.ShopItem`; input in `WorldPanelInput` |
 | Journal | `Ui/JournalRenderer.cs` | local panel |
 | Recording consent | `Ui/ConsentRenderer.cs` | `UiLayout.ConsentButton`; input in `OverlayInput` |
-| Shut door, camp trader, shaft, run summary | `Ui/DescentRenderer.cs` | `CampRow`, `DepthRow`, `SummaryButton` |
+| Shut door, camp trader, shaft, run summary | `Ui/DescentRenderer.cs` | `CampRow`, `DepthRow`, `SummaryButton`; input in `WorldPanelInput` |
 | Door / talk / pickup prompt | `Ui/PromptRenderer.cs` | `UiLayout.TalkPrompt`, `SinglePrompt`; snapshot in `PromptState` |
 | Held weapon sprite | `Ui/WeaponRenderer.cs` | `UiLayout.ShieldGrip`; pose from `WeaponView` |
 | Store cover | `Ui/CoverRenderer.cs` | 1260×1000 1:1; `--cover` |
 | Nameplates, floating damage, threat arrows, yard signs, content errors | `Ui/MarkerRenderer.cs` | projected via `WorldProjector` |
-| Developer console and watches | `Ui/ConsoleRenderer.cs` | local panels |
+| Developer console and watches | `Ui/ConsoleRenderer.cs` | local panels; typing in `ConsoleInput` |
 | Lit boxes, crystal, carved faces, glow | `Render/SceneRenderer.cs` | per-frame `Begin` |
 | Imported props | `Render/ModelCache.cs` | loaded once, drawn by key |
 | Speakers, watchers, enemies, bolts | `World/FigurePresenter.cs` | `BillboardRenderer` |
 | Moodboard, stambha, asset case | `World/SpikeScenes.cs` | SceneRenderer + canvas; `--moodboard` / `--stambha` |
+| Devices, fonts, canvas, capture frame | `Engine/EngineHost.cs` | subclass this, not `Game1` |
 
-Still in `Game1` and not yet extracted: the remaining screen input handlers (inventory, shop,
-dialogue, shaft, camp, fort, console) and `UpdateGameScreen`. Consent, title, pause and
-settings already live in `OverlayInput` — do not put that selection logic back into `Game1`.
-Do not put look/walk, 3D primitive drawing, authored-world iteration, figures, spike scenes
-or PNG capture back into `Game1` — those seams are `FirstPersonView`, `SceneRenderer`,
-`WorldPresenter`, `FigurePresenter`, `SpikeScenes` and `CaptureHost`. `--show` / `--swing` /
-`--cast` still open this game's panels and pose the weapon; that stays here. A second game
-should not subclass `Game1`; see [`Docs/ENGINE.md`](Docs/ENGINE.md).
+Still in `Game1`: applying commands, building snapshots, `IConsoleTarget`, and `--show` /
+`--swing` / `--cast`. Overlay-stack selection is `OverlayInput`; world-panel selection is
+`WorldPanelInput`; console typing is `ConsoleInput`; panel flags are `ScreenStack`; a
+session command is `SessionInput` / `SessionDirector`; combat is `CombatDirector`; script
+execution is `ConsoleHost`; draw order is `FramePresenter`; launch flags are `LaunchOptions`.
+Do not put those back into `Game1`.
+Do not put look/walk, 3D primitives, authored-world iteration, figures, spike scenes, PNG
+capture or the device/font/canvas attach back into `Game1` — those seams are
+`FirstPersonView`, `SceneRenderer`, `WorldPresenter`, `FigurePresenter`, `SpikeScenes`,
+`CaptureHost` and `EngineHost`. `--show` / `--swing` / `--cast` still open this game's
+panels and pose the weapon; that stays here. A second game subclasses `EngineHost`, not
+`Game1`; see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 
 ## Recipes
 
@@ -162,8 +173,8 @@ should not subclass `Game1`; see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 1. Put the rule in the matching `RatnaBay.Domain` folder (`Combat/`, `Run/`, `Items/`, …).
 2. Add or extend a test in `tests/RatnaBay.Domain.Tests`.
 3. If the player must see it, add presentation in `Ui/` and any input in the matching
-   handler — `OverlayInput` for the overlay stack, otherwise `Game1`'s existing screen
-   handler — not a new branch of `Update` that samples the device itself.
+   handler — `OverlayInput` for the overlay stack, `WorldPanelInput` for world panels,
+   `ConsoleInput` for typing — not a new branch of `Update` that samples the device itself.
 4. If it is saved, update `SaveGame` with a default that keeps old files loading, and assert
    the round trip.
 
@@ -173,8 +184,8 @@ should not subclass `Game1`; see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 2. Add or extend a renderer under `Ui/` that takes `UiCanvas` plus a snapshot or a narrow
    domain object.
 3. Construct it from `UiScreens` if it is a new class.
-4. Overlay-stack selection lives in `OverlayInput`. Other screens still keep selection in
-   `Game1`. Side effects stay in `Game1`. Do not pass `Game1` into a controller.
+4. Overlay-stack selection lives in `OverlayInput`. World-panel selection lives in
+   `WorldPanelInput`. Side effects stay in `Game1`. Do not pass `Game1` into a controller.
 5. Hit-test with the same `UiLayout` method the renderer uses to draw the row.
 6. Use `_ui.Row(bounds, selected)` for a list row and `UiTheme` for colour. If a colour is
    genuinely new, add it to `UiTheme` with a name saying what it is for.
@@ -195,7 +206,8 @@ rather than crash the scene; hot-reload already keeps the last valid room.
 ### Change an input binding
 
 1. Sample stays in `InputRouter`.
-2. Overlay keys: `OverlayInput`. Remaining screens: the handler in `Game1`.
+2. Overlay keys: `OverlayInput`. World-panel keys: `WorldPanelInput`. Console: `ConsoleInput`.
+   Side effects stay in `Game1`.
 3. Update the help overlay in `OverlayRenderer.DrawHelpOverlay` in the same change.
 4. Parked features: a binding that does nothing must not appear in help. See `ParkedFeatures`.
 

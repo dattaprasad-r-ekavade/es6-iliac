@@ -37,7 +37,8 @@ internal sealed class MenuRenderer
         {
             var itemBounds = UiLayout.MenuItem(index);
             var selected = index == state.Selection;
-            _ui.Row(itemBounds, selected);
+            var (fill, border) = UiTheme.Row(selected);
+            _ui.Row(itemBounds, fill, border);
             _ui.Text((index + 1).ToString("00"), new Vector2(itemBounds.X + 16, itemBounds.Y + 9), 13,
                 selected ? new Color(245, 209, 124) : new Color(112, 148, 155));
             _ui.Text(state.Items[index], new Vector2(itemBounds.X + 62, itemBounds.Y + 7), 18,

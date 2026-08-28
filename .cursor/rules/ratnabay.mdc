@@ -6,8 +6,9 @@ alwaysApply: true
 # Ratna Bay
 
 - Game rules go in `src/RatnaBay.Domain`. Never add MonoGame types there.
-- `Game1` is the lifecycle coordinator. New screens, HUD, and overlays go in `src/RatnaBay.Game/Ui/`.
-- Sample input only through `InputRouter`. Overlay-stack selection goes through `OverlayInput`. List wrap/hover is `ListPicker`; row bounds stay `UiLayout`. Draw 2D UI only through `UiCanvas`.
+- `Game1` is Ratna Bay on `EngineHost`. New screens, HUD, and overlays go in `src/RatnaBay.Game/Ui/`.
+- Sample input only through `InputRouter`. Overlay-stack selection goes through `OverlayInput`. World-panel selection goes through `WorldPanelInput`. Console typing goes through `ConsoleInput`. List wrap/hover is `ListPicker`; row bounds stay `UiLayout`. Draw 2D UI only through `UiCanvas`.
+- Devices, timestep, fonts and the canvas attach go through `EngineHost`. A second game subclasses that, not `Game1`.
 - Look, walk, jump and crouch go through `FirstPersonView`. Collision is a callback; do not put mines in the view.
 - Authored world boxes, lights and imported props go through `WorldPresenter`. Do not walk the manifest from `Game1`.
 - Speakers, watchers, enemies and bolts go through `FigurePresenter`. Moodboard, stambha and the asset case go through `SpikeScenes`.
@@ -17,7 +18,7 @@ alwaysApply: true
 - 3D boxes, the crystal and carved faces go through `SceneRenderer`. Imported props go through `ModelCache`.
 - World-anchored flat interface (nameplates, floating damage, signs) goes through `WorldProjector` + `MarkerRenderer`.
 - Do not revive `ParkedFeatures` or add a package without a focused spike. Do not add `RatnaBay.Engine.csproj` until every engine type compiles without `using RatnaBay.Domain` — see `Docs/ENGINE.md`.
-- A second game should not subclass `Game1`.
+- A second game subclasses `EngineHost`, not `Game1`.
 - Validate with `.\verify.ps1` on Windows, or `dotnet test tests/RatnaBay.Domain.Tests` plus a Windows-targeted compile on Linux.
 - To assert on a running client, drive it with a console script: `build\RatnaBay.exe --script Docs\scripts\smoke.rbs`. A script opens in the yard; `wait` is in simulated seconds; a failed `assert` exits non-zero.
 - Full contributor recipes live in `AGENTS.md`.

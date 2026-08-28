@@ -75,7 +75,7 @@ internal sealed class WorldPresenter
             // promised without either side storing the answer.
             stone = cave is null
                 ? StoneTextures.StonePalette.Granite
-                : StoneTextures.StonePalette.FromTheme(cave);
+                : PaletteOf(cave);
 
             scene.SetCaveAmbience(
                 ambient: new Vector3(0.10f, 0.10f, 0.12f),
@@ -112,6 +112,19 @@ internal sealed class WorldPresenter
                 pickup.Scale, 0f, view, projection);
         }
     }
+
+    /// <summary>
+    /// The stone a cave theme is cut from.
+    ///
+    /// Lives here rather than on <c>StoneTextures</c> so the texture type compiles without
+    /// Domain. Built from the theme's own colours, so a cave that says it is scorched red
+    /// rock cannot be drawn in grey.
+    /// </summary>
+    internal static StoneTextures.StonePalette PaletteOf(CaveTheme theme) => new(
+        theme.Id,
+        new Color(theme.Base.R, theme.Base.G, theme.Base.B),
+        new Color(theme.Mortar.R, theme.Mortar.G, theme.Mortar.B),
+        new Color(theme.Accent.R, theme.Accent.G, theme.Accent.B));
 
     private static Vector3 Vec(WorldVector v) => new(v.X, v.Y, v.Z);
 

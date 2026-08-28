@@ -54,7 +54,8 @@ internal sealed class ConsentRenderer
             var bounds = UiLayout.ConsentButton(index);
             var selected = index == selection;
 
-            _ui.Row(bounds, selected);
+            var (fill, border) = UiTheme.Row(selected);
+            _ui.Row(bounds, fill, border);
             _ui.TextCentred(answers[index], bounds.Center.X, bounds.Y + 14f, 16,
                 UiTheme.RowText(selected));
         }

@@ -20,7 +20,7 @@ internal sealed class OverlayRenderer
 
     public void DrawPause(OverlayState state)
     {
-        _ui.Scrim();
+        _ui.Scrim(UiTheme.Scrim, UiTheme.NoBorder);
 
         var panel = UiLayout.PausePanel(state.InRun);
         _ui.Panel(panel, UiTheme.PanelRaised, UiTheme.Accent);
@@ -40,7 +40,8 @@ internal sealed class OverlayRenderer
             var selected = index == state.PauseSelection;
             var giveUp = state.PauseItems[index].StartsWith("Give up", StringComparison.Ordinal);
 
-            _ui.Row(bounds, selected, danger: giveUp);
+            var (fill, border) = UiTheme.Row(selected);
+            _ui.Row(bounds, fill, selected && giveUp ? UiTheme.RowDangerBorder : border);
             _ui.TextCentred(state.PauseItems[index], bounds.Center.X, bounds.Y + 10f, 16,
                 UiTheme.RowText(selected));
         }
@@ -62,7 +63,8 @@ internal sealed class OverlayRenderer
         {
             var selected = index == state.SettingsSelection;
             var row = UiLayout.SettingsRow(index);
-            _ui.Row(row, selected);
+            var (fill, border) = UiTheme.Row(selected);
+            _ui.Row(row, fill, border);
             _ui.TextFit(state.SettingsOptions[index], new Vector2(row.X + 16, row.Y + 10), row.Width - 32,
                 16, selected ? Color.White : UiTheme.Body);
         }

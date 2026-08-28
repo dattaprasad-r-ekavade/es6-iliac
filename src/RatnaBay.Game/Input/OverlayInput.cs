@@ -12,6 +12,17 @@ internal enum SettingsAction
     NudgeVolume
 }
 
+/// <summary>What the pause screen asked the coordinator to do this frame.</summary>
+internal enum PauseAction
+{
+    None,
+    Resume,
+    Settings,
+    Suspend,
+    Abandon,
+    Quit
+}
+
 internal readonly record struct SettingsCommand(SettingsAction Action, float Nudge = 0f)
 {
     public static SettingsCommand Idle => new(SettingsAction.None);
@@ -24,8 +35,7 @@ internal readonly record struct SettingsCommand(SettingsAction Action, float Nud
 /// fullscreen, saving a descent. This type must not take a <c>Game1</c> reference; it
 /// returns a chosen index or a <see cref="SettingsCommand"/> instead.
 ///
-/// Inventory, shop, dialogue, the shaft and <c>UpdateGameScreen</c> stay on Game1 until
-/// their own cuts. Do not fold those in here.
+/// World-scene panels live on <see cref="WorldPanelInput"/>. Do not fold those in here.
 /// </summary>
 internal sealed class OverlayInput
 {
@@ -71,14 +81,24 @@ internal sealed class OverlayInput
         return pick.Confirmed(input, keyboard, mouse);
     }
 
-    /// <summary>True when the current pause row should fire.</summary>
-    public bool StepPause(InputRouter input, KeyboardState keyboard, MouseState mouse,
-        Vector2 pointer, int itemCount, bool inRun)
+    /// <summary>What the current pause row asked for, or <see cref="PauseAction.None"/>.</summary>
+    public PauseAction StepPause(InputRouter input, KeyboardState keyboard, MouseState mouse,
+        Vector2 pointer, string[] items, bool inRun)
     {
         var pick = ListPicker.Step(PauseSelection, input, keyboard, mouse, pointer,
-            itemCount, index => UiLayout.PauseItem(inRun, index));
+            items.Length, index => UiLayout.PauseItem(inRun, index));
         PauseSelection = pick.Selection;
-        return pick.Confirmed(input, keyboard, mouse);
+        if (!pick.Confirmed(input, keyboard, mouse)) return PauseAction.None;
+
+        return items[PauseSelection] switch
+        {
+            "Resume" => PauseAction.Resume,
+            "Settings" => PauseAction.Settings,
+            "Set the descent aside" => PauseAction.Suspend,
+            "Give up the descent" => PauseAction.Abandon,
+            "Save and quit to menu" => PauseAction.Quit,
+            _ => PauseAction.None
+        };
     }
 
     public SettingsCommand StepSettings(InputRouter input, KeyboardState keyboard, Vector2 pointer)

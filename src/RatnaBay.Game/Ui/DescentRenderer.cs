@@ -103,7 +103,7 @@ internal sealed class DescentRenderer
         var panel = new Rectangle(320, 168, 640, 384);
         var rows = 1 + CampTrader.Stock.Count;
 
-        _ui.Scrim();
+        _ui.Scrim(UiTheme.Scrim, UiTheme.NoBorder);
         _ui.Panel(panel, UiTheme.PanelRaised, UiTheme.Bronze);
 
         _ui.TextCentred("SOMEBODY CAME DOWN", panel.Center.X, panel.Y + 24f, 24,
@@ -128,7 +128,8 @@ internal sealed class DescentRenderer
                 ? lootItems > 0
                 : run.Pending >= CampTrader.Stock[index - 1].Stones;
 
-            _ui.Row(row, selected);
+            var (fill, border) = UiTheme.Row(selected);
+            _ui.Row(row, fill, border);
 
             var ink = !affordable ? new Color(122, 112, 108)
                 : selected ? Color.White
@@ -154,7 +155,7 @@ internal sealed class DescentRenderer
     {
         var panel = new Rectangle(320, 148, 640, 452);
 
-        _ui.Scrim();
+        _ui.Scrim(UiTheme.Scrim, UiTheme.NoBorder);
         _ui.Panel(panel, UiTheme.PanelRaised, UiTheme.Bronze);
 
         _ui.TextCentred("WHICH MINE", panel.Center.X, panel.Y + 24f, 24, UiTheme.Heading);
@@ -168,7 +169,8 @@ internal sealed class DescentRenderer
             var selected = tier == selection;
             var row = UiLayout.DepthRow(tier);
 
-            _ui.Row(row, selected);
+            var (fill, border) = UiTheme.Row(selected);
+            _ui.Row(row, fill, border);
 
             var ink = !affordable ? new Color(112, 100, 96)
                 : selected ? Color.White
@@ -258,7 +260,8 @@ internal sealed class DescentRenderer
         DrawRatchet(panel, player, earned);
 
         var button = UiLayout.SummaryButton;
-        _ui.Row(button, buttonHovered);
+        var (fill, border) = UiTheme.Row(buttonHovered);
+        _ui.Row(button, fill, border);
         _ui.TextCentred("Back to the surface", button.Center.X, button.Y + 12f, 16,
             UiTheme.RowText(buttonHovered));
     }
