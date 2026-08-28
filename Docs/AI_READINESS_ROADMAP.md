@@ -3,7 +3,7 @@
 This document describes how ready the Ratna Bay repository is for ongoing work with AI coding
 tools, and the next changes that will make that work safer and more predictable.
 
-Assessment date: 2026-08-28 (updated after CaptureHost)
+Assessment date: 2026-08-28 (updated after OverlayInput)
 
 ## Current assessment
 
@@ -19,7 +19,7 @@ The repository is approximately **93% complete** for AI-friendly architecture.
 | HUD and rendering boundaries | 100% | — |
 | Styling consistency | 100% | Add to `UiTheme` rather than to a call site |
 | Client-layer testability | 45% | Layout and theme are shared; still no headless Game tests |
-| `Game1` decomposition | 88% | Screen handlers, then `EngineHost` |
+| `Game1` decomposition | 91% | Remaining screen handlers, then `EngineHost` |
 
 Current repository hygiene: **9/10**
 Current AI-readiness: **9/10**
@@ -59,6 +59,10 @@ unrelated work still concentrated in `Game1`; they are not product-quality ratin
 - `Engine/CaptureHost` is screenshot warmup, the cover render target and PNG write. A script
   hold is a bool, so the host does not know about the console. `Ui/CoverRenderer` is this
   game's store cover; `Render/FaceSheet` is `--faces`.
+- `Input/ListPicker` wraps or clamps a selected row from an `InputRouter` snapshot. Bounds
+  are a callback, not `UiLayout`. `Input/OverlayInput` owns consent, title, pause and
+  settings: selection and confirm only. Game1 still owns starting a game, toggling display,
+  saving a descent. Do not pass `Game1` into a controller.
 - [`Docs/ENGINE.md`](ENGINE.md) is the reuse map: three layers, the engine table, how a
   second game starts, and the gate for cutting a `RatnaBay.Engine` project.
 
@@ -84,10 +88,11 @@ Each of these is a Game1 cut that has to be provably separable. Do not take two 
 Do not add `RatnaBay.Engine.csproj` until every type in the `Docs/ENGINE.md` table compiles
 without `using RatnaBay.Domain`. `StoneTextures.FromTheme(CaveTheme)` is the remaining leak.
 
-### 1. Screen input handlers
+### 1. Remaining screen input handlers
 
-Menu, pause and inventory handlers already read `InputRouter` snapshots — move one screen at
-a time. Do not take `UpdateGameScreen` in one pass.
+Inventory, shop, dialogue, shaft, camp trader, fort, console. They already read
+`InputRouter` snapshots — move one screen at a time. Do not take `UpdateGameScreen` in one
+pass. Consent, title, pause and settings already live in `OverlayInput`.
 
 ### 2. `EngineHost : Game`
 

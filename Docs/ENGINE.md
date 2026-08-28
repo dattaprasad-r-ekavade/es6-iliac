@@ -10,7 +10,7 @@ game has somewhere to start.
 | Layer | What it is allowed to know | Today |
 | --- | --- | --- |
 | **Rules** (`RatnaBay.Domain`) | Combat, saves, generation, items. No MonoGame types. | Own project. Reuse as-is only if the next game wants these rules. |
-| **Engine** (this document) | Devices, the frame, a first-person view, boxes, imported models, a 2D canvas, input sampling. No mines, no quests, no Ratna Bay. | Types inside `RatnaBay.Game`, listed below. Not yet their own project. |
+| **Engine** (this document) | Devices, the frame, a first-person view, boxes, imported models, a 2D canvas, input sampling and list picking. No mines, no quests, no Ratna Bay. | Types inside `RatnaBay.Game`, listed below. Not yet their own project. |
 | **Game** (`Game1`, `Ui/`, `World/`, `Session/`) | Screens, HUD, the yard, descents, dialogue, the console's reach into this game. | The WindowsDX executable. |
 
 A second game should reference the engine types (or, once they move, `RatnaBay.Engine`) and
@@ -29,6 +29,7 @@ unchanged:
 | `FirstPersonView` | Look, walk, jump, crouch. Collision is a callback. |
 | `CaptureHost` | Screenshot warmup, cover-sized render target, PNG write. A script hold is a bool. |
 | `InputRouter` | One keyboard/mouse sample per frame. |
+| `ListPicker` | Wrap or clamp a selected row from that snapshot. Bounds are a callback, not `UiLayout`. |
 | `UiCanvas` | 2D primitives. Logical size is constructor arguments, not a Ratna Bay constant. `Scrim` still uses this game's `UiTheme` colours — a second game should call `Panel` itself until that takes arguments. |
 | `WorldProjector` | World point → logical canvas. Logical size is passed in. |
 
@@ -38,6 +39,9 @@ one Ratna Bay leak — a second game constructs `StonePalette` itself.
 ## What stays this game
 
 - `Game1` — lifecycle, screen dispatch, the console.
+- `Input/OverlayInput` — consent, title, pause and settings. Selection and confirm only;
+  Game1 still owns starting a game, toggling display, saving a descent. Do not pass `Game1`
+  into it. Inventory, shop, dialogue, the shaft and `UpdateGameScreen` are not this type.
 - `World/WorldPresenter` — walks a Ratna Bay manifest onto `SceneRenderer` / `ModelCache`. A
   different game writes a different presenter.
 - `World/FigurePresenter` — speakers, watchers, enemies, bolts onto `BillboardRenderer`.
@@ -68,8 +72,10 @@ does not; move it (or stop calling it from the texture type) before cutting the 
 
 In this order, because each cut has to be provably separable:
 
-1. **Screen input handlers** — menu, pause, inventory. They already read `InputRouter`
-   snapshots. Move one screen at a time; do not take `UpdateGameScreen` in one pass.
+1. **Remaining screen input handlers** — inventory, shop, dialogue, shaft, camp trader, fort,
+   console. They already read `InputRouter` snapshots. Move one screen at a time; do not take
+   `UpdateGameScreen` in one pass. Consent, title, pause and settings already live in
+   `OverlayInput`.
 2. **`EngineHost : Game`** — devices, timestep, fonts, the canvas attach. `Game1` then only
    contains Ratna Bay. That is the last cut, and it is the one that makes a second executable
    cheap.

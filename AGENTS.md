@@ -13,7 +13,7 @@ renders, samples input, and loads content. Read this file before changing code.
 | `src/RatnaBay.Game/Ui/` | Every 2D screen and HUD renderer, plus shared canvas and hit-test layout. |
 | `src/RatnaBay.Game/Render/` | 3D primitives (`SceneRenderer`), imported models (`ModelCache`), generated sprites. |
 | `src/RatnaBay.Game/World/` | Live world, encounters, `WorldPresenter`, `FigurePresenter`, spike scenes. |
-| `src/RatnaBay.Game/Input/` | Device sampling (`InputRouter`). |
+| `src/RatnaBay.Game/Input/` | Device sampling (`InputRouter`), list picking (`ListPicker`), overlay stack (`OverlayInput`). |
 | `src/RatnaBay.Game/Content/` | JSON manifests (world, dialogue, quests, shops) and bundled fonts. |
 | `tools/RatnaBay.Tools/` | `doctor`, `validate`, `sim`, `mine`, `review`. |
 | `tests/RatnaBay.Domain.Tests/` | Headless domain tests. |
@@ -90,7 +90,9 @@ the interface to all of `Game1`.
 
 - Rules and persistence in `RatnaBay.Domain`. Presentation and device APIs in the game project.
 - Sample keyboard and mouse only through `InputRouter`. Screen handlers interpret a snapshot;
-  they do not call `Keyboard.GetState` / `Mouse.GetState`.
+  they do not call `Keyboard.GetState` / `Mouse.GetState`. Overlay-stack selection (consent,
+  title, pause, settings) goes through `OverlayInput`. List wrap and hover go through
+  `ListPicker`; row bounds stay `UiLayout`. Do not pass `Game1` into a controller.
 - Draw 2D UI through `UiCanvas`. Do not open `SpriteBatch` from a screen renderer. There is one
   deliberate exception, `CoverRenderer`: the store cover is 1260×1000, so the UI transform that
   letterboxes a 16:9 canvas would put bars down its sides. Leave it alone.
@@ -126,13 +128,13 @@ the interface to all of `Game1`.
 | Player-facing surface | Renderer | Layout |
 | --- | --- | --- |
 | World HUD (vitals, toasts, crosshair, spell bar, coach) | `Ui/HudRenderer.cs` | snapshot in `WorldHudState` |
-| Pause / help / settings / pointer | `Ui/OverlayRenderer.cs` | `UiLayout.PauseItem`, `SettingsRow` |
-| Title menu | `Ui/MenuRenderer.cs` | `UiLayout.MenuItem` |
+| Pause / help / settings / pointer | `Ui/OverlayRenderer.cs` | `UiLayout.PauseItem`, `SettingsRow`; input in `OverlayInput` |
+| Title menu | `Ui/MenuRenderer.cs` | `UiLayout.MenuItem`; input in `OverlayInput` |
 | Character / pack / stones | `Ui/CharacterRenderer.cs` | `UiLayout.InventoryTile`, `EquippedSlot` |
 | Dialogue | `Ui/DialogueRenderer.cs` | `UiLayout.DialogueTopic` |
 | Stall | `Ui/ShopRenderer.cs` | `UiLayout.ShopItem` |
 | Journal | `Ui/JournalRenderer.cs` | local panel |
-| Recording consent | `Ui/ConsentRenderer.cs` | `UiLayout.ConsentButton` |
+| Recording consent | `Ui/ConsentRenderer.cs` | `UiLayout.ConsentButton`; input in `OverlayInput` |
 | Shut door, camp trader, shaft, run summary | `Ui/DescentRenderer.cs` | `CampRow`, `DepthRow`, `SummaryButton` |
 | Door / talk / pickup prompt | `Ui/PromptRenderer.cs` | `UiLayout.TalkPrompt`, `SinglePrompt`; snapshot in `PromptState` |
 | Held weapon sprite | `Ui/WeaponRenderer.cs` | `UiLayout.ShieldGrip`; pose from `WeaponView` |
@@ -144,13 +146,14 @@ the interface to all of `Game1`.
 | Speakers, watchers, enemies, bolts | `World/FigurePresenter.cs` | `BillboardRenderer` |
 | Moodboard, stambha, asset case | `World/SpikeScenes.cs` | SceneRenderer + canvas; `--moodboard` / `--stambha` |
 
-Still in `Game1` and not yet extracted: the screen input handlers. Extract those when a
-change needs to touch them, not speculatively. Do not put look/walk, 3D primitive drawing,
-authored-world iteration, figures, spike scenes or PNG capture back into `Game1` — those
-seams are `FirstPersonView`, `SceneRenderer`, `WorldPresenter`, `FigurePresenter`,
-`SpikeScenes` and `CaptureHost`. `--show` / `--swing` / `--cast` still open this game's
-panels and pose the weapon; that stays here. A second game should not subclass `Game1`;
-see [`Docs/ENGINE.md`](Docs/ENGINE.md).
+Still in `Game1` and not yet extracted: the remaining screen input handlers (inventory, shop,
+dialogue, shaft, camp, fort, console) and `UpdateGameScreen`. Consent, title, pause and
+settings already live in `OverlayInput` — do not put that selection logic back into `Game1`.
+Do not put look/walk, 3D primitive drawing, authored-world iteration, figures, spike scenes
+or PNG capture back into `Game1` — those seams are `FirstPersonView`, `SceneRenderer`,
+`WorldPresenter`, `FigurePresenter`, `SpikeScenes` and `CaptureHost`. `--show` / `--swing` /
+`--cast` still open this game's panels and pose the weapon; that stays here. A second game
+should not subclass `Game1`; see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 
 ## Recipes
 
@@ -158,8 +161,9 @@ see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 
 1. Put the rule in the matching `RatnaBay.Domain` folder (`Combat/`, `Run/`, `Items/`, …).
 2. Add or extend a test in `tests/RatnaBay.Domain.Tests`.
-3. If the player must see it, add presentation in `Ui/` and any input in `Game1`'s existing
-   screen handler — not a new branch of `Update` that samples the device itself.
+3. If the player must see it, add presentation in `Ui/` and any input in the matching
+   handler — `OverlayInput` for the overlay stack, otherwise `Game1`'s existing screen
+   handler — not a new branch of `Update` that samples the device itself.
 4. If it is saved, update `SaveGame` with a default that keeps old files loading, and assert
    the round trip.
 
@@ -169,7 +173,8 @@ see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 2. Add or extend a renderer under `Ui/` that takes `UiCanvas` plus a snapshot or a narrow
    domain object.
 3. Construct it from `UiScreens` if it is a new class.
-4. Keep selection, open/close, and side effects in `Game1`.
+4. Overlay-stack selection lives in `OverlayInput`. Other screens still keep selection in
+   `Game1`. Side effects stay in `Game1`. Do not pass `Game1` into a controller.
 5. Hit-test with the same `UiLayout` method the renderer uses to draw the row.
 6. Use `_ui.Row(bounds, selected)` for a list row and `UiTheme` for colour. If a colour is
    genuinely new, add it to `UiTheme` with a name saying what it is for.
@@ -190,7 +195,7 @@ rather than crash the scene; hot-reload already keeps the last valid room.
 ### Change an input binding
 
 1. Sample stays in `InputRouter`.
-2. Meaning of the key stays in the screen handler in `Game1` (or a future controller).
+2. Overlay keys: `OverlayInput`. Remaining screens: the handler in `Game1`.
 3. Update the help overlay in `OverlayRenderer.DrawHelpOverlay` in the same change.
 4. Parked features: a binding that does nothing must not appear in help. See `ParkedFeatures`.
 
