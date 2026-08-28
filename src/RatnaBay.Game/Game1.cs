@@ -765,8 +765,8 @@ public sealed class Game1 : Game, IConsoleTarget
         // Devanagari for the carved verses. Absent, the pillar simply stands blank.
         StambhaCarving.Load(fontsDirectory);
 
-        _scene.LoadCaveShader(Content, "Effects/CaveLighting");
-        if (_scene.CaveEffect is null) _assetErrors.Add("cave lighting: not loaded");
+        if (_scene.LoadCaveShader(Content, "Effects/CaveLighting") is { } shaderFault)
+            _assetErrors.Add($"cave lighting: {shaderFault}");
 
         _white = new Texture2D(GraphicsDevice, 1, 1);
         _white.SetData(new[] { Color.White });

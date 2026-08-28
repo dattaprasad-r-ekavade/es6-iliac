@@ -86,10 +86,26 @@ public sealed class SceneRenderer
     /// <summary>The cave shader, or null while it is still the fixed-function pipeline.</summary>
     public Effect? CaveEffect { get; private set; }
 
-    public void LoadCaveShader(ContentManager content, string assetPath)
+    /// <summary>
+    /// Load the cave shader, reporting why rather than whether it failed.
+    ///
+    /// A missing .xnb and a shader the profile will not compile are entirely different
+    /// problems with the same symptom -- flat lighting -- so the exception type is the whole
+    /// diagnostic. Returns null on success, and the game runs on BasicEffect either way: a
+    /// missing shader must never be the difference between a game and a black screen.
+    /// </summary>
+    public string? LoadCaveShader(ContentManager content, string assetPath)
     {
-        try { CaveEffect = content.Load<Effect>(assetPath); }
-        catch { CaveEffect = null; }
+        try
+        {
+            CaveEffect = content.Load<Effect>(assetPath);
+            return null;
+        }
+        catch (Exception exception)
+        {
+            CaveEffect = null;
+            return exception.GetType().Name;
+        }
     }
 
     /// <summary>Everything that changes once a frame, rather than once a draw.</summary>
