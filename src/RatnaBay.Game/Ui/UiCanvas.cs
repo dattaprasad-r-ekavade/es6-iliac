@@ -1,52 +1,118 @@
+using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Collections.Generic;
 
 namespace RatnaBay.Client;
 
 /// <summary>
-/// The one drawing surface every screen and HUD renderer uses.
+/// The one drawing surface every screen and HUD renderer uses — and now the thing that
+/// actually does the drawing, rather than a set of function pointers back into Game1.
 ///
-/// Game1 still owns SpriteBatch, fonts and the white pixel. Renderers must not sample devices,
-/// open SpriteBatch themselves, or reach back into Game1: they receive this canvas and a
-/// snapshot, then paint. That is the boundary that keeps an AI change to a panel from
+/// **It used to be nine delegates.** Game1 owned the sprite batch, the fonts and the white
+/// pixel, implemented every primitive, and handed nine <c>Action</c>s to this class so that
+/// renderers had a boundary they could not reach through. The boundary was real and the
+/// indirection was not: every call went renderer to canvas to delegate to Game1, and the
+/// construction site needed a lambda to bridge one signature. Owning the resources outright
+/// deletes all of that, and it makes Game1's own drawing go through the same surface the
+/// screen renderers already use — which is the part that was actually worth having.
+///
+/// **Renderers still may not sample devices or open the batch themselves.** They receive this
+/// canvas and a snapshot, then paint. That rule is what keeps a change to a panel from
 /// touching the simulation loop.
+///
+/// Device resources arrive through <see cref="Attach"/> rather than the constructor, because
+/// the canvas is built before <c>LoadContent</c> runs and the batch does not exist yet.
 /// </summary>
 internal sealed class UiCanvas
 {
-    private readonly Action<Rectangle, Color, Color> _panel;
-    private readonly Action<string, Vector2, float, Color> _text;
-    private readonly Action<string, Vector2, float, float, Color> _textFit;
-    private readonly Action<string, float, float, float, Color> _textCentred;
-    private readonly Action<string, float, float, float, Color> _textRight;
-    private readonly Func<string, Vector2, float, float, Color, int, float> _textWrapped;
-    private readonly Action<Rectangle, Color> _fill;
-    private readonly Action<Rectangle, Color> _border;
-    private readonly Action<Texture2D, Rectangle, Color> _sprite;
+    /// <summary>Above this requested size, text is set in the display face rather than the body.</summary>
+    private const float HeadingThreshold = 20f;
 
-    public UiCanvas(
-        Action<Rectangle, Color, Color> panel,
-        Action<string, Vector2, float, Color> text,
-        Action<string, Vector2, float, float, Color> textFit,
-        Action<string, float, float, float, Color> textCentred,
-        Action<string, float, float, float, Color> textRight,
-        Func<string, Vector2, float, float, Color, int, float> textWrapped,
-        Action<Rectangle, Color> fill,
-        Action<Rectangle, Color> border,
-        Action<Texture2D, Rectangle, Color> sprite)
+    private readonly Dictionary<int, SpriteFontBase> _bodyFonts = new();
+    private readonly Dictionary<int, SpriteFontBase> _headingFonts = new();
+
+    private SpriteBatch _batch = null!;
+    private Texture2D _white = null!;
+    private FontSystem _body = null!;
+    private FontSystem _heading = null!;
+    private Matrix _transform = Matrix.Identity;
+
+    /// <summary>
+    /// Device pixels per logical pixel.
+    ///
+    /// Read outside this class by anything that has to convert between the two — the mouse,
+    /// and the projection of a world point onto the panel.
+    /// </summary>
+    public float Scale { get; private set; }
+
+    /// <summary>
+    /// The batch itself, for the handful of draws the primitives do not cover.
+    ///
+    /// A deliberate and narrow leak. Source rectangles, rotation and the cover composition all
+    /// need <c>SpriteBatch.Draw</c> overloads that would otherwise have to be mirrored here one
+    /// at a time, and mirroring an API is a worse boundary than exposing it. Everything with a
+    /// primitive above should use the primitive.
+    /// </summary>
+    public SpriteBatch Batch => _batch;
+
+    /// <summary>Hand over the device resources, once, after LoadContent has made them.</summary>
+    public void Attach(SpriteBatch batch, Texture2D white, FontSystem body, FontSystem heading)
     {
-        _panel = panel;
-        _text = text;
-        _textFit = textFit;
-        _textCentred = textCentred;
-        _textRight = textRight;
-        _textWrapped = textWrapped;
-        _fill = fill;
-        _border = border;
-        _sprite = sprite;
+        _batch = batch;
+        _white = white;
+        _body = body;
+        _heading = heading;
     }
 
-    public void Panel(Rectangle bounds, Color fill, Color border) => _panel(bounds, fill, border);
+    /// <summary>
+    /// Fit the logical panel to the window, letterboxing where the aspect does not match.
+    ///
+    /// A changed scale invalidates every cached atlas, because they are rasterized in device
+    /// pixels rather than logical ones.
+    /// </summary>
+    public void Resize(Viewport viewport, float preference)
+    {
+        if (viewport.Width <= 0 || viewport.Height <= 0) return;
+
+        var scale = MathF.Min(
+            viewport.Width / (float)UiLayout.Width,
+            viewport.Height / (float)UiLayout.Height) * preference;
+
+        var offsetX = (viewport.Width - UiLayout.Width * scale) * 0.5f;
+        var offsetY = (viewport.Height - UiLayout.Height * scale) * 0.5f;
+        _transform = Matrix.CreateScale(scale) * Matrix.CreateTranslation(offsetX, offsetY, 0f);
+
+        if (MathF.Abs(scale - Scale) < 0.001f) return;
+
+        Scale = scale;
+        _bodyFonts.Clear();
+        _headingFonts.Clear();
+    }
+
+    /// <summary>
+    /// Draw at one to one instead of fitting the logical panel.
+    ///
+    /// For the store cover, which is its own shape rather than 16:9 and is composed straight
+    /// into an offscreen target. The font picker rasterises against this number, so telling it
+    /// the truth is what keeps the type on the cover sharp.
+    /// </summary>
+    public void OverrideScale(float scale) => Scale = scale;
+
+    public void Begin() => _batch.Begin(
+        SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp,
+        DepthStencilState.None, RasterizerState.CullNone, null, _transform);
+
+    public void End() => _batch.End();
+
+    // ------------------------------------------------------------------ panels
+
+    public void Panel(Rectangle bounds, Color fill, Color border)
+    {
+        Fill(bounds, fill);
+        Border(bounds, border);
+    }
 
     /// <summary>
     /// One row of a list, styled by whether the player is on it.
@@ -57,39 +123,163 @@ internal sealed class UiCanvas
     public void Row(Rectangle bounds, bool selected)
     {
         var (fill, border) = UiTheme.Row(selected);
-        _panel(bounds, fill, border);
+        Panel(bounds, fill, border);
     }
 
     /// <summary>A row whose selected border warns rather than invites.</summary>
     public void Row(Rectangle bounds, bool selected, bool danger)
     {
         var (fill, border) = UiTheme.Row(selected);
-        _panel(bounds, fill, selected && danger ? UiTheme.RowDangerBorder : border);
+        Panel(bounds, fill, selected && danger ? UiTheme.RowDangerBorder : border);
     }
 
     /// <summary>Dim everything already drawn, for a modal to sit on.</summary>
-    public void Scrim() => _panel(UiLayout.FullScreen, UiTheme.Scrim, UiTheme.NoBorder);
+    public void Scrim() => Panel(UiLayout.FullScreen, UiTheme.Scrim, UiTheme.NoBorder);
 
-    public void Text(string value, Vector2 position, float scale, Color color) =>
-        _text(value, position, scale, color);
+    public void Fill(Rectangle bounds, Color color) => _batch.Draw(_white, bounds, color);
 
-    public void TextFit(string value, Vector2 position, float maxWidth, float scale, Color color) =>
-        _textFit(value, position, maxWidth, scale, color);
-
-    public void TextCentred(string value, float centreX, float y, float scale, Color color) =>
-        _textCentred(value, centreX, y, scale, color);
-
-    public void TextRight(string value, float right, float y, float scale, Color color) =>
-        _textRight(value, right, y, scale, color);
-
-    public float TextWrapped(string value, Vector2 position, float maxWidth, float scale,
-        Color color, int maxLines = 6) =>
-        _textWrapped(value, position, maxWidth, scale, color, maxLines);
-
-    public void Fill(Rectangle bounds, Color color) => _fill(bounds, color);
-
-    public void Border(Rectangle bounds, Color color) => _border(bounds, color);
+    public void Border(Rectangle bounds, Color color)
+    {
+        Fill(new Rectangle(bounds.X, bounds.Y, bounds.Width, 1), color);
+        Fill(new Rectangle(bounds.X, bounds.Bottom - 1, bounds.Width, 1), color);
+        Fill(new Rectangle(bounds.X, bounds.Y, 1, bounds.Height), color);
+        Fill(new Rectangle(bounds.Right - 1, bounds.Y, 1, bounds.Height), color);
+    }
 
     public void Sprite(Texture2D texture, Rectangle destination, Color color) =>
-        _sprite(texture, destination, color);
+        _batch.Draw(texture, destination, color);
+
+    // ------------------------------------------------------------------ text
+
+    public void Text(string value, Vector2 position, float scale, Color color)
+    {
+        var (font, drawScale) = SelectFont(scale);
+        DrawString(font, value, position, drawScale, color);
+    }
+
+    public void TextFit(string value, Vector2 position, float maxWidth, float scale, Color color)
+    {
+        var (font, drawScale) = SelectFont(scale);
+        var measuredWidth = font.MeasureString(value).X * drawScale;
+        if (measuredWidth > maxWidth && measuredWidth > 0f)
+            drawScale *= maxWidth / measuredWidth;
+
+        DrawString(font, value, position, drawScale, color);
+    }
+
+    public void TextCentred(string value, float centreX, float y, float scale, Color color)
+    {
+        var (font, drawScale) = SelectFont(scale);
+        var width = font.MeasureString(value).X * drawScale;
+        DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
+    }
+
+    public void TextRight(string value, float right, float y, float scale, Color color)
+    {
+        var (font, drawScale) = SelectFont(scale);
+        var width = font.MeasureString(value).X * drawScale;
+        DrawString(font, value, new Vector2(right - width, y), drawScale, color);
+    }
+
+    public float TextWrapped(string value, Vector2 position, float maxWidth, float scale,
+        Color color, int maxLines = 6)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return 0f;
+
+        var (font, drawScale) = SelectFont(scale);
+        var lineHeight = scale * 1.34f;
+        var words = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        var line = string.Empty;
+        var lines = 0;
+        var y = position.Y;
+
+        foreach (var word in words)
+        {
+            var candidate = line.Length == 0 ? word : $"{line} {word}";
+            if (font.MeasureString(candidate).X * drawScale <= maxWidth)
+            {
+                line = candidate;
+                continue;
+            }
+
+            if (line.Length > 0)
+            {
+                DrawString(font, line, new Vector2(position.X, y), drawScale, color);
+                y += lineHeight;
+                if (++lines >= maxLines) return y - position.Y;
+            }
+
+            line = word;
+        }
+
+        if (line.Length > 0)
+        {
+            DrawString(font, line, new Vector2(position.X, y), drawScale, color);
+            y += lineHeight;
+        }
+
+        return y - position.Y;
+    }
+
+    /// <summary>Centred, and shrunk to fit rather than running off its panel.</summary>
+    public void TextFitCentred(string value, float centreX, float y, float maxWidth, float scale,
+        Color color)
+    {
+        var (font, drawScale) = SelectFont(scale);
+        var measured = font.MeasureString(value).X * drawScale;
+        if (measured > maxWidth && measured > 0f) drawScale *= maxWidth / measured;
+
+        var width = font.MeasureString(value).X * drawScale;
+        DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
+    }
+
+    /// <summary>How wide a string will be, for anything that has to lay out around it.</summary>
+    public float MeasureText(string value, float scale)
+    {
+        var (font, drawScale) = SelectFont(scale);
+        return font.MeasureString(value).X * drawScale;
+    }
+
+    /// <summary>
+    /// Pick a font rasterized at the size it will actually occupy on the display.
+    ///
+    /// An earlier version kept three fixed atlases (18/24/32 px) and scaled them to fit, so a
+    /// 12 px label was an 18 px atlas squeezed to 0.67 and then stretched again by the canvas
+    /// transform. Two resamples is why the HUD was soft and thin. Rasterizing at the device
+    /// size and drawing at 1/scale lands every glyph 1:1 on the panel.
+    /// </summary>
+    private (SpriteFontBase Font, float Scale) SelectFont(float requestedSize)
+    {
+        var heading = requestedSize >= HeadingThreshold;
+        var cache = heading ? _headingFonts : _bodyFonts;
+
+        // Clamped so an extreme display cannot ask for a 4 px or a 900 px atlas.
+        var devicePixels = Math.Clamp((int)MathF.Round(requestedSize * Scale), 8, 384);
+
+        if (!cache.TryGetValue(devicePixels, out var font))
+        {
+            font = (heading ? _heading : _body).GetFont(devicePixels);
+            cache[devicePixels] = font;
+        }
+
+        return (font, requestedSize / devicePixels);
+    }
+
+    /// <summary>Text with a one-pixel drop shadow, so it survives any background under it.</summary>
+    private void DrawString(SpriteFontBase font, string value, Vector2 position, float scale,
+        Color color)
+    {
+        var fontScale = new Vector2(scale);
+
+        if (color.A > 20)
+        {
+            _batch.DrawString(font, value, position + new Vector2(1f, 1f),
+                new Color(0, 0, 0, 150), 0f, Vector2.Zero, fontScale, 0f, 0f, 0f,
+                TextStyle.None, FontSystemEffect.None, 0);
+        }
+
+        _batch.DrawString(font, value, position, color, 0f, Vector2.Zero, fontScale,
+            0f, 0f, 0f, TextStyle.None, FontSystemEffect.None, 0);
+    }
 }

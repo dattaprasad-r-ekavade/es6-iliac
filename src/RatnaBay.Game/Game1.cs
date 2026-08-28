@@ -49,10 +49,8 @@ public sealed class Game1 : Game, IConsoleTarget
     /// into a freshly allocated array every model every frame was pure waste.
     /// </summary>
     private readonly List<string> _assetErrors = new();
-    private SpriteBatch _spriteBatch = null!;
     private FontSystem _fontSystem = null!;
     private FontSystem _headingFontSystem = null!;
-    private Texture2D _white = null!;
     private BasicEffect _primitiveEffect = null!;
     /// <summary>The stone this room is cut from. One per cave theme, later.</summary>
     private StoneTextures.StonePalette _stone = StoneTextures.StonePalette.Granite;
@@ -129,7 +127,6 @@ public sealed class Game1 : Game, IConsoleTarget
     private float _cameraPitch = -0.12f;
     private Matrix _view;
     private Matrix _projection;
-    private Matrix _uiTransform = Matrix.Identity;
     private bool _borderlessFullscreen = true;
     private float _standingEyeY = 2.4f;
     private float _verticalOffset;
@@ -488,14 +485,13 @@ public sealed class Game1 : Game, IConsoleTarget
     /// Logical-to-screen scale. Text is rasterized at this many device pixels per logical
     /// pixel so glyphs land 1:1 on the display instead of being resampled.
     /// </summary>
-    private float _uiScale = 1f;
     private float _uiScalePreference = 1f;
     private bool _showSettings;
     private int _settingsSelection;
 
     /// <summary>Fonts rasterized per device-pixel size. Scaling a fixed atlas blurs text.</summary>
-    private readonly Dictionary<int, DynamicSpriteFont> _bodyFonts = new();
-    private readonly Dictionary<int, DynamicSpriteFont> _headingFonts = new();
+    /// <summary>One white pixel, stretched for every filled rectangle. Painted by the canvas.</summary>
+    private Texture2D _white = null!;
 
     public Game1(string[] args)
     {
@@ -631,10 +627,7 @@ public sealed class Game1 : Game, IConsoleTarget
             Window.IsBorderless = false;
         }
 
-        _ui = new UiCanvas(DrawPanel, Text, TextFit, TextCentred, TextRight,
-            (value, position, maxWidth, scale, color, maxLines) =>
-                TextWrapped(value, position, maxWidth, scale, color, maxLines),
-            Fill, Border, DrawSprite);
+        _ui = new UiCanvas();
         _screens = new UiScreens(_ui, GraphicsDevice);
     }
 
@@ -751,7 +744,7 @@ public sealed class Game1 : Game, IConsoleTarget
             return;
         }
 
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
+        var spriteBatch = new SpriteBatch(GraphicsDevice);
         _billboards = new BillboardRenderer(GraphicsDevice);
         var fontsDirectory = Path.Combine(
             AppContext.BaseDirectory,
@@ -777,6 +770,10 @@ public sealed class Game1 : Game, IConsoleTarget
 
         _white = new Texture2D(GraphicsDevice, 1, 1);
         _white.SetData(new[] { Color.White });
+
+        // Everything the canvas paints with, handed over once. It is constructed before
+        // LoadContent runs, so it cannot take these in its constructor.
+        _ui.Attach(spriteBatch, _white, _fontSystem, _headingFontSystem);
 
         if (!AmbientAudio.TryStart(out _ambientAudio, out var ambientError)
             && !string.IsNullOrWhiteSpace(ambientError))
@@ -1040,12 +1037,12 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>The pointer in 1280x720 logical space, so UI hit tests match what is drawn.</summary>
     private Vector2 LogicalMouse(MouseState mouse)
     {
-        if (_uiScale <= 0f) return Vector2.Zero;
+        if (_ui.Scale <= 0f) return Vector2.Zero;
 
         var viewport = GraphicsDevice.Viewport;
-        var offsetX = (viewport.Width - LogicalWidth * _uiScale) * 0.5f;
-        var offsetY = (viewport.Height - LogicalHeight * _uiScale) * 0.5f;
-        return new Vector2((mouse.X - offsetX) / _uiScale, (mouse.Y - offsetY) / _uiScale);
+        var offsetX = (viewport.Width - LogicalWidth * _ui.Scale) * 0.5f;
+        var offsetY = (viewport.Height - LogicalHeight * _ui.Scale) * 0.5f;
+        return new Vector2((mouse.X - offsetX) / _ui.Scale, (mouse.Y - offsetY) / _ui.Scale);
     }
 
     /// <summary>
@@ -1254,7 +1251,7 @@ public sealed class Game1 : Game, IConsoleTarget
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
-        UpdateUiTransform();
+        _ui.Resize(GraphicsDevice.Viewport, _uiScalePreference);
         UpdateCameraMatrices();
 
         // The one point per frame where the camera is settled and nothing has drawn yet. The
@@ -1266,7 +1263,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // The question owns the screen until it is answered.
         if (_askingConsent)
         {
-            BeginUi();
+            _ui.Begin();
             DrawConsent();
             EndUi();
         }
@@ -1473,12 +1470,12 @@ public sealed class Game1 : Game, IConsoleTarget
 
         // The UI transform assumes the 16:9 logical canvas. This composition is its own shape,
         // so it is drawn 1:1 and the font picker is told the scale is honest.
-        _uiScale = 1f;
-        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp,
+        _ui.OverrideScale(1f);
+        _ui.Batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp,
             DepthStencilState.None, RasterizerState.CullNone);
 
         // Push the mine back. It is scenery here, not the subject.
-        Fill(new Rectangle(0, 0, width, height), new Color(4, 8, 13, 132));
+        _ui.Fill(new Rectangle(0, 0, width, height), new Color(4, 8, 13, 132));
 
         // A vignette in horizontal bands: cheap, and the only shape that matters is dark at
         // the edges and open in the middle.
@@ -1488,7 +1485,7 @@ public sealed class Game1 : Game, IConsoleTarget
             var y = band * thickness;
             var toEdge = MathF.Abs(band - 19.5f) / 19.5f;
             var strength = MathF.Pow(toEdge, 2.2f) * 0.86f;
-            Fill(new Rectangle(0, y, width, thickness + 1),
+            _ui.Fill(new Rectangle(0, y, width, thickness + 1),
                 new Color(2, 5, 9) * strength);
         }
 
@@ -1496,18 +1493,18 @@ public sealed class Game1 : Game, IConsoleTarget
         for (var ring = 12; ring > 0; ring--)
         {
             var radius = ring * 46;
-            Fill(new Rectangle(width / 2 - radius, height - 150 - radius / 3, radius * 2, radius / 2),
+            _ui.Fill(new Rectangle(width / 2 - radius, height - 150 - radius / 3, radius * 2, radius / 2),
                 new Color(196, 140, 74) * 0.012f);
         }
 
         var centre = width / 2f;
 
-        TextCentred("RATNA BAY", centre, height * 0.20f, 116, new Color(243, 236, 224));
+        _ui.TextCentred("RATNA BAY", centre, height * 0.20f, 116, new Color(243, 236, 224));
 
-        Fill(new Rectangle((int)(centre - 210), (int)(height * 0.335f), 420, 2),
+        _ui.Fill(new Rectangle((int)(centre - 210), (int)(height * 0.335f), 420, 2),
             new Color(205, 157, 98, 190));
 
-        TextCentred("AN ENDLESS MINE", centre, height * 0.355f, 27,
+        _ui.TextCentred("AN ENDLESS MINE", centre, height * 0.355f, 27,
             new Color(176, 205, 208));
 
         // The premise, read out of the economy rather than typed in, so the cover cannot end
@@ -1527,19 +1524,19 @@ public sealed class Game1 : Game, IConsoleTarget
                 (int)MathHelper.Lerp(104, 132, heat),
                 (int)MathHelper.Lerp(118, 84, heat));
 
-            Fill(row, new Color(8, 15, 23) * MathHelper.Lerp(0.62f, 0.86f, heat));
-            Border(row, edge);
+            _ui.Fill(row, new Color(8, 15, 23) * MathHelper.Lerp(0.62f, 0.86f, heat));
+            _ui.Border(row, edge);
 
-            Text($"TIER {tier}", new Vector2(row.X + 26, row.Y + 19), 24,
+            _ui.Text($"TIER {tier}", new Vector2(row.X + 26, row.Y + 19), 24,
                 new Color(226, 233, 232));
-            TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 26, row.Y + 20, 22,
+            _ui.TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 26, row.Y + 20, 22,
                 cost == 0 ? new Color(150, 200, 158) : new Color(232, 194, 116));
         }
 
-        TextCentred("Every room pays more than the last. Every door asks if that is enough.",
+        _ui.TextCentred("Every room pays more than the last. Every door asks if that is enough.",
             centre, height - 92f, 25, new Color(198, 210, 210));
 
-        _spriteBatch.End();
+        _ui.Batch.End();
     }
 
     /// <summary>
@@ -1723,7 +1720,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_settingsSelection == 1)
         {
             _uiScalePreference = MathHelper.Clamp(_uiScalePreference + nudge * 0.1f, 0.8f, 1.2f);
-            UpdateUiTransform();
+            _ui.Resize(GraphicsDevice.Viewport, _uiScalePreference);
         }
         else if (_settingsSelection == 2 && _sfx is not null)
         {
@@ -3507,26 +3504,7 @@ public sealed class Game1 : Game, IConsoleTarget
         }
 
         _graphics.ApplyChanges();
-        UpdateUiTransform();
-    }
-
-    private void UpdateUiTransform()
-    {
-        var viewport = GraphicsDevice.Viewport;
-        if (viewport.Width <= 0 || viewport.Height <= 0)
-            return;
-
-        var scale = MathF.Min(viewport.Width / (float)LogicalWidth, viewport.Height / (float)LogicalHeight)
-            * _uiScalePreference;
-        var offsetX = (viewport.Width - LogicalWidth * scale) * 0.5f;
-        var offsetY = (viewport.Height - LogicalHeight * scale) * 0.5f;
-        _uiTransform = Matrix.CreateScale(scale) * Matrix.CreateTranslation(offsetX, offsetY, 0f);
-
-        // A changed scale invalidates every cached atlas: they are rasterized in device pixels.
-        if (MathF.Abs(scale - _uiScale) < 0.001f) return;
-        _uiScale = scale;
-        _bodyFonts.Clear();
-        _headingFonts.Clear();
+        _ui.Resize(GraphicsDevice.Viewport, _uiScalePreference);
     }
 
     /// <summary>Roughly a pace. Shorter crouching, longer at a sprint.</summary>
@@ -4115,7 +4093,7 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         GraphicsDevice.Clear(new Color(40, 58, 68));
 
-        BeginUi();
+        _ui.Begin();
         var items = MenuItems;
         _screens.Menu.Draw(new MenuState(
             Items: items,
@@ -4281,7 +4259,7 @@ public sealed class Game1 : Game, IConsoleTarget
             return;
         }
 
-        BeginUi();
+        _ui.Begin();
 
         // A full-screen panel owns the screen. Leaving the combat HUD drawing underneath it
         // was most of why testers called the inventory cluttered.
@@ -4408,7 +4386,7 @@ public sealed class Game1 : Game, IConsoleTarget
         var deepest = MineEntry.DeepestAffordable(_session.Player.Inventory);
         var next = Math.Min(MineEntry.MaxTier, deepest + 1);
 
-        TextCentred(deepest >= MineEntry.MaxTier
+        _ui.TextCentred(deepest >= MineEntry.MaxTier
                 ? $"{stones} stones. The order will sell you any mine it has.  {gold} gold."
                 : deepest > MineEntry.MinTier
                     ? $"{stones} stones opens tier {deepest}. Tier {next} wants {MineEntry.CostOf(next)}.  {gold} gold."
@@ -4446,10 +4424,10 @@ public sealed class Game1 : Game, IConsoleTarget
         var width = 760f;
         var panel = new Rectangle((int)(LogicalWidth / 2f - width / 2f), 74, (int)width, 52);
 
-        Fill(panel, new Color(6, 12, 19) * (fade * 0.86f));
-        Border(panel, new Color(151, 206, 210) * (fade * 0.7f));
+        _ui.Fill(panel, new Color(6, 12, 19) * (fade * 0.86f));
+        _ui.Border(panel, new Color(151, 206, 210) * (fade * 0.7f));
 
-        TextFitCentred(_coach.Line, panel.Center.X, panel.Y + 17f, width - 40f, 15,
+        _ui.TextFitCentred(_coach.Line, panel.Center.X, panel.Y + 17f, width - 40f, 15,
             new Color(226, 232, 232) * fade);
     }
 
@@ -4479,8 +4457,8 @@ public sealed class Game1 : Game, IConsoleTarget
                 _ => "E  Read the carving"
             };
 
-            DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-            Text(line, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
+            _ui.Panel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
+            _ui.Text(line, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
             return;
         }
 
@@ -4489,15 +4467,15 @@ public sealed class Game1 : Game, IConsoleTarget
         {
             var talk = UiLayout.TalkPrompt;
             var secondary = UiLayout.SecondaryPrompt;
-            DrawPanel(talk, new Color(5, 11, 18, 225), new Color(151, 206, 210));
-            TextFit($"Click / E  Talk to {actor.DisplayName}",
+            _ui.Panel(talk, new Color(5, 11, 18, 225), new Color(151, 206, 210));
+            _ui.TextFit($"Click / E  Talk to {actor.DisplayName}",
                 new Vector2(talk.X + 16, talk.Y + 12), talk.Width - 32, 14, Color.White);
 
             if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
                 && _shop is not null)
             {
-                DrawPanel(secondary, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-                Text("B  Shop", new Vector2(secondary.X + 16, secondary.Y + 12), 14, Color.White);
+                _ui.Panel(secondary, new Color(5, 11, 18, 225), new Color(205, 157, 98));
+                _ui.Text("B  Shop", new Vector2(secondary.X + 16, secondary.Y + 12), 14, Color.White);
             }
 
             // A pocket worth picking was previously only advertised on guards, so the one
@@ -4506,8 +4484,8 @@ public sealed class Game1 : Game, IConsoleTarget
             if (HasPickablePocket(actor))
             {
                 var pocket = UiLayout.PickpocketPrompt;
-                DrawPanel(pocket, new Color(5, 11, 18, 225), new Color(190, 148, 196));
-                Text("P  Pick pocket", new Vector2(pocket.X + 16, pocket.Y + 12), 14, Color.White);
+                _ui.Panel(pocket, new Color(5, 11, 18, 225), new Color(190, 148, 196));
+                _ui.Text("P  Pick pocket", new Vector2(pocket.X + 16, pocket.Y + 12), 14, Color.White);
             }
 
             return;
@@ -4516,9 +4494,9 @@ public sealed class Game1 : Game, IConsoleTarget
         var pickup = FindPickup(player, _cameraYaw);
         if (pickup is not null)
         {
-            DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225),
+            _ui.Panel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225),
                 new Color(151, 206, 210));
-            TextFit($"Click / E  Take {pickup.Name} x{pickup.Count}",
+            _ui.TextFit($"Click / E  Take {pickup.Name} x{pickup.Count}",
                 UiLayout.PromptText(UiLayout.SinglePrompt),
                 UiLayout.PromptTextWidth(UiLayout.SinglePrompt), 15, Color.White);
             return;
@@ -4535,8 +4513,8 @@ public sealed class Game1 : Game, IConsoleTarget
 
         if (_run is { BarsTheWay: true })
         {
-            DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(150, 120, 110));
-            Text("Barred  |  clear this room first", UiLayout.PromptText(UiLayout.SinglePrompt), 15,
+            _ui.Panel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(150, 120, 110));
+            _ui.Text("Barred  |  clear this room first", UiLayout.PromptText(UiLayout.SinglePrompt), 15,
                 new Color(224, 196, 186));
             return;
         }
@@ -4544,8 +4522,8 @@ public sealed class Game1 : Game, IConsoleTarget
         var text = !door.Lock.IsLocked ? "Click / E  Open door"
             : hasKey ? "Click / E  Unlock with your key"
             : $"Locked  |  a key, or Security {door.Definition.Difficulty:0}";
-        DrawPanel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-        Text(text, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
+        _ui.Panel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
+        _ui.Text(text, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
     }
 
     private void DrawSpeakingActors()
@@ -4793,7 +4771,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_session.Player.Equipment.Shield is { } shield && _session.Player.Combat.IsBlocking)
         {
             var shieldTexture = WeaponSprites.Shield(GraphicsDevice, shield);
-            _spriteBatch.Draw(
+            _ui.Batch.Draw(
                 shieldTexture,
                 new Vector2(LogicalWidth * 0.22f, LogicalHeight + 44f),
                 null,
@@ -4809,7 +4787,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // than spin.
         var origin = new Vector2(texture.Width / 2f, texture.Height);
 
-        _spriteBatch.Draw(
+        _ui.Batch.Draw(
             texture,
             pose.Position,
             null,
@@ -4990,23 +4968,23 @@ public sealed class Game1 : Game, IConsoleTarget
         _primitiveEffect.DirectionalLight2.Enabled = backEnabled;
         _primitiveEffect.PreferPerPixelLighting = perPixel;
 
-        BeginUi();
+        _ui.Begin();
         if (carving is null)
-            TextCentred("No carving font loaded", LogicalWidth / 2f, 300f, 20,
+            _ui.TextCentred("No carving font loaded", LogicalWidth / 2f, 300f, 20,
                 new Color(228, 128, 118));
 
         // The shot is meant to be cut in Brahmi. Falling back to Devanagari is legible and
         // wrong by a thousand years, so it says so rather than passing silently — this frame
         // is the microtrailer, and it should not ship in the fallback script by accident.
         if (carving is not null && !StambhaCarving.IsPeriodScript)
-            TextCentred("Devanagari fallback — NotoSansBrahmi not installed",
+            _ui.TextCentred("Devanagari fallback — NotoSansBrahmi not installed",
                 LogicalWidth / 2f, 62f, 13, new Color(150, 126, 96));
 
         // Lower third, and off to the right: centred, it sat on top of the jiva stone, which is
         // the one thing in the frame that has to stay clean.
-        TextCentred("\"Covet not \u2014 for whose is wealth?\"",
+        _ui.TextCentred("\"Covet not \u2014 for whose is wealth?\"",
             LogicalWidth * 0.63f, 606f, 20, new Color(214, 206, 190));
-        TextCentred("Isha Upanishad 1", LogicalWidth * 0.63f, 640f, 14, new Color(140, 132, 120));
+        _ui.TextCentred("Isha Upanishad 1", LogicalWidth * 0.63f, 640f, 14, new Color(140, 132, 120));
         EndUi();
     }
 
@@ -5132,33 +5110,33 @@ public sealed class Game1 : Game, IConsoleTarget
 
         var panel = new Rectangle(300, 74, 680, 468);
         DrawFramedPanel(panel, Color.White);
-        TextCentred("MERCHANT", panel.Center.X, panel.Y + 18f, 20, new Color(238, 214, 158));
+        _ui.TextCentred("MERCHANT", panel.Center.X, panel.Y + 18f, 20, new Color(238, 214, 158));
 
         for (var i = 0; i < items.Length; i++)
         {
             var slot = new Rectangle(panel.X + 26 + i * 160, panel.Y + 56, 148, 168);
             DrawFramedPanel(slot, new Color(210, 208, 206));
 
-            _spriteBatch.Draw(items[i].Icon,
+            _ui.Batch.Draw(items[i].Icon,
                 new Rectangle(slot.X + 18, slot.Y + 14, 112, 112), Color.White);
 
-            TextCentred(items[i].Name, slot.Center.X, slot.Y + 128f, 15, new Color(240, 234, 222));
-            TextCentred(items[i].Price + " gold", slot.Center.X, slot.Y + 148f, 14,
+            _ui.TextCentred(items[i].Name, slot.Center.X, slot.Y + 128f, 15, new Color(240, 234, 222));
+            _ui.TextCentred(items[i].Price + " gold", slot.Center.X, slot.Y + 148f, 14,
                 new Color(232, 196, 112));
         }
 
         // The same four at inventory size, unscaled, beside the creature.
         var strip = new Rectangle(panel.X + 26, panel.Y + 248, 420, 120);
         DrawFramedPanel(strip, new Color(200, 198, 196));
-        Text("AT 48 PIXELS", new Vector2(strip.X + 16, strip.Y + 14), 12, new Color(196, 170, 120));
+        _ui.Text("AT 48 PIXELS", new Vector2(strip.X + 16, strip.Y + 14), 12, new Color(196, 170, 120));
 
         for (var i = 0; i < items.Length; i++)
-            _spriteBatch.Draw(items[i].Icon,
+            _ui.Batch.Draw(items[i].Icon,
                 new Rectangle(strip.X + 20 + i * 100, strip.Y + 42, 48, 48), Color.White);
 
         var creature = new Rectangle(panel.X + 466, panel.Y + 248, 188, 120);
         DrawFramedPanel(creature, new Color(200, 198, 196));
-        Text("THE RISEN", new Vector2(creature.X + 16, creature.Y + 14), 12, new Color(196, 170, 120));
+        _ui.Text("THE RISEN", new Vector2(creature.X + 16, creature.Y + 14), 12, new Color(196, 170, 120));
 
         // The three tiers side by side, which is the only way to judge whether they read as
         // one creature at three ages rather than as three unrelated things.
@@ -5170,7 +5148,7 @@ public sealed class Game1 : Game, IConsoleTarget
         };
 
         for (var i = 0; i < tiers.Length; i++)
-            _spriteBatch.Draw(tiers[i],
+            _ui.Batch.Draw(tiers[i],
                 new Rectangle(creature.X + 14 + i * 56, creature.Y + 34, 52, 52), Color.White);
 
         // And the flame, every frame of it, so the cycle can be read as a strip. Fire is the
@@ -5178,17 +5156,17 @@ public sealed class Game1 : Game, IConsoleTarget
         // the frames actually differ rather than being one image nudged sideways.
         var cycle = new Rectangle(panel.X + 26, panel.Y + 380, 628, 68);
         DrawFramedPanel(cycle, new Color(200, 198, 196));
-        Text("FLAME CYCLE", new Vector2(cycle.X + 16, cycle.Y + 12), 12, new Color(196, 170, 120));
+        _ui.Text("FLAME CYCLE", new Vector2(cycle.X + 16, cycle.Y + 12), 12, new Color(196, 170, 120));
 
         for (var i = 0; i < PropTextures.FlameFrames; i++)
-            _spriteBatch.Draw(PropTextures.Flame(GraphicsDevice, i),
+            _ui.Batch.Draw(PropTextures.Flame(GraphicsDevice, i),
                 new Rectangle(cycle.X + 150 + i * 74, cycle.Y + 12, 30, 44), Color.White);
     }
 
     /// <summary>The interface, drawn in the same ornament as the world.</summary>
     private void DrawMoodboardUi()
     {
-        BeginUi();
+        _ui.Begin();
 
         // Vignette first, under the interface: four bands is what DrawDamageFlash already does,
         // and at this strength it is enough to pull the eye to the middle.
@@ -5198,22 +5176,22 @@ public sealed class Game1 : Game, IConsoleTarget
             var inset = i * 14;
             var shade = new Color((byte)8, (byte)7, (byte)9, alpha);
 
-            Fill(new Rectangle(0, inset, LogicalWidth, 14), shade);
-            Fill(new Rectangle(0, LogicalHeight - inset - 14, LogicalWidth, 14), shade);
-            Fill(new Rectangle(inset, 0, 14, LogicalHeight), shade);
-            Fill(new Rectangle(LogicalWidth - inset - 14, 0, 14, LogicalHeight), shade);
+            _ui.Fill(new Rectangle(0, inset, LogicalWidth, 14), shade);
+            _ui.Fill(new Rectangle(0, LogicalHeight - inset - 14, LogicalWidth, 14), shade);
+            _ui.Fill(new Rectangle(inset, 0, 14, LogicalHeight), shade);
+            _ui.Fill(new Rectangle(LogicalWidth - inset - 14, 0, 14, LogicalHeight), shade);
         }
 
         DrawFramedPanel(new Rectangle(392, 12, 496, 54), Color.White);
-        TextCentred("MINE 4211  ·  DEPTH 2", 640f, 28f, 22, new Color(238, 214, 158));
+        _ui.TextCentred("MINE 4211  ·  DEPTH 2", 640f, 28f, 22, new Color(238, 214, 158));
 
         DrawFramedPanel(new Rectangle(906, 12, 174, 54), Color.White);
-        Text("AWARENESS", new Vector2(924, 22), 12, new Color(196, 170, 120));
-        Text("UNAWARE", new Vector2(924, 40), 15, new Color(238, 232, 220));
+        _ui.Text("AWARENESS", new Vector2(924, 22), 12, new Color(196, 170, 120));
+        _ui.Text("UNAWARE", new Vector2(924, 40), 15, new Color(238, 232, 220));
 
         DrawFramedPanel(new Rectangle(1092, 12, 176, 54), Color.White);
-        Text("AT RISK", new Vector2(1110, 22), 12, new Color(196, 170, 120));
-        Text("0", new Vector2(1110, 40), 15, new Color(238, 232, 220));
+        _ui.Text("AT RISK", new Vector2(1110, 22), 12, new Color(196, 170, 120));
+        _ui.Text("0", new Vector2(1110, 40), 15, new Color(238, 232, 220));
 
         if (_assetCase) DrawAssetCase();
 
@@ -5222,15 +5200,15 @@ public sealed class Game1 : Game, IConsoleTarget
         DrawFramedBar(new Rectangle(24, 660, 330, 46), 1f, new Color(64, 138, 66), "STAMINA 100/100");
 
         DrawFramedPanel(new Rectangle(470, 590, 340, 116), Color.White);
-        TextCentred("READIED", 640f, 604f, 13, new Color(196, 170, 120));
-        TextCentred("Flame", 640f, 626f, 26, new Color(238, 178, 96));
-        TextCentred("16 prana", 640f, 660f, 16, new Color(150, 186, 232));
-        TextCentred("Q to cast", 640f, 682f, 14, new Color(214, 206, 192));
+        _ui.TextCentred("READIED", 640f, 604f, 13, new Color(196, 170, 120));
+        _ui.TextCentred("Flame", 640f, 626f, 26, new Color(238, 178, 96));
+        _ui.TextCentred("16 prana", 640f, 660f, 16, new Color(150, 186, 232));
+        _ui.TextCentred("Q to cast", 640f, 682f, 14, new Color(214, 206, 192));
 
         DrawFramedPanel(new Rectangle(926, 590, 330, 116), Color.White);
-        Text("LEVEL 1", new Vector2(950, 606), 20, new Color(238, 232, 220));
-        Text("Iron Sword", new Vector2(950, 642), 17, new Color(206, 198, 186));
-        Text("0 gold", new Vector2(950, 674), 17, new Color(226, 190, 108));
+        _ui.Text("LEVEL 1", new Vector2(950, 606), 20, new Color(238, 232, 220));
+        _ui.Text("Iron Sword", new Vector2(950, 642), 17, new Color(206, 198, 186));
+        _ui.Text("0 gold", new Vector2(950, 674), 17, new Color(226, 190, 108));
 
         EndUi();
     }
@@ -5346,7 +5324,7 @@ public sealed class Game1 : Game, IConsoleTarget
             var width = row < 11 ? row + 1 : 15 - row + 2;
             if (width <= 0) continue;
 
-            Fill(new Rectangle(x - 1, y + row - 1, width + 2, 3), new Color(12, 14, 18, 220));
+            _ui.Fill(new Rectangle(x - 1, y + row - 1, width + 2, 3), new Color(12, 14, 18, 220));
         }
 
         for (var row = 0; row < 15; row++)
@@ -5354,7 +5332,7 @@ public sealed class Game1 : Game, IConsoleTarget
             var width = row < 11 ? row + 1 : 15 - row + 2;
             if (width <= 0) continue;
 
-            Fill(new Rectangle(x, y + row, width, 1), Color.White);
+            _ui.Fill(new Rectangle(x, y + row, width, 1), Color.White);
         }
     }
 
@@ -5417,7 +5395,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     /// <summary>This frame's world-to-canvas projection, for anything anchored in the world.</summary>
     private WorldProjector Projector() =>
-        new(GraphicsDevice.Viewport, _view, _projection, _uiScale);
+        new(GraphicsDevice.Viewport, _view, _projection, _ui.Scale);
 
     private void DrawContentErrors() =>
         _screens.Markers.DrawContentErrors(_assetErrors.Concat(_modelCache.Errors).ToList());
@@ -5735,11 +5713,6 @@ public sealed class Game1 : Game, IConsoleTarget
         (byte)Math.Clamp(color.A, 0, 255));
 
 
-    private void BeginUi()
-    {
-        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, _uiTransform);
-    }
-
     /// <summary>
     /// Closes the UI batch, drawing our pointer last.
     ///
@@ -5747,16 +5720,17 @@ public sealed class Game1 : Game, IConsoleTarget
     /// added to one screen by hand and silently missing from the main menu, which is exactly
     /// the failure a shared exit point prevents.
     /// </summary>
+    /// <summary>
+    /// Close the batch, drawing our own pointer last so it sits over everything.
+    ///
+    /// The pointer stays here rather than moving to the canvas: it depends on whether the
+    /// mouse is driving the camera and on whether this frame is a capture, and neither is
+    /// something a drawing surface should know.
+    /// </summary>
     private void EndUi()
     {
         DrawPointer();
-        _spriteBatch.End();
-    }
-
-    private void DrawPanel(Rectangle bounds, Color fill, Color border)
-    {
-        Fill(bounds, fill);
-        Border(bounds, border);
+        _ui.End();
     }
 
     /// <summary>
@@ -5775,7 +5749,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
         // source, destination
         void Piece(Rectangle source, Rectangle destination) =>
-            _spriteBatch.Draw(frame, destination, source, tint);
+            _ui.Batch.Draw(frame, destination, source, tint);
 
         var innerWidth = Math.Max(0, bounds.Width - c * 2);
         var innerHeight = Math.Max(0, bounds.Height - c * 2);
@@ -5807,7 +5781,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // whole panel and then putting the emblem on top of it is what made the first pass
         // look like three things fighting for the same forty pixels.
         var emblem = bounds.Height - 16;
-        _spriteBatch.Draw(PropTextures.Lotus(GraphicsDevice),
+        _ui.Batch.Draw(PropTextures.Lotus(GraphicsDevice),
             new Rectangle(bounds.X + 9, bounds.Y + 8, emblem, emblem),
             new Color(255, 236, 196));
 
@@ -5817,193 +5791,26 @@ public sealed class Game1 : Game, IConsoleTarget
             bounds.Width - emblem - 26,
             bounds.Height - 20);
 
-        Fill(track, new Color(14, 11, 10));
+        _ui.Fill(track, new Color(14, 11, 10));
 
         var filled = track;
         filled.Width = (int)(track.Width * MathHelper.Clamp(fraction, 0f, 1f));
-        Fill(filled, fill);
+        _ui.Fill(filled, fill);
 
         // A lit band across the top third, so the bar reads as a filled vessel rather than a
         // rectangle of flat colour.
         var sheen = filled;
         sheen.Height = Math.Max(1, filled.Height / 3);
-        Fill(sheen, new Color(255, 255, 255, 44));
-        Border(track, new Color(12, 10, 9));
+        _ui.Fill(sheen, new Color(255, 255, 255, 44));
+        _ui.Border(track, new Color(12, 10, 9));
 
         // Centred in the track by measured height, not by a guessed offset.
         const float LabelSize = 15f;
         var textY = track.Y + (track.Height - LabelSize) * 0.5f - 1f;
-        Text(label, new Vector2(track.X + 10, textY), LabelSize, new Color(248, 242, 230));
-    }
-
-    private void Fill(Rectangle bounds, Color color) => _spriteBatch.Draw(_white, bounds, color);
-
-    private void DrawSprite(Texture2D texture, Rectangle destination, Color color) =>
-        _spriteBatch.Draw(texture, destination, color);
-
-    private void Border(Rectangle bounds, Color color)
-    {
-        Fill(new Rectangle(bounds.X, bounds.Y, bounds.Width, 1), color);
-        Fill(new Rectangle(bounds.X, bounds.Bottom - 1, bounds.Width, 1), color);
-        Fill(new Rectangle(bounds.X, bounds.Y, 1, bounds.Height), color);
-        Fill(new Rectangle(bounds.Right - 1, bounds.Y, 1, bounds.Height), color);
-    }
-
-    private void Text(string value, Vector2 position, float scale, Color color)
-    {
-        var (font, drawScale) = SelectFont(scale);
-        DrawString(font, value, position, drawScale, color);
-    }
-
-    private void TextFit(string value, Vector2 position, float maxWidth, float scale, Color color)
-    {
-        var (font, drawScale) = SelectFont(scale);
-        var measuredWidth = font.MeasureString(value).X * drawScale;
-        if (measuredWidth > maxWidth && measuredWidth > 0f)
-            drawScale *= maxWidth / measuredWidth;
-
-        DrawString(font, value, position, drawScale, color);
-    }
-
-    /// <summary>Centred, and shrunk to fit rather than running off its panel.</summary>
-    private void TextFitCentred(string value, float centreX, float y, float maxWidth, float scale,
-        Color color)
-    {
-        var (font, drawScale) = SelectFont(scale);
-        var measured = font.MeasureString(value).X * drawScale;
-        if (measured > maxWidth && measured > 0f) drawScale *= maxWidth / measured;
-
-        var width = font.MeasureString(value).X * drawScale;
-        DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
-    }
-
-    private void TextCentred(string value, float centreX, float y, float scale, Color color)
-    {
-        var (font, drawScale) = SelectFont(scale);
-        var width = font.MeasureString(value).X * drawScale;
-        DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
-    }
-
-    /// <summary>
-    /// Text laid out over several lines at a fixed size.
-    ///
-    /// TextFit shrinks to fit one line, so a long dialogue answer was rendered microscopic
-    /// rather than wrapped. Reading a paragraph is the whole point of a conversation, so it
-    /// wraps at word boundaries and keeps the size it was asked for.
-    /// </summary>
-    /// <returns>The height used, so a caller can lay out beneath it.</returns>
-    private float TextWrapped(string value, Vector2 position, float maxWidth, float scale,
-        Color color, int maxLines = 6)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return 0f;
-
-        var (font, drawScale) = SelectFont(scale);
-        var lineHeight = scale * 1.34f;
-        var words = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        var line = string.Empty;
-        var lines = 0;
-        var y = position.Y;
-
-        foreach (var word in words)
-        {
-            var candidate = line.Length == 0 ? word : $"{line} {word}";
-            if (font.MeasureString(candidate).X * drawScale <= maxWidth)
-            {
-                line = candidate;
-                continue;
-            }
-
-            if (line.Length > 0)
-            {
-                DrawString(font, line, new Vector2(position.X, y), drawScale, color);
-                y += lineHeight;
-                if (++lines >= maxLines) return y - position.Y;
-            }
-
-            line = word;
-        }
-
-        if (line.Length > 0)
-        {
-            DrawString(font, line, new Vector2(position.X, y), drawScale, color);
-            y += lineHeight;
-        }
-
-        return y - position.Y;
-    }
-
-    private void TextRight(string value, float right, float y, float scale, Color color)
-    {
-        var (font, drawScale) = SelectFont(scale);
-        var width = font.MeasureString(value).X * drawScale;
-        DrawString(font, value, new Vector2(right - width, y), drawScale, color);
-    }
-
-    /// <summary>
-    /// Pick a font rasterized at the size it will actually occupy on the display.
-    ///
-    /// The previous version kept three fixed atlases (18/24/32 px) and scaled them to fit,
-    /// so a 12 px label was an 18 px atlas squeezed to 0.67 and then stretched again by the
-    /// canvas transform. Two resamples is why the HUD was soft and thin. Rasterizing at the
-    /// device size and drawing at 1/scale lands every glyph 1:1 on the panel.
-    /// </summary>
-    private (SpriteFontBase Font, float Scale) SelectFont(float requestedSize)
-    {
-        var heading = requestedSize >= HeadingThreshold;
-        var cache = heading ? _headingFonts : _bodyFonts;
-
-        // Clamped so an extreme display cannot ask for a 4 px or a 900 px atlas.
-        var devicePixels = Math.Clamp((int)MathF.Round(requestedSize * _uiScale), 8, 384);
-
-        if (!cache.TryGetValue(devicePixels, out var font))
-        {
-            font = (heading ? _headingFontSystem : _fontSystem).GetFont(devicePixels);
-            cache[devicePixels] = font;
-        }
-
-        return (font, requestedSize / devicePixels);
+        _ui.Text(label, new Vector2(track.X + 10, textY), LabelSize, new Color(248, 242, 230));
     }
 
     /// <summary>At and above this logical size, text is set in Cinzel rather than Noto Sans.</summary>
-    private const float HeadingThreshold = 20f;
-
-    private void DrawString(SpriteFontBase font, string value, Vector2 position, float scale, Color color)
-    {
-        var fontScale = new Vector2(scale);
-        if (color.A > 20)
-        {
-            _spriteBatch.DrawString(
-                font,
-                value,
-                position + new Vector2(1f, 1f),
-                new Color(0, 0, 0, 150),
-                0f,
-                Vector2.Zero,
-                fontScale,
-                0f,
-                0f,
-                0f,
-                TextStyle.None,
-                FontSystemEffect.None,
-                0);
-        }
-
-        _spriteBatch.DrawString(
-            font,
-            value,
-            position,
-            color,
-            0f,
-            Vector2.Zero,
-            fontScale,
-            0f,
-            0f,
-            0f,
-            TextStyle.None,
-            FontSystemEffect.None,
-            0);
-    }
 
     private bool Pressed(KeyboardState current, Keys key) => _input.Pressed(current, key);
 }
