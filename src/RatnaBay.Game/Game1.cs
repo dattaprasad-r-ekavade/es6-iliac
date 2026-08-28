@@ -6286,18 +6286,26 @@ public sealed class Game1 : Game, IConsoleTarget
             new Vector3(-0.5f, 0.5f, 0.5f), new Vector3(0.5f, 0.5f, 0.5f), new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
             new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, 0.5f), new Vector3(-0.5f, -0.5f, 0.5f)
         };
-        // Read with the winding, not against it. The vertex block above lists the +Z face
-        // first, so pairing it with Vector3.Forward — which is (0,0,-1) — looks inverted and
-        // is not: with this winding and CullCounterClockwise the face presented to a camera
-        // on the +Z side is the one these normals light. Swapping them to "agree" with the
-        // positions turns the lit side of every surface black, which the trailer's one-source
-        // shot shows immediately and the authored world's flat ambient hides.
+        // Outward normals, matching the winding set below.
+        //
+        // These used to be Forward/Backward on the two Z faces -- the opposite of where those
+        // faces point -- with a comment explaining that the winding demanded it. The comment
+        // was right about the symptom and wrong about the cause: **the cube was wound
+        // inside-out**, so under CullCounterClockwiseFace every box in the game drew its
+        // interior and culled its exterior, and the inverted normals were compensating for
+        // that on the only two faces anybody had checked.
+        //
+        // It hid for a long time because almost everything built out of these is a slab --
+        // walls, kerbs, shelves, lintels -- where the inner and outer face are a few
+        // centimetres apart and look identical. It is obvious the moment a box has depth: the
+        // yard's spoil heaps rendered as three-sided open pits with the ground visible inside
+        // them, which is what "floating assets" turned out to mean.
         //
         // Anything drawing its own quad into this scene has to follow the same convention.
         // See DrawCarvedFace.
         var normals = new[]
         {
-            Vector3.Forward, Vector3.Backward, Vector3.Left, Vector3.Right, Vector3.Up, Vector3.Down
+            Vector3.Backward, Vector3.Forward, Vector3.Left, Vector3.Right, Vector3.Up, Vector3.Down
         };
 
         for (var face = 0; face < 6; face++)
@@ -6310,14 +6318,16 @@ public sealed class Game1 : Game, IConsoleTarget
                     new Vector2(vertex == 1 || vertex == 2 ? 1f : 0f, vertex >= 2 ? 0f : 1f));
             }
 
+            // Wound so that the *outside* of each face is the one presented to the camera.
+            // Reversed from 0,1,2 / 0,2,3 -- see the note on the normals above.
             var index = face * 6;
             var vertexIndex = face * 4;
             _cubeIndices[index] = (short)vertexIndex;
-            _cubeIndices[index + 1] = (short)(vertexIndex + 1);
-            _cubeIndices[index + 2] = (short)(vertexIndex + 2);
+            _cubeIndices[index + 1] = (short)(vertexIndex + 2);
+            _cubeIndices[index + 2] = (short)(vertexIndex + 1);
             _cubeIndices[index + 3] = (short)vertexIndex;
-            _cubeIndices[index + 4] = (short)(vertexIndex + 2);
-            _cubeIndices[index + 5] = (short)(vertexIndex + 3);
+            _cubeIndices[index + 4] = (short)(vertexIndex + 3);
+            _cubeIndices[index + 5] = (short)(vertexIndex + 2);
         }
     }
 

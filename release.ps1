@@ -126,6 +126,11 @@ Check the project exists, that it is yours, and that the name is spelled as it i
 }
 Say "    [ok] $Target is reachable"
 
+# Remembered as soon as it is known good, rather than after a successful push. The target was
+# previously only written at the very end, so every dry run before the first real release had
+# to retype it -- which is exactly the run you repeat most while getting a first build ready.
+Set-Content -Path $targetFile -Value $Target -Encoding utf8 -NoNewline
+
 # ---------------------------------------------------------------- the gate
 Step "Running the full build gate"
 Native { & (Join-Path $root "publish.ps1") } | ForEach-Object { Write-Host $_ }
@@ -173,8 +178,6 @@ if ($DryRun) {
 Native { & $butler push $buildDir "${Target}:${Channel}" --userversion $version } |
     ForEach-Object { Write-Host $_ }
 if ($LASTEXITCODE -ne 0) { Die "The upload failed. Nothing on itch.io changed." }
-
-Set-Content -Path $targetFile -Value $Target -Encoding utf8 -NoNewline
 
 Write-Host ""
 Say "  Pushed $version" Green
