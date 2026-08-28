@@ -93,11 +93,6 @@ Found by visual inspection on 2026-08-28. None of these stop a run finishing.
       headphones; Visakha's skin is washed out. The mural technique is settled, so these are
       tuning rounds, and `--faces --face <room> --face-scale N` makes each one fast.
 
-- [ ] **The sound effects.** Owner judgement is that they do not sound good. Sourcing and a
-      recommended synth/sample split are in [`AUDIO_SOURCING.md`](AUDIO_SOURCING.md); the short
-      version is that the Sonniss GDC bundle is free and professional, and Soundsnap is a
-      $249/year subscription that can wait until after a playtest says it is the bottleneck.
-
 - [ ] **Gold pacing is a guess.** Roughly 250 a run against a 450 sword, never measured. A tester
       who finds the economy broken spends their whole session on that and answers nothing else.
 
@@ -138,6 +133,11 @@ Named so they stop feeling like debt.
   page that converts, which means after the art direction is committed and there are screenshots
   worth showing. Not this week.
 - **Music.** Deferred deliberately and still the right call.
+- **The sound effects.** Owner judgement is that they do not sound good, and the owner has
+  parked the choice rather than made it. Sourcing, licences and a recommended synth/sample
+  split are written up in [`AUDIO_SOURCING.md`](AUDIO_SOURCING.md) and will keep. Question 8 on
+  the playtest form asks testers about it, so the next round produces a number to decide with
+  instead of one person's ear.
 - **The fort as geometry.** It is a corridor of doors and that is a staging decision, not a gap.
 - **Code signing.** `PLAYTEST_DISTRIBUTION.md` §10 puts this at iteration 21's slice lock, and
   that reasoning still holds: signing earns its cost when builds go out often, not for one round
