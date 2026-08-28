@@ -11,6 +11,7 @@ alwaysApply: true
 - Look, walk, jump and crouch go through `FirstPersonView`. Collision is a callback; do not put mines in the view.
 - Authored world boxes, lights and imported props go through `WorldPresenter`. Do not walk the manifest from `Game1`.
 - Speakers, watchers, enemies and bolts go through `FigurePresenter`. Moodboard, stambha and the asset case go through `SpikeScenes`.
+- Screenshot warmup, the cover render target and PNG write go through `CaptureHost`. The store cover composition is `CoverRenderer`.
 - Hit-test and draw rectangles share `UiLayout`. Do not duplicate pixel numbers in `Game1` and a renderer.
 - Colours come from `UiTheme` by role. Don't write `new Color(...)` in a renderer for a colour the theme names.
 - 3D boxes, the crystal and carved faces go through `SceneRenderer`. Imported props go through `ModelCache`.

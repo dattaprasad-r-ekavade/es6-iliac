@@ -174,9 +174,6 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>How fast simulated time runs. Set by 'time'; 1 is normal.</summary>
     private float _timeScale = 1f;
 
-    /// <summary>A picture asked for by 'shot', taken at the end of the next frame.</summary>
-    private string? _pendingCapture;
-
     private bool _invulnerable;
     private bool _hideInterface;
 
@@ -232,9 +229,7 @@ public sealed class Game1 : Game, IConsoleTarget
     private readonly WeaponView _weaponView = new();
     private readonly UiCanvas _ui;
     private readonly UiScreens _screens;
-
-    /// <summary>Set by --screenshot: render a few frames, save a PNG, and quit.</summary>
-    private string? _screenshotPath;
+    private readonly CaptureHost _capture;
 
     /// <summary>Set by --faces: write the portrait contact sheet and quit without a frame.</summary>
     private string? _facesPath;
@@ -246,22 +241,9 @@ public sealed class Game1 : Game, IConsoleTarget
     private string? _faceOnly;
 
 
-    /// <summary>
-    /// Set by --cover: render the store cover instead of the HUD, at itch.io's aspect.
-    ///
-    /// Drawn by the game rather than assembled in an image editor, so the cover cannot drift
-    /// away from what the game actually looks like. The backdrop is a real mine at a real
-    /// tier, and the numbers in the ladder are read out of MineEntry rather than typed in --
-    /// rebalance the entry costs and the cover reprints itself correctly.
-    /// </summary>
-    private bool _coverMode;
-
     /// <summary>Camera angles forced by --yaw / --pitch, for reproducible captures.</summary>
     private float? _startYaw;
     private float? _startPitch;
-
-    /// <summary>Frames to render before --screenshot captures. Raise it to measure the rate.</summary>
-    private int _warmupFrames = 4;
 
     /// <summary>
     /// Seconds into a swing to freeze at for --screenshot. Frames are uncapped during a
@@ -430,8 +412,6 @@ public sealed class Game1 : Game, IConsoleTarget
     private int _fpsFrames;
     private readonly System.Diagnostics.Stopwatch _fpsClock = System.Diagnostics.Stopwatch.StartNew();
 
-    private int _framesDrawn;
-
     /// <summary>
     /// Seconds since the game started, for anything that moves on its own.
     ///
@@ -473,25 +453,20 @@ public sealed class Game1 : Game, IConsoleTarget
         Window.IsBorderless = true;
 
         _screen = ParseMode(args);
-        _screenshotPath = ParseOption(args, "--screenshot");
+        _capture = new CaptureHost(
+            ParseOption(args, "--screenshot"),
+            ParseOption(args, "--cover"),
+            int.TryParse(ParseOption(args, "--warmup"), out var warmup) ? warmup : null);
         _facesPath = ParseOption(args, "--faces");
         _faceOnly = ParseOption(args, "--face");
         _faceSheetScale = Math.Clamp(
             int.TryParse(ParseOption(args, "--face-scale"), out var faceScale) ? faceScale : 2,
             1, 8);
 
-        // --cover is --screenshot with a different composition and a different shape.
-        var coverPath = ParseOption(args, "--cover");
-        if (coverPath is not null)
-        {
-            _screenshotPath = coverPath;
-            _coverMode = true;
-        }
         _forceCrouch = HasArgument(args, "--sneak");
 
         // Deterministic camera for screenshots, so a change to look or movement can be
         // compared frame against frame instead of described.
-        if (int.TryParse(ParseOption(args, "--warmup"), out var warmup)) _warmupFrames = warmup;
         if (float.TryParse(ParseOption(args, "--swing"), out var swing)) _captureSwing = swing;
         if (float.TryParse(ParseOption(args, "--cast"), out var cast)) _captureCast = cast;
 
@@ -551,7 +526,7 @@ public sealed class Game1 : Game, IConsoleTarget
             _startOnTheSurface = true;
         if (float.TryParse(ParseOption(args, "--yaw"), out var yaw)) _startYaw = yaw;
         if (float.TryParse(ParseOption(args, "--pitch"), out var pitch)) _startPitch = pitch;
-        if (_coverMode)
+        if (_capture.CoverMode)
         {
             // itch.io wants 630x500 and displays it at 315x250. Rendered at double that so
             // the type survives a high-density screen, and so the same file can be cropped
@@ -560,19 +535,10 @@ public sealed class Game1 : Game, IConsoleTarget
             _mineDepth = 4;
             _screen = GameScreen.WorldScene;
             _startPitch ??= -0.06f;
-            if (_warmupFrames < 30) _warmupFrames = 30;
         }
 
-        if (_screenshotPath is not null)
-        {
-            // Deterministic capture: a fixed window, no vsync wait, and quit when done.
+        if (_capture.ApplyWindow(_graphics, Window, LogicalWidth, LogicalHeight))
             _borderlessFullscreen = false;
-            _graphics.PreferredBackBufferWidth = LogicalWidth;
-            _graphics.PreferredBackBufferHeight = LogicalHeight;
-            _graphics.IsFullScreen = false;
-            _graphics.SynchronizeWithVerticalRetrace = false;
-            Window.IsBorderless = false;
-        }
 
         if (HasArgument(args, "--windowed"))
         {
@@ -652,8 +618,8 @@ public sealed class Game1 : Game, IConsoleTarget
         // Suppressing it is also correct rather than merely convenient: a capture run renders
         // a few frames and exits, nobody is playing, and there is no session to consent to
         // sending. Nothing is uploaded either way, because SendPending is not reached.
-        // --cover already funnels into _screenshotPath, so this covers both.
-        var capturing = _screenshotPath is not null;
+        // --cover already funnels into CaptureHost.OutputPath, so this covers both.
+        var capturing = _capture.IsCapturing;
 
         _askingConsent = !capturing
             && !_consent.Asked
@@ -691,7 +657,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // point of it is to be runnable on a machine where the rest of the game will not start.
         if (_facesPath is not null)
         {
-            SaveFaceSheet(_facesPath);
+            FaceSheet.Write(GraphicsDevice, _facesPath, _faceOnly, _faceSheetScale);
             Exit();
             return;
         }
@@ -800,6 +766,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // here to release and every line below would throw on a null.
         if (_facesPath is not null) return;
 
+        _capture.Dispose();
         _fontSystem.Dispose();
         _headingFontSystem.Dispose();
         _white.Dispose();
@@ -938,7 +905,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private void SetMouseLook(bool enabled, bool forPanel = false)
     {
-        if (_screenshotPath is not null) enabled = false;
+        if (_capture.IsCapturing) enabled = false;
 
         if (enabled) _mouseFreedForPanel = false;
         else if (forPanel) _mouseFreedForPanel = true;
@@ -1170,25 +1137,10 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private bool Clicked(MouseState mouse) => _input.Clicked(mouse);
 
-    /// <summary>
-    /// Where the cover is drawn, so its size does not depend on the monitor.
-    ///
-    /// Asking for a 1260x1000 window on a 1080p display silently gets a shorter one, and the
-    /// first cover came out 1260x845 -- the wrong shape for a store page, with the ladder
-    /// running over the tagline. An offscreen target is the exact size it says it is.
-    /// </summary>
-    private RenderTarget2D? _coverTarget;
-
     protected override void Draw(GameTime gameTime)
     {
         ApplyCaptureScreen();
-
-        if (_coverMode)
-        {
-            _coverTarget ??= new RenderTarget2D(GraphicsDevice, CoverWidth, CoverHeight, false,
-                SurfaceFormat.Color, DepthFormat.Depth24);
-            GraphicsDevice.SetRenderTarget(_coverTarget);
-        }
+        _capture.BeginFrame(GraphicsDevice);
 
         _fpsFrames++;
         var elapsed = _fpsClock.Elapsed.TotalSeconds;
@@ -1234,261 +1186,9 @@ public sealed class Game1 : Game, IConsoleTarget
 
         base.Draw(gameTime);
 
-        // A picture asked for by 'shot', saved without ending the run.
-        if (_pendingCapture is { } wanted)
-        {
-            _pendingCapture = null;
-            SaveFrame(wanted);
-        }
-
-        // Unbind before reading: a render target still bound as output cannot be read back.
-        // The back buffer then has nothing in it, so it is cleared rather than left undefined
-        // for the frame the driver is about to present.
-        if (_coverMode)
-        {
-            GraphicsDevice.SetRenderTarget(null);
-            GraphicsDevice.Clear(new Color(4, 8, 13));
-        }
-
-        if (_screenshotPath is not null) CaptureAndExit();
-    }
-
-    /// <summary>
-    /// Save the frame that was just drawn and quit.
-    ///
-    /// This exists so a change to the interface can be looked at rather than described. A few
-    /// frames are skipped first because fonts rasterise and models settle on the first pass.
-    /// </summary>
-    private void CaptureAndExit()
-    {
-        if (++_framesDrawn <= _warmupFrames) return;
-
-        // A script gets to finish before the picture is taken. Otherwise the two are racing:
-        // the capture fires on a frame count while 'wait' asks for seconds, and which one wins
-        // depends on how fast the machine happens to be rendering.
-        if (_scriptQueue.Count > 0 || _scriptWaitSeconds > 0f) return;
-
-        SaveFrame(_screenshotPath!);
-        Exit();
-    }
-
-    /// <summary>
-    /// Write the frame just drawn to a PNG.
-    ///
-    /// Split out from CaptureAndExit so 'shot' can take a picture mid-script without ending
-    /// the run -- a test that walks somewhere, photographs it, walks on and photographs that
-    /// is worth far more than one that can only ever produce a single frame.
-    /// </summary>
-    private void SaveFrame(string path)
-    {
-        // In cover mode the frame lives in the offscreen target, which is the exact size asked
-        // for; otherwise it is whatever the window ended up being.
-        var captureWidth = _coverMode ? CoverWidth : GraphicsDevice.Viewport.Width;
-        var captureHeight = _coverMode ? CoverHeight : GraphicsDevice.Viewport.Height;
-
-        var pixels = new Color[captureWidth * captureHeight];
-        if (_coverMode && _coverTarget is not null) _coverTarget.GetData(pixels);
-        else GraphicsDevice.GetBackBufferData(pixels);
-
-        using var texture = new Texture2D(GraphicsDevice, captureWidth, captureHeight);
-        texture.SetData(pixels);
-
-        var fullPath = Path.GetFullPath(path);
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-
-        using (var stream = File.Create(fullPath))
-            texture.SaveAsPng(stream, captureWidth, captureHeight);
-
-        Console.WriteLine($"Saved {captureWidth}x{captureHeight} screenshot to {fullPath}");
-    }
-
-    /// <summary>
-    /// Every face in every mood, as one PNG.
-    ///
-    /// The whole reason procedural portraits are affordable is that a change to a brow can be
-    /// judged in one picture instead of ten conversations. One row per occupant, one column
-    /// per expression, generated at authoring size so what is written to disk is exactly the
-    /// pixels the forge produced.
-    /// </summary>
-    private void SaveFaceSheet(string path)
-    {
-        var rooms = FortRoster.All.Where(room => FaceCatalog.Find(room.Id) is not null).ToList();
-
-        // --face narrows the sheet to one occupant, which is the only way to get a useful
-        // --face-scale: the Reach profile caps a texture at 2048 on a side, and ten rows of
-        // anything past double blows straight through it.
-        if (_faceOnly is not null)
-            rooms = rooms.Where(room =>
-                room.Id.Contains(_faceOnly, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        if (rooms.Count == 0)
-        {
-            Console.WriteLine($"No face matched '{_faceOnly}'.");
-            return;
-        }
-
-        var perPage = Math.Max(1, (2048 - 32) / (PortraitForge.Height + 16));
-        if (rooms.Count > perPage)
-        {
-            var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
-            var stem = Path.GetFileNameWithoutExtension(path);
-            var extension = Path.GetExtension(path);
-
-            for (var page = 0; page * perPage < rooms.Count; page++)
-            {
-                var slice = rooms.Skip(page * perPage).Take(perPage).ToList();
-                WriteFaceSheet(slice,
-                    Path.Combine(directory, $"{stem}-{page + 1}{extension}"));
-            }
-
-            return;
-        }
-
-        WriteFaceSheet(rooms, path);
-    }
-
-    private void WriteFaceSheet(List<FortRoom> rooms, string path)
-    {
-        var moods = Enum.GetValues<Expression>();
-        var scale = _faceSheetScale;
-        var cellInner = new Point(PortraitForge.Width * scale, PortraitForge.Height * scale);
-
-        var Pad = 4 * scale;
-        var cellW = cellInner.X + Pad;
-        var cellH = cellInner.Y + Pad;
-        var sheetW = cellW * moods.Length + Pad;
-        var sheetH = cellH * rooms.Count + Pad;
-
-        var sheet = new Color[sheetW * sheetH];
-        Array.Fill(sheet, new Color(18, 22, 28));
-
-        for (var row = 0; row < rooms.Count; row++)
-        {
-            var face = FaceCatalog.Find(rooms[row].Id)!;
-
-            for (var column = 0; column < moods.Length; column++)
-            {
-                var pixels = PortraitForge.Render(face, moods[column]);
-                var originX = Pad + column * cellW;
-                var originY = Pad + row * cellH;
-
-                for (var y = 0; y < cellInner.Y; y++)
-                for (var x = 0; x < cellInner.X; x++)
-                {
-                    var source = pixels[y / scale * PortraitForge.Width + x / scale];
-                    if (source.A == 0) continue;
-                    sheet[(originY + y) * sheetW + originX + x] = source;
-                }
-            }
-        }
-
-        using var texture = new Texture2D(GraphicsDevice, sheetW, sheetH);
-        texture.SetData(sheet);
-
-        var fullPath = Path.GetFullPath(path);
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        using (var stream = File.Create(fullPath))
-            texture.SaveAsPng(stream, sheetW, sheetH);
-
-        Console.WriteLine(
-            $"Saved {rooms.Count} face(s) x {moods.Length} moods ({sheetW}x{sheetH}) to {fullPath}");
-    }
-
-    /// <summary>itch.io's cover shape, at twice its stated size so the type stays sharp.</summary>
-    private const int CoverWidth = 1260;
-
-    private const int CoverHeight = 1000;
-
-    /// <summary>
-    /// The store cover, drawn over a real mine.
-    ///
-    /// A raw screenshot makes a poor cover: the game is a dark brick corridor, and what is
-    /// actually interesting about it is a decision, which does not photograph. So the mine is
-    /// pushed back into being a backdrop -- darkened, vignetted, lit from below as if by the
-    /// lamp -- and the thing on top is the choice the game is built on: five mines, each one
-    /// costing more to enter than the last.
-    ///
-    /// It has to survive being shrunk to 315x250 in a gallery, so there are exactly three
-    /// levels of information: the title, one line saying what it is, and a ladder of numbers
-    /// that reads as texture at thumbnail size and as the premise at full size.
-    ///
-    /// Drawn in raw device pixels rather than through the UI transform, which exists to letter
-    /// -box a 1280x720 layout and would leave bars down the sides of a 1260x1000 frame.
-    /// </summary>
-    private void DrawCoverArt()
-    {
-        var width = GraphicsDevice.Viewport.Width;
-        var height = GraphicsDevice.Viewport.Height;
-
-        // The UI transform assumes the 16:9 logical canvas. This composition is its own shape,
-        // so it is drawn 1:1 and the font picker is told the scale is honest.
-        _ui.OverrideScale(1f);
-        _ui.Batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp,
-            DepthStencilState.None, RasterizerState.CullNone);
-
-        // Push the mine back. It is scenery here, not the subject.
-        _ui.Fill(new Rectangle(0, 0, width, height), new Color(4, 8, 13, 132));
-
-        // A vignette in horizontal bands: cheap, and the only shape that matters is dark at
-        // the edges and open in the middle.
-        for (var band = 0; band < 40; band++)
-        {
-            var thickness = height / 40;
-            var y = band * thickness;
-            var toEdge = MathF.Abs(band - 19.5f) / 19.5f;
-            var strength = MathF.Pow(toEdge, 2.2f) * 0.86f;
-            _ui.Fill(new Rectangle(0, y, width, thickness + 1),
-                new Color(2, 5, 9) * strength);
-        }
-
-        // Lamplight from where the player's hand would be.
-        for (var ring = 12; ring > 0; ring--)
-        {
-            var radius = ring * 46;
-            _ui.Fill(new Rectangle(width / 2 - radius, height - 150 - radius / 3, radius * 2, radius / 2),
-                new Color(196, 140, 74) * 0.012f);
-        }
-
-        var centre = width / 2f;
-
-        _ui.TextCentred("RATNA BAY", centre, height * 0.20f, 116, new Color(243, 236, 224));
-
-        _ui.Fill(new Rectangle((int)(centre - 210), (int)(height * 0.335f), 420, 2),
-            new Color(205, 157, 98, 190));
-
-        _ui.TextCentred("AN ENDLESS MINE", centre, height * 0.355f, 27,
-            new Color(176, 205, 208));
-
-        // The premise, read out of the economy rather than typed in, so the cover cannot end
-        // up advertising prices the game no longer charges.
-        var ladderTop = (int)(height * 0.465f);
-        for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
-        {
-            var index = tier - MineEntry.MinTier;
-            var row = new Rectangle((int)(centre - 300), ladderTop + index * 74, 600, 62);
-            var cost = MineEntry.CostOf(tier);
-
-            // Each mine deeper in the ladder is drawn a shade hotter and a shade brighter, so
-            // at thumbnail size the block reads as something escalating.
-            var heat = index / (float)(MineEntry.MaxTier - MineEntry.MinTier);
-            var edge = new Color(
-                (int)MathHelper.Lerp(72, 214, heat),
-                (int)MathHelper.Lerp(104, 132, heat),
-                (int)MathHelper.Lerp(118, 84, heat));
-
-            _ui.Fill(row, new Color(8, 15, 23) * MathHelper.Lerp(0.62f, 0.86f, heat));
-            _ui.Border(row, edge);
-
-            _ui.Text($"TIER {tier}", new Vector2(row.X + 26, row.Y + 19), 24,
-                new Color(226, 233, 232));
-            _ui.TextRight(cost == 0 ? "free" : $"{cost} stones", row.Right - 26, row.Y + 20, 22,
-                cost == 0 ? new Color(150, 200, 158) : new Color(232, 194, 116));
-        }
-
-        _ui.TextCentred("Every room pays more than the last. Every door asks if that is enough.",
-            centre, height - 92f, 25, new Color(198, 210, 210));
-
-        _ui.Batch.End();
+        _capture.EndFrame(GraphicsDevice,
+            hold: _scriptQueue.Count > 0 || _scriptWaitSeconds > 0f,
+            exit: Exit);
     }
 
     /// <summary>
@@ -4040,7 +3740,7 @@ public sealed class Game1 : Game, IConsoleTarget
             WeaponName: _session?.Player.Combat.ActiveWeapon.DisplayName ?? string.Empty,
             IsBlocking: _session?.Player.Combat.IsBlocking == true,
             FramesPerSecond: _framesPerSecond,
-            ShowFrameRate: _screenshotPath is null,
+            ShowFrameRate: !_capture.IsCapturing,
             Spell: BuildSpellHud(),
             CoachLine: _runSummary is not null || _choosingDepth || _campTraderOpen
                 ? string.Empty
@@ -4119,9 +3819,9 @@ public sealed class Game1 : Game, IConsoleTarget
         _figures.Draw(GraphicsDevice, _scene, _billboards, _camera, _dialogue, _watchers,
             _encounter, _cave);
 
-        if (_coverMode)
+        if (_capture.CoverMode)
         {
-            DrawCoverArt();
+            _screens.Cover.Draw(GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height);
             return;
         }
 
@@ -4733,7 +4433,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>Save a frame without ending the run, unlike --screenshot.</summary>
     string IConsoleTarget.Capture(string path)
     {
-        _pendingCapture = path;
+        _capture.Queue(path);
         return $"Saving {path}.";
     }
 
@@ -4844,7 +4544,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private void EndUi()
     {
-        if (!_mouseLook && _screenshotPath is null)
+        if (!_mouseLook && !_capture.IsCapturing)
             _screens.Overlay.DrawPointer(LogicalMouse(_input.CurrentMouse));
         _ui.End();
     }

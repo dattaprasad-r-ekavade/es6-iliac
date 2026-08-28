@@ -9,7 +9,7 @@ renders, samples input, and loads content. Read this file before changing code.
 | --- | --- |
 | `src/RatnaBay.Domain/` | Engine-independent rules, state, saves, generation. **No MonoGame types.** |
 | `src/RatnaBay.Game/` | WindowsDX client: devices, the frame, world draw, audio. |
-| `src/RatnaBay.Game/Engine/` | First-person view (look, walk, jump, crouch). No mines or Ratna Bay. |
+| `src/RatnaBay.Game/Engine/` | First-person view and capture host. No mines or Ratna Bay. |
 | `src/RatnaBay.Game/Ui/` | Every 2D screen and HUD renderer, plus shared canvas and hit-test layout. |
 | `src/RatnaBay.Game/Render/` | 3D primitives (`SceneRenderer`), imported models (`ModelCache`), generated sprites. |
 | `src/RatnaBay.Game/World/` | Live world, encounters, `WorldPresenter`, `FigurePresenter`, spike scenes. |
@@ -92,7 +92,7 @@ the interface to all of `Game1`.
 - Sample keyboard and mouse only through `InputRouter`. Screen handlers interpret a snapshot;
   they do not call `Keyboard.GetState` / `Mouse.GetState`.
 - Draw 2D UI through `UiCanvas`. Do not open `SpriteBatch` from a screen renderer. There is one
-  deliberate exception, `DrawCoverArt`: the store cover is 1260×1000, so the UI transform that
+  deliberate exception, `CoverRenderer`: the store cover is 1260×1000, so the UI transform that
   letterboxes a 16:9 canvas would put bars down its sides. Leave it alone.
 - Hit-test rectangles live in `UiLayout`. Input and drawing must share them. If a clickable
   row is not the row on screen, the numbers have drifted.
@@ -106,6 +106,8 @@ the interface to all of `Game1`.
   writes a different presenter; it should not subclass `Game1`. See `Docs/ENGINE.md`.
 - Speakers, watchers, enemies and bolts go through `FigurePresenter`. Moodboard, stambha and
   the asset case go through `SpikeScenes`.
+- Screenshot warmup, the cover render target and PNG write go through `CaptureHost`. The store
+  cover composition is `CoverRenderer`.
 - Anything anchored to a point in the world but drawn flat goes through `WorldProjector` and
   `MarkerRenderer`. Do not hand a renderer the camera to get a screen position.
 - Build presentation snapshots (`WorldHudState`, `OverlayState`, `MenuState`, `NameplateState`,
@@ -134,6 +136,7 @@ the interface to all of `Game1`.
 | Shut door, camp trader, shaft, run summary | `Ui/DescentRenderer.cs` | `CampRow`, `DepthRow`, `SummaryButton` |
 | Door / talk / pickup prompt | `Ui/PromptRenderer.cs` | `UiLayout.TalkPrompt`, `SinglePrompt`; snapshot in `PromptState` |
 | Held weapon sprite | `Ui/WeaponRenderer.cs` | `UiLayout.ShieldGrip`; pose from `WeaponView` |
+| Store cover | `Ui/CoverRenderer.cs` | 1260×1000 1:1; `--cover` |
 | Nameplates, floating damage, threat arrows, yard signs, content errors | `Ui/MarkerRenderer.cs` | projected via `WorldProjector` |
 | Developer console and watches | `Ui/ConsoleRenderer.cs` | local panels |
 | Lit boxes, crystal, carved faces, glow | `Render/SceneRenderer.cs` | per-frame `Begin` |
@@ -141,12 +144,13 @@ the interface to all of `Game1`.
 | Speakers, watchers, enemies, bolts | `World/FigurePresenter.cs` | `BillboardRenderer` |
 | Moodboard, stambha, asset case | `World/SpikeScenes.cs` | SceneRenderer + canvas; `--moodboard` / `--stambha` |
 
-Still in `Game1` and not yet extracted: the capture/screenshot host (`--screenshot`, `--cover`,
-warmup), and the screen input handlers. Extract those when a change needs to touch them, not
-speculatively. Do not put look/walk, 3D primitive drawing, authored-world iteration, figures or
-spike scenes back into `Game1` — those seams are `FirstPersonView`, `SceneRenderer`,
-`WorldPresenter`, `FigurePresenter` and `SpikeScenes`. A second game should not subclass
-`Game1`; see [`Docs/ENGINE.md`](Docs/ENGINE.md).
+Still in `Game1` and not yet extracted: the screen input handlers. Extract those when a
+change needs to touch them, not speculatively. Do not put look/walk, 3D primitive drawing,
+authored-world iteration, figures, spike scenes or PNG capture back into `Game1` — those
+seams are `FirstPersonView`, `SceneRenderer`, `WorldPresenter`, `FigurePresenter`,
+`SpikeScenes` and `CaptureHost`. `--show` / `--swing` / `--cast` still open this game's
+panels and pose the weapon; that stays here. A second game should not subclass `Game1`;
+see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 
 ## Recipes
 
