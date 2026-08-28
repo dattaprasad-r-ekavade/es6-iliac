@@ -29,15 +29,13 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     private readonly GraphicsDeviceManager _graphics;
-    private readonly Dictionary<string, Model> _models = new();
-    private readonly Dictionary<string, float> _modelNormalizers = new();
-    private readonly Dictionary<string, Vector3> _modelCenters = new();
+    /// <summary>Imported props: loading, measuring, normalising and drawing. See ModelCache.</summary>
+    private readonly ModelCache _modelCache = new();
 
     /// <summary>
     /// Bone transforms, resolved once at load. Nothing here is animated, so recomputing them
     /// into a freshly allocated array every model every frame was pure waste.
     /// </summary>
-    private readonly Dictionary<string, Matrix[]> _modelBones = new();
     private readonly List<string> _assetErrors = new();
     private SpriteBatch _spriteBatch = null!;
     private FontSystem _fontSystem = null!;
@@ -811,14 +809,14 @@ public sealed class Game1 : Game, IConsoleTarget
         _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(1f, 0.83f, 0.64f);
         _primitiveEffect.DirectionalLight0.SpecularColor = new Vector3(0.28f);
 
-        LoadModel("bridge", "Feasibility/Models/Kenney/bridge_wood");
-        LoadModel("campfire", "Feasibility/Models/Kenney/campfire_stones");
-        LoadModel("ground", "Feasibility/Models/Kenney/ground_grass");
-        LoadModel("bush", "Feasibility/Models/Kenney/plant_bushLarge");
-        LoadModel("rock", "Feasibility/Models/Kenney/rock_largeA");
-        LoadModel("tent", "Feasibility/Models/Kenney/tent_detailedOpen");
-        LoadModel("tree", "Feasibility/Models/Kenney/tree_pineRoundA");
-        LoadModel("cheeseBox", "Feasibility/Models/PolyHavenCheeseBox/CheeseBox_01_1k");
+        _modelCache.Load(Content, "bridge", "Feasibility/Models/Kenney/bridge_wood");
+        _modelCache.Load(Content, "campfire", "Feasibility/Models/Kenney/campfire_stones");
+        _modelCache.Load(Content, "ground", "Feasibility/Models/Kenney/ground_grass");
+        _modelCache.Load(Content, "bush", "Feasibility/Models/Kenney/plant_bushLarge");
+        _modelCache.Load(Content, "rock", "Feasibility/Models/Kenney/rock_largeA");
+        _modelCache.Load(Content, "tent", "Feasibility/Models/Kenney/tent_detailedOpen");
+        _modelCache.Load(Content, "tree", "Feasibility/Models/Kenney/tree_pineRoundA");
+        _modelCache.Load(Content, "cheeseBox", "Feasibility/Models/PolyHavenCheeseBox/CheeseBox_01_1k");
 
         // Done here rather than at parse time: the surface needs the device, the fonts and
         // the models, and none of those exist when the command line is read.
@@ -3532,52 +3530,6 @@ public sealed class Game1 : Game, IConsoleTarget
         _headingFonts.Clear();
     }
 
-    private void LoadModel(string key, string contentPath)
-    {
-        try
-        {
-            var model = Content.Load<Model>(contentPath);
-            _models[key] = model;
-
-            var bones = new Matrix[model.Bones.Count];
-            if (bones.Length > 0) model.CopyAbsoluteBoneTransformsTo(bones);
-            var (center, extent) = MeasureModel(model, bones);
-            _modelCenters[key] = center;
-            _modelNormalizers[key] = 1f / extent;
-            _modelBones[key] = bones;
-
-            ConfigureModelLighting(model);
-        }
-        catch (Exception exception)
-        {
-            _assetErrors.Add($"{key}: {exception.GetType().Name}");
-        }
-    }
-
-    /// <summary>
-    /// Lighting, fog and material settings that never change. Applied once per loaded model
-    /// rather than per mesh per frame.
-    /// </summary>
-    private static void ConfigureModelLighting(Model model)
-    {
-        foreach (var mesh in model.Meshes)
-        foreach (var effect in mesh.Effects)
-        {
-            if (effect is not BasicEffect basic) continue;
-
-            basic.EnableDefaultLighting();
-            basic.PreferPerPixelLighting = true;
-            basic.AmbientLightColor = new Vector3(0.54f, 0.57f, 0.62f);
-            basic.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-0.45f, -1f, -0.2f));
-            basic.DirectionalLight0.DiffuseColor = new Vector3(1f, 0.84f, 0.68f);
-            basic.DirectionalLight0.SpecularColor = new Vector3(0.24f);
-            basic.FogEnabled = true;
-            basic.FogStart = 18f;
-            basic.FogEnd = 45f;
-            basic.FogColor = new Color(70, 88, 91).ToVector3();
-        }
-    }
-
     /// <summary>Roughly a pace. Shorter crouching, longer at a sprint.</summary>
     private const float StrideMetres = 1.9f;
 
@@ -5468,7 +5420,8 @@ public sealed class Game1 : Game, IConsoleTarget
     private WorldProjector Projector() =>
         new(GraphicsDevice.Viewport, _view, _projection, _uiScale);
 
-    private void DrawContentErrors() => _screens.Markers.DrawContentErrors(_assetErrors);
+    private void DrawContentErrors() =>
+        _screens.Markers.DrawContentErrors(_assetErrors.Concat(_modelCache.Errors).ToList());
 
 
 
@@ -5547,15 +5500,15 @@ public sealed class Game1 : Game, IConsoleTarget
         {
             if (!prop.Visible) continue;
             var position = prop.Position.ToWorldPoint();
-            DrawModel(prop.Model, new Vector3(position.X, position.Y, position.Z),
-                prop.Scale, prop.Rotation);
+            _modelCache.Draw(prop.Model, new Vector3(position.X, position.Y, position.Z),
+                prop.Scale, prop.Rotation, _view, _projection);
         }
 
         foreach (var pickup in _pickups)
         {
             var position = pickup.Position.ToWorldPoint();
-            DrawModel(pickup.Model, new Vector3(position.X, position.Y, position.Z),
-                pickup.Scale, 0f);
+            _modelCache.Draw(pickup.Model, new Vector3(position.X, position.Y, position.Z),
+                pickup.Scale, 0f, _view, _projection);
         }
     }
 
@@ -5853,75 +5806,6 @@ public sealed class Game1 : Game, IConsoleTarget
         (byte)Math.Clamp(color.G, 0, 255),
         (byte)Math.Clamp(color.B, 0, 255),
         (byte)Math.Clamp(color.A, 0, 255));
-
-    private void DrawModel(string key, Vector3 position, float scale, float rotation)
-    {
-        if (!_models.TryGetValue(key, out var model))
-            return;
-
-        var normalizer = _modelNormalizers.TryGetValue(key, out var storedNormalizer) ? storedNormalizer : 1f;
-        var center = _modelCenters.TryGetValue(key, out var storedCenter) ? storedCenter : Vector3.Zero;
-        var world = Matrix.CreateTranslation(-center)
-            * Matrix.CreateScale(scale * normalizer)
-            * Matrix.CreateRotationY(rotation)
-            * Matrix.CreateTranslation(position);
-
-        var boneTransforms = _modelBones.TryGetValue(key, out var cachedBones)
-            ? cachedBones
-            : Array.Empty<Matrix>();
-
-        foreach (var mesh in model.Meshes)
-        {
-            var meshTransform = boneTransforms.Length > mesh.ParentBone.Index
-                ? boneTransforms[mesh.ParentBone.Index]
-                : Matrix.Identity;
-
-            foreach (var effect in mesh.Effects)
-            {
-                // Only what actually changes per frame. Lighting and fog are set once, at
-                // load: EnableDefaultLighting rewrites every light and reselects a shader
-                // permutation, and it was running for every mesh of every model every frame.
-                if (effect is BasicEffect basic)
-                {
-                    basic.World = meshTransform * world;
-                    basic.View = _view;
-                    basic.Projection = _projection;
-                }
-            }
-
-            mesh.Draw();
-        }
-    }
-
-    private static (Vector3 Center, float Extent) MeasureModel(Model model, Matrix[] boneTransforms)
-    {
-        if (model.Meshes.Count == 0)
-            return (Vector3.Zero, 1f);
-
-        var minimum = new Vector3(float.MaxValue);
-        var maximum = new Vector3(float.MinValue);
-        foreach (var mesh in model.Meshes)
-        {
-            var transform = boneTransforms.Length > mesh.ParentBone.Index
-                ? boneTransforms[mesh.ParentBone.Index]
-                : Matrix.Identity;
-            var sphere = mesh.BoundingSphere;
-            var centre = Vector3.Transform(sphere.Center, transform);
-            var scale = MathF.Max(
-                Vector3.TransformNormal(Vector3.Right, transform).Length(),
-                MathF.Max(
-                    Vector3.TransformNormal(Vector3.Up, transform).Length(),
-                    Vector3.TransformNormal(Vector3.Forward, transform).Length()));
-            var radius = new Vector3(sphere.Radius * scale);
-            minimum = Vector3.Min(minimum, centre - radius);
-            maximum = Vector3.Max(maximum, centre + radius);
-        }
-
-        var center = (minimum + maximum) * 0.5f;
-        var halfSize = (maximum - minimum) * 0.5f;
-        var extent = MathF.Max(halfSize.X, MathF.Max(halfSize.Y, halfSize.Z));
-        return (center, MathF.Max(extent, 0.001f));
-    }
 
     /// <summary>
     /// A hole: drawn with the lighting switched off entirely.
