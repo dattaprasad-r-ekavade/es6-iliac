@@ -1,0 +1,47 @@
+<p>The build on this page was three days old and missing almost everything. It has caught up. There is sound now, and weapons that are not all the same weapon, and stones that change what a swing does, and a fort with ten people in it who will tell you things if you keep coming back.</p>
+
+<p>But that is not why I am posting.</p>
+
+<h3>The one thing I cannot find out by myself</h3>
+
+<p>Every time you clear a room, the game asks whether to bank what you are holding or open the next door. That decision is the entire game. Everything else is scaffolding around it.</p>
+
+<blockquote>
+<p><strong>At the shut door &mdash; did you ever actually hesitate?</strong></p>
+</blockquote>
+
+<p>I have recorded myself playing it and I stop and think for about two seconds at each door, which sounds like it works. But I built the thing. I know what is behind the door, I know what the numbers do, and I cannot un-know it. Two seconds from the person who wrote the arithmetic is not evidence of anything.</p>
+
+<p>If it never made you pause &mdash; if you just always camped, or just always pressed on, without it costing you a thought &mdash; <strong>that is the single most useful sentence anyone can send me</strong>, and it is worth more than a list of bugs.</p>
+
+<p><strong><a href="https://docs.google.com/forms/d/e/1FAIpQLScfoMudXDWImiIGISLWLz7NbAhidpVNz-OlXLFPA3RevABCcA/viewform">There is a two-minute form here.</a></strong> Twelve questions, one required, no account needed. Answer only the first if that is all you have time for.</p>
+
+<h3>What is new since the last build</h3>
+
+<ul>
+<li><strong>Sound.</strong> Footsteps, landings, weapons that sound like their weight, and a hitstop on impact.</li>
+<li><strong>Weapons that differ.</strong> Maces stagger. Shields block on right click. Bows need arrows you can run out of. Two-handed weapons cost you the quick cast.</li>
+<li><strong>Jiva stones and sockets.</strong> Six of them, none of which survive a descent. They change what a verb does rather than how big its number is &mdash; your blade sweeps, or your blows stagger, or a kill hands prana back.</li>
+<li><strong>Amulets.</strong> Earned by going deeper than you ever have, and they survive your death. A run that kills you can still be worth something.</li>
+<li><strong>Cave themes.</strong> Five kinds of mine, each shrugging off one element and afraid of another. The shaft screen tells you which before you pay.</li>
+<li><strong>The fort.</strong> Ten rooms that open as you rise through the order, and twenty-four things the people in them will eventually say. Nobody tells you everything.</li>
+<li><strong>Faces.</strong> Every occupant is drawn in code &mdash; flat earth colour with a contour line over it, after the Ajanta painters. Six expressions each.</li>
+</ul>
+
+<h3>And one bug worth telling you about</h3>
+
+<p>While taking screenshots for this post I noticed two brick panels floating in mid-air beside the mine shaft. They turned out not to be floating, and not to be panels.</p>
+
+<p><strong>Every box in the game was drawing its inside.</strong> The cube I build all world geometry from was wound inside-out, so the renderer was culling the exterior of every face and drawing the interior. A box showed you the far side of its own inner walls, and no top at all.</p>
+
+<p>It hid for months because nearly everything in the game is a slab &mdash; walls, kerbs, shelves, doorframes &mdash; where the inside and the outside sit a couple of centimetres apart and look identical. It is unmissable the moment a box has real depth. The spoil heaps beside the shaft were three-sided open pits with the ground visible inside them, and from across the yard they read as panels hanging in the air.</p>
+
+<p>The best part: there was a comment in the code explaining that two of the six faces <em>had</em> to point the wrong way, and that correcting them turned every lit surface black. That comment was right about what happened and wrong about why. The inverted normals were compensating for the inverted winding, on the only two faces anyone had ever checked. Fixing one without the other is what turned the lights off. Both together, and it just works.</p>
+
+<p>Everything in the yard is solid now, including several things that never were.</p>
+
+<h3>What this is</h3>
+
+<p>An early alpha, built by one person, free, and rough in places. Windows only for now. It asks once whether it may send anonymous recordings of how you played; it is a straight yes or no, nothing is sent if you decline, and there is no account, no email and no name either way.</p>
+
+<p>Thank you for playing it. Five people answering that form is the difference between guessing and knowing.</p>
