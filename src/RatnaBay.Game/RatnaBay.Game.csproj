@@ -13,6 +13,36 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <!--
+    One executable instead of two hundred and eighty-six files.
+
+    A self-contained publish lays the whole .NET runtime out beside the game: 277 loose DLLs
+    at the root of the folder a player just extracted. It works, and it looks like something
+    went wrong. Somebody who has been warned by SmartScreen that this is dangerous, and then
+    opens a folder full of System.Private.CoreLib.dll, has been given two reasons to close it.
+
+    PublishSingleFile bundles the lot into RatnaBay.exe and extracts what it needs at runtime.
+    Content stays outside on purpose: MonoGame loads it by path and the game reads
+    AppContext.BaseDirectory\Content for its fonts and manifests, both of which keep working
+    because BaseDirectory is the exe's own folder in a single-file app.
+
+    Safe here because nothing calls Assembly.Location, which is the one API a single-file build
+    breaks. It returns an empty string, and code that joins a path onto it fails at runtime
+    rather than at compile time.
+
+    Compression roughly halves the download and costs a little on first launch while the
+    bundle is unpacked.
+  -->
+  <PropertyGroup Condition="'$(SelfContained)' == 'true'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+
+    <!-- Stops the referenced Domain project's .pdb riding along into the release folder. -->
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
@@ -40,5 +70,20 @@
     <None Include="Content\Feasibility\Fonts\NotoSansDevanagari\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\NotoSansBrahmi\NotoSansBrahmi-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\NotoSansBrahmi\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    Keep content on disk rather than inside the single-file bundle.
+
+    The bundler took the four .ttf files and left the .json and .xnb beside them alone, which is
+    the worst possible half-measure: the build looks fine and the game cannot find its fonts.
+    Everything under Content is opened by path from AppContext.BaseDirectory, so all of it has
+    to stay outside.
+
+    The publish gate caught this at "the build is missing bundled fonts" rather than a player
+    catching it at a black screen, which is the entire reason that check exists.
+  -->
+  <ItemGroup>
+    <None Update="Content\**\*" ExcludeFromSingleFile="true" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

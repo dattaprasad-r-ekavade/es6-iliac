@@ -112,6 +112,20 @@ try {
         Write-Host "    [ok] $($check.Name)"
     }
 
+    # A self-contained publish without PublishSingleFile drops 277 loose runtime DLLs into the
+    # root of the folder a player just extracted. It runs, and it looks like something went
+    # wrong -- next to a SmartScreen warning that is two reasons to close the folder.
+    #
+    # Checked rather than trusted, because the way it comes back is silent: any csproj change
+    # that stops the single-file properties applying still produces a working build.
+    $rootEntries = @(Get-ChildItem -Path $buildDir)
+    if ($rootEntries.Count -gt 4) {
+        throw ("The build folder has $($rootEntries.Count) entries at its root. It should have " +
+            "two: RatnaBay.exe and Content. PublishSingleFile is not taking effect.")
+    }
+
+    Write-Host "    [ok] $($rootEntries.Count) entries at the root"
+
     if (-not $SkipTests) {
         Write-Step 'Smoke-testing the published build'
         # Runs the real executable from the real folder: if content, fonts or the save path
