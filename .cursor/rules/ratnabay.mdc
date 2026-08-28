@@ -7,7 +7,7 @@ alwaysApply: true
 
 - Game rules go in `src/RatnaBay.Domain`. Never add MonoGame types there.
 - `Game1` is the lifecycle coordinator. New screens, HUD, and overlays go in `src/RatnaBay.Game/Ui/`.
-- Sample input only through `InputRouter`. Draw 2D UI only through `UiCanvas`.
+- Sample input only through `InputRouter`. Overlay-stack selection goes through `OverlayInput`. List wrap/hover is `ListPicker`; row bounds stay `UiLayout`. Draw 2D UI only through `UiCanvas`.
 - Look, walk, jump and crouch go through `FirstPersonView`. Collision is a callback; do not put mines in the view.
 - Authored world boxes, lights and imported props go through `WorldPresenter`. Do not walk the manifest from `Game1`.
 - Speakers, watchers, enemies and bolts go through `FigurePresenter`. Moodboard, stambha and the asset case go through `SpikeScenes`.

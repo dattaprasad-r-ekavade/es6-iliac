@@ -5,7 +5,7 @@ namespace RatnaBay.Client;
 /// <summary>
 /// Samples device input once per frame and owns edge detection between frames.
 ///
-/// Screen handlers are responsible for deciding what a key means, but they should all observe
+/// Screen handlers (and `OverlayInput`) decide what a key means, but they should all observe
 /// the same snapshot. Keeping sampling here prevents a handler from seeing a different mouse
 /// state than the one used by the frame coordinator.
 /// </summary>

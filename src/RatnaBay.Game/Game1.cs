@@ -14,8 +14,9 @@ namespace RatnaBay.Client;
 /// MonoGame lifecycle coordinator: devices, the frame, and draw order.
 ///
 /// Screens, HUD and overlay layout live in <c>Ui/</c>. Input sampling lives in
-/// <c>Input/InputRouter</c>. Look and walk live in <c>Engine/FirstPersonView</c>. Game rules
-/// live in <c>RatnaBay.Domain</c>. New work belongs in one of those, not in this class, unless
+/// <c>Input/InputRouter</c>. Overlay-stack selection lives in <c>Input/OverlayInput</c>.
+/// Look and walk live in <c>Engine/FirstPersonView</c>. Game rules live in
+/// <c>RatnaBay.Domain</c>. New work belongs in one of those, not in this class, unless
 /// it is genuinely a lifecycle concern. A second game should not subclass this type — see
 /// <c>Docs/ENGINE.md</c>.
 /// </summary>
@@ -65,6 +66,12 @@ public sealed class Game1 : Game, IConsoleTarget
     private readonly InputRouter _input = new();
 
     /// <summary>
+    /// Consent, title menu, pause and settings: selection, hover and confirm.
+    /// Side effects of a confirmed row stay in this class.
+    /// </summary>
+    private readonly OverlayInput _overlay = new();
+
+    /// <summary>
     /// Look, walk, jump and crouch. Collision is a callback so this type does not know about
     /// mines. Ratna Bay's spawn and speeds are set on it; a different game would construct
     /// its own.
@@ -97,7 +104,6 @@ public sealed class Game1 : Game, IConsoleTarget
     private bool _ignoreMouseDeltaThisFrame;
 
     private GameScreen _screen = GameScreen.MainMenu;
-    private int _menuSelection;
     private string _menuStatus = string.Empty;
     private bool _borderlessFullscreen = true;
 
@@ -298,7 +304,6 @@ public sealed class Game1 : Game, IConsoleTarget
 
     /// <summary>True while the question is on screen, before anything has been sent.</summary>
     private bool _askingConsent;
-    private int _consentSelection;
 
     /// <summary>True once the camp panel has been shown for the current door.</summary>
     private bool _decisionRecorded;
@@ -426,8 +431,6 @@ public sealed class Game1 : Game, IConsoleTarget
     /// pixel so glyphs land 1:1 on the display instead of being resampled.
     /// </summary>
     private float _uiScalePreference = 1f;
-    private bool _showSettings;
-    private int _settingsSelection;
 
     public Game1(string[] args)
     {
@@ -845,7 +848,7 @@ public sealed class Game1 : Game, IConsoleTarget
         {
             if (_screen == GameScreen.MainMenu)
             {
-                if (_showSettings) _showSettings = false;
+                if (_overlay.ShowSettings) _overlay.ShowSettings = false;
             }
             else if (_paused)
             {
@@ -1210,7 +1213,6 @@ public sealed class Game1 : Game, IConsoleTarget
 
     /// <summary>The game is stopped and the pause screen owns the input.</summary>
     private bool _paused;
-    private int _pauseSelection;
 
     /// <summary>
     /// One door per state.
@@ -1240,22 +1242,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private void UpdateConsent(KeyboardState keyboard, MouseState mouse)
     {
-        var pointer = LogicalMouse(mouse);
-        var chosen = -1;
-
-        for (var index = 0; index < 2; index++)
-        {
-            if (!UiLayout.ConsentButton(index).Contains((int)pointer.X, (int)pointer.Y)) continue;
-
-            _consentSelection = index;
-            if (Clicked(mouse)) chosen = index;
-        }
-
-        if (Pressed(keyboard, Keys.Left)) _consentSelection = 0;
-        if (Pressed(keyboard, Keys.Right)) _consentSelection = 1;
-        if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
-            chosen = _consentSelection;
-
+        var chosen = _overlay.StepConsent(_input, keyboard, mouse, LogicalMouse(mouse));
         if (chosen < 0) return;
 
         _consent.Asked = true;
@@ -1273,50 +1260,20 @@ public sealed class Game1 : Game, IConsoleTarget
     /// that the answer changes nothing about the game. "Yes" is not the default and is not
     /// styled to look like the safe one.
     /// </summary>
-    private void DrawConsent() => _screens.Consent.Draw(_consentSelection);
+    private void DrawConsent() => _screens.Consent.Draw(_overlay.ConsentSelection);
 
     private void UpdateMenu(KeyboardState keyboard, MouseState mouse)
     {
-        if (_showSettings)
+        if (_overlay.ShowSettings)
         {
-            UpdateSettings(keyboard);
+            ApplySettings(_overlay.StepSettings(_input, keyboard, LogicalMouse(mouse)));
             return;
         }
 
-        var menuItemCount = MenuItems.Length;
-        _menuSelection = Math.Clamp(_menuSelection, 0, menuItemCount - 1);
-
-        if (Pressed(keyboard, Keys.Up))
-        {
-            _menuSelection = (_menuSelection + menuItemCount - 1) % menuItemCount;
-            _menuStatus = string.Empty;
-        }
-        if (Pressed(keyboard, Keys.Down))
-        {
-            _menuSelection = (_menuSelection + 1) % menuItemCount;
-            _menuStatus = string.Empty;
-        }
-
-        // Hovering moves the selection, so the keyboard and the mouse never disagree about
-        // which item is about to be chosen.
-        var pointer = LogicalMouse(mouse);
-        var hovered = -1;
-        for (var index = 0; index < menuItemCount; index++)
-            if (UiLayout.MenuItem(index).Contains((int)pointer.X, (int)pointer.Y))
-                hovered = index;
-
-        if (hovered >= 0)
-        {
-            _menuSelection = hovered;
-            if (Clicked(mouse))
-            {
-                ActivateMenuItem();
-                return;
-            }
-        }
-
-        if (Pressed(keyboard, Keys.Enter) || Pressed(keyboard, Keys.Space))
-            ActivateMenuItem();
+        var activated = _overlay.StepMenu(_input, keyboard, mouse, LogicalMouse(mouse),
+            MenuItems.Length, out var moved);
+        if (moved) _menuStatus = string.Empty;
+        if (activated) ActivateMenuItem();
     }
 
     /// <summary>What the telemetry row says, including what is still waiting to go.</summary>
@@ -1331,56 +1288,29 @@ public sealed class Game1 : Game, IConsoleTarget
         return $"Send recordings   {(_consent.Allowed ? "On" : "Off")}{queued}";
     }
 
-    private void UpdateSettings(KeyboardState keyboard)
+    /// <summary>Apply what the settings panel asked for. Display, scale and volume live here.</summary>
+    private void ApplySettings(SettingsCommand command)
     {
-        // Four rows now: display, UI scale, volume, bindings. The count was already one short
-        // of what DrawSettings lists, so the telemetry row could never be reached by keyboard.
-        const int optionCount = 5;
-        if (Pressed(keyboard, Keys.Up))
-            _settingsSelection = (_settingsSelection + optionCount - 1) % optionCount;
-        if (Pressed(keyboard, Keys.Down))
-            _settingsSelection = (_settingsSelection + 1) % optionCount;
-
-        var mouse = _input.CurrentMouse;
-        var pointer = LogicalMouse(mouse);
-        var clicked = Clicked(mouse);
-        var hovered = -1;
-
-        for (var index = 0; index < optionCount; index++)
-            if (UiLayout.SettingsRow(index).Contains((int)pointer.X, (int)pointer.Y))
-                hovered = index;
-
-        if (hovered >= 0) _settingsSelection = hovered;
-
-        var toggled = Pressed(keyboard, Keys.Enter) || (clicked && hovered == 0);
-        if (_settingsSelection == 0 && toggled)
-            SetBorderlessFullscreen(!_borderlessFullscreen);
-
-        // The scale and volume rows are sliders: clicking the left half steps down, the right
-        // half up.
-        var nudge = 0f;
-        if (Pressed(keyboard, Keys.Right)) nudge = 1f;
-        else if (Pressed(keyboard, Keys.Left)) nudge = -1f;
-        else if (clicked && (hovered == 1 || hovered == 2))
+        switch (command.Action)
         {
-            var row = UiLayout.SettingsRow(hovered);
-            nudge = pointer.X < row.Center.X ? -1f : 1f;
-        }
+            case SettingsAction.ToggleDisplay:
+                SetBorderlessFullscreen(!_borderlessFullscreen);
+                break;
 
-        if (nudge == 0f) return;
+            case SettingsAction.NudgeScale:
+                _uiScalePreference = MathHelper.Clamp(
+                    _uiScalePreference + command.Nudge * 0.1f, 0.8f, 1.2f);
+                _ui.Resize(GraphicsDevice.Viewport, _uiScalePreference);
+                break;
 
-        if (_settingsSelection == 1)
-        {
-            _uiScalePreference = MathHelper.Clamp(_uiScalePreference + nudge * 0.1f, 0.8f, 1.2f);
-            _ui.Resize(GraphicsDevice.Viewport, _uiScalePreference);
-        }
-        else if (_settingsSelection == 2 && _sfx is not null)
-        {
-            _sfx.Volume = MathHelper.Clamp(_sfx.Volume + nudge * 0.1f, 0f, 1f);
+            case SettingsAction.NudgeVolume:
+                if (_sfx is null) return;
+                _sfx.Volume = MathHelper.Clamp(_sfx.Volume + command.Nudge * 0.1f, 0f, 1f);
 
-            // Play the thing being adjusted, so the number is not the only feedback. A volume
-            // slider that makes no sound is guesswork.
-            _sfx.Play(Sfx.Coin, 0.5f);
+                // Play the thing being adjusted, so the number is not the only feedback. A volume
+                // slider that makes no sound is guesswork.
+                _sfx.Play(Sfx.Coin, 0.5f);
+                break;
         }
     }
 
@@ -1486,7 +1416,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private void ActivateMenuItem()
     {
-        switch (MenuItems[_menuSelection])
+        switch (MenuItems[_overlay.MenuSelection])
         {
             case ResumeItem:
                 ResumeSuspendedDescent();
@@ -1511,8 +1441,7 @@ public sealed class Game1 : Game, IConsoleTarget
                 _session!.ShowToast("You wake on the Northwatch road.");
                 break;
             case "Settings":
-                _showSettings = true;
-                _settingsSelection = 0;
+                _overlay.OpenSettings();
                 SetMouseLook(false);
                 break;
             case "Exit":
@@ -1708,56 +1637,38 @@ public sealed class Game1 : Game, IConsoleTarget
 
         ClosePanels();
         _paused = true;
-        _pauseSelection = 0;
+        _overlay.PauseSelection = 0;
         SetMouseLook(false, forPanel: true);
     }
 
     private void ResumeFromPause()
     {
         _paused = false;
-        _showSettings = false;
+        _overlay.ShowSettings = false;
         if (_screen == GameScreen.WorldScene) SetMouseLook(true);
     }
 
     private void UpdatePause(KeyboardState keyboard, MouseState mouse)
     {
-        if (_showSettings)
+        if (_overlay.ShowSettings)
         {
-            UpdateSettings(keyboard);
+            ApplySettings(_overlay.StepSettings(_input, keyboard, LogicalMouse(mouse)));
             return;
         }
 
         var items = PauseItems;
-        if (Pressed(keyboard, Keys.Up))
-            _pauseSelection = (_pauseSelection + items.Length - 1) % items.Length;
-        if (Pressed(keyboard, Keys.Down))
-            _pauseSelection = (_pauseSelection + 1) % items.Length;
+        var inRun = _run is { Run.IsActive: true };
+        if (!_overlay.StepPause(_input, keyboard, mouse, LogicalMouse(mouse), items.Length, inRun))
+            return;
 
-        // The pointer is already free and on screen here, so a menu that ignored it was
-        // simply broken: the one screen that stops the game was the one you could not click.
-        var chosen = false;
-        var pointer = LogicalMouse(mouse);
-        for (var index = 0; index < items.Length; index++)
-        {
-            if (!UiLayout.PauseItem(_run is { Run.IsActive: true }, index)
-                .Contains((int)pointer.X, (int)pointer.Y)) continue;
-
-            _pauseSelection = index;
-            chosen = Clicked(mouse);
-            break;
-        }
-
-        if (!chosen && !Pressed(keyboard, Keys.Enter) && !Pressed(keyboard, Keys.Space)) return;
-
-        switch (items[_pauseSelection])
+        switch (items[_overlay.PauseSelection])
         {
             case "Resume":
                 ResumeFromPause();
                 break;
 
             case "Settings":
-                _showSettings = true;
-                _settingsSelection = 0;
+                _overlay.OpenSettings();
                 break;
 
             case "Set the descent aside":
@@ -1821,10 +1732,10 @@ public sealed class Game1 : Game, IConsoleTarget
     private void LeaveToMenu()
     {
         _paused = false;
-        _showSettings = false;
+        _overlay.ShowSettings = false;
         SetMouseLook(false);
         _screen = GameScreen.MainMenu;
-        _menuSelection = 0;
+        _overlay.MenuSelection = 0;
     }
 
     private void UpdateGameScreen(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
@@ -1992,11 +1903,15 @@ public sealed class Game1 : Game, IConsoleTarget
             UpdateInventory(keyboard);
             return;
         }
-        if (Pressed(keyboard, Keys.F2)) { _showSettings = !_showSettings; if (_showSettings) SetMouseLook(false, forPanel: true); }
-
-        if (_showSettings)
+        if (Pressed(keyboard, Keys.F2))
         {
-            UpdateSettings(keyboard);
+            _overlay.ShowSettings = !_overlay.ShowSettings;
+            if (_overlay.ShowSettings) SetMouseLook(false, forPanel: true);
+        }
+
+        if (_overlay.ShowSettings)
+        {
+            ApplySettings(_overlay.StepSettings(_input, keyboard, LogicalMouse(mouse)));
             return;
         }
 
@@ -2054,7 +1969,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private bool AnyPanelOpen =>
         _dialogueOpen || _showShop || _showJournal || _showCharacter || _showHelp || _showFort
-        || _showSettings || _paused || _choosingDepth || _campTraderOpen
+        || _overlay.ShowSettings || _paused || _choosingDepth || _campTraderOpen
         || _runSummary is not null;
 
     /// <summary>
@@ -2073,7 +1988,7 @@ public sealed class Game1 : Game, IConsoleTarget
         _showJournal = false;
         _showCharacter = false;
         _showHelp = false;
-        _showSettings = false;
+        _overlay.ShowSettings = false;
         _showFort = false;
         _openFortRoom = null;
 
@@ -3664,10 +3579,10 @@ public sealed class Game1 : Game, IConsoleTarget
         var items = MenuItems;
         _screens.Menu.Draw(new MenuState(
             Items: items,
-            Selection: _menuSelection,
+            Selection: _overlay.MenuSelection,
             Status: _menuStatus,
-            Resuming: items[_menuSelection] == ResumeItem,
-            ShowSettings: _showSettings,
+            Resuming: items[_overlay.MenuSelection] == ResumeItem,
+            ShowSettings: _overlay.ShowSettings,
             Overlay: BuildOverlayState()), _screens.Overlay);
         EndUi();
     }
@@ -3785,7 +3700,9 @@ public sealed class Game1 : Game, IConsoleTarget
             RoomsCleared: activeRun?.RoomsCleared ?? 0,
             PendingStones: activeRun?.Pending ?? 0,
             PauseItems: PauseItems,
-            PauseSelection: _pauseSelection,
+            PauseSelection: _overlay.PauseSelection,
+            // Same length as OverlayInput.SettingsRowCount, or the keyboard cannot reach
+            // the last row the renderer draws.
             SettingsOptions: new[]
             {
                 $"Display mode     {(_borderlessFullscreen ? "Borderless fullscreen" : "Windowed 1280x720")}",
@@ -3794,7 +3711,7 @@ public sealed class Game1 : Game, IConsoleTarget
                 "Bindings          WASD move | E interact | J journal | I character",
                 SettingsTelemetryLine()
             },
-            SettingsSelection: _settingsSelection,
+            SettingsSelection: _overlay.SettingsSelection,
             RecordingDirectory: PlayRecorder.DisplayDirectory);
     }
 

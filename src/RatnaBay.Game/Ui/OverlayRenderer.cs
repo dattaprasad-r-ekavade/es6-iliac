@@ -8,9 +8,9 @@ namespace RatnaBay.Client;
 /// Renders modal pause/help/settings screens from a small presentation snapshot, and the
 /// custom mouse pointer.
 ///
-/// Input and game-flow decisions remain in Game1. This class only owns layout and styling,
-/// which gives AI changes to a menu a bounded surface and prevents them from touching the
-/// simulation loop by accident. Game1 still decides whether the pointer is visible.
+/// Overlay-stack selection lives in OverlayInput. Game1 still owns what confirming a row
+/// does. This class only owns layout and styling. Game1 still decides whether the pointer
+/// is visible.
 /// </summary>
 internal sealed class OverlayRenderer
 {
