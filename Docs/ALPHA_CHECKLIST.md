@@ -21,7 +21,8 @@ The build is ready. The *release* is not, and the gap is hours rather than weeks
       one in this repository, and their feedback would be about a version that no longer exists.
       One command: `.\release.ps1`. The gate runs first and refuses to upload if anything fails.
 
-- [ ] **Time one real run.** The page said *"around twenty minutes"* against five to eight in
+- [ ] **Time one real run.** *(Now also a rules problem: r/playmygame rule 4 is "be truthful, no
+      false claims about your game", so an unmeasured run length cannot go in a post there.)* The page said *"around twenty minutes"* against five to eight in
       every design doc, and it now says five to ten. Neither figure is measured on the current
       build: the eight-minute number came from nine recorded sessions that predate stones,
       amulets, cave themes and twelve-room mines, and there is no timing data on disk newer than
