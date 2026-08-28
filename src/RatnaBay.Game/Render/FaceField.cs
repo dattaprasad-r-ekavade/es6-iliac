@@ -448,6 +448,11 @@ public sealed class FaceField
 
             // Three tones, and which pixel gets which is the whole style.
             //
+            // The lime accent is gated on the albedo being light as well as the surface facing
+            // the lamp. Without that, black hair and dyed cloth caught the same highlight as
+            // skin and every occupant looked lacquered -- a painter mixes a lighter version of
+            // the colour in front of them, and a lighter version of near-black is still dark.
+            //
             // The first version thresholded on the light term alone and it was wrong: on a
             // smooth skull the light varies slowly, so the threshold cut a meandering contour
             // across the forehead and the result looked like damp on a wall rather than like
@@ -460,7 +465,8 @@ public sealed class FaceField
             Vector3 tone;
             if (buried > 0.30f) tone = Vector3.Lerp(albedo, shade, 0.80f);
             else if (buried > 0.13f) tone = Vector3.Lerp(albedo, shade, 0.42f);
-            else if (light > 0.95f) tone = Vector3.Lerp(albedo, highlight, 0.38f);
+            else if (light > 0.95f && albedo.X + albedo.Y + albedo.Z > 0.85f)
+                tone = Vector3.Lerp(albedo, highlight, 0.38f);
             else tone = albedo;
 
             painted[index] = Vector3.Lerp(tone, albedo, 0.07f * mottle);

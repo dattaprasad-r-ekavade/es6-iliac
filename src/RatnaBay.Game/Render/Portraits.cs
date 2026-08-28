@@ -99,8 +99,8 @@ public static class FaceCatalog
 
             // Visakha. Undyed linen, because everything she owns has been boiled.
             ["fort.physician"] = new(
-                new FacePalette(new Color(198, 152, 116), new Color(52, 40, 36),
-                    new Color(198, 194, 180), new Color(140, 148, 142), new Color(56, 44, 34)),
+                new FacePalette(new Color(176, 128, 94), new Color(52, 40, 36),
+                    new Color(206, 200, 186), new Color(140, 148, 142), new Color(56, 44, 34)),
                 HairStyle.Long, Beard.None, Headwear.None, Ornament.Tilaka,
                 Width: 0.40f, Age: 0.54f, Build: 0.36f, BrowWeight: 0.34f, NoseLength: 0.48f, Resting: Expression.Warm),
 

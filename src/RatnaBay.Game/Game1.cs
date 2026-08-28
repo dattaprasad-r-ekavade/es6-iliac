@@ -5584,6 +5584,7 @@ public sealed class Game1 : Game, IConsoleTarget
             WorldMaterials.Timber => StoneTextures.Timber(GraphicsDevice),
             WorldMaterials.Cloth => StoneTextures.Cloth(GraphicsDevice),
             WorldMaterials.Earth => StoneTextures.Earth(GraphicsDevice),
+            WorldMaterials.Rope => StoneTextures.Rope(GraphicsDevice),
             _ => isSlab
                 ? StoneTextures.Floor(GraphicsDevice, _stone)
                 : StoneTextures.Wall(GraphicsDevice, _stone)
@@ -5593,11 +5594,18 @@ public sealed class Game1 : Game, IConsoleTarget
         // would put the sandstone back over the top of the thing that just stopped being it.
         var painted = material is WorldMaterials.Stone ? TintFor(color) : Color.White;
 
+        // A rope is a few centimetres across and a couple of metres long. At the stone tiling
+        // its whole length is a fraction of one texture repeat, which is what drew plank grain
+        // down the windlass rope and made it read as a hanging board.
+
         // Boards are about a metre wide, not two: a plank the size of a wall block reads as a
         // wall block with a stripe on it.
-        var tiling = material is WorldMaterials.Timber or WorldMaterials.Cloth
-            ? StoneTileMetres * 0.5f
-            : StoneTileMetres;
+        var tiling = material switch
+        {
+            WorldMaterials.Rope => 0.24f,
+            WorldMaterials.Timber or WorldMaterials.Cloth => StoneTileMetres * 0.5f,
+            _ => StoneTileMetres
+        };
 
         // Something authored almost black is meant to be a hole, not a wall.
         //

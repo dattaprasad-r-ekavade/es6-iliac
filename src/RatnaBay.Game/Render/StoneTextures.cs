@@ -85,6 +85,10 @@ public static class StoneTextures
     public static Texture2D Earth(GraphicsDevice device)
         => Get(device, "earth", BuildEarth);
 
+    /// <summary>Laid fibre with a twist, for the windlass rope.</summary>
+    public static Texture2D Rope(GraphicsDevice device)
+        => Get(device, "rope", BuildRope);
+
     /// <summary>
     /// A soft radial falloff, drawn additively to fake the pool of light a torch throws.
     ///
@@ -316,6 +320,46 @@ public static class StoneTextures
     /// The yard floor was flagstones, which made the camp read as a paved room with a sky
     /// over it rather than as ground somebody dug a hole in.
     /// </summary>
+    /// <summary>
+    /// Three laid strands, twisting.
+    ///
+    /// The twist is the whole thing: a rope drawn as vertical fibres reads as a bundle of
+    /// wires. Shearing the strand boundaries across the height gives the diagonal banding the
+    /// eye actually uses to tell rope from cable, and it costs one term.
+    /// </summary>
+    private static Color[] BuildRope()
+    {
+        var pixels = new Color[Size * Size];
+        var random = new Random(0x120BE);
+
+        var body = new Color(156, 138, 100);
+        var shade = new Color(96, 82, 56);
+
+        const int Strands = 3;
+        var strandWidth = Size / (float)Strands;
+
+        for (var y = 0; y < Size; y++)
+        for (var x = 0; x < Size; x++)
+        {
+            // One full turn of the lay over the height of the tile, so it repeats seamlessly.
+            var twisted = (x + y * (Strands / (float)Size) * Size / Strands) % Size;
+            var within = twisted % strandWidth / strandWidth;
+
+            // Round the strand: dark at its edges, lit along its centre.
+            var round = 1f - MathF.Abs(within - 0.5f) * 2f;
+            var lit = MathF.Pow(round, 0.6f);
+
+            var colour = new Color(
+                (int)(shade.R + (body.R - shade.R) * lit),
+                (int)(shade.G + (body.G - shade.G) * lit),
+                (int)(shade.B + (body.B - shade.B) * lit));
+
+            pixels[y * Size + x] = Jitter(colour, random, 9);
+        }
+
+        return pixels;
+    }
+
     private static Color[] BuildEarth()
     {
         var pixels = new Color[Size * Size];

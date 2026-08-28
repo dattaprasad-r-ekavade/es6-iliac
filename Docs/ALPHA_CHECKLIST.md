@@ -70,31 +70,55 @@ and you still learn nothing.
 
 ## C. Worth fixing before strangers see it
 
-Found by visual inspection on 2026-08-28. None of these stop a run finishing.
+Found by visual inspection on 2026-08-28. **All cleared.**
 
 - [x] ~~**Every box drew its interior.**~~ The cube was wound inside-out, so exteriors were culled
-      and interiors drawn. Slabs hid it; anything with depth did not. Fixed, and it is what the
-      "floating assets" near the shaft were.
+      and interiors drawn. Slabs hid it; anything with depth did not. This is what the "floating
+      assets" near the shaft were.
 
-- [ ] **Spoil heaps are cuboids.** `surface.spoil.a` and `.b` are named heaps and render as two
-      neat brick blocks — now that they are solid, they read as crates. They want either a
-      different material or a stepped silhouette.
+- [x] ~~**Spoil heaps are cuboids.**~~ Now three shrinking, offset courses in the earth material
+      rather than one box in masonry. A heap only has to break its own silhouette to stop
+      reading as a crate.
 
-- [ ] **The windlass rope renders as a plank.** `surface.shaft.rope` is drawn with
-      `WorldMaterials.Timber`, so a rope gets plank grain tiled across it. There is no rope
-      material; the cheapest fix is a material that does not tile.
+- [x] ~~**The windlass rope renders as a plank.**~~ Rope is now its own material — laid fibre with
+      a twist, tiled every 24 cm instead of every 1.1 m. Plank grain stretched down a hand-thick
+      rope is what drew a hanging board.
 
-- [ ] **The top-down view draws no props.** Placing the camera above the wall line renders ground
-      and nothing else. Harmless in play — no player gets up there — but it is a symptom worth
-      understanding rather than a thing to leave unexplained.
+- [x] ~~**The top-down view draws no props.**~~ **Not a rendering fault.** The camera was falling
+      during the capture's warm-up frames, so every elevated shot was taken from the floor.
+      `noclip on` before `goto` holds it, and everything renders from above. Worth knowing for
+      any future capture: **an elevated `--screenshot` needs noclip or it is a picture of the
+      ground.**
 
-- [ ] **Portrait faults, listed rather than fixed.** Hair reads as glossy plastic; Ganaka's grey
-      beard is invisible against grey hair; the side hair on Revati and Visakha reads as
-      headphones; Visakha's skin is washed out. The mural technique is settled, so these are
-      tuning rounds, and `--faces --face <room> --face-scale N` makes each one fast.
+- [x] ~~**Portrait faults.**~~ The lime accent is now gated on light albedo, so black hair and
+      dyed cloth stopped looking lacquered. Beards are drawn a shade darker than hair, which
+      gets Ganaka his jaw back at full grey. The side masses on Revati and Visakha start inside
+      the skull silhouette and fall to the shoulder instead of ending at ear height, which is
+      what made them read as headphones. Visakha's skin darkened.
 
-- [ ] **Gold pacing is a guess.** Roughly 250 a run against a 450 sword, never measured. A tester
-      who finds the economy broken spends their whole session on that and answers nothing else.
+- [x] ~~**Gold pacing is a guess.**~~ Measured, and written into `GoldPacingTests`. See below.
+
+### What the economy actually is
+
+Gold has **one repeatable source**: quests pay a one-off forty, and every other coin comes from
+`Encounter` paying `Random.Shared.Next(5, 18)` on a kill — eleven on average. So the economy is
+not tuned by a gold constant at all. **It is tuned, invisibly, by the spawn table.**
+
+| Run | Gold |
+|---|---|
+| 4 rooms, depth 1 | **66** |
+| 6 rooms, depth 2 | **132** |
+| 10 rooms, depth 3 | **319** |
+| 12 rooms, depth 4 | **429** |
+
+The plan's guess of *"roughly 250 a run"* was high for shallow runs and low for deep ones: a mid
+run pays 132, and 250 is not reached until about depth three. The 450 sword is **3.4 mid runs**
+away, which is a good band — two and it is not a decision, a dozen and the stall is scenery.
+
+**One surprise the measurement turned up:** spawn count has *zero* seed variance. It is a pure
+function of rooms and depth, identical across every seed tested. That is pinned now, because the
+first version of the variance test allowed a 2.6x spread and passed trivially. If seeded variety
+in spawn counts is ever wanted, that test is the one to make fail on purpose first.
 
 ---
 

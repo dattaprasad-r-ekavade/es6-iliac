@@ -257,6 +257,16 @@ public static class WorldMaterials
     public const string Cloth = "cloth";
     public const string Earth = "earth";
 
+    /// <summary>
+    /// Laid fibre, for the windlass rope.
+    ///
+    /// It needs its own material rather than borrowing Timber, because the two differ in the
+    /// one way that matters: plank grain runs along a board and tiles at half a stone, and
+    /// tiling that across a hand-thick rope draws sawn boards on it. A rope is fine strands
+    /// with a twist, repeating every few centimetres.
+    /// </summary>
+    public const string Rope = "rope";
+
 
     // There is deliberately no "unlit" here yet.
     //

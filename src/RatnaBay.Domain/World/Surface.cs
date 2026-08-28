@@ -181,7 +181,7 @@ public static class Surface
 
         // Rope and bucket, hanging where the drum would let them down.
         Decor(manifest, "surface.shaft.rope", -0.12f, 1.6f, -9.06f, 0.12f, 3.5f, -8.94f, rope,
-            WorldMaterials.Timber);
+            WorldMaterials.Rope);
         Decor(manifest, "surface.shaft.bucket", -0.55f, 1.0f, -9.5f, 0.55f, 1.7f, -8.5f, timber,
             WorldMaterials.Timber);
     }
@@ -251,10 +251,16 @@ public static class Surface
         var iron = new WorldColor(74, 70, 68);
 
         // Spoil heaps beside the shaft, because something came out of it.
-        Box(manifest, "surface.spoil.a", 4.6f, FloorTop, -12.4f, 8.2f, 1.3f, -9.2f,
-            new WorldColor(88, 78, 62));
-        Box(manifest, "surface.spoil.b", -8.4f, FloorTop, -12.6f, -5.2f, 1f, -9.8f,
-            new WorldColor(84, 74, 60));
+        //
+        // Three stacked, shrinking, offset courses rather than one box. As a single cuboid in
+        // the default masonry these read as two brick crates parked by the mine -- which was
+        // invisible while boxes drew their own interiors, and obvious the moment they stopped.
+        // Earth rather than stone, because spoil is what the mountain was, not what it was
+        // built into.
+        Heap(manifest, "surface.spoil.a", 6.4f, -10.8f, 1.8f, 1.6f, 1.35f,
+            new WorldColor(92, 80, 62));
+        Heap(manifest, "surface.spoil.b", -6.8f, -11.2f, 1.6f, 1.4f, 1.1f,
+            new WorldColor(86, 76, 58));
 
         // Crates stacked by the stall.
         Box(manifest, "surface.crate.a", -13.4f, FloorTop, 5f, -11.9f, 1.5f, 6.5f, crate, WorldMaterials.Timber);
@@ -305,6 +311,34 @@ public static class Surface
             Intensity = 1f,
             Range = range
         });
+    }
+
+    /// <summary>
+    /// A loose pile: courses that shrink and shuffle as they go up.
+    ///
+    /// Three boxes rather than a mesh, because the whole world is boxes and a heap only has to
+    /// break its own silhouette to stop reading as a crate. The offsets are fixed rather than
+    /// random so the yard is the same yard in every screenshot.
+    /// </summary>
+    private static void Heap(WorldManifest manifest, string id,
+        float centreX, float centreZ, float halfX, float halfZ, float height, WorldColor colour)
+    {
+        // Small enough that each course still sits on the one below. The first pass shifted by
+        // a third of the extent and the courses walked apart into three separate slabs.
+        var shift = new[] { 0f, 0.12f, -0.14f };
+
+        for (var course = 0; course < 3; course++)
+        {
+            var shrink = 1f - course * 0.34f;
+            var top = FloorTop + height * (course + 1) / 3f;
+            var x = centreX + shift[course] * halfX;
+            var z = centreZ + shift[2 - course] * halfZ;
+
+            Box(manifest, $"{id}.{course}",
+                x - halfX * shrink, FloorTop, z - halfZ * shrink,
+                x + halfX * shrink, top, z + halfZ * shrink,
+                colour, WorldMaterials.Earth);
+        }
     }
 
     private static void Box(WorldManifest manifest, string id,

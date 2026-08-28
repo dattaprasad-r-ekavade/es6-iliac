@@ -113,6 +113,11 @@ public static class PortraitForge
             ? face.Palette.Hair
             : Toward(face.Palette.Hair, new Color(186, 182, 174), (face.Age - 0.55f) / 0.45f * 0.85f);
 
+        // A beard is never the same tone as the hair above it, and on an old face that is not a
+        // nicety: Ganaka went fully grey at both ends and his beard disappeared into his head.
+        // Keeping it a shade darker gives the jaw an edge at any age.
+        var beardColour = Darken(hairColour, 0.22f);
+
         var headRx = Mix(80f, 94f, face.Width);
         var jawRx = headRx * Mix(0.74f, 0.86f, face.Width);
         var shoulder = Mix(118f, 168f, face.Build);
@@ -277,7 +282,7 @@ public static class PortraitForge
 
         // --- hair, beard, headwear, ornament ---------------------------------------
         Hair(field, face, hairColour, headRx);
-        Facial(field, face, hairColour, skin, jawRx, MouthY, lipHalf);
+        Facial(field, face, beardColour, skin, jawRx, MouthY, lipHalf);
         Cover(field, face, headRx);
         Trinket(field, face, headRx);
 
@@ -412,14 +417,20 @@ public static class PortraitForge
 
             case HairStyle.Long:
                 // Clumps rather than one mass, so it reads as hair and not as a hood.
+                // Narrower, and carried well past the jaw onto the shoulder. Stopping at ear
+                // height with a round end is what made these read as headphones rather than as
+                // hair: hair falls, and the eye needs to see where it lands.
                 for (var i = 0; i < 4; i++)
                 {
                     var t = i / 3f;
-                    var x = headRx + 4f + t * 12f;
-                    field.Tube(Cx - x, 120f + t * 18f, Cx - x - 8f, 300f - t * 30f,
-                        20f - t * 4f, 15f - t * 3f, 26f, -14f, colour, blend: 12f, gloss: 0.15f);
-                    field.Tube(Cx + x, 120f + t * 18f, Cx + x + 8f, 300f - t * 30f,
-                        20f - t * 4f, 15f - t * 3f, 26f, -14f, colour, blend: 12f, gloss: 0.15f);
+                    // Started level with the widest part of the skull and *inside* its
+                    // silhouette. Hung outside it, the masses cleared the head by twenty pixels
+                    // and read as a pair of cans clamped over the ears.
+                    var x = headRx - 5f + t * 8f;
+                    field.Tube(Cx - x, 146f + t * 10f, Cx - x - 10f, 372f - t * 26f,
+                        17f - t * 3f, 12f - t * 2f, 24f, -16f, colour, blend: 14f, gloss: 0.15f);
+                    field.Tube(Cx + x, 146f + t * 10f, Cx + x + 10f, 372f - t * 26f,
+                        17f - t * 3f, 12f - t * 2f, 24f, -16f, colour, blend: 14f, gloss: 0.15f);
                 }
 
                 break;
@@ -435,11 +446,12 @@ public static class PortraitForge
                 break;
 
             case HairStyle.Cloth:
-                field.Tube(Cx - headRx - 10f, 120f, Cx - headRx - 16f, 250f, 22f, 26f, 30f, -20f,
-                    face.Palette.Trim, blend: 18f);
-                field.Tube(Cx + headRx + 10f, 120f, Cx + headRx + 16f, 250f, 22f, 26f, 30f, -20f,
-                    face.Palette.Trim, blend: 18f);
-                field.Ellipsoid(Cx, 250f, headRx + 30f, 34f, 26f, -30f, face.Palette.Trim,
+                // Same fix as Long: the drape has to reach the shoulder or it is a pair of cans.
+                field.Tube(Cx - headRx + 3f, 142f, Cx - headRx - 12f, 348f, 20f, 25f, 28f, -22f,
+                    face.Palette.Trim, blend: 20f);
+                field.Tube(Cx + headRx - 3f, 142f, Cx + headRx + 12f, 348f, 20f, 25f, 28f, -22f,
+                    face.Palette.Trim, blend: 20f);
+                field.Ellipsoid(Cx, 344f, headRx + 34f, 40f, 26f, -34f, face.Palette.Trim,
                     blend: 20f);
                 break;
         }
