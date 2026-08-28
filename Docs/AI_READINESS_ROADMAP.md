@@ -3,12 +3,11 @@
 This document describes how ready the Ratna Bay repository is for ongoing work with AI coding
 tools, and the next changes that will make that work safer and more predictable.
 
-Assessment date: 2026-08-28 (updated after FirstPersonView, WorldPresenter, and the engine
-reuse map in `Docs/ENGINE.md`)
+Assessment date: 2026-08-28 (updated after FigurePresenter and SpikeScenes)
 
 ## Current assessment
 
-The repository is approximately **91% complete** for AI-friendly architecture.
+The repository is approximately **92% complete** for AI-friendly architecture.
 
 | Area | Done | Pending |
 | --- | ---: | ---: |
@@ -17,10 +16,10 @@ The repository is approximately **91% complete** for AI-friendly architecture.
 | Runtime verification of a client change | 85% | UI panels and saves unreachable from a script |
 | Contributor guidance | 100% | Keep it current as boundaries move |
 | Input boundary | 100% | Minor future refinements |
-| HUD and rendering boundaries | 99% | Billboard pass; spike scenes |
+| HUD and rendering boundaries | 100% | Capture host is coordinator, not a renderer |
 | Styling consistency | 100% | Add to `UiTheme` rather than to a call site |
 | Client-layer testability | 45% | Layout and theme are shared; still no headless Game tests |
-| `Game1` decomposition | 78% | Billboard pass, spike scenes, capture host, screen handlers, then `EngineHost` |
+| `Game1` decomposition | 84% | Capture host, screen handlers, then `EngineHost` |
 
 Current repository hygiene: **9/10**
 Current AI-readiness: **9/10**
@@ -54,6 +53,9 @@ unrelated work still concentrated in `Game1`; they are not product-quality ratin
   and speeds are constructor/property values, not Ratna Bay types.
 - `World/WorldPresenter` walks a Ratna Bay manifest onto `SceneRenderer` / `ModelCache`. A
   second game writes a different presenter against the same primitives.
+- `World/FigurePresenter` draws speakers, watchers, enemies and bolts through
+  `BillboardRenderer`. Texture choice stays this game.
+- `World/SpikeScenes` owns the moodboard, stambha trailer shot and generated-asset case.
 - [`Docs/ENGINE.md`](ENGINE.md) is the reuse map: three layers, the engine table, how a
   second game starts, and the gate for cutting a `RatnaBay.Engine` project.
 
@@ -79,32 +81,26 @@ Each of these is a Game1 cut that has to be provably separable. Do not take two 
 Do not add `RatnaBay.Engine.csproj` until every type in the `Docs/ENGINE.md` table compiles
 without `using RatnaBay.Domain`. `StoneTextures.FromTheme(CaveTheme)` is the remaining leak.
 
-### 1. Lift the billboard pass and the spike scenes
-
-Actors, enemies and bolts already draw through `BillboardRenderer`; Game1 still sorts and
-picks textures. The moodboard, stambha and asset-case scenes are `SceneRenderer` with
-different lights and can move once nothing in them reaches through to a session.
-
-### 2. Capture / screenshot host, then screen input handlers
+### 1. Capture / screenshot host, then screen input handlers
 
 `--screenshot`, `--cover` and warmup are an engine concern still tangled with Game1 fields.
 Menu, pause and inventory handlers already read `InputRouter` snapshots — move one screen at
 a time. Do not take `UpdateGameScreen` in one pass.
 
-### 3. `EngineHost : Game`
+### 2. `EngineHost : Game`
 
 Devices, timestep, fonts, the canvas attach. `Game1` then only contains Ratna Bay. That is
 the last cut, and the one that makes a second executable cheap. A second game subclasses
 `EngineHost` (or `Microsoft.Xna.Framework.Game`), not `Game1`.
 
-### 4. Add client-layer tests
+### 3. Add client-layer tests
 
 `UiLayout` and `UiTheme` are the seam: both are pure data, but they live in the WindowsDX
 project so `RatnaBay.Domain.Tests` cannot see them. A net9.0 layout/theme assembly would let a
 test assert that a clickable row is the row on screen, and that every colour a renderer asks
 for exists, without a graphics device.
 
-### 5. Widen what a script can assert
+### 4. Widen what a script can assert
 
 `IConsoleTarget` cannot reach the shop or dialogue panels, equipping, save/load round trips, or
 story flags. Each addition should be deliberate — the value of the interface is that it is

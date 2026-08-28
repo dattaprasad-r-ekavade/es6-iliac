@@ -37,11 +37,13 @@ one Ratna Bay leak — a second game constructs `StonePalette` itself.
 ## What stays this game
 
 - `Game1` — lifecycle, screen dispatch, the console, capture flags.
-- `WorldPresenter` — walks a Ratna Bay manifest onto `SceneRenderer` / `ModelCache`. A
+- `World/WorldPresenter` — walks a Ratna Bay manifest onto `SceneRenderer` / `ModelCache`. A
   different game writes a different presenter.
+- `World/FigurePresenter` — speakers, watchers, enemies, bolts onto `BillboardRenderer`.
+- `World/SpikeScenes` — moodboard, stambha, asset case. Lighting studies, not engine.
 - Every renderer under `Ui/` except the canvas itself. `UiLayout` and `UiTheme` are this
   game's panels and palette.
-- `WorldRuntime`, `Encounter`, `GameSession`, spike scenes (moodboard, stambha, asset case).
+- `WorldRuntime`, `Encounter`, `GameSession`.
 
 ## How a second game would start
 
@@ -61,15 +63,11 @@ does not; move it (or stop calling it from the texture type) before cutting the 
 
 In this order, because each cut has to be provably separable:
 
-1. **Billboard pass** — actors, enemies, bolts already draw through `BillboardRenderer`; Game1
-   still sorts and picks textures.
-2. **Spike scenes** — moodboard, stambha, asset case. They are SceneRenderer with different
-   lights. They can move once nothing in them reaches through to a session.
-3. **Capture / screenshot host** — `--screenshot`, `--cover`, warmup. Engine concern, still
+1. **Capture / screenshot host** — `--screenshot`, `--cover`, warmup. Engine concern, still
    tangled with Game1 fields.
-4. **Screen input handlers** — menu, pause, inventory. They already read `InputRouter`
+2. **Screen input handlers** — menu, pause, inventory. They already read `InputRouter`
    snapshots. Move one screen at a time; do not take `UpdateGameScreen` in one pass.
-5. **`EngineHost : Game`** — devices, timestep, fonts, the canvas attach. `Game1` then only
+3. **`EngineHost : Game`** — devices, timestep, fonts, the canvas attach. `Game1` then only
    contains Ratna Bay. That is the last cut, and it is the one that makes a second executable
    cheap.
 
