@@ -1,6 +1,6 @@
 # Ratna Bay AI contributor guide
 
-Ratna Bay is a first-person roguelike. Game rules live in engine-free C#; MonoGame only
+Ratna Bay is a first-person roguelite. Game rules live in engine-free C#; MonoGame only
 renders, samples input, and loads content. Read this file before changing code.
 
 ## Project map

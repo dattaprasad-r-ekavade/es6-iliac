@@ -21,6 +21,13 @@ The build is ready. The *release* is not, and the gap is hours rather than weeks
       one in this repository, and their feedback would be about a version that no longer exists.
       One command: `.\release.ps1`. The gate runs first and refuses to upload if anything fails.
 
+- [ ] **Time one real run.** The page said *"around twenty minutes"* against five to eight in
+      every design doc, and it now says five to ten. Neither figure is measured on the current
+      build: the eight-minute number came from nine recorded sessions that predate stones,
+      amulets, cave themes and twelve-room mines, and there is no timing data on disk newer than
+      that. One played run with a clock settles it, and a tester promised twenty minutes who
+      gets six will report that as a pacing fault.
+
 - [x] ~~**Replace the placeholder email.**~~ Now `feedback@datathecodie.com`, with the Google
       Form as the primary channel above it. **The page copy still has to be pasted into the itch
       editor by hand** — butler uploads the build, not the description.

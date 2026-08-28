@@ -101,7 +101,7 @@ logical-canvas scale. License and attribution files live beside the font assets.
 
 ## Direction
 
-Ratna Bay is a first-person roguelike. A mining town digs up jiva stones that raise the dead;
+Ratna Bay is a first-person roguelite. A mining town digs up jiva stones that raise the dead;
 you are hired to go down and clear them. Runs are five to eight minutes, mines are generated,
 and the town opens one room at a time.
 

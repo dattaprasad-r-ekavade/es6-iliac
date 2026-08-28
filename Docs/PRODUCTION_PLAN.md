@@ -14,7 +14,7 @@ failure most likely to end it.
 
 | Decision | Ruling |
 |---|---|
-| **Genre** | Roguelike. Runs of five to eight minutes, generated mines, a fort that opens a room at a time. |
+| **Genre** | **Roguelite** — rank, amulets, gear and half the pack survive a death, which is the definition. Runs of five to eight minutes, generated mines, a fort that opens a room at a time. |
 | **Engine** | MonoGame + custom tooling. The Unity archive is a source of ported logic, not a fallback. |
 | **Game rules live in `RatnaBay.Domain`** | Engine-free C#, tested headlessly. No MonoGame reference, ever. |
 | **Characters and weapons are sprites drawn in code** | A palette and some proportions, not modelled assets. Sidesteps skinned animation entirely. |
