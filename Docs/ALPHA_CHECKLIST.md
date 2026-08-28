@@ -21,10 +21,9 @@ The build is ready. The *release* is not, and the gap is hours rather than weeks
       one in this repository, and their feedback would be about a version that no longer exists.
       One command: `.\release.ps1`. The gate runs first and refuses to upload if anything fails.
 
-- [ ] **Replace the placeholder email.** `Docs/itch-description.html` line 19 currently reads
-      `mailto:you@example.com`. A tester who wants to answer the one question the page asks has
-      nowhere to send it. This is the single cheapest blocking item and the most embarrassing to
-      ship.
+- [x] ~~**Replace the placeholder email.**~~ Now `feedback@datathecodie.com`, with the Google
+      Form as the primary channel above it. **The page copy still has to be pasted into the itch
+      editor by hand** — butler uploads the build, not the description.
 
 - [ ] **Generate and upload a cover and screenshots.** `build\RatnaBay.exe --cover` and
       `--screenshot` produce them; attaching them to the page is a manual step in the itch
