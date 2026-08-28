@@ -14,8 +14,10 @@ namespace RatnaBay.Client;
 /// MonoGame lifecycle coordinator: devices, the frame, and draw order.
 ///
 /// Screens, HUD and overlay layout live in <c>Ui/</c>. Input sampling lives in
-/// <c>Input/InputRouter</c>. Game rules live in <c>RatnaBay.Domain</c>. New work belongs in
-/// one of those, not in this class, unless it is genuinely a lifecycle concern.
+/// <c>Input/InputRouter</c>. Look and walk live in <c>Engine/FirstPersonView</c>. Game rules
+/// live in <c>RatnaBay.Domain</c>. New work belongs in one of those, not in this class, unless
+/// it is genuinely a lifecycle concern. A second game should not subclass this type — see
+/// <c>Docs/ENGINE.md</c>.
 /// </summary>
 public sealed class Game1 : Game, IConsoleTarget
 {
@@ -62,6 +64,21 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private readonly InputRouter _input = new();
 
+    /// <summary>
+    /// Look, walk, jump and crouch. Collision is a callback so this type does not know about
+    /// mines. Ratna Bay's spawn and speeds are set on it; a different game would construct
+    /// its own.
+    /// </summary>
+    private readonly FirstPersonView _camera = new()
+    {
+        Position = new Vector3(0f, 2.4f, 8.5f),
+        Pitch = -0.12f,
+        StandingEyeY = 2.4f
+    };
+
+    /// <summary>Walks a Ratna Bay manifest onto the engine primitives.</summary>
+    private readonly WorldPresenter _worldView = new();
+
     /// <summary>True while the pointer is captured for looking. Tab releases it.</summary>
     private bool _mouseLook;
 
@@ -73,37 +90,10 @@ public sealed class Game1 : Game, IConsoleTarget
     private bool _showHelp;
     private bool _ignoreMouseDeltaThisFrame;
 
-    /// <summary>Radians of rotation per pixel of mouse travel.</summary>
-    private const float MouseSensitivity = 0.0032f;
-
-    /// <summary>Radians per second while an arrow key is held.</summary>
-    private const float KeyboardTurnSpeed = 2.2f;
-
-    /// <summary>How far up or down the view can tip, short of straight up.</summary>
-    private const float PitchLimit = 1.4f;
-
-    /// <summary>Metres per second. Walking was 3.5, which read as wading.</summary>
-    private const float WalkSpeed = 6f;
-
-    private const float SprintSpeed = 11f;
-    private const float PlayerCollisionRadius = 0.38f;
-    private const float Gravity = 24f;
-    private const float JumpSpeed = 8f;
-    private const float CrouchDrop = 0.9f;
-    private const float CrouchLerpSpeed = 12f;
     private GameScreen _screen = GameScreen.MainMenu;
     private int _menuSelection;
     private string _menuStatus = string.Empty;
-    private Vector3 _cameraPosition = new(0f, 2.4f, 8.5f);
-    private float _cameraYaw;
-    private float _cameraPitch = -0.12f;
-    private Matrix _view;
-    private Matrix _projection;
     private bool _borderlessFullscreen = true;
-    private float _standingEyeY = 2.4f;
-    private float _verticalOffset;
-    private float _verticalVelocity;
-    private bool _grounded = true;
 
     /// <summary>
     /// Metres walked since the last footstep.
@@ -114,7 +104,6 @@ public sealed class Game1 : Game, IConsoleTarget
     /// far the body actually moved, which is not the same as how far it tried to.
     /// </summary>
     private float _stride;
-    private bool _crouching;
     private bool _crouchToggled;
     private bool _forceCrouch;
 
@@ -182,7 +171,6 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>A picture asked for by 'shot', taken at the end of the next frame.</summary>
     private string? _pendingCapture;
 
-    private bool _noClip;
     private bool _invulnerable;
     private bool _hideInterface;
 
@@ -589,7 +577,7 @@ public sealed class Game1 : Game, IConsoleTarget
             Window.IsBorderless = false;
         }
 
-        _ui = new UiCanvas();
+        _ui = new UiCanvas(LogicalWidth, LogicalHeight);
         _screens = new UiScreens(_ui, GraphicsDevice);
     }
 
@@ -634,11 +622,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     protected override void Initialize()
     {
-        _projection = Matrix.CreatePerspectiveFieldOfView(
-            MathHelper.ToRadians(65f),
-            GraphicsDevice.Viewport.AspectRatio,
-            0.05f,
-            200f);
+        _camera.SetProjection(GraphicsDevice.Viewport.AspectRatio);
 
         _scene = new SceneRenderer(GraphicsDevice);
 
@@ -689,8 +673,8 @@ public sealed class Game1 : Game, IConsoleTarget
             ApplyCave();
         }
 
-        if (_startYaw is { } forcedYaw) _cameraYaw = forcedYaw;
-        if (_startPitch is { } forcedPitch) _cameraPitch = forcedPitch;
+        if (_startYaw is { } forcedYaw) _camera.Yaw = forcedYaw;
+        if (_startPitch is { } forcedPitch) _camera.Pitch = forcedPitch;
 
         base.Initialize();
     }
@@ -1219,8 +1203,8 @@ public sealed class Game1 : Game, IConsoleTarget
         // The one point per frame where the camera is settled and nothing has drawn yet. The
         // scene renderer takes its whole per-frame context here rather than as six arguments
         // on each of forty draw calls, which is how one of them ends up passing a stale view.
-        _scene.Begin(_primitiveEffect, _view, _projection, _cameraPosition, _cameraYaw,
-            _stone, _lights);
+        _scene.Begin(_primitiveEffect, _camera.View, _camera.Projection, _camera.Position,
+            _camera.Yaw, _stone, _lights);
 
         // The question owns the screen until it is answered.
         if (_askingConsent)
@@ -1732,10 +1716,10 @@ public sealed class Game1 : Game, IConsoleTarget
         ApplyCave();
 
         // Where they were standing, not the mine's entrance.
-        _cameraPosition = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
-        _cameraYaw = _session.Yaw;
-        _cameraPitch = _session.Pitch;
-        _standingEyeY = _session.Position.Y;
+        _camera.Position = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
+        _camera.Yaw = _session.Yaw;
+        _camera.Pitch = _session.Pitch;
+        _camera.StandingEyeY = _session.Position.Y;
 
         _run?.Resume(descent);
         _resumingDescent = false;
@@ -2093,8 +2077,8 @@ public sealed class Game1 : Game, IConsoleTarget
 
         var message = _session.Suspend(
             run.Capture(seed, _mineRooms, _mineDepth),
-            new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z),
-            _cameraYaw, _cameraPitch);
+            new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z),
+            _camera.Yaw, _camera.Pitch);
 
         _suspendedDescentOnDisk = _session.HasSuspendedDescent;
         _session.ShowToast(message);
@@ -2415,12 +2399,12 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_session is null) return;
 
         // The camera is the player for now; a controller replaces this in iteration 7.
-        _session.Position = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
-        _session.Yaw = _cameraYaw;
-        _session.Pitch = _cameraPitch;
+        _session.Position = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
+        _session.Yaw = _camera.Yaw;
+        _session.Pitch = _camera.Pitch;
 
         var step = StepSeconds(gameTime);
-        _session.Player.Detection.SetCrouching(_crouching);
+        _session.Player.Detection.SetCrouching(_camera.Crouching);
         _watchers?.Update(step, _session.Position);
         _session.Tick(step);
 
@@ -2458,13 +2442,13 @@ public sealed class Game1 : Game, IConsoleTarget
 
         if (Pressed(keyboard, Keys.P))
         {
-            var actor = _dialogue?.FindActor(_session.Position, _cameraYaw);
+            var actor = _dialogue?.FindActor(_session.Position, _camera.Yaw);
             if (actor is not null) TryPickpocket(actor);
         }
 
         if (Pressed(keyboard, Keys.B))
         {
-            var actor = _dialogue?.FindActor(_session.Position, _cameraYaw);
+            var actor = _dialogue?.FindActor(_session.Position, _camera.Yaw);
             if (actor is not null && actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
                 && _shop is not null)
             {
@@ -2476,8 +2460,8 @@ public sealed class Game1 : Game, IConsoleTarget
 
         if (Pressed(keyboard, Keys.E))
         {
-            var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
-            var actor = _dialogue?.FindActor(player, _cameraYaw);
+            var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
+            var actor = _dialogue?.FindActor(player, _camera.Yaw);
             if (actor is not null)
             {
                 OpenDialogue(actor);
@@ -2485,7 +2469,7 @@ public sealed class Game1 : Game, IConsoleTarget
             else if (_world is not null)
             {
                 var fixture = OnTheSurface ? Surface.FixtureAt(player) : SurfaceFixture.None;
-                var pickup = FindPickup(player, _cameraYaw);
+                var pickup = FindPickup(player, _camera.Yaw);
 
                 if (fixture != SurfaceFixture.None)
                 {
@@ -2495,7 +2479,7 @@ public sealed class Game1 : Game, IConsoleTarget
                 {
                     TakePickup(pickup);
                 }
-                else if (_run is { BarsTheWay: true } && _world.FindDoor(player, _cameraYaw) is not null)
+                else if (_run is { BarsTheWay: true } && _world.FindDoor(player, _camera.Yaw) is not null)
                 {
                     _session.ShowToast("Not while something in here is still moving.");
                 }
@@ -2521,8 +2505,8 @@ public sealed class Game1 : Game, IConsoleTarget
         _coach.Tick(step);
         TickVitalPulses(step);
         SampleStance(step);
-        _encounter.Update(step, _cameraPosition, _cameraYaw);
-        if (_world is not null) _run?.Update(_world, _cameraPosition, _encounter);
+        _encounter.Update(step, _camera.Position, _camera.Yaw);
+        if (_world is not null) _run?.Update(_world, _camera.Position, _encounter);
         _weaponView.Update(step, IsMoving(keyboard), _session.Player.Combat.IsBlocking);
 
         // Only while the pointer is captured, so a click that is reclaiming the mouse does
@@ -2555,8 +2539,8 @@ public sealed class Game1 : Game, IConsoleTarget
             var actor = releaseBuffered
                 ? null
                 : _dialogue?.FindActor(
-                    new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z),
-                    _cameraYaw);
+                    new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z),
+                    _camera.Yaw);
 
             if (actor is not null)
             {
@@ -2614,7 +2598,7 @@ public sealed class Game1 : Game, IConsoleTarget
         }
         if (Pressed(keyboard, Keys.Q))
         {
-            var cast = _encounter.PlayerCast(_cameraPosition, _cameraYaw, Forward);
+            var cast = _encounter.PlayerCast(_camera.Position, _camera.Yaw, _camera.Forward);
             if (cast.WasCast)
             {
                 _weaponView.Cast();
@@ -2662,8 +2646,8 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_session is null || !Clicked(mouse)) return false;
 
         var pointer = LogicalMouse(mouse);
-        var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
-        var actor = _dialogue?.FindActor(player, _cameraYaw);
+        var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
+        var actor = _dialogue?.FindActor(player, _camera.Yaw);
         if (actor is not null)
         {
             if (UiLayout.TalkPrompt.Contains((int)pointer.X, (int)pointer.Y))
@@ -2694,7 +2678,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
         if (!UiLayout.SinglePrompt.Contains((int)pointer.X, (int)pointer.Y)) return false;
 
-        var pickup = FindPickup(player, _cameraYaw);
+        var pickup = FindPickup(player, _camera.Yaw);
         if (pickup is not null)
         {
             TakePickup(pickup);
@@ -2717,7 +2701,7 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_world is null || _session is null) return false;
 
-        var result = _world.TryOpenDoor(player, _cameraYaw, _session.Player, out var door);
+        var result = _world.TryOpenDoor(player, _camera.Yaw, _session.Player, out var door);
         if (door is null) return false;
 
         if (door.Lock.IsOpen)
@@ -3014,7 +2998,7 @@ public sealed class Game1 : Game, IConsoleTarget
             && (Pressed(keyboard, Keys.LeftControl) || Pressed(keyboard, Keys.RightControl)))
             _crouchToggled = !_crouchToggled;
 
-        _crouching = _forceCrouch || _crouchToggled;
+        _camera.Crouching = _forceCrouch || _crouchToggled;
     }
 
     /// <summary>
@@ -3127,7 +3111,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_stanceCountdown > 0f) return;
         _stanceCountdown = StanceSampleSeconds;
 
-        var (where, inDoorway) = run.Stance(_world, _cameraPosition);
+        var (where, inDoorway) = run.Stance(_world, _camera.Position);
         _recorder.Record(PlayEventKind.Stance, where,
             _encounter.NearestEnemyRange(), inDoorway ? 1f : 0f,
             _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
@@ -3177,7 +3161,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// eye through the world clips it into geometry, and turning it does not. Two frequencies
     /// that do not divide into each other, so a long shake never repeats visibly.
     ///
-    /// Returned rather than applied. Adding it to <c>_cameraYaw</c> would be simpler and would
+    /// Returned rather than applied. Adding it to <c>_camera.Yaw</c> would be simpler and would
     /// be a bug: those fields persist, so every shake would leave the player aiming somewhere
     /// slightly different from where they were, and a long fight would walk the view away by
     /// degrees with nobody able to say why.
@@ -3426,8 +3410,8 @@ public sealed class Game1 : Game, IConsoleTarget
             return false;
         }
 
-        _cameraPosition = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
-        _cameraYaw = _session.Yaw;
+        _camera.Position = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
+        _camera.Yaw = _session.Yaw;
         _world?.RestoreOpenedDoors(_session.Player.Story.State.OpenedLocks);
         LoadPockets();
         LoadPickups();
@@ -3467,6 +3451,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
         _graphics.ApplyChanges();
         _ui.Resize(GraphicsDevice.Viewport, _uiScalePreference);
+        _camera.SetProjection(GraphicsDevice.Viewport.AspectRatio);
     }
 
     /// <summary>Roughly a pace. Shorter crouching, longer at a sprint.</summary>
@@ -3481,12 +3466,12 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private void Stride(float metres, KeyboardState keyboard)
     {
-        if (_screen != GameScreen.WorldScene || !_grounded) return;
+        if (_screen != GameScreen.WorldScene || !_camera.Grounded) return;
 
         _stride += metres;
 
         var sprinting = keyboard.IsKeyDown(Keys.LeftShift);
-        var length = StrideMetres * (_crouching ? 0.72f : sprinting ? 1.25f : 1f);
+        var length = StrideMetres * (_camera.Crouching ? 0.72f : sprinting ? 1.25f : 1f);
         if (_stride < length) return;
 
         _stride = 0f;
@@ -3494,129 +3479,49 @@ public sealed class Game1 : Game, IConsoleTarget
         // Quiet, and quieter still when crouching: the sneak is a promise the audio has to
         // keep, or the stealth read is a lie the moment anybody has headphones on.
         _sfx?.Play(Sfx.Step, sprinting ? 0.55f : 0.3f,
-            volumeScale: _crouching ? 0.28f : 0.5f);
+            volumeScale: _camera.Crouching ? 0.28f : 0.5f);
     }
 
     private void UpdateCamera(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
-        var seconds = StepSeconds(gameTime);
-        var speed = keyboard.IsKeyDown(Keys.LeftShift) ? SprintSpeed : WalkSpeed;
-        var yawInput = 0f;
-        var pitchInput = 0f;
-
-        if (keyboard.IsKeyDown(Keys.Left)) yawInput -= 1f;
-        if (keyboard.IsKeyDown(Keys.Right)) yawInput += 1f;
-        if (keyboard.IsKeyDown(Keys.Up)) pitchInput += 1f;
-        if (keyboard.IsKeyDown(Keys.Down)) pitchInput -= 1f;
-
-        _cameraYaw += yawInput * seconds * KeyboardTurnSpeed;
-        _cameraPitch = MathHelper.Clamp(
-            _cameraPitch + pitchInput * seconds * KeyboardTurnSpeed, -PitchLimit, PitchLimit);
-
-        // Mouse look is framerate-independent by construction: it is pixels moved, not a
-        // rate held over time, so it must not be multiplied by the frame duration.
-        var lookDelta = ReadMouseDelta(mouse);
-        if (lookDelta != Vector2.Zero)
-        {
-            _cameraYaw += lookDelta.X * MouseSensitivity;
-            _cameraPitch = MathHelper.Clamp(
-                _cameraPitch - lookDelta.Y * MouseSensitivity, -PitchLimit, PitchLimit);
-        }
-
-        var forward = Forward;
-        var flatForward = new Vector3(forward.X, 0f, forward.Z);
-        if (flatForward.LengthSquared() > 0.001f)
-            flatForward.Normalize();
-
-        var right = Vector3.Cross(flatForward, Vector3.Up);
-        var movement = Vector3.Zero;
-        if (keyboard.IsKeyDown(Keys.W)) movement += flatForward;
-        if (keyboard.IsKeyDown(Keys.S)) movement -= flatForward;
-        if (keyboard.IsKeyDown(Keys.A)) movement -= right;
-        if (keyboard.IsKeyDown(Keys.D)) movement += right;
-
-        // Space is a jump, not a vertical free-flight throttle. Keeping a small explicit
-        // vertical state also makes a held key produce one jump instead of levitation.
-        if (Pressed(keyboard, Keys.Space) && _grounded)
-        {
-            _verticalVelocity = JumpSpeed;
-            _grounded = false;
-        }
-
-        _verticalVelocity -= Gravity * seconds;
-        _verticalOffset = MathF.Max(0f, _verticalOffset + _verticalVelocity * seconds);
-        if (_verticalOffset <= 0.0001f)
-        {
-            // Only on the frame the ground is reached, not every frame spent standing on it.
-            if (!_grounded && _screen == GameScreen.WorldScene)
-                _sfx?.Play(Sfx.Land, 0.5f, volumeScale: 0.8f);
-
-            _verticalOffset = 0f;
-            _verticalVelocity = 0f;
-            _grounded = true;
-        }
-
-        var targetEyeY = _standingEyeY - (_crouching ? CrouchDrop : 0f);
-        var currentEyeY = _cameraPosition.Y - _verticalOffset;
-        var crouchBlend = 1f - MathF.Exp(-CrouchLerpSpeed * seconds);
-        var nextEyeY = MathHelper.Lerp(currentEyeY, targetEyeY, crouchBlend);
-
-        if (movement.LengthSquared() > 0.001f)
-        {
-            movement.Normalize();
-            var delta = movement * speed * seconds;
-            if (_screen == GameScreen.WorldScene && _world is not null && !_noClip)
+        var world = _world;
+        ResolveWalk? collide = _screen == GameScreen.WorldScene && world is not null
+            ? (origin, delta, radius) =>
             {
-                var current = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
-                var resolved = _world.Move(current,
-                    new WorldPoint(delta.X, 0f, delta.Z), PlayerCollisionRadius);
+                var current = new WorldPoint(origin.X, origin.Y, origin.Z);
+                var resolved = world.Move(current,
+                    new WorldPoint(delta.X, 0f, delta.Z), radius);
+                return new Vector3(resolved.X, origin.Y, resolved.Z);
+            }
+            : null;
 
-                var moved = new Vector2(resolved.X - current.X, resolved.Z - current.Z).Length();
-                _cameraPosition = new Vector3(resolved.X, nextEyeY + _verticalOffset, resolved.Z);
-                Stride(moved, keyboard);
-            }
-            else
-            {
-                _cameraPosition = new Vector3(_cameraPosition.X + delta.X,
-                    nextEyeY + _verticalOffset, _cameraPosition.Z + delta.Z);
-                Stride(new Vector2(delta.X, delta.Z).Length(), keyboard);
-            }
-        }
-        else
-        {
-            _cameraPosition.Y = nextEyeY + _verticalOffset;
-        }
+        var moved = _camera.Step(
+            StepSeconds(gameTime),
+            new WalkInput(
+                Forward: keyboard.IsKeyDown(Keys.W),
+                Back: keyboard.IsKeyDown(Keys.S),
+                Left: keyboard.IsKeyDown(Keys.A),
+                Right: keyboard.IsKeyDown(Keys.D),
+                Sprint: keyboard.IsKeyDown(Keys.LeftShift),
+                Jump: Pressed(keyboard, Keys.Space),
+                HeldYaw: (keyboard.IsKeyDown(Keys.Right) ? 1f : 0f)
+                    - (keyboard.IsKeyDown(Keys.Left) ? 1f : 0f),
+                HeldPitch: (keyboard.IsKeyDown(Keys.Up) ? 1f : 0f)
+                    - (keyboard.IsKeyDown(Keys.Down) ? 1f : 0f)),
+            ReadMouseDelta(mouse),
+            collide);
+
+        if (moved.Landed && _screen == GameScreen.WorldScene)
+            _sfx?.Play(Sfx.Land, 0.5f, volumeScale: 0.8f);
+
+        if (moved.MetresWalked > 0f) Stride(moved.MetresWalked, keyboard);
     }
 
     private void UpdateCameraMatrices()
     {
         var (yaw, pitch) = ShakeOffset();
-
-        // Built from the shaken angles directly rather than from Forward, so the offset lives
-        // only in this matrix and nothing downstream — aim, movement, the weapon — sees it.
-        var shakenPitch = MathHelper.Clamp(_cameraPitch + pitch, -PitchLimit, PitchLimit);
-        var shakenYaw = _cameraYaw + yaw;
-
-        // The same transform the Forward property uses, so the shaken view and the unshaken
-        // aim cannot disagree about which way is which.
-        var forward = Vector3.Transform(
-            Vector3.Forward,
-            Matrix.CreateRotationX(shakenPitch) * Matrix.CreateRotationY(-shakenYaw));
-
-        _view = Matrix.CreateLookAt(_cameraPosition, _cameraPosition + forward, Vector3.Up);
+        _camera.RebuildView(yaw, pitch);
     }
-
-    /// <summary>
-    /// Where the camera is pointing.
-    ///
-    /// Yaw is negated because CreateRotationY turns anticlockwise: without this a rising
-    /// yaw swung the view left while D strafed right, so both the mouse and the arrow keys
-    /// were inverted horizontally. Yaw now increases clockwise (right) and pitch increases
-    /// upward, matching the movement axes and every other first-person game.
-    /// </summary>
-    private Vector3 Forward => Vector3.Transform(
-        Vector3.Forward,
-        Matrix.CreateRotationX(_cameraPitch) * Matrix.CreateRotationY(-_cameraYaw));
 
     /// <summary>Where the player currently is, for the banner across the top of the HUD.</summary>
     private string LocationCaption() => _mineSeed is { } seed
@@ -3634,22 +3539,16 @@ public sealed class Game1 : Game, IConsoleTarget
         var spawn = _world?.Manifest.PlayerSpawn;
         if (spawn is not null)
         {
-            _standingEyeY = spawn.Position.Y;
-            _cameraPosition = new Vector3(spawn.Position.X, spawn.Position.Y, spawn.Position.Z);
-            _cameraYaw = spawn.Yaw;
+            _camera.Reset(
+                new Vector3(spawn.Position.X, spawn.Position.Y, spawn.Position.Z),
+                spawn.Yaw, -0.12f, spawn.Position.Y);
         }
         else
         {
-            _standingEyeY = 2.4f;
-            _cameraPosition = new Vector3(0f, 2.4f, 8.5f);
-            _cameraYaw = 0f;
+            _camera.Reset(new Vector3(0f, 2.4f, 8.5f), 0f, -0.12f, 2.4f);
         }
-        _verticalOffset = 0f;
-        _verticalVelocity = 0f;
-        _grounded = true;
-        _crouching = false;
+
         _crouchToggled = false;
-        _cameraPitch = -0.12f;
     }
 
     private void LoadWorldManifest()
@@ -4204,9 +4103,9 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_stambhaPreview)
         {
             // Framed as the trailer's opening: close on the pillar, the stone low and left.
-            _cameraPosition = new Vector3(0.35f, 0.45f, 3.15f);
-            _cameraPitch = 0.06f;
-            _cameraYaw = 0f;
+            _camera.Position = new Vector3(0.35f, 0.45f, 3.15f);
+            _camera.Pitch = 0.06f;
+            _camera.Yaw = 0f;
             UpdateCameraMatrices();
 
             DrawStambhaPreview();
@@ -4336,7 +4235,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // front of the shaft is the moment "a shaft costs stones" means anything.
         _coach.Teach(Lessons.Yard, Lessons.TextOf(Lessons.Yard));
 
-        switch (Surface.FixtureAt(new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z)))
+        switch (Surface.FixtureAt(new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z)))
         {
             case SurfaceFixture.Shaft:
                 _coach.Teach(Lessons.Shaft, Lessons.TextOf(Lessons.Shaft));
@@ -4366,7 +4265,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
     private void Sign(string title, string subtitle, WorldPoint at, float height, Color colour)
     {
-        var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+        var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
 
         _screens.Markers.DrawSign(title, subtitle,
             new Vector3(at.X, at.Y + height, at.Z), player.FlatDistanceTo(at), colour,
@@ -4390,7 +4289,7 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_session is null) return PromptState.Empty;
 
-        var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+        var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
         var chips = new List<PromptChip>();
 
         if (OnTheSurface)
@@ -4410,7 +4309,7 @@ public sealed class Game1 : Game, IConsoleTarget
             return new PromptState(chips);
         }
 
-        var actor = _dialogue?.FindActor(player, _cameraYaw);
+        var actor = _dialogue?.FindActor(player, _camera.Yaw);
         if (actor is not null)
         {
             chips.Add(new PromptChip($"Click / E  Talk to {actor.DisplayName}",
@@ -4433,7 +4332,7 @@ public sealed class Game1 : Game, IConsoleTarget
             return new PromptState(chips);
         }
 
-        var pickup = FindPickup(player, _cameraYaw);
+        var pickup = FindPickup(player, _camera.Yaw);
         if (pickup is not null)
         {
             chips.Add(new PromptChip($"Click / E  Take {pickup.Name} x{pickup.Count}",
@@ -4444,7 +4343,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // The camp decision is a bigger question about the same door; two prompts on one
         // doorway would just be noise.
         if (_world is null || _run is { AtDecision: true }) return PromptState.Empty;
-        var door = _world.FindDoor(player, _cameraYaw);
+        var door = _world.FindDoor(player, _camera.Yaw);
         if (door is null) return PromptState.Empty;
 
         var hasKey = !string.IsNullOrEmpty(door.Definition.KeyItemId)
@@ -4474,7 +4373,7 @@ public sealed class Game1 : Game, IConsoleTarget
         _scene.DrawCube(new Vector3(-4.72f, 1.62f, -3.2f), new Vector3(0.26f, 0.42f, 0.24f),
             new Color(44, 41, 40), 0f);
 
-        _billboards.Begin(_view, _projection);
+        _billboards.Begin(_camera.View, _camera.Projection);
         var sorted = new List<SpeakingActor>(_dialogue.Actors);
         sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
 
@@ -4483,7 +4382,7 @@ public sealed class Game1 : Game, IConsoleTarget
             var texture = CharacterSprites.Get(GraphicsDevice, $"dialogue.{actor.ActorId}",
                 PaletteFor(actor.Palette));
             var feet = new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z);
-            _billboards.Draw(texture, feet, actor.Height, _cameraYaw, Color.White);
+            _billboards.Draw(texture, feet, actor.Height, _camera.Yaw, Color.White);
         }
 
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
@@ -4494,14 +4393,14 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_watchers is null || _watchers.Watchers.Count == 0) return;
 
-        _billboards.Begin(_view, _projection);
+        _billboards.Begin(_camera.View, _camera.Projection);
         foreach (var watcher in _watchers.Watchers)
         {
             var texture = CharacterSprites.Get(GraphicsDevice, $"watcher.{watcher.Definition.Id}",
                 CharacterPalette.Guard);
             var feet = new Vector3(watcher.Position.X, watcher.Position.Y, watcher.Position.Z);
             var tint = watcher.LastSeen ? new Color(255, 168, 148) : Color.White;
-            _billboards.Draw(texture, feet, 1.85f, _cameraYaw, tint);
+            _billboards.Draw(texture, feet, 1.85f, _camera.Yaw, tint);
         }
 
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
@@ -4509,7 +4408,7 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     private float DistanceToCamera(SpeakingActor actor) =>
-        Vector3.DistanceSquared(_cameraPosition,
+        Vector3.DistanceSquared(_camera.Position,
             new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z));
 
     private static CharacterPalette PaletteFor(string? palette) => palette?.ToLowerInvariant() switch
@@ -4609,7 +4508,7 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_encounter is null || _encounter.Enemies.Count == 0) return;
 
-        _billboards.Begin(_view, _projection);
+        _billboards.Begin(_camera.View, _camera.Projection);
 
         var sorted = new List<Enemy>(_encounter.Enemies);
         sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
@@ -4640,7 +4539,7 @@ public sealed class Game1 : Game, IConsoleTarget
             if (enemy.IsChilled) tint = new Color(tint.R / 2 + 90, tint.G / 2 + 110, tint.B);
 
             _billboards.Draw(SpriteFor(enemy), feet, _encounter.DrawHeightOf(enemy),
-                _cameraYaw, tint);
+                _camera.Yaw, tint);
         }
 
         // The billboard pass leaves its own render state behind; the UI expects the default.
@@ -4653,7 +4552,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <see cref="MetresToCamera"/> — see the note there.
     /// </summary>
     private float DistanceToCamera(Enemy enemy) =>
-        Vector3.DistanceSquared(_cameraPosition,
+        Vector3.DistanceSquared(_camera.Position,
             new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z));
 
     /// <summary>
@@ -4666,7 +4565,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// nobody has time to read it.
     /// </summary>
     private float MetresToCamera(Enemy enemy) =>
-        Vector3.Distance(_cameraPosition,
+        Vector3.Distance(_camera.Position,
             new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z));
 
     /// <summary>
@@ -4715,12 +4614,12 @@ public sealed class Game1 : Game, IConsoleTarget
         var shots = _encounter.Shots.ToList();
         if (_encounter.Bolts.Count == 0 && shots.Count == 0) return;
 
-        _billboards.Begin(_view, _projection);
+        _billboards.Begin(_camera.View, _camera.Projection);
 
         foreach (var shot in shots)
         {
             _billboards.Draw(BoltSprites.Get(GraphicsDevice, ArrowColour),
-                shot.Position, 0.2f, _cameraYaw, Color.White);
+                shot.Position, 0.2f, _camera.Yaw, Color.White);
         }
 
         foreach (var bolt in _encounter.Bolts)
@@ -4730,7 +4629,7 @@ public sealed class Game1 : Game, IConsoleTarget
             // A pulse so a bolt reads as burning energy rather than a thrown pebble.
             var pulse = 0.52f + MathF.Sin(bolt.Spin) * 0.06f;
             _billboards.Draw(texture, bolt.Position - Vector3.Up * (pulse * 0.5f), pulse,
-                _cameraYaw, Color.White);
+                _camera.Yaw, Color.White);
         }
 
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
@@ -4902,9 +4801,9 @@ public sealed class Game1 : Game, IConsoleTarget
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
-        _cameraPosition = new Vector3(0f, 1.65f, 6.4f);
-        _cameraPitch = -0.02f;
-        _cameraYaw = 0f;
+        _camera.Position = new Vector3(0f, 1.65f, 6.4f);
+        _camera.Pitch = -0.02f;
+        _camera.Yaw = 0f;
         UpdateCameraMatrices();
 
         var ambient = _primitiveEffect.AmbientLightColor;
@@ -4962,7 +4861,7 @@ public sealed class Game1 : Game, IConsoleTarget
         _scene.DrawTexturedCube(new Vector3(1.35f, 1.45f, -6.32f), new Vector3(1.7f, 2.9f, 0.16f),
             new Color(245, 238, 230), PropTextures.Door(GraphicsDevice), 2.9f);
 
-        _billboards.Begin(_view, _projection);
+        _billboards.Begin(_camera.View, _camera.Projection);
 
         // Banner, torch bracket and flame are all cutout quads, which is what the whole art
         // direction already is.
@@ -4973,7 +4872,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // the rate hand-drawn fire is almost always animated at, for the same reason.
         var flameFrame = (int)(_clock * 12f);
         _billboards.Draw(PropTextures.Flame(GraphicsDevice, flameFrame),
-            torch, 1.35f, _cameraYaw, Color.White);
+            torch, 1.35f, _camera.Yaw, Color.White);
 
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
@@ -5253,99 +5152,17 @@ public sealed class Game1 : Game, IConsoleTarget
 
     /// <summary>This frame's world-to-canvas projection, for anything anchored in the world.</summary>
     private WorldProjector Projector() =>
-        new(GraphicsDevice.Viewport, _view, _projection, _ui.Scale);
+        new(GraphicsDevice.Viewport, _camera.View, _camera.Projection, _ui.Scale,
+            _ui.LogicalWidth, _ui.LogicalHeight);
 
     private void DrawContentErrors() =>
         _screens.Markers.DrawContentErrors(_assetErrors.Concat(_modelCache.Errors).ToList());
 
 
 
-    private void DrawAuthoredWorld()
-    {
-        if (_world is null)
-        {
-            GraphicsDevice.Clear(new Color(40, 58, 68));
-            return;
-        }
-
-        GraphicsDevice.Clear(new Color(96, 121, 136));
-
-        // The manifest has carried a light per room since the generator was written, and
-        // nothing ever read them: BasicEffect had no point lights to put them in. They cost
-        // nothing to honour now.
-        _lights.Clear();
-        foreach (var light in _world.Manifest.Lights ?? new List<WorldLight>())
-        {
-            var position = light.Position.ToWorldPoint();
-            // Lanterns are for a mine, where they are the only light there is. In the yard
-            // they sit on top of daylight and a warm key, and at full strength they burned the
-            // ground under the player to flat white -- which is why the camp looked washed out
-            // and why the bottom of the shaft glowed. A quarter is enough to say a lamp is lit.
-            var strength = MathHelper.Clamp(light.Intensity, 0f, 8f) * (OnTheSurface ? 0.5f : 2.1f);
-
-            _lights.Add(new PointLight(
-                new Vector3(position.X, position.Y, position.Z),
-                ToXnaColor(light.Color).ToVector3() * strength,
-                MathF.Max(0.5f, light.Range)));
-        }
-
-        // Daylight above ground, and the mine's dark below it.
-        //
-        // The cave lighting was applied to everywhere, so the yard came out lit and textured
-        // like an interior with a sky pasted over it. Coming up out of a mine should not look
-        // like walking into another room — that contrast is the entire reason the surface
-        // exists, and it is carried almost completely by the light.
-        if (OnTheSurface)
-        {
-            _stone = StoneTextures.StonePalette.Sandstone;
-            _scene.SetCaveAmbience(
-                ambient: new Vector3(0.52f, 0.54f, 0.60f),
-                keyDirection: new Vector3(-0.35f, -1f, -0.28f),
-                keyColour: new Vector3(0.86f, 0.78f, 0.62f));
-        }
-        else
-        {
-            // The cave's own rock. Derived from the seed, so it matches what the shaft screen
-            // promised without either side storing the answer.
-            _stone = _cave is null
-                ? StoneTextures.StonePalette.Granite
-                : StoneTextures.StonePalette.FromTheme(_cave);
-
-            _scene.SetCaveAmbience(
-                ambient: new Vector3(0.10f, 0.10f, 0.12f),
-                keyDirection: new Vector3(-0.4f, -1f, -0.25f),
-                keyColour: new Vector3(0.20f, 0.20f, 0.26f));
-        }
-
-        foreach (var geometry in _world.Manifest.Geometry ?? new List<WorldGeometry>())
-        {
-            if (!geometry.Visible) continue;
-            _scene.DrawWorldBox(geometry.Min, geometry.Max, ToXnaColor(geometry.Color),
-                geometry.Material);
-        }
-
-        foreach (var door in _world.Doors)
-        {
-            if (door.Lock.IsOpen) continue;
-            _scene.DrawWorldBox(door.Definition.Min, door.Definition.Max,
-                ToXnaColor(door.Definition.Color));
-        }
-
-        foreach (var prop in _world.Manifest.Props ?? new List<WorldProp>())
-        {
-            if (!prop.Visible) continue;
-            var position = prop.Position.ToWorldPoint();
-            _modelCache.Draw(prop.Model, new Vector3(position.X, position.Y, position.Z),
-                prop.Scale, prop.Rotation, _view, _projection);
-        }
-
-        foreach (var pickup in _pickups)
-        {
-            var position = pickup.Position.ToWorldPoint();
-            _modelCache.Draw(pickup.Model, new Vector3(position.X, position.Y, position.Z),
-                pickup.Scale, 0f, _view, _projection);
-        }
-    }
+    private void DrawAuthoredWorld() =>
+        _worldView.Draw(GraphicsDevice, _scene, _modelCache, _world, _pickups,
+            OnTheSurface, _cave, _camera.View, _camera.Projection, _lights, ref _stone);
 
     // ------------------------------------------------------------------ the console's reach
 
@@ -5354,14 +5171,14 @@ public sealed class Game1 : Game, IConsoleTarget
     RunRuntime? IConsoleTarget.Run => _run;
     WorldRuntime? IConsoleTarget.World => _world;
 
-    Vector3 IConsoleTarget.CameraPosition => _cameraPosition;
-    float IConsoleTarget.CameraYaw => _cameraYaw;
-    float IConsoleTarget.CameraPitch => _cameraPitch;
+    Vector3 IConsoleTarget.CameraPosition => _camera.Position;
+    float IConsoleTarget.CameraYaw => _camera.Yaw;
+    float IConsoleTarget.CameraPitch => _camera.Pitch;
 
     bool IConsoleTarget.NoClip
     {
-        get => _noClip;
-        set => _noClip = value;
+        get => _camera.NoClip;
+        set => _camera.NoClip = value;
     }
 
     bool IConsoleTarget.Invulnerable
@@ -5393,8 +5210,7 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     void IConsoleTarget.PlaceAt(Vector3 position)
     {
-        _cameraPosition = position;
-        _verticalVelocity = 0f;
+        _camera.Place(position);
 
         if (_session is not null)
             _session.Position = new WorldPoint(position.X, position.Y, position.Z);
@@ -5402,8 +5218,8 @@ public sealed class Game1 : Game, IConsoleTarget
 
     void IConsoleTarget.LookAt(float yaw, float pitch)
     {
-        _cameraYaw = yaw;
-        _cameraPitch = MathHelper.Clamp(pitch, -1.45f, 1.45f);
+        _camera.Yaw = yaw;
+        _camera.Pitch = MathHelper.Clamp(pitch, -_camera.PitchLimit, _camera.PitchLimit);
     }
 
     void IConsoleTarget.Descend(int tier, int? seed) =>
@@ -5472,7 +5288,7 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         if (_world is null) return "No world.";
 
-        var origin = _cameraPosition;
+        var origin = _camera.Position;
         Vector3 direction;
 
         if (screenX is { } px && screenY is { } py)
@@ -5485,9 +5301,9 @@ public sealed class Game1 : Game, IConsoleTarget
             var scale = viewport.Width / (float)LogicalWidth;
             var device = new Vector3(px * scale, py * scale, 0f);
 
-            var near = viewport.Unproject(device, _projection, _view, Matrix.Identity);
-            var far = viewport.Unproject(new Vector3(device.X, device.Y, 1f), _projection, _view,
-                Matrix.Identity);
+            var near = viewport.Unproject(device, _camera.Projection, _camera.View, Matrix.Identity);
+            var far = viewport.Unproject(new Vector3(device.X, device.Y, 1f),
+                _camera.Projection, _camera.View, Matrix.Identity);
 
             direction = Vector3.Normalize(far - near);
             origin = near;
@@ -5495,9 +5311,9 @@ public sealed class Game1 : Game, IConsoleTarget
         else
         {
             direction = Vector3.Normalize(new Vector3(
-                -MathF.Sin(_cameraYaw) * MathF.Cos(_cameraPitch),
-                MathF.Sin(_cameraPitch),
-                -MathF.Cos(_cameraYaw) * MathF.Cos(_cameraPitch)));
+                -MathF.Sin(_camera.Yaw) * MathF.Cos(_camera.Pitch),
+                MathF.Sin(_camera.Pitch),
+                -MathF.Cos(_camera.Yaw) * MathF.Cos(_camera.Pitch)));
         }
 
         if (_encounter is not null)
@@ -5557,16 +5373,6 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     void IConsoleTarget.Say(string message) => _session?.ShowToast(message);
-
-    /// <summary>Below this total, an authored colour is a void rather than a surface.</summary>
-    private const int VoidBrightness = 96;
-
-    private static Color ToXnaColor(WorldColor color) => new(
-        (byte)Math.Clamp(color.R, 0, 255),
-        (byte)Math.Clamp(color.G, 0, 255),
-        (byte)Math.Clamp(color.B, 0, 255),
-        (byte)Math.Clamp(color.A, 0, 255));
-
 
     /// <summary>
     /// Close the batch, drawing our own pointer last so it sits over everything.

@@ -9,8 +9,10 @@ renders, samples input, and loads content. Read this file before changing code.
 | --- | --- |
 | `src/RatnaBay.Domain/` | Engine-independent rules, state, saves, generation. **No MonoGame types.** |
 | `src/RatnaBay.Game/` | WindowsDX client: devices, the frame, world draw, audio. |
+| `src/RatnaBay.Game/Engine/` | First-person view (look, walk, jump, crouch). No mines or Ratna Bay. |
 | `src/RatnaBay.Game/Ui/` | Every 2D screen and HUD renderer, plus shared canvas and hit-test layout. |
 | `src/RatnaBay.Game/Render/` | 3D primitives (`SceneRenderer`), imported models (`ModelCache`), generated sprites. |
+| `src/RatnaBay.Game/World/` | Live world, encounters, and `WorldPresenter` (this game's walk onto the primitives). |
 | `src/RatnaBay.Game/Input/` | Device sampling (`InputRouter`). |
 | `src/RatnaBay.Game/Content/` | JSON manifests (world, dialogue, quests, shops) and bundled fonts. |
 | `tools/RatnaBay.Tools/` | `doctor`, `validate`, `sim`, `mine`, `review`. |
@@ -98,6 +100,10 @@ the interface to all of `Game1`.
   anything the theme already names.
 - 3D boxes, the crystal and the carved quad go through `SceneRenderer`. Imported props go
   through `ModelCache`. Do not reopen a `BasicEffect` or a vertex buffer from a screen renderer.
+- Look, walk, jump and crouch go through `FirstPersonView`. Collision is a callback; do not
+  put mines in the view.
+- Authored world boxes, lights and imported props go through `WorldPresenter`. A second game
+  writes a different presenter; it should not subclass `Game1`. See `Docs/ENGINE.md`.
 - Anything anchored to a point in the world but drawn flat goes through `WorldProjector` and
   `MarkerRenderer`. Do not hand a renderer the camera to get a screen position.
 - Build presentation snapshots (`WorldHudState`, `OverlayState`, `MenuState`, `NameplateState`,
@@ -108,7 +114,8 @@ the interface to all of `Game1`.
 - Generated mines are deterministic from their seed and must not be written into installed
   content during play.
 - Do not revive parked features or add a package without a focused spike and a passing
-  release-shaped build.
+  release-shaped build. Do not add `RatnaBay.Engine.csproj` until every engine type compiles
+  without `using RatnaBay.Domain`.
 
 ## Where a screen lives
 
@@ -130,11 +137,12 @@ the interface to all of `Game1`.
 | Lit boxes, crystal, carved faces, glow | `Render/SceneRenderer.cs` | per-frame `Begin` |
 | Imported props | `Render/ModelCache.cs` | loaded once, drawn by key |
 
-Still in `Game1` and not yet extracted: iterating the authored world and pickups onto
-`SceneRenderer` / `ModelCache`, the billboard pass (actors, enemies, bolts), the
-moodboard/stambha/asset spike scenes, and the screen input handlers. Extract those when a
-change needs to touch them, not speculatively. Do not put 3D primitive drawing back into
-`Game1` — that seam is `SceneRenderer`.
+Still in `Game1` and not yet extracted: the billboard pass (actors, enemies, bolts), the
+moodboard/stambha/asset spike scenes, capture/screenshot host, and the screen input handlers.
+Extract those when a change needs to touch them, not speculatively. Do not put look/walk,
+3D primitive drawing, or authored-world iteration back into `Game1` — those seams are
+`FirstPersonView`, `SceneRenderer` and `WorldPresenter`. A second game should not subclass
+`Game1`; see [`Docs/ENGINE.md`](Docs/ENGINE.md).
 
 ## Recipes
 
@@ -197,4 +205,6 @@ a dependency, update the doctor command, attribution records, and this file in t
 - [`Docs/design_pivot.md`](Docs/design_pivot.md) — what the game is.
 - [`Docs/PRODUCTION_PLAN.md`](Docs/PRODUCTION_PLAN.md) — what gets built, and closed decisions.
 - [`Docs/TRAILER.md`](Docs/TRAILER.md) — scope contract for the slice.
+- [`Docs/ENGINE.md`](Docs/ENGINE.md) — which client types a second game can reuse, and the gate
+  for cutting a `RatnaBay.Engine` project.
 - [`Docs/AI_READINESS_ROADMAP.md`](Docs/AI_READINESS_ROADMAP.md) — remaining client decomposition.

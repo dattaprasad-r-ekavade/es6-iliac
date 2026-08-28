@@ -20,17 +20,22 @@ internal sealed class WorldProjector
     private readonly Matrix _view;
     private readonly Matrix _projection;
     private readonly float _uiScale;
+    private readonly int _logicalWidth;
+    private readonly int _logicalHeight;
 
-    public WorldProjector(Viewport viewport, Matrix view, Matrix projection, float uiScale)
+    public WorldProjector(Viewport viewport, Matrix view, Matrix projection, float uiScale,
+        int logicalWidth, int logicalHeight)
     {
         _viewport = viewport;
         _view = view;
         _projection = projection;
         _uiScale = uiScale;
+        _logicalWidth = logicalWidth;
+        _logicalHeight = logicalHeight;
     }
 
     /// <summary>
-    /// Where this world point lands on the 1280x720 canvas, if it is in front of the camera.
+    /// Where this world point lands on the logical canvas, if it is in front of the camera.
     ///
     /// The depth check is not optional: without it something behind the camera projects to a
     /// mirrored position in front of it, so an enemy the player has walked past grows a
@@ -44,8 +49,8 @@ internal sealed class WorldProjector
         var projected = _viewport.Project(world, _projection, _view, Matrix.Identity);
         if (projected.Z is < 0f or > 1f) return false;
 
-        var offsetX = (_viewport.Width - UiLayout.Width * _uiScale) * 0.5f;
-        var offsetY = (_viewport.Height - UiLayout.Height * _uiScale) * 0.5f;
+        var offsetX = (_viewport.Width - _logicalWidth * _uiScale) * 0.5f;
+        var offsetY = (_viewport.Height - _logicalHeight * _uiScale) * 0.5f;
 
         screen = new Vector2((projected.X - offsetX) / _uiScale, (projected.Y - offsetY) / _uiScale);
         return true;

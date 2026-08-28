@@ -38,6 +38,8 @@ internal sealed class UiCanvas
     private FontSystem _body = null!;
     private FontSystem _heading = null!;
     private Matrix _transform = Matrix.Identity;
+    private readonly int _logicalWidth;
+    private readonly int _logicalHeight;
 
     /// <summary>
     /// Device pixels per logical pixel.
@@ -46,6 +48,9 @@ internal sealed class UiCanvas
     /// and the projection of a world point onto the panel.
     /// </summary>
     public float Scale { get; private set; }
+
+    public int LogicalWidth => _logicalWidth;
+    public int LogicalHeight => _logicalHeight;
 
     /// <summary>
     /// The batch itself, for the handful of draws the primitives do not cover.
@@ -56,6 +61,16 @@ internal sealed class UiCanvas
     /// primitive above should use the primitive.
     /// </summary>
     public SpriteBatch Batch => _batch;
+
+    /// <summary>
+    /// Logical canvas size is the game's, not the engine's. Ratna Bay passes 1280×720;
+    /// a different game passes whatever it letterboxes to.
+    /// </summary>
+    public UiCanvas(int logicalWidth = 1280, int logicalHeight = 720)
+    {
+        _logicalWidth = Math.Max(1, logicalWidth);
+        _logicalHeight = Math.Max(1, logicalHeight);
+    }
 
     /// <summary>Hand over the device resources, once, after LoadContent has made them.</summary>
     public void Attach(SpriteBatch batch, Texture2D white, FontSystem body, FontSystem heading)
@@ -77,11 +92,11 @@ internal sealed class UiCanvas
         if (viewport.Width <= 0 || viewport.Height <= 0) return;
 
         var scale = MathF.Min(
-            viewport.Width / (float)UiLayout.Width,
-            viewport.Height / (float)UiLayout.Height) * preference;
+            viewport.Width / (float)_logicalWidth,
+            viewport.Height / (float)_logicalHeight) * preference;
 
-        var offsetX = (viewport.Width - UiLayout.Width * scale) * 0.5f;
-        var offsetY = (viewport.Height - UiLayout.Height * scale) * 0.5f;
+        var offsetX = (viewport.Width - _logicalWidth * scale) * 0.5f;
+        var offsetY = (viewport.Height - _logicalHeight * scale) * 0.5f;
         _transform = Matrix.CreateScale(scale) * Matrix.CreateTranslation(offsetX, offsetY, 0f);
 
         if (MathF.Abs(scale - Scale) < 0.001f) return;
@@ -134,7 +149,8 @@ internal sealed class UiCanvas
     }
 
     /// <summary>Dim everything already drawn, for a modal to sit on.</summary>
-    public void Scrim() => Panel(UiLayout.FullScreen, UiTheme.Scrim, UiTheme.NoBorder);
+    public void Scrim() =>
+        Panel(new Rectangle(0, 0, _logicalWidth, _logicalHeight), UiTheme.Scrim, UiTheme.NoBorder);
 
     public void Fill(Rectangle bounds, Color color) => _batch.Draw(_white, bounds, color);
 

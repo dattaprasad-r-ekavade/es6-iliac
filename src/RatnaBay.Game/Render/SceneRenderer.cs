@@ -1,7 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
@@ -134,10 +133,13 @@ public sealed class SceneRenderer
     // ------------------------------------------------------------------ world geometry
 
     /// <summary>
-    /// One manifest box, textured by its material and tinted by its authored colour.
+    /// One axis-aligned box, textured by a material name and tinted by its authored colour.
+    ///
+    /// Material is a string on purpose: <c>stone</c>, <c>timber</c>, <c>cloth</c>, <c>earth</c>,
+    /// <c>rope</c>. Anything else is stone. The engine does not import the game's material
+    /// table — a different game can send the same names or fall through to stone.
     /// </summary>
-    public void DrawWorldBox(WorldVector min, WorldVector max, Color color,
-        string material = WorldMaterials.Stone)
+    public void DrawWorldBox(Vector3 min, Vector3 max, Color color, string material = "stone")
     {
         var centre = new Vector3(
             (min.X + max.X) * 0.5f,
@@ -155,10 +157,10 @@ public sealed class SceneRenderer
         // packed-earth ground all came out as sandy brick. The material says it instead.
         var texture = material switch
         {
-            WorldMaterials.Timber => StoneTextures.Timber(_device),
-            WorldMaterials.Cloth => StoneTextures.Cloth(_device),
-            WorldMaterials.Earth => StoneTextures.Earth(_device),
-            WorldMaterials.Rope => StoneTextures.Rope(_device),
+            "timber" => StoneTextures.Timber(_device),
+            "cloth" => StoneTextures.Cloth(_device),
+            "earth" => StoneTextures.Earth(_device),
+            "rope" => StoneTextures.Rope(_device),
             _ => isSlab
                 ? StoneTextures.Floor(_device, _stone)
                 : StoneTextures.Wall(_device, _stone)
@@ -166,15 +168,15 @@ public sealed class SceneRenderer
 
         // Planks and weave carry their own colour, so tinting them by the authored colour
         // would put the sandstone back over the thing that just stopped being it.
-        var painted = material is WorldMaterials.Stone ? TintFor(color) : Color.White;
+        var painted = material is "stone" or null or "" ? TintFor(color) : Color.White;
 
         // A rope is a few centimetres across and a couple of metres long. At the stone tiling
         // its whole length is a fraction of one texture repeat, which is what drew plank grain
         // down the windlass rope and made it read as a hanging board.
         var tiling = material switch
         {
-            WorldMaterials.Rope => 0.24f,
-            WorldMaterials.Timber or WorldMaterials.Cloth => StoneTileMetres * 0.5f,
+            "rope" => 0.24f,
+            "timber" or "cloth" => StoneTileMetres * 0.5f,
             _ => StoneTileMetres
         };
 
