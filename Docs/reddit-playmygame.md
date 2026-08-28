@@ -25,11 +25,10 @@ bank what you are carrying or open it and go deeper.
 I am a software developer with 8+ years behind me, making my first game. About three months of
 evenings, solo — the first version was in Unity, which I scrapped and rebuilt in **MonoGame**
 because I did not get on with the tooling. Almost everything in it is **generated in code rather
-than drawn**: the masonry, the props, the weapons, the enemies and every face in the game. There
-is not an image file for any of it.
+than drawn**: the masonry, the props, the weapons, the enemies and every face in the game. That is
+procedural generation, not image generation — there is no AI art in it. I used AI in the editor
+while writing the code, the same way I would at work.
 
 **https://datathecodie.itch.io/ratna-bay** — free, Windows.
 
-I would really appreciate you playing it and telling me what you think. Especially: **does the
-choice at the shut door actually make you hesitate**, or do you just always do the same thing
-without thinking about it?
+Have a go if it looks like your kind of thing. I would love to hear what you make of it.
