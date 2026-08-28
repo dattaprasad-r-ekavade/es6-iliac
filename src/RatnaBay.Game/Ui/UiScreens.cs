@@ -23,6 +23,8 @@ internal sealed class UiScreens
         Fort = new FortRenderer(canvas, device);
         Markers = new MarkerRenderer(canvas);
         Console = new ConsoleRenderer(canvas);
+        Prompt = new PromptRenderer(canvas);
+        Weapon = new WeaponRenderer(canvas, device);
     }
 
     public UiCanvas Canvas { get; }
@@ -43,4 +45,10 @@ internal sealed class UiScreens
     public MarkerRenderer Markers { get; }
 
     public ConsoleRenderer Console { get; }
+
+    /// <summary>The "press E" line over a door, a person, a pickup or a yard fixture.</summary>
+    public PromptRenderer Prompt { get; }
+
+    /// <summary>The weapon sprite at the edge of the screen.</summary>
+    public WeaponRenderer Weapon { get; }
 }

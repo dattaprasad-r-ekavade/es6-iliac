@@ -3,11 +3,12 @@
 This document describes how ready the Ratna Bay repository is for ongoing work with AI coding
 tools, and the next changes that will make that work safer and more predictable.
 
-Assessment date: 2026-08-27 (updated after the console pass and the marker extraction)
+Assessment date: 2026-08-28 (updated after SceneRenderer, ModelCache, UiCanvas owning its
+primitives, and the remaining 2D overlay extraction)
 
 ## Current assessment
 
-The repository is approximately **85% complete** for AI-friendly architecture.
+The repository is approximately **90% complete** for AI-friendly architecture.
 
 | Area | Done | Pending |
 | --- | ---: | ---: |
@@ -16,13 +17,13 @@ The repository is approximately **85% complete** for AI-friendly architecture.
 | Runtime verification of a client change | 85% | UI panels and saves unreachable from a script |
 | Contributor guidance | 100% | Keep it current as boundaries move |
 | Input boundary | 100% | Minor future refinements |
-| HUD and rendering boundaries | 95% | 3D pass, weapon, door prompt, spike scenes |
+| HUD and rendering boundaries | 98% | Billboard pass; authored-world iteration; spike scenes |
 | Styling consistency | 100% | Add to `UiTheme` rather than to a call site |
 | Client-layer testability | 45% | Layout and theme are shared; still no headless Game tests |
-| `Game1` decomposition | 60% | Lifecycle, world draw, input handlers remain |
+| `Game1` decomposition | 70% | Lifecycle, world iteration, input handlers remain |
 
 Current repository hygiene: **9/10**
-Current AI-readiness: **8.5/10**
+Current AI-readiness: **9/10**
 
 These are engineering estimates based on boundary coverage, testability, and the amount of
 unrelated work still concentrated in `Game1`; they are not product-quality ratings.
@@ -38,11 +39,16 @@ unrelated work still concentrated in `Game1`; they are not product-quality ratin
   build through `Docs/scripts/smoke.rbs`.
 - Centralized keyboard and mouse sampling in `Input/InputRouter`.
 - Shared drawing through `Ui/UiCanvas`, hit-testing through `Ui/UiLayout`, and colour through
-  `Ui/UiTheme`.
-- Every 2D screen has a named renderer under `Ui/`, including the developer console, which was
-  the last one painting through the game loop's own helpers.
+  `Ui/UiTheme`. The canvas owns its primitives rather than pointing nine delegates back at
+  `Game1`.
+- Every 2D screen has a named renderer under `Ui/`, including the developer console, the
+  weapon overlay, the door/talk/pickup prompt, the coach line and the pointer.
 - `Ui/WorldProjector` is the seam for anything anchored in the world and drawn flat;
   `Ui/MarkerRenderer` uses it for nameplates, floating damage, threat arrows and yard signs.
+- `Render/SceneRenderer` is the 3D primitive seam: boxes, the crystal, the carved quad, the
+  glow, and the two shaders. Per-frame state is set once through `Begin`.
+- `Render/ModelCache` loads, measures, normalises and draws imported props. Lighting is
+  applied at load, not per mesh per frame.
 
 ## The scripted gate
 
@@ -62,34 +68,31 @@ loudly and early.
 
 ## Next changes
 
-### 1. Extract the remaining world presentation
+### 1. Lift authored-world iteration and the spike scenes
 
-The weapon overlay, the door prompt, the coach line and the pointer are still drawn from
-`Game1`. The door prompt is the awkward one: it queries the world for a door, an actor and a
-pickup before drawing, so it needs a snapshot built where those live.
+`DrawAuthoredWorld` still lives in `Game1`: it walks the manifest, rebuilds the light list,
+picks a stone palette, and asks `SceneRenderer` / `ModelCache` to draw. That walk can move
+now that the primitive seam exists. The moodboard, stambha and asset-case scenes can follow,
+because they are the same boxes with different lighting.
 
-### 2. Give the 3D pass a primitive seam
+The billboard pass (actors, enemies, bolts) is the other remaining world draw. It already
+goes through `BillboardRenderer`; what is left in `Game1` is sorting and texture lookup.
 
-`DrawAuthoredWorld`, `DrawCube`, `DrawTexturedCube`, `DrawCarvedFace`, `DrawCrystal`, `DrawGlow`
-and the cave-lighting setup are about 700 cohesive lines with no game rules in them. They are
-the largest single extraction left, and they need a small interface for "draw this box with
-this material" before the moodboard and stambha spike scenes can move out too.
-
-### 3. Separate update logic from the game shell
+### 2. Separate update logic from the game shell
 
 Split input and simulation coordination into focused controllers that return explicit commands
 to `Game1`. Screen handlers already interpret `InputRouter` snapshots, so they can move next.
 `UpdateGameScreen` and `StartSession` should not be attempted in one pass — they touch too many
 fields; split the dependencies first.
 
-### 4. Add client-layer tests
+### 3. Add client-layer tests
 
 `UiLayout` and `UiTheme` are the seam: both are pure data, but they live in the WindowsDX
 project so `RatnaBay.Domain.Tests` cannot see them. A net9.0 layout/theme assembly would let a
 test assert that a clickable row is the row on screen, and that every colour a renderer asks
 for exists, without a graphics device.
 
-### 5. Widen what a script can assert
+### 4. Widen what a script can assert
 
 `IConsoleTarget` cannot reach the shop or dialogue panels, equipping, save/load round trips, or
 story flags. Each addition should be deliberate — the value of the interface is that it is

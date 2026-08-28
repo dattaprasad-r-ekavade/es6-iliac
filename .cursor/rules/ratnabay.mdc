@@ -10,6 +10,7 @@ alwaysApply: true
 - Sample input only through `InputRouter`. Draw 2D UI only through `UiCanvas`.
 - Hit-test and draw rectangles share `UiLayout`. Do not duplicate pixel numbers in `Game1` and a renderer.
 - Colours come from `UiTheme` by role. Don't write `new Color(...)` in a renderer for a colour the theme names.
+- 3D boxes, the crystal and carved faces go through `SceneRenderer`. Imported props go through `ModelCache`.
 - World-anchored flat interface (nameplates, floating damage, signs) goes through `WorldProjector` + `MarkerRenderer`.
 - Do not revive `ParkedFeatures` or add a package without a focused spike.
 - Validate with `.\verify.ps1` on Windows, or `dotnet test tests/RatnaBay.Domain.Tests` plus a Windows-targeted compile on Linux.

@@ -29,39 +29,28 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     private readonly GraphicsDeviceManager _graphics;
-    /// <summary>Imported props: loading, measuring, normalising and drawing. See ModelCache.</summary>
+
+    /// <summary>Imported props: loading, measuring, normalising and drawing.</summary>
     private readonly ModelCache _modelCache = new();
 
-    /// <summary>Boxes, the crystal and the carved quad, with the two shaders. See SceneRenderer.</summary>
+    /// <summary>Boxes, the crystal and the carved quad, with the two shaders.</summary>
     private SceneRenderer _scene = null!;
 
-    /// <summary>
-    /// The glow quad's own scratch vertices.
-    ///
-    /// Kept here rather than in SceneRenderer because a glow is not scene geometry: it is
-    /// drawn additively with depth-write off, after everything else, and it faces the camera.
-    /// It shares nothing with the lit world but the vertex format.
-    /// </summary>
-
-
-    /// <summary>
-    /// Bone transforms, resolved once at load. Nothing here is animated, so recomputing them
-    /// into a freshly allocated array every model every frame was pure waste.
-    /// </summary>
     private readonly List<string> _assetErrors = new();
     private FontSystem _fontSystem = null!;
     private FontSystem _headingFontSystem = null!;
-    private BasicEffect _primitiveEffect = null!;
-    /// <summary>The stone this room is cut from. One per cave theme, later.</summary>
-    private StoneTextures.StonePalette _stone = StoneTextures.StonePalette.Granite;
+
+    /// <summary>One white pixel, stretched for every filled rectangle. Painted by the canvas.</summary>
+    private Texture2D _white = null!;
 
     /// <summary>
-    /// The cave shader: a weak directional fill and up to eight real point lights.
-    ///
-    /// Null when the effect failed to load, in which case every surface falls back to
-    /// BasicEffect and the mine is flatly lit but entirely playable. A missing shader must
-    /// never be the difference between a game and a black screen.
+    /// Shared by SceneRenderer. Begin takes it each frame so the spike scenes can retune it
+    /// for a shot and restore it afterwards.
     /// </summary>
+    private BasicEffect _primitiveEffect = null!;
+
+    /// <summary>The stone this room is cut from. One per cave theme, later.</summary>
+    private StoneTextures.StonePalette _stone = StoneTextures.StonePalette.Granite;
 
     /// <summary>
     /// The lights affecting the current draw, nearest first.
@@ -71,23 +60,6 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private readonly List<PointLight> _lights = new();
 
-    /// <summary>Matches MAX_POINT_LIGHTS in CaveLighting.fx, and is capped by the shader model.</summary>
-    private const int MaxPointLights = 4;
-
-
-    /// <summary>Colour in xyz, range in w — packed to stay inside the constant register budget.</summary>
-
-
-    /// <summary>
-    /// A faceted solid for the jiva stone.
-    ///
-    /// The stone was a cube, and a cube cannot be a gem: every face catches the light equally,
-    /// so it reads as a lit box rather than something cut. An octahedron with flat per-face
-    /// normals gives eight facets at eight angles, which is the cheapest geometry that still
-    /// glitters when the light rakes across it.
-    /// </summary>
-
-    /// <summary>One quad, rebuilt per call, for text carved onto a wall or a pillar face.</summary>
     private readonly InputRouter _input = new();
 
     /// <summary>True while the pointer is captured for looking. Tab releases it.</summary>
@@ -418,12 +390,6 @@ public sealed class Game1 : Game, IConsoleTarget
     private float _swingBuffered;
 
     /// <summary>
-    /// How early a click may be and still land.
-    ///
-    /// Long enough to cover an impatient press, short enough that a click during a long
-    /// animation does not fire half a second after the player stopped meaning it.
-    /// </summary>
-    /// <summary>
     /// How long a click is remembered while the weapon is still swinging.
     ///
     /// It was a flat 0.22s, which matches no weapon: a sword's cooldown is 0.45 and a mace's
@@ -488,10 +454,6 @@ public sealed class Game1 : Game, IConsoleTarget
     private float _uiScalePreference = 1f;
     private bool _showSettings;
     private int _settingsSelection;
-
-    /// <summary>Fonts rasterized per device-pixel size. Scaling a fixed atlas blurs text.</summary>
-    /// <summary>One white pixel, stretched for every filled rectangle. Painted by the canvas.</summary>
-    private Texture2D _white = null!;
 
     public Game1(string[] args)
     {
@@ -992,7 +954,7 @@ public sealed class Game1 : Game, IConsoleTarget
         else if (forPanel) _mouseFreedForPanel = true;
 
         _mouseLook = enabled;
-        // The system cursor stays hidden in every state; DrawPointer draws ours instead.
+        // The system cursor stays hidden in every state; OverlayRenderer.DrawPointer draws ours.
         IsMouseVisible = false;
         if (enabled)
         {
@@ -4174,7 +4136,11 @@ public sealed class Game1 : Game, IConsoleTarget
             IsBlocking: _session?.Player.Combat.IsBlocking == true,
             FramesPerSecond: _framesPerSecond,
             ShowFrameRate: _screenshotPath is null,
-            Spell: BuildSpellHud());
+            Spell: BuildSpellHud(),
+            CoachLine: _runSummary is not null || _choosingDepth || _campTraderOpen
+                ? string.Empty
+                : _coach.Line,
+            CoachOpacity: _coach.Opacity);
     }
 
     private SpellHudState BuildSpellHud()
@@ -4284,9 +4250,9 @@ public sealed class Game1 : Game, IConsoleTarget
             _screens.Hud.DrawSpellBar(hudState, ItemSprites.JivaCrystal(GraphicsDevice));
             _screens.Hud.DrawCastBanner(hudState);
             DrawSurfaceSigns();
-            DrawCoach();
+            _screens.Hud.DrawCoach(hudState);
             DrawCampDecision();
-            DrawDoorPrompt();
+            _screens.Prompt.Draw(BuildPromptState());
             DrawRunLedger();
             _screens.Hud.DrawLocationBanner(hudState);
             if (ParkedFeatures.Sneaking) _screens.Hud.DrawAwareness(hudState);
@@ -4391,7 +4357,7 @@ public sealed class Game1 : Game, IConsoleTarget
                 : deepest > MineEntry.MinTier
                     ? $"{stones} stones opens tier {deepest}. Tier {next} wants {MineEntry.CostOf(next)}.  {gold} gold."
                     : $"The first mine is free. {MineEntry.CostOf(2)} stones opens a richer one — you have {stones}.",
-            LogicalWidth / 2f, 48f, 14, new Color(163, 191, 194));
+            LogicalWidth / 2f, 48f, 14, UiTheme.Hint);
 
         Sign("THE SHAFT", "go down", Surface.Shaft, 5.6f, new Color(214, 186, 120));
         Sign("THE STALL", "spend gold", Surface.Trader, 4f, new Color(196, 176, 210));
@@ -4407,30 +4373,6 @@ public sealed class Game1 : Game, IConsoleTarget
             Projector());
     }
 
-    /// <summary>
-    /// The teaching line, under the location banner.
-    ///
-    /// Up near the top rather than over the vitals: it must be readable without pulling the
-    /// eye off the middle of the screen, and it must never sit where a fight is happening. It
-    /// fades rather than snapping, and it never blocks anything — a player who ignores it
-    /// entirely loses nothing but the explanation.
-    /// </summary>
-    private void DrawCoach()
-    {
-        if (_coach.Line.Length == 0 || _coach.Opacity <= 0.02f) return;
-        if (_runSummary is not null || _choosingDepth || _campTraderOpen) return;
-
-        var fade = _coach.Opacity;
-        var width = 760f;
-        var panel = new Rectangle((int)(LogicalWidth / 2f - width / 2f), 74, (int)width, 52);
-
-        _ui.Fill(panel, new Color(6, 12, 19) * (fade * 0.86f));
-        _ui.Border(panel, new Color(151, 206, 210) * (fade * 0.7f));
-
-        _ui.TextFitCentred(_coach.Line, panel.Center.X, panel.Y + 17f, width - 40f, 15,
-            new Color(226, 232, 232) * fade);
-    }
-
     private void DrawConsole()
     {
         if (!_consoleOpen) return;
@@ -4438,16 +4380,23 @@ public sealed class Game1 : Game, IConsoleTarget
         _screens.Console.Draw(_consoleOutput, _consoleInput, _clock);
     }
 
-    private void DrawDoorPrompt()
+    /// <summary>
+    /// What the player can do with whatever is under the crosshair.
+    ///
+    /// Queries live here because they need the world, the session and the run. The renderer
+    /// only paints the chips it is given.
+    /// </summary>
+    private PromptState BuildPromptState()
     {
-        if (_session is null) return;
+        if (_session is null) return PromptState.Empty;
 
         var player = new WorldPoint(_cameraPosition.X, _cameraPosition.Y, _cameraPosition.Z);
+        var chips = new List<PromptChip>();
 
         if (OnTheSurface)
         {
             var fixture = Surface.FixtureAt(player);
-            if (fixture == SurfaceFixture.None) return;
+            if (fixture == SurfaceFixture.None) return PromptState.Empty;
 
             var stones = _session.Player.Inventory.CountOf(SoulCrystals.LesserId);
             var line = fixture switch
@@ -4457,25 +4406,20 @@ public sealed class Game1 : Game, IConsoleTarget
                 _ => "E  Read the carving"
             };
 
-            _ui.Panel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-            _ui.Text(line, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
-            return;
+            chips.Add(new PromptChip(line, UiLayout.SinglePrompt, PromptRole.Interact));
+            return new PromptState(chips);
         }
 
         var actor = _dialogue?.FindActor(player, _cameraYaw);
         if (actor is not null)
         {
-            var talk = UiLayout.TalkPrompt;
-            var secondary = UiLayout.SecondaryPrompt;
-            _ui.Panel(talk, new Color(5, 11, 18, 225), new Color(151, 206, 210));
-            _ui.TextFit($"Click / E  Talk to {actor.DisplayName}",
-                new Vector2(talk.X + 16, talk.Y + 12), talk.Width - 32, 14, Color.White);
+            chips.Add(new PromptChip($"Click / E  Talk to {actor.DisplayName}",
+                UiLayout.TalkPrompt, PromptRole.Talk, Fit: true));
 
             if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
                 && _shop is not null)
             {
-                _ui.Panel(secondary, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-                _ui.Text("B  Shop", new Vector2(secondary.X + 16, secondary.Y + 12), 14, Color.White);
+                chips.Add(new PromptChip("B  Shop", UiLayout.SecondaryPrompt, PromptRole.Interact));
             }
 
             // A pocket worth picking was previously only advertised on guards, so the one
@@ -4483,47 +4427,41 @@ public sealed class Game1 : Game, IConsoleTarget
             // had no prompt at all and testers never found it.
             if (HasPickablePocket(actor))
             {
-                var pocket = UiLayout.PickpocketPrompt;
-                _ui.Panel(pocket, new Color(5, 11, 18, 225), new Color(190, 148, 196));
-                _ui.Text("P  Pick pocket", new Vector2(pocket.X + 16, pocket.Y + 12), 14, Color.White);
+                chips.Add(new PromptChip("P  Pick pocket", UiLayout.PickpocketPrompt, PromptRole.Pocket));
             }
 
-            return;
+            return new PromptState(chips);
         }
 
         var pickup = FindPickup(player, _cameraYaw);
         if (pickup is not null)
         {
-            _ui.Panel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225),
-                new Color(151, 206, 210));
-            _ui.TextFit($"Click / E  Take {pickup.Name} x{pickup.Count}",
-                UiLayout.PromptText(UiLayout.SinglePrompt),
-                UiLayout.PromptTextWidth(UiLayout.SinglePrompt), 15, Color.White);
-            return;
+            chips.Add(new PromptChip($"Click / E  Take {pickup.Name} x{pickup.Count}",
+                UiLayout.SinglePrompt, PromptRole.Talk, Fit: true));
+            return new PromptState(chips);
         }
 
         // The camp decision is a bigger question about the same door; two prompts on one
         // doorway would just be noise.
-        if (_world is null || _run is { AtDecision: true }) return;
+        if (_world is null || _run is { AtDecision: true }) return PromptState.Empty;
         var door = _world.FindDoor(player, _cameraYaw);
-        if (door is null) return;
+        if (door is null) return PromptState.Empty;
 
         var hasKey = !string.IsNullOrEmpty(door.Definition.KeyItemId)
             && _session.Player.Inventory.Has(door.Definition.KeyItemId);
 
         if (_run is { BarsTheWay: true })
         {
-            _ui.Panel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(150, 120, 110));
-            _ui.Text("Barred  |  clear this room first", UiLayout.PromptText(UiLayout.SinglePrompt), 15,
-                new Color(224, 196, 186));
-            return;
+            chips.Add(new PromptChip("Barred  |  clear this room first",
+                UiLayout.SinglePrompt, PromptRole.Barred));
+            return new PromptState(chips);
         }
 
         var text = !door.Lock.IsLocked ? "Click / E  Open door"
             : hasKey ? "Click / E  Unlock with your key"
             : $"Locked  |  a key, or Security {door.Definition.Difficulty:0}";
-        _ui.Panel(UiLayout.SinglePrompt, new Color(5, 11, 18, 225), new Color(205, 157, 98));
-        _ui.Text(text, UiLayout.PromptText(UiLayout.SinglePrompt), 15, Color.White);
+        chips.Add(new PromptChip(text, UiLayout.SinglePrompt, PromptRole.Interact));
+        return new PromptState(chips);
     }
 
     private void DrawSpeakingActors()
@@ -4734,9 +4672,8 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>
     /// The weapon in the player's hand.
     ///
-    /// Drawn in the UI pass rather than the 3D one, which is how Daggerfall did it: the
-    /// weapon is a sprite at the edge of the screen, not a modelled object in the world, so
-    /// it never clips through a wall and never needs a rig.
+    /// Capture pose is set here because --swing / --cast are coordinator concerns. The blit
+    /// itself lives on WeaponRenderer.
     /// </summary>
     private void DrawWeapon()
     {
@@ -4756,56 +4693,19 @@ public sealed class Game1 : Game, IConsoleTarget
             _weaponView.Update(castProgress, moving: false, guarding: false);
         }
 
-        // The hand replaces the weapon while a spell is going off. The player's hand is the
-        // only part of them they ever see, and showing the sword through a cast made the most
-        // distinctive thing a mage does look like the most ordinary thing a warrior does.
-        var texture = _weaponView.IsCasting
-            ? WeaponSprites.CastingHand(GraphicsDevice)
-            : WeaponSprites.Get(GraphicsDevice, weapon);
-
-        var pose = _weaponView.Pose();
-
-        // The off hand, behind the weapon, and only while it is actually raised. A shield
-        // painted on screen at all times is furniture; one that appears when the guard goes up
-        // is feedback.
-        if (_session.Player.Equipment.Shield is { } shield && _session.Player.Combat.IsBlocking)
-        {
-            var shieldTexture = WeaponSprites.Shield(GraphicsDevice, shield);
-            _ui.Batch.Draw(
-                shieldTexture,
-                new Vector2(LogicalWidth * 0.22f, LogicalHeight + 44f),
-                null,
-                Color.White,
-                -0.12f,
-                new Vector2(shieldTexture.Width / 2f, shieldTexture.Height),
-                pose.Scale * 1.55f,
-                SpriteEffects.None,
-                0f);
-        }
-
-        // The grip, not the corner: rotating about the hand is what makes it swing rather
-        // than spin.
-        var origin = new Vector2(texture.Width / 2f, texture.Height);
-
-        _ui.Batch.Draw(
-            texture,
-            pose.Position,
-            null,
-            Color.White,
-            pose.Rotation,
-            origin,
-            pose.Scale,
-            SpriteEffects.None,
-            0f);
+        _screens.Weapon.Draw(
+            _weaponView,
+            weapon,
+            _session.Player.Combat.IsBlocking ? _session.Player.Equipment.Shield : null);
     }
 
     /// <summary>
-    /// Spells in flight.
+    /// Spells and arrows in flight.
     ///
-    /// Drawn as camera-facing glows in the element's colour, so what is crossing the room is
-    /// legible at a glance: orange is fire, pale blue is frost, gold is shock.
+    /// Bolts are camera-facing glows in the element's colour, so what is crossing the room is
+    /// legible at a glance: orange is fire, pale blue is frost, gold is shock. Arrows are
+    /// small, pale and fast, so they read as shafts, not spells.
     /// </summary>
-    /// <summary>Arrows in flight. Small, pale and fast, so they read as shafts, not spells.</summary>
     private static readonly Color ArrowColour = new(226, 214, 186);
 
     private void DrawBolts()
@@ -5294,48 +5194,6 @@ public sealed class Game1 : Game, IConsoleTarget
         _screens.Markers.DrawNameplates(plates);
     }
 
-
-
-    /// <summary>
-    /// Our own mouse pointer.
-    ///
-    /// Drawn whenever the pointer is free rather than driving the camera, in every screen,
-    /// so it never blinks in and out with the system cursor as menus open and close.
-    /// </summary>
-    private void DrawPointer()
-    {
-        if (_mouseLook) return;
-
-        // Wherever the pointer happens to be resting is not part of the shot. A capture is
-        // meant to be reproducible, and a cursor in the frame makes it a photograph of this
-        // machine rather than of the game.
-        if (_screenshotPath is not null) return;
-
-        var pointer = LogicalMouse(_input.CurrentMouse);
-        if (pointer.X < -8f || pointer.Y < -8f
-            || pointer.X > LogicalWidth + 8f || pointer.Y > LogicalHeight + 8f) return;
-
-        var x = (int)pointer.X;
-        var y = (int)pointer.Y;
-
-        // An arrow drawn as a stack of rows, with a dark skirt so it survives any background.
-        for (var row = 0; row < 15; row++)
-        {
-            var width = row < 11 ? row + 1 : 15 - row + 2;
-            if (width <= 0) continue;
-
-            _ui.Fill(new Rectangle(x - 1, y + row - 1, width + 2, 3), new Color(12, 14, 18, 220));
-        }
-
-        for (var row = 0; row < 15; row++)
-        {
-            var width = row < 11 ? row + 1 : 15 - row + 2;
-            if (width <= 0) continue;
-
-            _ui.Fill(new Rectangle(x, y + row, width, 1), Color.White);
-        }
-    }
-
     private void DrawFloatingNumbers()
     {
         if (_encounter is null) return;
@@ -5488,9 +5346,6 @@ public sealed class Game1 : Game, IConsoleTarget
                 pickup.Scale, 0f, _view, _projection);
         }
     }
-
-    /// <summary>Roughly two metres of wall per repeat of the block texture.</summary>
-    private const float StoneTileMetres = 2.2f;
 
     // ------------------------------------------------------------------ the console's reach
 
@@ -5714,22 +5569,17 @@ public sealed class Game1 : Game, IConsoleTarget
 
 
     /// <summary>
-    /// Closes the UI batch, drawing our pointer last.
-    ///
-    /// Doing it here rather than at each screen is deliberate: the pointer was previously
-    /// added to one screen by hand and silently missing from the main menu, which is exactly
-    /// the failure a shared exit point prevents.
-    /// </summary>
-    /// <summary>
     /// Close the batch, drawing our own pointer last so it sits over everything.
     ///
-    /// The pointer stays here rather than moving to the canvas: it depends on whether the
-    /// mouse is driving the camera and on whether this frame is a capture, and neither is
-    /// something a drawing surface should know.
+    /// Doing it here rather than at each screen is deliberate: the pointer was previously
+    /// added to one screen by hand and silently missing from the main menu. Game1 still
+    /// decides whether to draw it — that depends on whether the mouse is driving the camera
+    /// and whether this frame is a capture — and OverlayRenderer paints the arrow.
     /// </summary>
     private void EndUi()
     {
-        DrawPointer();
+        if (!_mouseLook && _screenshotPath is null)
+            _screens.Overlay.DrawPointer(LogicalMouse(_input.CurrentMouse));
         _ui.End();
     }
 

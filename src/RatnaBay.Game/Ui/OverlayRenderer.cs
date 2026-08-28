@@ -5,11 +5,12 @@ using System.Linq;
 namespace RatnaBay.Client;
 
 /// <summary>
-/// Renders modal pause/help/settings screens from a small presentation snapshot.
+/// Renders modal pause/help/settings screens from a small presentation snapshot, and the
+/// custom mouse pointer.
 ///
 /// Input and game-flow decisions remain in Game1. This class only owns layout and styling,
 /// which gives AI changes to a menu a bounded surface and prevents them from touching the
-/// simulation loop by accident.
+/// simulation loop by accident. Game1 still decides whether the pointer is visible.
 /// </summary>
 internal sealed class OverlayRenderer
 {
@@ -144,5 +145,37 @@ internal sealed class OverlayRenderer
 
         _ui.TextCentred($"This session is being recorded to {state.RecordingDirectory}",
             panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, UiTheme.HintDim);
+    }
+
+    /// <summary>
+    /// Our own mouse pointer: an arrow with a dark skirt so it survives any background.
+    ///
+    /// Game1 decides whether to call this — it depends on whether the mouse is driving the
+    /// camera and whether the frame is a capture, and neither is something a renderer should
+    /// know. Given a logical position, this just paints the arrow.
+    /// </summary>
+    public void DrawPointer(Vector2 position)
+    {
+        if (position.X < -8f || position.Y < -8f
+            || position.X > UiLayout.Width + 8f || position.Y > UiLayout.Height + 8f) return;
+
+        var x = (int)position.X;
+        var y = (int)position.Y;
+
+        for (var row = 0; row < 15; row++)
+        {
+            var width = row < 11 ? row + 1 : 15 - row + 2;
+            if (width <= 0) continue;
+
+            _ui.Fill(new Rectangle(x - 1, y + row - 1, width + 2, 3), UiTheme.PointerSkirt);
+        }
+
+        for (var row = 0; row < 15; row++)
+        {
+            var width = row < 11 ? row + 1 : 15 - row + 2;
+            if (width <= 0) continue;
+
+            _ui.Fill(new Rectangle(x, y + row, width, 1), Color.White);
+        }
     }
 }

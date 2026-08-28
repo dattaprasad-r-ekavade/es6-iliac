@@ -10,6 +10,7 @@ renders, samples input, and loads content. Read this file before changing code.
 | `src/RatnaBay.Domain/` | Engine-independent rules, state, saves, generation. **No MonoGame types.** |
 | `src/RatnaBay.Game/` | WindowsDX client: devices, the frame, world draw, audio. |
 | `src/RatnaBay.Game/Ui/` | Every 2D screen and HUD renderer, plus shared canvas and hit-test layout. |
+| `src/RatnaBay.Game/Render/` | 3D primitives (`SceneRenderer`), imported models (`ModelCache`), generated sprites. |
 | `src/RatnaBay.Game/Input/` | Device sampling (`InputRouter`). |
 | `src/RatnaBay.Game/Content/` | JSON manifests (world, dialogue, quests, shops) and bundled fonts. |
 | `tools/RatnaBay.Tools/` | `doctor`, `validate`, `sim`, `mine`, `review`. |
@@ -95,10 +96,12 @@ the interface to all of `Game1`.
   row is not the row on screen, the numbers have drifted.
 - Colours come from `UiTheme`, by role. Do not write `new Color(...)` in a screen renderer for
   anything the theme already names.
+- 3D boxes, the crystal and the carved quad go through `SceneRenderer`. Imported props go
+  through `ModelCache`. Do not reopen a `BasicEffect` or a vertex buffer from a screen renderer.
 - Anything anchored to a point in the world but drawn flat goes through `WorldProjector` and
   `MarkerRenderer`. Do not hand a renderer the camera to get a screen position.
-- Build presentation snapshots (`WorldHudState`, `OverlayState`, `MenuState`, `NameplateState`)
-  in `Game1`. Renderers receive those snapshots, not the rest of the coordinator.
+- Build presentation snapshots (`WorldHudState`, `OverlayState`, `MenuState`, `NameplateState`,
+  `PromptState`) in `Game1`. Renderers receive those snapshots, not the rest of the coordinator.
 - UI coordinates are a 1280×720 logical canvas (`UiLayout.Width` / `Height`) and must account
   for letterboxing.
 - Save/load changes need a round-trip test and backward-compatible defaults.
@@ -111,8 +114,8 @@ the interface to all of `Game1`.
 
 | Player-facing surface | Renderer | Layout |
 | --- | --- | --- |
-| World HUD (vitals, toasts, crosshair, spell bar) | `Ui/HudRenderer.cs` | snapshot in `WorldHudState` |
-| Pause / help / settings | `Ui/OverlayRenderer.cs` | `UiLayout.PauseItem`, `SettingsRow` |
+| World HUD (vitals, toasts, crosshair, spell bar, coach) | `Ui/HudRenderer.cs` | snapshot in `WorldHudState` |
+| Pause / help / settings / pointer | `Ui/OverlayRenderer.cs` | `UiLayout.PauseItem`, `SettingsRow` |
 | Title menu | `Ui/MenuRenderer.cs` | `UiLayout.MenuItem` |
 | Character / pack / stones | `Ui/CharacterRenderer.cs` | `UiLayout.InventoryTile`, `EquippedSlot` |
 | Dialogue | `Ui/DialogueRenderer.cs` | `UiLayout.DialogueTopic` |
@@ -120,13 +123,18 @@ the interface to all of `Game1`.
 | Journal | `Ui/JournalRenderer.cs` | local panel |
 | Recording consent | `Ui/ConsentRenderer.cs` | `UiLayout.ConsentButton` |
 | Shut door, camp trader, shaft, run summary | `Ui/DescentRenderer.cs` | `CampRow`, `DepthRow`, `SummaryButton` |
+| Door / talk / pickup prompt | `Ui/PromptRenderer.cs` | `UiLayout.TalkPrompt`, `SinglePrompt`; snapshot in `PromptState` |
+| Held weapon sprite | `Ui/WeaponRenderer.cs` | `UiLayout.ShieldGrip`; pose from `WeaponView` |
 | Nameplates, floating damage, threat arrows, yard signs, content errors | `Ui/MarkerRenderer.cs` | projected via `WorldProjector` |
 | Developer console and watches | `Ui/ConsoleRenderer.cs` | local panels |
+| Lit boxes, crystal, carved faces, glow | `Render/SceneRenderer.cs` | per-frame `Begin` |
+| Imported props | `Render/ModelCache.cs` | loaded once, drawn by key |
 
-Still in `Game1` and not yet extracted: the 3D world pass, the weapon and billboard sprites,
-the door prompt, the coach line, the pointer, and the moodboard/stambha/asset spike scenes.
-Extract those when a change needs to touch them, not speculatively — the 3D pass needs a
-primitive-drawing seam that does not exist yet.
+Still in `Game1` and not yet extracted: iterating the authored world and pickups onto
+`SceneRenderer` / `ModelCache`, the billboard pass (actors, enemies, bolts), the
+moodboard/stambha/asset spike scenes, and the screen input handlers. Extract those when a
+change needs to touch them, not speculatively. Do not put 3D primitive drawing back into
+`Game1` — that seam is `SceneRenderer`.
 
 ## Recipes
 

@@ -100,4 +100,15 @@ internal static class UiLayout
         new(InventoryLeft + index * 216, 202, 210, 52);
 
     public static Rectangle SummaryButton => new(492, 500, 296, 42);
+
+    /// <summary>The teaching line, under the location banner and clear of the fight.</summary>
+    public static Rectangle CoachPanel => new((Width - 760) / 2, 74, 760, 52);
+
+    /// <summary>
+    /// Where a raised shield is gripped, in logical pixels.
+    ///
+    /// Below the bottom of the screen on purpose: the rim comes up into view when the guard
+    /// goes up, which is the same trick the weapon uses so it does not read as furniture.
+    /// </summary>
+    public static Vector2 ShieldGrip => new(Width * 0.22f, Height + 44f);
 }

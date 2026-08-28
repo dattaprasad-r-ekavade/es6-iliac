@@ -53,4 +53,6 @@ internal sealed record WorldHudState(
     bool IsBlocking,
     float FramesPerSecond,
     bool ShowFrameRate,
-    SpellHudState Spell);
+    SpellHudState Spell,
+    string CoachLine,
+    float CoachOpacity);

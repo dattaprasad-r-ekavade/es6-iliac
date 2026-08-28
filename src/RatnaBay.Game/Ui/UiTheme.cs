@@ -55,6 +55,18 @@ internal static class UiTheme
     /// <summary>Trade, stone, and the warm frame around a decision.</summary>
     public static readonly Color Bronze = new(205, 157, 98);
 
+    /// <summary>A pocket worth picking. Distinct from talking, or testers never find it.</summary>
+    public static readonly Color Pocket = new(190, 148, 196);
+
+    /// <summary>A door that will not open until the room is clear.</summary>
+    public static readonly Color Barred = new(150, 120, 110);
+
+    /// <summary>Text on a barred door.</summary>
+    public static readonly Color BarredText = new(224, 196, 186);
+
+    /// <summary>The dark skirt under the custom pointer, so it survives any background.</summary>
+    public static readonly Color PointerSkirt = new(12, 14, 18, 220);
+
     // ----------------------------------------------------------------- text
 
     /// <summary>A heading over a panel.</summary>

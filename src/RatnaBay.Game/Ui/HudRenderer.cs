@@ -9,7 +9,8 @@ namespace RatnaBay.Client;
 /// The small, state-driven part of the in-world HUD.
 ///
 /// Layout and presentation only. Game1 builds a <see cref="WorldHudState"/> snapshot and
-/// coordinates draw order with the weapon, nameplates and world prompts.
+/// coordinates draw order with the weapon, nameplates and world prompts. The teaching
+/// line lives here too: it is HUD, not a panel.
 /// </summary>
 internal sealed class HudRenderer
 {
@@ -343,5 +344,26 @@ internal sealed class HudRenderer
         _ui.Fill(new Rectangle(cx + 5, cy + 3, 5, 2), colour);
         _ui.Fill(new Rectangle(cx - 4, cy - 4, 8, 8), colour);
         _ui.Fill(new Rectangle(cx - 1, cy - 1, 2, 2), new Color(20, 26, 27));
+    }
+
+    /// <summary>
+    /// The teaching line, under the location banner.
+    ///
+    /// Up near the top rather than over the vitals: it must be readable without pulling the
+    /// eye off the middle of the screen, and it must never sit where a fight is happening. It
+    /// fades rather than snapping, and it never blocks anything — a player who ignores it
+    /// entirely loses nothing but the explanation.
+    /// </summary>
+    public void DrawCoach(WorldHudState state)
+    {
+        if (state.CoachLine.Length == 0 || state.CoachOpacity <= 0.02f) return;
+
+        var fade = state.CoachOpacity;
+        var panel = UiLayout.CoachPanel;
+
+        _ui.Fill(panel, UiTheme.PanelRaised * (fade * 0.86f));
+        _ui.Border(panel, UiTheme.Accent * (fade * 0.7f));
+        _ui.TextFitCentred(state.CoachLine, panel.Center.X, panel.Y + 17f, panel.Width - 40f, 15,
+            UiTheme.Heading * fade);
     }
 }
