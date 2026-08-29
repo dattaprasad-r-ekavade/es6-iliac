@@ -564,33 +564,9 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         if (_startOnTheSurface) EnterWorld(null, newCharacter: true);
 
         // --exec runs against a world that now exists, and before the first frame is drawn,
-        // so a capture taken after it sees where the commands put the player.
-        if (_scriptMissing is not null)
-        {
-            FailScript($"No script file '{_scriptMissing}'.");
-            _scripts.QuitWhenDone = true;
-            return;
-        }
-
-        if (_consoleScript is null) return;
-
-        var statements = ConsoleRouter.SplitStatements(_consoleScript);
-
-        // Checked as a whole before the first one runs. A script that names a command nothing
-        // registered is a script that was written against a different build, and finding that
-        // out at statement forty means the thirty-nine asserts before it already reported
-        // success on a run that was never going to finish.
-        _scripts.Router ??= GameConsole.Build(this);
-        var unknown = _scripts.Router.UnknownCommands(statements);
-        if (unknown.Count > 0)
-        {
-            FailScript($"Unknown command(s): {string.Join(", ", unknown)}. Try 'help'.");
-            _scripts.QuitWhenDone = true;
-            return;
-        }
-
-        foreach (var statement in statements)
-            _scripts.Queue.Enqueue(statement);
+        // so a capture taken after it sees where the commands put the player. Validating and
+        // queueing the script is ConsoleHost's, which is where the queue lives.
+        _scripts.LoadScript(_scriptMissing, _consoleScript, this);
     }
 
     protected override void UnloadContent()

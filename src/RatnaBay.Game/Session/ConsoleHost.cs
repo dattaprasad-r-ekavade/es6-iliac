@@ -30,6 +30,44 @@ internal sealed class ConsoleHost
             Queue.Enqueue(statement);
     }
 
+    /// <summary>
+    /// Take a --script or --exec body and make it the queue, or fail the run trying.
+    ///
+    /// The whole script is checked before its first statement runs. A script naming a command
+    /// nothing registered is a script written against a different build, and finding that out
+    /// at statement forty means the thirty-nine asserts above it have already reported success
+    /// on a run that was never going to finish — a green gate for a build that could not pass.
+    ///
+    /// <paramref name="missingPath"/> is the file the command line asked for and could not be
+    /// read. It fails here rather than at parse time so a missing script exits 1 like a failed
+    /// assert does, instead of quietly starting an ordinary game nobody asked for.
+    /// </summary>
+    public void LoadScript(string? missingPath, string? script, IConsoleTarget target)
+    {
+        if (missingPath is not null)
+        {
+            Fail($"No script file '{missingPath}'.");
+            QuitWhenDone = true;
+            return;
+        }
+
+        if (script is null) return;
+
+        var statements = ConsoleRouter.SplitStatements(script);
+
+        Router ??= GameConsole.Build(target);
+        var unknown = Router.UnknownCommands(statements);
+        if (unknown.Count > 0)
+        {
+            Fail($"Unknown command(s): {string.Join(", ", unknown)}. Try 'help'.");
+            QuitWhenDone = true;
+            return;
+        }
+
+        foreach (var statement in statements)
+            Queue.Enqueue(statement);
+    }
+
     public void Run(string line, IConsoleTarget target)
     {
         Router ??= GameConsole.Build(target);
