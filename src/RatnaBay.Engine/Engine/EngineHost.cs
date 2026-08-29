@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
@@ -114,6 +115,67 @@ public abstract class EngineHost : Game
     {
         var viewport = GraphicsDevice.Viewport;
         Mouse.SetPosition(viewport.Width / 2, viewport.Height / 2);
+    }
+
+    /// <summary>Billboards, for anything drawn as a camera-facing quad.</summary>
+    protected BillboardRenderer Billboards { get; private set; } = null!;
+
+    /// <summary>The lit effect untextured world geometry is drawn with.</summary>
+    protected BasicEffect LitEffect { get; private set; } = null!;
+
+    /// <summary>The ambient bed, or null when no audio device would take it.</summary>
+    protected AmbientAudio? Ambience { get; private set; }
+
+    /// <summary>
+    /// Synthesised effects, or null when the device refused them.
+    ///
+    /// Named Sounds rather than Sfx because Sfx is already the enum of effect ids, and a
+    /// property with that name shadows it at every call site: Sfx.Play(Sfx.Coin) stops
+    /// compiling the moment the property exists.
+    /// </summary>
+    protected SoundBank? Sounds { get; private set; }
+
+    /// <summary>
+    /// Everything a first-person scene needs before a game loads a single asset of its own.
+    ///
+    /// Billboards, a lit effect, and the two audio banks — none of which know what game this
+    /// is. A new game calls this and then loads its models; it does not re-derive which order
+    /// BasicEffect wants its lighting set in.
+    ///
+    /// Failures are collected rather than thrown. A machine with no audio device should still
+    /// get a playable game and a line saying what is missing, which is why every one of these
+    /// returns a message instead of an exception.
+    /// </summary>
+    protected void AttachScene(ICollection<string> faults)
+    {
+        Billboards = new BillboardRenderer(GraphicsDevice);
+
+        if (!AmbientAudio.TryStart(out var ambience, out var ambientFault)
+            && !string.IsNullOrWhiteSpace(ambientFault))
+            faults.Add(ambientFault);
+
+        Ambience = ambience;
+
+        Sounds = SoundBank.Create(out var sfxFault);
+        if (!string.IsNullOrWhiteSpace(sfxFault)) faults.Add(sfxFault);
+
+        LitEffect = new BasicEffect(GraphicsDevice)
+        {
+            VertexColorEnabled = false,
+            TextureEnabled = false,
+            LightingEnabled = true,
+            PreferPerPixelLighting = true
+        };
+
+        // EnableDefaultLighting overwrites the ambient colour and all three lights, so it has
+        // to run before they are set. It was once called after, which made every ambient value
+        // below it dead code and left the scene near-black — a mistake worth keeping the order
+        // in one place to prevent.
+        LitEffect.EnableDefaultLighting();
+        LitEffect.AmbientLightColor = new Vector3(0.54f, 0.57f, 0.62f);
+        LitEffect.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-0.4f, -1f, -0.25f));
+        LitEffect.DirectionalLight0.DiffuseColor = new Vector3(1f, 0.83f, 0.64f);
+        LitEffect.DirectionalLight0.SpecularColor = new Vector3(0.28f);
     }
 
     /// <summary>Hand the canvas its device resources. Call from LoadContent after fonts exist on disk.</summary>

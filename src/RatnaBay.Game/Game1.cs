@@ -31,7 +31,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// Shared by SceneRenderer. Begin takes it each frame so the spike scenes can retune it
     /// for a shot and restore it afterwards.
     /// </summary>
-    private BasicEffect _primitiveEffect = null!;
 
     /// <summary>
     /// The lights affecting the current draw, nearest first.
@@ -175,10 +174,8 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         set => _play.Shop = value;
     }
     private List<WorldPickup> _pickups => _play.Pickups;
-    private AmbientAudio? _ambientAudio;
 
     /// <summary>Every sound effect in the game, synthesised at startup.</summary>
-    private SoundBank? _sfx;
 
     /// <summary>
     /// Seconds of frozen simulation still owed to a landed blow.
@@ -207,7 +204,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         set => _feel.ShakeStrength = value;
     }
 
-    private BillboardRenderer _billboards = null!;
 
     /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
     private readonly WeaponView _weaponView = new();
@@ -538,7 +534,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             "Feasibility",
             "Fonts");
 
-        _billboards = new BillboardRenderer(GraphicsDevice);
         AttachCanvas(
             Path.Combine(fontsDirectory, "NotoSans", "NotoSans-wght.ttf"),
             Path.Combine(fontsDirectory, "Cinzel", "Cinzel-wght.ttf"));
@@ -550,29 +545,10 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         if (_scene.LoadCaveShader(Content, "Effects/CaveLighting") is { } shaderFault)
             _assetErrors.Add($"cave lighting: {shaderFault}");
 
-        if (!AmbientAudio.TryStart(out _ambientAudio, out var ambientError)
-            && !string.IsNullOrWhiteSpace(ambientError))
-            _assetErrors.Add(ambientError);
-
-        _sfx = SoundBank.Create(out var sfxError);
-        if (!string.IsNullOrWhiteSpace(sfxError)) _assetErrors.Add(sfxError);
-
-        _primitiveEffect = new BasicEffect(GraphicsDevice)
-        {
-            VertexColorEnabled = false,
-            TextureEnabled = false,
-            LightingEnabled = true,
-            PreferPerPixelLighting = true
-        };
-
-        // EnableDefaultLighting() overwrites the ambient colour and all three lights, so it
-        // has to run before they are set. It was being called after, which made every
-        // ambient value below it dead code and left the scene near-black.
-        _primitiveEffect.EnableDefaultLighting();
-        _primitiveEffect.AmbientLightColor = new Vector3(0.54f, 0.57f, 0.62f);
-        _primitiveEffect.DirectionalLight0.Direction = Vector3.Normalize(new Vector3(-0.4f, -1f, -0.25f));
-        _primitiveEffect.DirectionalLight0.DiffuseColor = new Vector3(1f, 0.83f, 0.64f);
-        _primitiveEffect.DirectionalLight0.SpecularColor = new Vector3(0.28f);
+        // Billboards, the lit effect and both audio banks. None of them know what game this
+        // is, so the engine owns them; this method is left with the models below, which is
+        // the only part of loading that is actually about Ratna Bay.
+        AttachScene(_assetErrors);
 
         _modelCache.Load(Content, "bridge", "Feasibility/Models/Kenney/bridge_wood");
         _modelCache.Load(Content, "campfire", "Feasibility/Models/Kenney/campfire_stones");
@@ -624,8 +600,8 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         DisposeHost();
         if (_facesPath is not null) return;
 
-        _primitiveEffect.Dispose();
-        _billboards.Dispose();
+        LitEffect.Dispose();
+        Billboards.Dispose();
         StoneTextures.Clear();
         PropTextures.Clear();
         ItemSprites.Clear();
@@ -633,8 +609,8 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // A sitting that ends by closing the window is still a sitting worth reading back.
         _recorder.Flush();
 
-        _ambientAudio?.Dispose();
-        _sfx?.Dispose();
+        Ambience?.Dispose();
+        Sounds?.Dispose();
         CharacterSprites.Clear();
         WeaponSprites.Clear();
         BoltSprites.Clear();
@@ -862,7 +838,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // The one point per frame where the camera is settled and nothing has drawn yet. The
         // scene renderer takes its whole per-frame context here rather than as six arguments
         // on each of forty draw calls, which is how one of them ends up passing a stale view.
-        _scene.Begin(_primitiveEffect, _camera.View, _camera.Projection, _camera.Position,
+        _scene.Begin(LitEffect, _camera.View, _camera.Projection, _camera.Position,
             _camera.Yaw, _worldView.Stone, _lights);
 
         // The question owns the screen until it is answered.
@@ -985,12 +961,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
                 break;
 
             case SettingsAction.NudgeVolume:
-                if (_sfx is null) return;
-                _sfx.Volume = MathHelper.Clamp(_sfx.Volume + command.Nudge * 0.1f, 0f, 1f);
+                if (Sounds is null) return;
+                Sounds.Volume = MathHelper.Clamp(Sounds.Volume + command.Nudge * 0.1f, 0f, 1f);
 
                 // Play the thing being adjusted, so the number is not the only feedback. A volume
                 // slider that makes no sound is guesswork.
-                _sfx.Play(Sfx.Coin, 0.5f);
+                Sounds.Play(Sfx.Coin, 0.5f);
                 break;
         }
     }
@@ -1663,7 +1639,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         var cmd = _combat.Tick(step, keyboard, _input.CurrentMouse, Clicked(_input.CurrentMouse),
             _mouseLook, _stack.Help, IsMoving(keyboard),
             _session, _encounter, _world, _run, _dialogue, _shop,
-            _camera, _weaponView, _coach, _recorder, _sfx, _input);
+            _camera, _weaponView, _coach, _recorder, Sounds, _input);
 
         switch (cmd.Action)
         {
@@ -1769,7 +1745,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             _ => "The door is already open."
         });
 
-        _sfx?.Play(result switch
+        Sounds?.Play(result switch
         {
             LockResult.Opened or LockResult.Unlocked => Sfx.Door,
             _ => Sfx.Denied
@@ -1817,12 +1793,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     }
 
     private void ReportAttack(AttackOutcome outcome) =>
-        _feel.ReportAttack(outcome, _session, _sfx);
+        _feel.ReportAttack(outcome, _session, Sounds);
 
     private void ReportCast(CastOutcome outcome)
     {
         if (_session is null) return;
-        _feel.ReportCast(outcome, _session, _sfx);
+        _feel.ReportCast(outcome, _session, Sounds);
     }
 
     /// <summary>
@@ -1871,12 +1847,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         {
             _session.ShowToast(
                 $"That door is shut to a {Ranks.TitleOf(rank)}. It wants a {Ranks.LabelOf(room.RequiredRank)}.");
-            _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+            Sounds?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
             return;
         }
 
         _stack.FortRoom = room.Id;
-        _sfx?.Play(Sfx.Door, 0.4f, volumeScale: 0.7f);
+        Sounds?.Play(Sfx.Door, 0.4f, volumeScale: 0.7f);
     }
 
     private void UpdateInventory(KeyboardState keyboard)
@@ -2007,10 +1983,10 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     private (float Yaw, float Pitch) ShakeOffset() => _feel.ShakeOffset(_clock);
 
     private void WatchSessionForTheFeel(GameSession session) =>
-        _feel.WatchSession(session, _sfx);
+        _feel.WatchSession(session, Sounds);
 
     private void WatchForTheFeel(Encounter encounter) =>
-        _feel.WatchEncounter(encounter, _sfx);
+        _feel.WatchEncounter(encounter, Sounds);
 
     /// <summary>
     /// Subscribe the recorder to the fight.
@@ -2057,7 +2033,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// the only ones worth clearing for reasons that have nothing to do with the stones.
     /// </summary>
     private void OfferStone() =>
-        _feel.OfferStone(_session, _run, _stoneDrops, _mineDepth, _sfx, _coach);
+        _feel.OfferStone(_session, _run, _stoneDrops, _mineDepth, Sounds, _coach);
 
     /// <summary>Roughly one room in two.</summary>
     private const double StoneDropChance = 0.5;
@@ -2096,7 +2072,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// </summary>
     private void Stride(float metres, KeyboardState keyboard) =>
         _feel.Step(metres, keyboard, _screen == GameScreen.WorldScene, _camera.Grounded,
-            _camera.Crouching, _sfx);
+            _camera.Crouching, Sounds);
 
     private void UpdateCamera(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
@@ -2128,7 +2104,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             collide);
 
         if (moved.Landed && _screen == GameScreen.WorldScene)
-            _sfx?.Play(Sfx.Land, 0.5f, volumeScale: 0.8f);
+            Sounds?.Play(Sfx.Land, 0.5f, volumeScale: 0.8f);
 
         if (moved.MetresWalked > 0f) Stride(moved.MetresWalked, keyboard);
     }
@@ -2263,7 +2239,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             _recorder.Record(PlayEventKind.ItemBought, item.Name, item.Price, 0f,
                 _session.Player.Vitals.Health, _session.Player.Vitals.Prana, item.Kind);
             _session.ShowToast($"Bought {item.Name}.");
-            _sfx?.Play(Sfx.Coin, 0.55f);
+            Sounds?.Play(Sfx.Coin, 0.55f);
         }
         else
         {
@@ -2353,8 +2329,8 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <summary>The volume row's value, or why there isn't one.</summary>
     private string SoundVolumeLine()
     {
-        if (_sfx is null || !_sfx.IsAvailable) return "unavailable on this machine";
-        return _sfx.Volume <= 0f ? "off" : $"{_sfx.Volume * 100f:0}%";
+        if (Sounds is null || !Sounds.IsAvailable) return "unavailable on this machine";
+        return Sounds.Volume <= 0f ? "off" : $"{Sounds.Volume * 100f:0}%";
     }
 
     /// <summary>
@@ -2395,7 +2371,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     {
         if (_moodboard)
         {
-            _spikes.DrawMoodboard(GraphicsDevice, _scene, _billboards, _camera, _primitiveEffect,
+            _spikes.DrawMoodboard(GraphicsDevice, _scene, Billboards, _camera, LitEffect,
                 _lights, _worldView.Stone, _ui, _clock, _assetCase);
             EndUi();
             return;
@@ -2403,13 +2379,13 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
         if (_stambhaPreview)
         {
-            _spikes.DrawStambha(GraphicsDevice, _scene, _camera, _primitiveEffect, _ui);
+            _spikes.DrawStambha(GraphicsDevice, _scene, _camera, LitEffect, _ui);
             EndUi();
             return;
         }
 
         DrawAuthoredWorld();
-        _figures.Draw(GraphicsDevice, _scene, _billboards, _camera, _dialogue, _watchers,
+        _figures.Draw(GraphicsDevice, _scene, Billboards, _camera, _dialogue, _watchers,
             _encounter, _cave);
 
         if (_capture.CoverMode)
@@ -2609,7 +2585,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
         if (Pressed(keyboard, Keys.D0) && stones.Socketed.Count > 0)
         {
-            if (stones.Unsocket(stones.Socketed[^1])) _sfx?.Play(Sfx.Coin, 0.3f);
+            if (stones.Unsocket(stones.Socketed[^1])) Sounds?.Play(Sfx.Coin, 0.3f);
             return;
         }
 
@@ -2621,11 +2597,11 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             if (stones.Socket(id))
             {
                 _session.ShowToast($"{StoneCatalog.Find(id)?.DisplayName} socketed.");
-                _sfx?.Play(Sfx.Chime, 0.35f);
+                Sounds?.Play(Sfx.Chime, 0.35f);
             }
             else
             {
-                _sfx?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
+                Sounds?.Play(Sfx.Denied, 0.2f, volumeScale: 0.7f);
             }
 
             return;
@@ -2837,7 +2813,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     FirstPersonView ISessionHooks.Camera => _camera;
     PlayRecorder ISessionHooks.Recorder => _recorder;
     Coach ISessionHooks.Coach => _coach;
-    SoundBank? ISessionHooks.Sfx => _sfx;
+    SoundBank? ISessionHooks.Sounds => Sounds;
     GameScreen ISessionHooks.Screen
     {
         get => _screen;

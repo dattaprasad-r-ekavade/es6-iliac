@@ -50,7 +50,7 @@ internal interface ISessionHooks
     FirstPersonView Camera { get; }
     PlayRecorder Recorder { get; }
     Coach Coach { get; }
-    SoundBank? Sfx { get; }
+    SoundBank? Sounds { get; }
     GameScreen Screen { get; set; }
     string MenuStatus { get; set; }
     string QuestObjectiveId { get; set; }
@@ -212,7 +212,7 @@ internal sealed class SessionDirector
         {
             _play.Session?.ShowToast(
                 $"Room clear.  +{paid} stones held  ({_play.Run.Run.Pending} at risk)");
-            _hooks.Sfx?.Play(Sfx.Coin, MathHelper.Clamp(paid / 12f, 0.3f, 1f));
+            _hooks.Sounds?.Play(Sfx.Coin, MathHelper.Clamp(paid / 12f, 0.3f, 1f));
             _hooks.Recorder.Record(PlayEventKind.RoomCleared, $"room {_play.Run.DeepestRoom}", paid,
                 _play.Run.Run.Pending, _play.Session?.Player.Vitals.Health ?? 0f,
                 _play.Session?.Player.Vitals.Prana ?? 0f);
@@ -234,13 +234,13 @@ internal sealed class SessionDirector
         {
             var rank = _play.Session.Player.Legacy.Service;
             _play.Session.ShowToast($"The order raises you. You are {Ranks.LabelOf(rank.Rank)}.");
-            _hooks.Sfx?.Play(Sfx.Chime, 0.85f);
+            _hooks.Sounds?.Play(Sfx.Chime, 0.85f);
         }
 
         foreach (var id in _play.EarnedAmulets)
         {
             _play.Session?.ShowToast($"{AmuletCatalog.Find(id)?.DisplayName} — kept for good.");
-            _hooks.Sfx?.Play(Sfx.Chime, 0.7f);
+            _hooks.Sounds?.Play(Sfx.Chime, 0.7f);
         }
 
         _hooks.RestockTheStall();
