@@ -2602,27 +2602,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     }
 
     /// <summary>
-    /// Squared, for sorting only. Anything that compares against a distance in metres wants
-    /// <see cref="MetresToCamera"/> — see the note there.
-    /// </summary>
-    private float DistanceToCamera(Enemy enemy) =>
-        Vector3.DistanceSquared(_camera.Position,
-            new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z));
-
-    /// <summary>
-    /// Real metres to an enemy.
-    ///
-    /// The nameplate code was using the squared form against a range of 26, so a plate only
-    /// appeared within the square root of that -- about five metres -- and the distance-based
-    /// shrink hit its floor almost immediately. The level of the thing walking at you was
-    /// therefore unreadable until it was already on top of you, which is precisely when
-    /// nobody has time to read it.
-    /// </summary>
-    private float MetresToCamera(Enemy enemy) =>
-        Vector3.Distance(_camera.Position,
-            new Vector3(enemy.Position.X, enemy.Position.Y, enemy.Position.Z));
-
-    /// <summary>
     /// The weapon in the player's hand.
     ///
     /// Capture pose is set here because --swing / --cast are coordinator concerns. The blit
@@ -2654,82 +2633,16 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <summary>
     /// Nameplates for everything alive and close enough to matter.
     ///
-    /// The projection happens here, where the camera is, and the renderer receives points on
-    /// the canvas -- so a marker can never be projected with a different frame's camera than
-    /// the one it is drawn over.
+    /// The camera and the projector are handed over here, where they are current, so a plate
+    /// can never be projected with a different frame's camera than the one it is drawn over.
+    /// What goes on a plate is NameplateBuilder's, beside the HUD snapshot it belongs with.
     /// </summary>
-    /// <summary>
-    /// Everything currently true of an enemy, in the order it matters to the player.
-    ///
-    /// Striking first because it is the one with a deadline attached — it is the moment to
-    /// guard. Then what is being done to it, which is what tells a player their last spell or
-    /// stone did something and is still doing it.
-    /// </summary>
-    private string StatusOf(Enemy enemy)
-    {
-        var states = new List<string>(4);
-
-        if (_encounter is not null && _encounter.IsLunging(enemy)) states.Add("striking");
-        if (enemy.IsStaggered) states.Add("staggered");
-        if (enemy.IsBurning) states.Add("burning");
-        if (enemy.IsChilled) states.Add("chilled");
-
-        return string.Join(" · ", states);
-    }
-
     private void DrawEnemyNameplates()
     {
-        if (_encounter is null || _encounter.Enemies.Count == 0) return;
+        if (_encounter is null) return;
 
-        // Far ones first, so a nearer plate overlaps a further one rather than the reverse.
-        var sorted = new List<Enemy>(_encounter.Enemies);
-        sorted.Sort((a, b) => DistanceToCamera(b).CompareTo(DistanceToCamera(a)));
-
-        var projector = Projector();
-        var plates = new List<NameplateState>();
-
-        foreach (var enemy in sorted)
-        {
-            if (!enemy.IsAlive) continue;
-
-            var distance = MetresToCamera(enemy);
-            if (distance > MarkerRenderer.NameplateRange) continue;
-
-            var feet = _encounter.DrawPositionOf(enemy);
-            var head = feet + Vector3.Up * (_encounter.DrawHeightOf(enemy) + 0.34f);
-            if (!projector.TryProject(head, out var anchor)) continue;
-
-            // Shrink with distance, but never past readable. A plate that scales all the way
-            // down is unreadable exactly when a player most wants to know what is coming.
-            var scale = MathHelper.Clamp(
-                1.25f - distance / MarkerRenderer.NameplateRange, 0.62f, 1f);
-
-            plates.Add(new NameplateState(
-                Anchor: anchor,
-                Scale: scale,
-                // Always, and labelled.
-                //
-                // It was hidden at level one and drawn as a bare number after a dot, so the
-                // shallow rooms showed nothing and the deep ones showed "Bandit · 4" -- which
-                // could be a level, a count, or a rank. Now that every body rolls its own
-                // level out of a band, the number is the main thing a player reads off a room
-                // on entry: five bandits at Lv 3 and one at Lv 6 is a different room from six
-                // at Lv 3, and it should be legible from the doorway.
-                Label: $"{enemy.DisplayName}   Lv {enemy.Archetype.Level}",
-                // Every state that is true, not the first one.
-                //
-                // This was a priority chain, so a burning enemy that got staggered stopped
-                // saying it was burning. The burn was still running -- Enemy.Tick counts it
-                // down and applies it whatever else is happening -- but the readout said
-                // otherwise, and a player reasonably concluded the stagger had cancelled it.
-                // An effect the player cannot see is an effect they will not build on.
-                Status: StatusOf(enemy),
-                HealthFraction: MathHelper.Clamp(enemy.Health / enemy.MaxHealth, 0f, 1f),
-                Vulnerable: enemy.IsVulnerable,
-                Focused: ReferenceEquals(_encounter.Focused, enemy)));
-        }
-
-        _screens.Markers.DrawNameplates(plates);
+        _screens.Markers.DrawNameplates(
+            NameplateBuilder.Build(_encounter, Projector(), _camera.Position));
     }
 
     private void DrawFloatingNumbers()
