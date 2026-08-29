@@ -297,12 +297,8 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <summary>True while the question is on screen, before anything has been sent.</summary>
     private bool _askingConsent;
 
-    /// <summary>True once the camp panel has been shown for the current door.</summary>
-    private bool _decisionRecorded
-    {
-        get => _play.DecisionRecorded;
-        set => _play.DecisionRecorded = value;
-    }
+    /// <summary>The shut door: what it teaches, when its clock starts, what was answered.</summary>
+    private readonly DoorPrompt _door = new();
 
     /// <summary>The descent in progress, when the loaded world is a mine.</summary>
     private RunRuntime? _run
@@ -1439,41 +1435,20 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
                 return;
         }
 
-        if (_run is { AtDecision: true } decision && _session is not null)
-        {
-            // The one decision the whole game is built on, explained the first time it is
-            // actually in front of somebody with stones in the pot.
-            _coach.Teach(Lessons.FirstDoor, Lessons.TextOf(Lessons.FirstDoor));
-            if (decision.Run.CanCallTrader)
-                _coach.Teach(Lessons.Trader, Lessons.TextOf(Lessons.Trader));
+        // Asking is DoorPrompt's job; what an answer does to the pot is still this class's.
+        // Called every frame, including when there is no door, because it also has to notice
+        // when one closes behind the player and re-arm its clock for the next.
+        var answered = _door.Step(_run, _input, keyboard, _coach, _recorder,
+            _session?.Player.Vitals);
 
-            // The clock on the answer starts the first frame the panel is up.
-            if (!_decisionRecorded)
-            {
-                _decisionRecorded = true;
-                _recorder.Record(PlayEventKind.DecisionOffered,
-                    $"after {decision.Run.RoomsCleared} rooms",
-                    decision.Run.Pending, decision.Run.NextRoomPays,
-                    _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
-            }
-
-            switch (WorldPanelInput.StepDoor(_input, keyboard,
-                decision.Run.CanCallTrader, decision.Run.CanPressOn))
-            {
-                case DoorAction.Camp:
-                    ApplyCampOut(decision);
-                    return;
-                case DoorAction.CallTrader:
-                    ApplyCallTrader(decision);
-                    return;
-                case DoorAction.PressOn:
-                    ApplyPressOn(decision);
-                    return;
-            }
-        }
-        else if (_run is not null)
+        if (_run is { } atDoor)
         {
-            _decisionRecorded = false;
+            switch (answered)
+            {
+                case DoorAction.Camp: ApplyCampOut(atDoor); return;
+                case DoorAction.CallTrader: ApplyCallTrader(atDoor); return;
+                case DoorAction.PressOn: ApplyPressOn(atDoor); return;
+            }
         }
 
         // The rest of the panel keys, after the early holds have had their say. A panel that

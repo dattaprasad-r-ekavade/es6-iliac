@@ -35,7 +35,6 @@ internal sealed class PlayState
     public Shop? Shop;
     public readonly List<WorldPickup> Pickups = new();
     public bool ResumingDescent;
-    public bool DecisionRecorded;
     public Random StoneDrops = new(0);
     public IReadOnlyList<string> EarnedAmulets = Array.Empty<string>();
     public readonly Dictionary<string, PickpocketTarget> Pockets = new(StringComparer.Ordinal);
@@ -195,7 +194,6 @@ internal sealed class SessionDirector
                 SoulCrystals.ItemKind);
 
         _play.StoneDrops = new Random(seed * 397 + _play.MineDepth);
-        _play.DecisionRecorded = false;
 
         _hooks.Recorder.Record(PlayEventKind.RunStarted, _play.World.Manifest.Id, seed, _play.MineDepth,
             _play.Session?.Player.Vitals.Health ?? 0f);
