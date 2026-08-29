@@ -27,6 +27,18 @@ dotnet build samples/FirstLight/FirstLight.csproj
 dotnet samples/FirstLight/bin/Debug/net9.0-windows/win-x64/FirstLight.dll --windowed
 ```
 
+The engine has also been exported as a standalone framework at `D:\Projects\engine` (Ember),
+for starting a game that is not this one. It is a rename-and-copy of this project, not a fork:
+`tools/sync-from-ratnabay.ps1` over there re-pulls from here and rewrites the namespaces, so a
+fix made while working on Ratna Bay reaches it in one command.
+
+What that export refused to take is worth knowing here, because it is a list of files sitting
+in `RatnaBay.Engine` that are not engine at all: `MenuRenderer` (draws the words RATNA BAY),
+`ConsentRenderer`, `OverlayRenderer` and `OverlayState` (a pause screen counting stones at
+risk), `OverlayInput`, `ScreenStack` (one bool per Ratna Bay panel) and `UiLayout` (this game's
+rectangle table). They are fine where they are — but they are this game's screens, and the
+table above should not be read as claiming otherwise.
+
 What that sample had to write for itself is the honest measure of what the engine does *not*
 do yet: a `Draw` that clears and calls `SceneRenderer`, an `Update` that samples input and
 steps the view, a collision callback, and the knowledge that `SceneRenderer` must be built in
