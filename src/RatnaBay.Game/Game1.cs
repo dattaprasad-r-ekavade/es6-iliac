@@ -1347,6 +1347,57 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _overlay.MenuSelection = 0;
     }
 
+    /// <summary>
+    /// Open what a key asked for, or close it if it is already open.
+    ///
+    /// The seven bindings each used to repeat the same three steps — close if open, otherwise
+    /// open and give the pointer to the panel — and a binding that forgot the third step left
+    /// the player turning the camera with a menu in front of them. Once, here, so a new panel
+    /// cannot be added with that step missing.
+    /// </summary>
+    private void OpenPanel(PanelRequest request)
+    {
+        if (request == PanelRequest.None) return;
+
+        if (request == PanelRequest.ToggleMouseLook)
+        {
+            SetMouseLook(!_mouseLook);
+            return;
+        }
+
+        if (request == PanelRequest.Settings)
+        {
+            _overlay.ShowSettings = !_overlay.ShowSettings;
+            if (_overlay.ShowSettings) SetMouseLook(false, forPanel: true);
+            return;
+        }
+
+        var alreadyOpen = request switch
+        {
+            PanelRequest.Help => _stack.Help,
+            PanelRequest.Fort => _stack.Fort,
+            PanelRequest.Journal => _stack.Journal,
+            PanelRequest.Character => _stack.Character,
+            _ => false
+        };
+
+        if (alreadyOpen)
+        {
+            ClosePanels();
+            return;
+        }
+
+        switch (request)
+        {
+            case PanelRequest.Help: _stack.Help = true; break;
+            case PanelRequest.Fort: _stack.OpenFort(); _panels.FortSelection = 0; break;
+            case PanelRequest.Journal: _stack.OpenJournal(); break;
+            case PanelRequest.Character: _stack.OpenCharacter(); _panels.InventorySelection = 0; break;
+        }
+
+        SetMouseLook(false, forPanel: true);
+    }
+
     private void UpdateGameScreen(GameTime gameTime, KeyboardState keyboard, MouseState mouse)
     {
         // M was a second silent way out of a run. It opens the same pause screen now.
@@ -1360,11 +1411,8 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             return;
         }
 
-        if (Pressed(keyboard, Keys.F1))
-        {
-            if (_stack.Help) ClosePanels();
-            else { _stack.Help = true; SetMouseLook(false, forPanel: true); }
-        }
+        // Help first, before the early holds, for the reason above.
+        OpenPanel(PanelKeys.ReadHelp(_input, keyboard));
 
         // A screen with no way out but a function key is a screen some players will be stuck
         // on. Anywhere on the controls overlay closes it.
@@ -1428,39 +1476,9 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             _decisionRecorded = false;
         }
 
-        if (Pressed(keyboard, Keys.Tab)) SetMouseLook(!_mouseLook);
-
-        // Only above ground. The fort is what a run is for, not something to read halfway
-        // down a shaft with a door waiting.
-        if (Pressed(keyboard, Keys.F) && OnTheSurface)
-        {
-            if (_stack.Fort) ClosePanels();
-            else
-            {
-                _stack.OpenFort();
-                _panels.FortSelection = 0;
-                SetMouseLook(false, forPanel: true);
-            }
-        }
-        if (Pressed(keyboard, Keys.J))
-        {
-            if (_stack.Journal) ClosePanels();
-            else
-            {
-                _stack.OpenJournal();
-                SetMouseLook(false, forPanel: true);
-            }
-        }
-        if (Pressed(keyboard, Keys.I) || Pressed(keyboard, Keys.K))
-        {
-            if (_stack.Character) ClosePanels();
-            else
-            {
-                _stack.OpenCharacter();
-                _panels.InventorySelection = 0;
-                SetMouseLook(false, forPanel: true);
-            }
-        }
+        // The rest of the panel keys, after the early holds have had their say. A panel that
+        // owns the screen must be able to swallow them.
+        OpenPanel(PanelKeys.Read(_input, keyboard, OnTheSurface));
 
         switch (_stack.LateHold(_overlay))
         {
@@ -1470,12 +1488,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             case WorldHold.Character:
                 UpdateInventory(keyboard);
                 return;
-        }
-
-        if (Pressed(keyboard, Keys.F2))
-        {
-            _overlay.ShowSettings = !_overlay.ShowSettings;
-            if (_overlay.ShowSettings) SetMouseLook(false, forPanel: true);
         }
 
         if (_stack.LateHold(_overlay) == WorldHold.Settings)
