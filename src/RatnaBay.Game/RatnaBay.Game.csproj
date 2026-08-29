@@ -54,6 +54,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RatnaBay.Domain\RatnaBay.Domain.csproj" />
+    <ProjectReference Include="..\RatnaBay.Engine\RatnaBay.Engine.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Content\World\*.json" CopyToOutputDirectory="PreserveNewest" />

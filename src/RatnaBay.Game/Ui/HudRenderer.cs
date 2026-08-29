@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using RatnaBay.Domain;
 using System;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 /// <summary>
 /// The small, state-driven part of the in-world HUD.

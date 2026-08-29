@@ -1,4 +1,4 @@
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 /// <summary>
 /// Every 2D screen renderer, constructed once against the shared canvas.

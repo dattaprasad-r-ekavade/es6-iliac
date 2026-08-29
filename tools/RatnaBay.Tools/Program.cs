@@ -32,6 +32,7 @@ static int RunDoctor(string root)
         "verify.ps1",
         "AGENTS.md",
         "src/RatnaBay.Domain/RatnaBay.Domain.csproj",
+        "src/RatnaBay.Engine/RatnaBay.Engine.csproj",
         "src/RatnaBay.Game/RatnaBay.Game.csproj",
         "src/RatnaBay.Game/Content/Content.mgcb",
         "src/RatnaBay.Game/.config/dotnet-tools.json",
@@ -77,6 +78,20 @@ static int RunDoctor(string root)
     if (failures.Count > 0)
     {
         Console.Error.WriteLine($"{failures.Count} required path or package check(s) failed.");
+        return 1;
+    }
+
+    var engineProject = Path.Combine(root, "src", "RatnaBay.Engine", "RatnaBay.Engine.csproj");
+    var engineCsproj = File.ReadAllText(engineProject);
+    var engineHasDomainRef = engineCsproj.Contains("RatnaBay.Domain", StringComparison.Ordinal);
+    var engineDir = Path.Combine(root, "src", "RatnaBay.Engine");
+    var engineHasDomainUsing = Directory.EnumerateFiles(engineDir, "*.cs", SearchOption.AllDirectories)
+        .Any(path => File.ReadAllText(path).Contains("using RatnaBay.Domain", StringComparison.Ordinal));
+    var engineClean = !engineHasDomainRef && !engineHasDomainUsing;
+    Console.WriteLine($"[{(engineClean ? "OK" : "FAIL")}] no domain reference in the engine");
+    if (!engineClean)
+    {
+        Console.Error.WriteLine("The engine project must not reference RatnaBay.Domain.");
         return 1;
     }
 

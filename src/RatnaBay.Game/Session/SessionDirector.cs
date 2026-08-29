@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Session;
 
 internal enum GameScreen
 {
@@ -38,6 +38,7 @@ internal sealed class PlayState
     public bool DecisionRecorded;
     public Random StoneDrops = new(0);
     public IReadOnlyList<string> EarnedAmulets = Array.Empty<string>();
+    public readonly Dictionary<string, PickpocketTarget> Pockets = new(StringComparer.Ordinal);
 }
 
 /// <summary>
@@ -69,6 +70,8 @@ internal interface ISessionHooks
     void RestockTheStall();
     void ResetCamera();
     void OfferStone();
+    void LeaveToMenu();
+    bool SuspendedOnDisk { get; set; }
 }
 
 /// <summary>
@@ -321,6 +324,95 @@ internal sealed class SessionDirector
         }
 
         _play.World = yard;
+    }
+
+    /// <summary>Go down, at a depth that has been paid for.</summary>
+    public void EnterMine(int seed, int tier) => EnterWorld(seed, tier: tier);
+
+    /// <summary>Walk back into the mine that was put down.</summary>
+    public void ResumeSuspendedDescent()
+    {
+        _play.MineSeed = null;
+        _play.World = null;
+        _play.Run = null;
+        _play.Summary = null;
+
+        if (_play.Session is null && !Load()) return;
+        if (_play.Session is null) return;
+
+        if (!_play.Session.HasSuspendedDescent)
+        {
+            _hooks.MenuStatus = "There is no descent to return to.";
+            return;
+        }
+
+        var descent = _play.Session.Descent!;
+        _play.ResumingDescent = true;
+        _play.MineRooms = descent.Rooms;
+        _play.MineDepth = descent.Depth;
+        _play.MineSeed = descent.Seed;
+        _play.World = null;
+        _play.Cave = CaveThemeCatalog.For(descent.Seed, descent.Depth);
+
+        Start(_play.Session);
+        ApplyCave();
+
+        _hooks.Camera.Position = new Vector3(
+            _play.Session.Position.X, _play.Session.Position.Y, _play.Session.Position.Z);
+        _hooks.Camera.Yaw = _play.Session.Yaw;
+        _hooks.Camera.Pitch = _play.Session.Pitch;
+        _hooks.Camera.StandingEyeY = _play.Session.Position.Y;
+
+        _play.Run?.Resume(descent);
+        _play.ResumingDescent = false;
+        _play.Session.ConsumeDescent();
+        _hooks.SuspendedOnDisk = false;
+
+        _play.Session.ShowToast($"Back in the dark. {_play.Run?.Run.Pending ?? 0} stones still at risk.");
+        _hooks.MenuStatus = string.Empty;
+        _hooks.Screen = GameScreen.WorldScene;
+        _hooks.SetMouseLook(true);
+    }
+
+    /// <summary>Put the run down mid-descent, to be walked back into later.</summary>
+    public void SuspendDescent()
+    {
+        if (_play.Session is null || _play.Run is not { Run.IsActive: true } run
+            || _play.MineSeed is not { } seed)
+            return;
+
+        var camera = _hooks.Camera;
+        var message = _play.Session.Suspend(
+            run.Capture(seed, _play.MineRooms, _play.MineDepth),
+            new WorldPoint(camera.Position.X, camera.Position.Y, camera.Position.Z),
+            camera.Yaw, camera.Pitch);
+
+        _hooks.SuspendedOnDisk = _play.Session.HasSuspendedDescent;
+        _play.Session.ShowToast(message);
+        _hooks.LeaveToMenu();
+    }
+
+    /// <summary>
+    /// Give up on a descent, at the full price of one.
+    ///
+    /// It costs exactly what dying costs — the pot, half the pack, and progress toward the
+    /// next level — because anything cheaper is a button that cancels a fight going badly.
+    /// </summary>
+    public void AbandonDescent()
+    {
+        if (_play.Session is null || _play.Run is not { Run.IsActive: true } run) return;
+
+        var result = run.Die();
+        _hooks.Recorder.Record(PlayEventKind.Died, "gave up", result.StonesLost, 0f,
+            _play.Session.Player.Vitals.Health, _play.Session.Player.Vitals.Prana);
+
+        _play.Succession = Succession.Promote(_play.Session.Player, result,
+            _play.MineSeed ?? 0, run.DeepestRoom);
+
+        _play.Session.Descent = null;
+        _hooks.SuspendedOnDisk = false;
+        _hooks.Stack.Paused = false;
+        EndRun(result);
     }
 
     private void PlaceTheFallen(WorldManifest manifest, int seed)

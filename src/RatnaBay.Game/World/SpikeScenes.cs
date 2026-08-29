@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.World;
 
 /// <summary>
 /// The moodboard, stambha trailer shot and generated-asset case.

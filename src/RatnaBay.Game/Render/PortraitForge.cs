@@ -4,7 +4,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Render;
 
 /// <summary>
 /// Dialogue portraits: one face per occupant, six moods each, painted rather than pixelled.

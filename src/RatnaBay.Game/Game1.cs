@@ -33,9 +33,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// </summary>
     private BasicEffect _primitiveEffect = null!;
 
-    /// <summary>The stone this room is cut from. One per cave theme, later.</summary>
-    private StoneTextures.StonePalette _stone = StoneTextures.StonePalette.Granite;
-
     /// <summary>
     /// The lights affecting the current draw, nearest first.
     ///
@@ -56,6 +53,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <summary>The live descent, the yard, and the character walking them.</summary>
     private readonly PlayState _play = new();
     private SessionDirector _director = null!;
+    private ContentLoader _content = null!;
     private readonly CombatFeel _feel = new();
     private readonly CombatDirector _combat;
 
@@ -133,36 +131,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <see cref="IConsoleTarget"/>, implemented below.
     /// </summary>
     private readonly ConsoleHost _scripts = new();
-    private ConsoleRouter? _console
-    {
-        get => _scripts.Router;
-        set => _scripts.Router = value;
-    }
-
-    private List<ConsoleLine> _consoleOutput => _scripts.Output;
 
     /// <summary>--exec / --script: commands to run once the world exists.</summary>
     private string? _consoleScript;
 
-    private Queue<string> _scriptQueue => _scripts.Queue;
-    private float _scriptWaitSeconds
-    {
-        get => _scripts.WaitSeconds;
-        set => _scripts.WaitSeconds = value;
-    }
-    private bool _scriptFailed
-    {
-        get => _scripts.Failed;
-        set => _scripts.Failed = value;
-    }
     private string? _scriptMissing;
     public int ScriptExitCode => _scripts.ScriptExitCode;
-    private bool _scriptQuitWhenDone
-    {
-        get => _scripts.QuitWhenDone;
-        set => _scripts.QuitWhenDone = value;
-    }
-    private List<string> _watches => _scripts.Watches;
 
     /// <summary>How fast simulated time runs. Set by 'time'; 1 is normal.</summary>
     private float _timeScale = 1f;
@@ -194,7 +168,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         get => _play.Watchers;
         set => _play.Watchers = value;
     }
-    private readonly Dictionary<string, PickpocketTarget> _pockets = new(StringComparer.Ordinal);
+    private Dictionary<string, PickpocketTarget> _pockets => _play.Pockets;
     private Shop? _shop
     {
         get => _play.Shop;
@@ -488,6 +462,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _startPitch = launch.StartPitch;
 
         _director = new SessionDirector(_play, this);
+        _content = new ContentLoader(_play, _assetErrors);
         _combat = new CombatDirector(_feel);
     }
 
@@ -621,7 +596,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         if (_scriptMissing is not null)
         {
             FailScript($"No script file '{_scriptMissing}'.");
-            _scriptQuitWhenDone = true;
+            _scripts.QuitWhenDone = true;
             return;
         }
 
@@ -633,17 +608,17 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // registered is a script that was written against a different build, and finding that
         // out at statement forty means the thirty-nine asserts before it already reported
         // success on a run that was never going to finish.
-        _console ??= GameConsole.Build(this);
-        var unknown = _console.UnknownCommands(statements);
+        _scripts.Router ??= GameConsole.Build(this);
+        var unknown = _scripts.Router.UnknownCommands(statements);
         if (unknown.Count > 0)
         {
             FailScript($"Unknown command(s): {string.Join(", ", unknown)}. Try 'help'.");
-            _scriptQuitWhenDone = true;
+            _scripts.QuitWhenDone = true;
             return;
         }
 
         foreach (var statement in statements)
-            _scriptQueue.Enqueue(statement);
+            _scripts.Queue.Enqueue(statement);
     }
 
     protected override void UnloadContent()
@@ -842,16 +817,16 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             case ConsoleAction.Complete:
                 // Completing the command word only. Arguments differ per command and guessing
                 // at them would be worse than not offering.
-                var candidates = _console?.Complete(_consoleKeys.Buffer) ?? new List<string>();
+                var candidates = _scripts.Router?.Complete(_consoleKeys.Buffer) ?? new List<string>();
                 if (candidates.Count == 1) _consoleKeys.Buffer = candidates[0] + " ";
                 else if (candidates.Count > 1)
-                    _consoleOutput.Add(new ConsoleLine(string.Join("  ", candidates), ConsoleTone.Info));
+                    _scripts.Output.Add(new ConsoleLine(string.Join("  ", candidates), ConsoleTone.Info));
                 break;
             case ConsoleAction.HistoryUp:
-                _consoleKeys.WalkHistory(_console?.History, -1);
+                _consoleKeys.WalkHistory(_scripts.Router?.History, -1);
                 break;
             case ConsoleAction.HistoryDown:
-                _consoleKeys.WalkHistory(_console?.History, 1);
+                _consoleKeys.WalkHistory(_scripts.Router?.History, 1);
                 break;
         }
     }
@@ -870,9 +845,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
     private void UpdateWatches() => _scripts.RefreshWatches();
 
-    private List<string> _watchOutput => _scripts.WatchOutput;
-
-    private void DrawWatches() => _screens.Console.DrawWatches(_watchOutput);
+    private void DrawWatches() => _screens.Console.DrawWatches(_scripts.WatchOutput);
 
     private void RunConsole(string line) => _scripts.Run(line, this);
 
@@ -894,10 +867,10 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // scene renderer takes its whole per-frame context here rather than as six arguments
         // on each of forty draw calls, which is how one of them ends up passing a stale view.
         _scene.Begin(_primitiveEffect, _camera.View, _camera.Projection, _camera.Position,
-            _camera.Yaw, _stone, _lights);
+            _camera.Yaw, _worldView.Stone, _lights);
 
         // The question owns the screen until it is answered.
-        FramePresenter.Present(_askingConsent, _screen,
+        FramePresenter.Present(_askingConsent, _screen == GameScreen.WorldScene,
             drawConsent: () => { _ui.Begin(); DrawConsent(); EndUi(); },
             drawMenu: DrawMenu,
             drawWorld: DrawWorldScene);
@@ -905,7 +878,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         base.Draw(gameTime);
 
         EndHostFrame(
-            hold: _scriptQueue.Count > 0 || _scriptWaitSeconds > 0f,
+            hold: _scripts.Queue.Count > 0 || _scripts.WaitSeconds > 0f,
             exit: Exit);
     }
 
@@ -1034,54 +1007,10 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// the save — so resuming is a way to stop playing and come back, never a way to reload a
     /// fight that went badly.
     /// </summary>
-    private void ResumeSuspendedDescent()
-    {
-        _mineSeed = null;
-        _world = null;
-        _run = null;
-        _runSummary = null;
-
-        if (_session is null && !LoadSession()) return;
-        if (_session is null) return;
-
-        if (!_session.HasSuspendedDescent)
-        {
-            _menuStatus = "There is no descent to return to.";
-            return;
-        }
-
-        var descent = _session.Descent!;
-        _resumingDescent = true;
-        _mineRooms = descent.Rooms;
-        _mineDepth = descent.Depth;
-        _mineSeed = descent.Seed;
-        _world = null;
-
-        // A resumed descent is the same cave it was when it was set aside.
-        _cave = CaveThemeCatalog.For(descent.Seed, descent.Depth);
-
-        StartSession(_session);
-        ApplyCave();
-
-        // Where they were standing, not the mine's entrance.
-        _camera.Position = new Vector3(_session.Position.X, _session.Position.Y, _session.Position.Z);
-        _camera.Yaw = _session.Yaw;
-        _camera.Pitch = _session.Pitch;
-        _camera.StandingEyeY = _session.Position.Y;
-
-        _run?.Resume(descent);
-        _resumingDescent = false;
-        _session.ConsumeDescent();
-        _suspendedDescentOnDisk = false;
-
-        _session.ShowToast($"Back in the dark. {_run?.Run.Pending ?? 0} stones still at risk.");
-        _menuStatus = string.Empty;
-        _screen = GameScreen.WorldScene;
-        SetMouseLook(true);
-    }
+    private void ResumeSuspendedDescent() => _director.ResumeSuspendedDescent();
 
     /// <summary>Go down, at a depth that has been paid for.</summary>
-    private void EnterMine(int seed, int tier) => EnterWorld(seed, tier: tier);
+    private void EnterMine(int seed, int tier) => _director.EnterMine(seed, tier);
 
     /// <summary>Come back up. The run is over either way by the time this is called.</summary>
     private void ReturnToTheSurface() => _director.ReturnToTheSurface();
@@ -1394,20 +1323,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     }
 
     /// <summary>Put the run down mid-descent, to be walked back into later.</summary>
-    private void SuspendDescent()
-    {
-        if (_session is null || _run is not { Run.IsActive: true } run || _mineSeed is not { } seed)
-            return;
-
-        var message = _session.Suspend(
-            run.Capture(seed, _mineRooms, _mineDepth),
-            new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z),
-            _camera.Yaw, _camera.Pitch);
-
-        _suspendedDescentOnDisk = _session.HasSuspendedDescent;
-        _session.ShowToast(message);
-        LeaveToMenu();
-    }
+    private void SuspendDescent() => _director.SuspendDescent();
 
     /// <summary>
     /// Give up on a descent, at the full price of one.
@@ -1420,21 +1336,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// game on purpose, and so a set-aside descent can be cleared without being abandoned by
     /// accident somewhere else.
     /// </summary>
-    private void AbandonDescent()
-    {
-        if (_session is null || _run is not { Run.IsActive: true } run) return;
-
-        var result = run.Die();
-        _recorder.Record(PlayEventKind.Died, "gave up", result.StonesLost, 0f,
-            _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
-
-        _succession = Succession.Promote(_session.Player, result, _mineSeed ?? 0, run.DeepestRoom);
-
-        _session.Descent = null;
-        _suspendedDescentOnDisk = false;
-        _stack.Paused = false;
-        EndRun(result);
-    }
+    private void AbandonDescent() => _director.AbandonDescent();
 
     private void LeaveToMenu()
     {
@@ -1535,7 +1437,8 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             if (_stack.Fort) ClosePanels();
             else
             {
-                _stack.OpenFort(_panels);
+                _stack.OpenFort();
+                _panels.FortSelection = 0;
                 SetMouseLook(false, forPanel: true);
             }
         }
@@ -1553,7 +1456,8 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             if (_stack.Character) ClosePanels();
             else
             {
-                _stack.OpenCharacter(_panels);
+                _stack.OpenCharacter();
+                _panels.InventorySelection = 0;
                 SetMouseLook(false, forPanel: true);
             }
         }
@@ -2284,125 +2188,18 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <summary>The one pickup that is not part of the level it appears in.</summary>
     private const string CachePickupId = SessionDirector.CachePickupId;
 
-    private void LoadDialogueManifest()
-    {
-        if (_session is null) return;
+    private void LoadDialogueManifest() => _content.LoadDialogueManifest();
 
-        // Nobody is standing about in a generated mine.
-        //
-        // The dialogue manifest carries its own actor positions, authored against the
-        // Northwatch scene, and it was loaded on entering any world at all. Those fixed
-        // coordinates then landed wherever they happened to land inside a cave, so Mara and
-        // Vesa were waiting underground offering to talk about the old road -- the pivot left
-        // them behind and nothing ever told them to go home.
-        //
-        // The yard is built in code and has its own trader, so a descent needs no actors at
-        // all. Cleared rather than left stale, because a mine entered from the surface would
-        // otherwise inherit whoever was loaded up there.
-        if (_mineSeed is not null)
-        {
-            _dialogue = null;
-            return;
-        }
+    private void LoadWatchers() => _content.LoadWatchers();
 
-        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Dialogue", "northwatch.json");
-        if (!DialogueRuntime.TryLoad(path, _session.Player.Dialogue, out var dialogue, out var error))
-        {
-            _assetErrors.Add(error);
-            _dialogue = null;
-            return;
-        }
+    private void LoadPockets() => _content.LoadPockets();
 
-        _dialogue = dialogue;
-    }
-
-    private void LoadWatchers()
-    {
-        if (_session is null || _world is null) return;
-        if (_watchers is null)
-            _watchers = new WatcherRuntime(_world.Manifest, _world.Collision,
-                _session.Player.Detection);
-        else
-            _watchers.Reload(_world.Manifest);
-    }
-
-    private void LoadPockets()
-    {
-        _pockets.Clear();
-
-        // Parked. Building no targets is what switches the whole feature off: the prompt, the
-        // key and the action all read from this and all find nothing.
-        if (!ParkedFeatures.Pickpocketing) return;
-
-        if (_session is null || _dialogue is null) return;
-
-        foreach (var actor in _dialogue.Actors)
-        {
-            var pocket = _dialogue.PocketOf(actor.ActorId);
-            var alreadyLifted = _session.Player.Story.State.LootedObjects.Contains(
-                $"pickpocket.{actor.ActorId}", StringComparer.Ordinal);
-
-            // Contents come from the manifest so a pocket can hold something that matters —
-            // the watchpost key rather than a nameless purse.
-            var contents = alreadyLifted || pocket is null
-                ? Array.Empty<ItemStack>()
-                : pocket.Items.Select(item => new ItemStack
-                {
-                    Id = item.Id, Name = item.Name, Kind = item.Kind, Count = item.Count
-                }).ToArray();
-
-            _pockets[actor.ActorId] = new PickpocketTarget(pocket?.Difficulty ?? 0f, contents);
-        }
-    }
-
-    private void LoadPickups()
-    {
-        _pickups.Clear();
-        if (_session is null || _world is null) return;
-
-        foreach (var pickup in _world.Manifest.Pickups ?? new List<WorldPickup>())
-        {
-            if (_session.Player.Story.State.LootedObjects.Contains(
-                    $"pickup.{pickup.Id}", StringComparer.Ordinal))
-                continue;
-
-            _pickups.Add(pickup);
-        }
-    }
+    private void LoadPickups() => _content.LoadPickups();
 
     /// <summary>Put the gear back on the shelf, in memory and in the save.</summary>
-    private void RestockTheStall()
-    {
-        if (_shop is null || _session is null) return;
+    private void RestockTheStall() => _content.RestockTheStall();
 
-        foreach (var itemId in _shop.Restock())
-            _session.Player.Story.ForgetLooted($"shop.{_shop.Definition.Id}.{itemId}");
-    }
-
-    private void LoadShop()
-    {
-        if (_session is null) return;
-        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Shops", "northwatch.json");
-        if (!ShopManifest.TryLoad(path, out var manifest, out var error))
-        {
-            _assetErrors.Add(error);
-            _shop = null;
-            return;
-        }
-
-        var definition = manifest!.ToDefinitions().FirstOrDefault();
-        if (definition is null)
-        {
-            _shop = null;
-            return;
-        }
-
-        _shop = new Shop(definition);
-        foreach (var item in definition.Items)
-            if (_session.Player.Story.State.LootedObjects.Contains(
-                    $"shop.{definition.Id}.{item.Id}", StringComparer.Ordinal))
-                _shop.MarkSoldOut(item.Id);
-    }
+    private void LoadShop() => _content.LoadShop();
 
     /// <summary>True when this actor is carrying something that has not been lifted yet.</summary>
     private bool HasPickablePocket(SpeakingActor actor) =>
@@ -2492,19 +2289,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         }
     }
 
-    private void LoadQuestManifest()
-    {
-        if (_session is null) return;
-
-        var path = Path.Combine(AppContext.BaseDirectory, "Content", "Quests", "northwatch.json");
-        if (!QuestManifest.TryLoad(path, out var manifest, out var error))
-        {
-            _assetErrors.Add(error);
-            return;
-        }
-
-        _session.Player.Quests.RegisterRange(manifest!.ToDefinitions());
-    }
+    private void LoadQuestManifest() => _content.LoadQuestManifest();
 
     private void AcceptQuest(string questId)
     {
@@ -2591,96 +2376,9 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// Keeping this snapshot at the game/render boundary means HudRenderer never needs to
     /// know about save files, quest services, or the rest of Game1's orchestration state.
     /// </summary>
-    private WorldHudState BuildWorldHudState()
-    {
-        var detection = _session?.Player.Detection;
-        var objective = _session?.Player.Objective;
-        var vitals = _session?.Player.Vitals;
-        var feedback = _encounter?.Feedback;
-
-        var health = vitals is null
-            ? default
-            : new VitalBarState(vitals.Health, vitals.MaxHealth, _healthPulse);
-        var prana = vitals is null
-            ? default
-            : new VitalBarState(vitals.Prana, vitals.MaxPrana, _pranaPulse);
-        var stamina = vitals is null
-            ? default
-            : new VitalBarState(vitals.Stamina, vitals.MaxStamina);
-
-        var activeObjective = objective is { HasObjective: true } objectiveValue
-            ? objectiveValue
-            : null;
-        var objectiveTitle = activeObjective?.Title;
-        var objectiveDirections = activeObjective?.Directions ?? string.Empty;
-        var objectiveBearing = activeObjective is null || _session is null
-            ? string.Empty
-            : activeObjective.BearingLine(_session.Position);
-
-        return new WorldHudState(
-            HasSession: _session is not null,
-            IsCrouching: detection?.IsCrouching == true,
-            Awareness: detection?.Awareness ?? AwarenessLevel.Unaware,
-            Suspicion: detection?.Suspicion ?? 0f,
-            DamageFlash: _encounter is { DamageFlash: > 0f } encounter
-                ? encounter.DamageFlash / Encounter.DamageFlashSeconds
-                : 0f,
-            HitMarker: feedback?.HitMarker ?? 0f,
-            KillMarker: feedback?.KillMarker ?? 0f,
-            DamageDirections: feedback?.Directions.ToArray() ?? Array.Empty<DamageDirection>(),
-            CastBanner: feedback?.CastBanner ?? 0f,
-            CastTint: feedback?.CastTint ?? Color.Transparent,
-            CastColour: feedback?.CastColour ?? Color.White,
-            CastLine: feedback?.CastLine ?? string.Empty,
-            LocationCaption: LocationCaption(),
-            ObjectiveTitle: objectiveTitle,
-            ObjectiveDirections: objectiveDirections,
-            ObjectiveBearing: objectiveBearing,
-            Health: health,
-            Prana: prana,
-            Stamina: stamina,
-            Toasts: _session?.Toasts.Select(toast => new ToastHud(toast.Message, toast.Remaining)).ToArray()
-                ?? Array.Empty<ToastHud>(),
-            Level: vitals?.Level ?? 0,
-            Gold: vitals?.Gold ?? 0,
-            WeaponName: _session?.Player.Combat.ActiveWeapon.DisplayName ?? string.Empty,
-            IsBlocking: _session?.Player.Combat.IsBlocking == true,
-            FramesPerSecond: _framesPerSecond,
-            ShowFrameRate: !_capture.IsCapturing,
-            Spell: BuildSpellHud(),
-            CoachLine: _runSummary is not null || _stack.Shaft || _stack.CampTrader
-                ? string.Empty
-                : _coach.Line,
-            CoachOpacity: _coach.Opacity);
-    }
-
-    private SpellHudState BuildSpellHud()
-    {
-        if (_session is null) return new SpellHudState(false, string.Empty, 0f, false, false, 0f,
-            Array.Empty<SocketHud>());
-
-        var caster = _session.Player.Spells;
-        var spell = SpellCatalog.Get(caster.SelectedSpellId);
-        if (spell is null) return new SpellHudState(false, string.Empty, 0f, false, false, 0f,
-            Array.Empty<SocketHud>());
-
-        var cost = caster.CostOf(spell);
-        var stones = _session.Player.Stones.Socketed
-            .Select(StoneCatalog.Find)
-            .Where(stone => stone is not null)
-            .Select(stone => new SocketHud(ShortNameOf(stone!)))
-            .ToArray();
-
-        return new SpellHudState(
-            HasSpell: true,
-            Name: spell.DisplayName,
-            Cost: cost,
-            Affordable: _session.Player.Vitals.Prana >= cost
-                || _session.Player.Inventory.Has(SoulCrystals.LesserId),
-            LightActive: caster.LightActive,
-            LightRemaining: caster.LightRemaining,
-            Stones: stones);
-    }
+    private WorldHudState BuildWorldHudState() =>
+        WorldHudBuilder.Build(_session, _encounter, _runSummary, _stack, _coach,
+            _capture.IsCapturing, _healthPulse, _pranaPulse, _framesPerSecond, LocationCaption());
 
     /// <summary>Copies modal-screen state into the renderer-facing overlay snapshot.</summary>
     private OverlayState BuildOverlayState()
@@ -2711,7 +2409,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         if (_moodboard)
         {
             _spikes.DrawMoodboard(GraphicsDevice, _scene, _billboards, _camera, _primitiveEffect,
-                _lights, _stone, _ui, _clock, _assetCase);
+                _lights, _worldView.Stone, _ui, _clock, _assetCase);
             EndUi();
             return;
         }
@@ -2879,7 +2577,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     {
         if (!_consoleKeys.Open) return;
 
-        _screens.Console.Draw(_consoleOutput, _consoleKeys.Buffer, _clock);
+        _screens.Console.Draw(_scripts.Output, _consoleKeys.Buffer, _clock);
     }
 
     /// <summary>
@@ -2890,80 +2588,9 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// </summary>
     private PromptState BuildPromptState()
     {
-        if (_session is null) return PromptState.Empty;
-
         var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
-        var chips = new List<PromptChip>();
-
-        if (OnTheSurface)
-        {
-            var fixture = Surface.FixtureAt(player);
-            if (fixture == SurfaceFixture.None) return PromptState.Empty;
-
-            var stones = _session.Player.Inventory.CountOf(SoulCrystals.LesserId);
-            var line = fixture switch
-            {
-                SurfaceFixture.Shaft => $"E  Open a shaft   ({stones} stones)",
-                SurfaceFixture.Trader => "E  Trade",
-                _ => "E  Read the carving"
-            };
-
-            chips.Add(new PromptChip(line, UiLayout.SinglePrompt, PromptRole.Interact));
-            return new PromptState(chips);
-        }
-
-        var actor = _dialogue?.FindActor(player, _camera.Yaw);
-        if (actor is not null)
-        {
-            chips.Add(new PromptChip($"Click / E  Talk to {actor.DisplayName}",
-                UiLayout.TalkPrompt, PromptRole.Talk, Fit: true));
-
-            if (actor.Palette.Equals("merchant", StringComparison.OrdinalIgnoreCase)
-                && _shop is not null)
-            {
-                chips.Add(new PromptChip("B  Shop", UiLayout.SecondaryPrompt, PromptRole.Interact));
-            }
-
-            // A pocket worth picking was previously only advertised on guards, so the one
-            // pocket in the slice that matters — the trader carrying the watchpost key —
-            // had no prompt at all and testers never found it.
-            if (HasPickablePocket(actor))
-            {
-                chips.Add(new PromptChip("P  Pick pocket", UiLayout.PickpocketPrompt, PromptRole.Pocket));
-            }
-
-            return new PromptState(chips);
-        }
-
-        var pickup = FindPickup(player, _camera.Yaw);
-        if (pickup is not null)
-        {
-            chips.Add(new PromptChip($"Click / E  Take {pickup.Name} x{pickup.Count}",
-                UiLayout.SinglePrompt, PromptRole.Talk, Fit: true));
-            return new PromptState(chips);
-        }
-
-        // The camp decision is a bigger question about the same door; two prompts on one
-        // doorway would just be noise.
-        if (_world is null || _run is { AtDecision: true }) return PromptState.Empty;
-        var door = _world.FindDoor(player, _camera.Yaw);
-        if (door is null) return PromptState.Empty;
-
-        var hasKey = !string.IsNullOrEmpty(door.Definition.KeyItemId)
-            && _session.Player.Inventory.Has(door.Definition.KeyItemId);
-
-        if (_run is { BarsTheWay: true })
-        {
-            chips.Add(new PromptChip("Barred  |  clear this room first",
-                UiLayout.SinglePrompt, PromptRole.Barred));
-            return new PromptState(chips);
-        }
-
-        var text = !door.Lock.IsLocked ? "Click / E  Open door"
-            : hasKey ? "Click / E  Unlock with your key"
-            : $"Locked  |  a key, or Security {door.Definition.Difficulty:0}";
-        chips.Add(new PromptChip(text, UiLayout.SinglePrompt, PromptRole.Interact));
-        return new PromptState(chips);
+        return PromptBuilder.Build(_session, _camera, OnTheSurface, _dialogue, _shop, _world, _run,
+            _pockets, FindPickup(player, _camera.Yaw));
     }
 
     private void DrawDialogue()
@@ -3169,15 +2796,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _screens.Markers.DrawThreatArrows(_encounter.NearbyThreats());
     }
 
-
-
-    /// <summary>"Cinder Stone" is too long under a 34-pixel icon; "Cinder" is not.</summary>
-    private static string ShortNameOf(StoneDefinition stone)
-    {
-        var space = stone.DisplayName.IndexOf(' ');
-        return space > 0 ? stone.DisplayName[..space] : stone.DisplayName;
-    }
-
     /// <summary>
     /// Open a screen for a capture, once, on the first drawn frame. Content manifests load
     /// after Initialize, so a dialogue capture done any earlier has nobody to talk to.
@@ -3224,7 +2842,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
     private void DrawAuthoredWorld() =>
         _worldView.Draw(GraphicsDevice, _scene, _modelCache, _world, _pickups,
-            OnTheSurface, _cave, _camera.View, _camera.Projection, _lights, ref _stone);
+            OnTheSurface, _cave, _camera.View, _camera.Projection, _lights);
 
     // ------------------------------------------------------------------ session director
 
@@ -3263,6 +2881,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     void ISessionHooks.RestockTheStall() => RestockTheStall();
     void ISessionHooks.ResetCamera() => ResetCamera();
     void ISessionHooks.OfferStone() => OfferStone();
+    void ISessionHooks.LeaveToMenu() => LeaveToMenu();
+    bool ISessionHooks.SuspendedOnDisk
+    {
+        get => _suspendedDescentOnDisk;
+        set => _suspendedDescentOnDisk = value;
+    }
 
     // ------------------------------------------------------------------ the console's reach
 
@@ -3343,21 +2967,21 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         set => _timeScale = value;
     }
 
-    void IConsoleTarget.WaitSeconds(float seconds) => _scriptWaitSeconds = seconds;
+    void IConsoleTarget.WaitSeconds(float seconds) => _scripts.WaitSeconds = seconds;
 
     void IConsoleTarget.FailScript(string why) => FailScript(why);
 
     private void FailScript(string why) => _scripts.Fail(why);
 
-    void IConsoleTarget.QuitWhenDone() => _scriptQuitWhenDone = true;
+    void IConsoleTarget.QuitWhenDone() => _scripts.QuitWhenDone = true;
 
     void IConsoleTarget.Watch(string? command)
     {
-        if (string.IsNullOrWhiteSpace(command)) _watches.Clear();
-        else _watches.Add(command);
+        if (string.IsNullOrWhiteSpace(command)) _scripts.Watches.Clear();
+        else _scripts.Watches.Add(command);
     }
 
-    IReadOnlyList<string> IConsoleTarget.Watches => _watches;
+    IReadOnlyList<string> IConsoleTarget.Watches => _scripts.Watches;
 
     void IConsoleTarget.Queue(string statements) => _scripts.Enqueue(statements);
 

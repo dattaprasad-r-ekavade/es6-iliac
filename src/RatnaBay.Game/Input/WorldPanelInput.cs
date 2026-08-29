@@ -4,7 +4,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Input;
 
 internal enum CampAction { None, Dismiss, SellLoot, BuyStock }
 internal readonly record struct CampCommand(CampAction Action, int StockIndex = -1)

@@ -1,7 +1,7 @@
 using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 internal sealed class DialogueRenderer
 {

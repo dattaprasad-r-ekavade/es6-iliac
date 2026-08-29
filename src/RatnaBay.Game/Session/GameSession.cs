@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Session;
 
 /// <summary>One message on screen, with the time it has left.</summary>
 public sealed class Toast

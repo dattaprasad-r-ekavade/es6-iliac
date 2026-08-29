@@ -3,7 +3,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Render;
 
 /// <summary>A number that floats up from where a blow landed and fades.</summary>
 public sealed class FloatingNumber

@@ -1,9 +1,8 @@
 using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
-using System.IO;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Session;
 
 /// <summary>
 /// Run a console line, pump a script one statement per frame, and refresh watches.
@@ -29,18 +28,6 @@ internal sealed class ConsoleHost
     {
         foreach (var statement in ConsoleRouter.SplitStatements(statements))
             Queue.Enqueue(statement);
-    }
-
-    public void LoadScript(string path, ref string? missing, ref string? exec)
-    {
-        if (!File.Exists(path))
-        {
-            missing = path;
-            return;
-        }
-
-        var joined = string.Join(';', ConsoleRouter.ReadScript(File.ReadAllLines(path)));
-        exec = exec is null ? joined : exec + ";" + joined;
     }
 
     public void Run(string line, IConsoleTarget target)

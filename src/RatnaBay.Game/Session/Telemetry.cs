@@ -8,7 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Session;
 
 /// <summary>
 /// What this build has been told it may send, and where.

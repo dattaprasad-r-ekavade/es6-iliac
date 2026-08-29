@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Session;
 
 /// <summary>
 /// The lines a player is shown once, the first time each thing happens to them.

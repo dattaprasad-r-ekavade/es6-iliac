@@ -3,11 +3,11 @@
 This document describes how ready the Ratna Bay repository is for ongoing work with AI coding
 tools, and the next changes that will make that work safer and more predictable.
 
-Assessment date: 2026-08-28 (updated after Game1 migration)
+Assessment date: 2026-08-28 (updated after engine project split)
 
 ## Current assessment
 
-The repository is approximately **98% complete** for AI-friendly architecture.
+The repository is approximately **99% complete** for AI-friendly architecture.
 
 | Area | Done | Pending |
 | --- | ---: | ---: |
@@ -19,7 +19,8 @@ The repository is approximately **98% complete** for AI-friendly architecture.
 | HUD and rendering boundaries | 100% | — |
 | Styling consistency | 100% | Add to `UiTheme` rather than to a call site |
 | Client-layer testability | 45% | Layout and theme are shared; still no headless Game tests |
-| `Game1` decomposition | 100% | Snapshot builders and `IConsoleTarget` stay |
+| `Game1` decomposition | 100% | Overlay snapshot and `IConsoleTarget` stay |
+| Engine / game split | 100% | `RatnaBay.Engine` is its own project |
 
 Current repository hygiene: **9/10**
 Current AI-readiness: **9/10**
@@ -70,7 +71,8 @@ unrelated work still concentrated in `Game1`; they are not product-quality ratin
   exit. `StoneTextures` has no Domain import; cave colours become a palette in
   `WorldPresenter.PaletteOf`.
 - [`Docs/ENGINE.md`](ENGINE.md) is the reuse map: three layers, the engine table, how a
-  second game starts, and the gate for cutting a `RatnaBay.Engine` project.
+  second game starts. `src/RatnaBay.Engine` is the project; doctor asserts it has no Domain
+  reference.
 
 ## The scripted gate
 
@@ -90,17 +92,16 @@ loudly and early.
 
 ## Next changes
 
-Do not add `RatnaBay.Engine.csproj` until every type in the `Docs/ENGINE.md` engine table
-compiles without `using RatnaBay.Domain`. `StoneTextures` is Domain-free; `WorldPresenter.PaletteOf`
-is this game's remaining theme → palette step. `LaunchOptions` is this game (`--mine`, `--yard`).
+`RatnaBay.Engine` is its own project. It must stay Domain-free; `doctor` asserts that.
+`WorldPresenter.PaletteOf` is this game's remaining theme → palette step. `LaunchOptions`
+is this game (`--mine`, `--yard`).
 
-The Game1 dispatch, panel commands, session, combat, console, draw order, launch flags and
-`UiCanvas.Row` colour arguments are done. Remaining:
+Remaining:
 
 ### 1. Add client-layer tests
 
 `UiLayout` and `UiTheme` are the seam: both are pure data, but they live in the WindowsDX
-project so `RatnaBay.Domain.Tests` cannot see them. A net9.0 layout/theme assembly would let a
+engine project so `RatnaBay.Domain.Tests` cannot see them. A net9.0 layout/theme assembly would let a
 test assert that a clickable row is the row on screen, and that every colour a renderer asks
 for exists, without a graphics device.
 

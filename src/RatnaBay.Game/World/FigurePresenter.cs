@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.World;
 
 /// <summary>
 /// Camera-facing figures: speakers, watchers, enemies, bolts.

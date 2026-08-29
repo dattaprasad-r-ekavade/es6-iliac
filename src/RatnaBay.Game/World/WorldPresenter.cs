@@ -4,7 +4,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.World;
 
 /// <summary>
 /// Turns a live world into boxes, lights and imported props.
@@ -15,6 +15,9 @@ namespace RatnaBay.Client;
 /// </summary>
 internal sealed class WorldPresenter
 {
+    /// <summary>The stone this room is cut from. Decided here, not via a ref out of Game1.</summary>
+    public StoneTextures.StonePalette Stone { get; private set; } = StoneTextures.StonePalette.Granite;
+
     public void Draw(
         GraphicsDevice device,
         SceneRenderer scene,
@@ -25,8 +28,7 @@ internal sealed class WorldPresenter
         CaveTheme? cave,
         Matrix view,
         Matrix projection,
-        List<PointLight> lights,
-        ref StoneTextures.StonePalette stone)
+        List<PointLight> lights)
     {
         if (world is null)
         {
@@ -63,7 +65,7 @@ internal sealed class WorldPresenter
         // exists, and it is carried almost completely by the light.
         if (onTheSurface)
         {
-            stone = StoneTextures.StonePalette.Sandstone;
+            Stone = StoneTextures.StonePalette.Sandstone;
             scene.SetCaveAmbience(
                 ambient: new Vector3(0.52f, 0.54f, 0.60f),
                 keyDirection: new Vector3(-0.35f, -1f, -0.28f),
@@ -73,7 +75,7 @@ internal sealed class WorldPresenter
         {
             // The cave's own rock. Derived from the seed, so it matches what the shaft screen
             // promised without either side storing the answer.
-            stone = cave is null
+            Stone = cave is null
                 ? StoneTextures.StonePalette.Granite
                 : PaletteOf(cave);
 

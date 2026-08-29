@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.World;
 
 /// <summary>
 /// The live, reloadable bridge from a location's dialogue JSON to the player's topic service.

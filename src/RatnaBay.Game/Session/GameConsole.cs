@@ -6,7 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Session;
 
 /// <summary>
 /// What the console is allowed to do to the running game.

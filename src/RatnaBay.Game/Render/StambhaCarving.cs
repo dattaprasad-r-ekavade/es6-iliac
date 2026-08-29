@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Render;
 
 /// <summary>
 /// A verse cut into stone.

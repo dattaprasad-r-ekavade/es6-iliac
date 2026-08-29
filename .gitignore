@@ -20,3 +20,8 @@ tools/butler/
 itch.target
 
 artifacts/
+
+# Recordings pulled down from the telemetry server. Data, not source: they arrive by the
+# hundred once people are playing, they carry per-install identifiers, and the useful output
+# is the analysis rather than the files. Keep them beside the repo, not in it.
+ratnabay-recordings/

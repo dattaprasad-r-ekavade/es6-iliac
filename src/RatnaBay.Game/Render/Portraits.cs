@@ -3,7 +3,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Render;
 
 public enum HairStyle { Shaven, Cropped, Bound, Long, Braid, Cloth }
 

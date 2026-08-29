@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 using System;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 internal sealed class ShopRenderer
 {

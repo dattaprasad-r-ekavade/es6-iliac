@@ -4,7 +4,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.World;
 
 /// <summary>
 /// A cast spell in flight.

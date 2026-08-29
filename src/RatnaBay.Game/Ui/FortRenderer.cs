@@ -4,7 +4,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 /// <summary>
 /// The fort: ten rooms, and whoever will talk to you in them.

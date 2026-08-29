@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 using System;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Render;
 
 /// <summary>Where and how the held weapon should be drawn this frame.</summary>
 public readonly record struct WeaponPose(Vector2 Position, float Rotation, float Scale);

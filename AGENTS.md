@@ -8,12 +8,12 @@ renders, samples input, and loads content. Read this file before changing code.
 | Path | What belongs here |
 | --- | --- |
 | `src/RatnaBay.Domain/` | Engine-independent rules, state, saves, generation. **No MonoGame types.** |
-| `src/RatnaBay.Game/` | WindowsDX client: devices, the frame, world draw, audio. |
-| `src/RatnaBay.Game/Engine/` | `EngineHost`, first-person view, capture host. No mines or Ratna Bay. |
-| `src/RatnaBay.Game/Ui/` | Every 2D screen and HUD renderer, plus shared canvas and hit-test layout. |
-| `src/RatnaBay.Game/Render/` | 3D primitives (`SceneRenderer`), imported models (`ModelCache`), generated sprites. |
+| `src/RatnaBay.Engine/` | Reusable presentation: devices, first-person view, capture, input sampling, 3D primitives, canvas, overlay plumbing, audio. **No Domain.** |
+| `src/RatnaBay.Game/` | This game: screens that know mines, session, world presenters, HUD. References Domain and Engine. |
+| `src/RatnaBay.Game/Ui/` | This game's 2D screens and HUD. Shared canvas, theme and layout live in `RatnaBay.Engine`. |
+| `src/RatnaBay.Game/Render/` | Game-specific sprites (weapons, portraits, carvings). Boxes and models live in `RatnaBay.Engine`. |
 | `src/RatnaBay.Game/World/` | Live world, encounters, `WorldPresenter`, `FigurePresenter`, spike scenes. |
-| `src/RatnaBay.Game/Input/` | Device sampling (`InputRouter`), list picking (`ListPicker`), overlay stack (`OverlayInput`), world panels (`WorldPanelInput`), console typing (`ConsoleInput`). |
+| `src/RatnaBay.Game/Input/` | World-panel selection (`WorldPanelInput`) and session keys (`SessionInput`). Device sampling and overlay picking live in `RatnaBay.Engine`. |
 | `src/RatnaBay.Game/Content/` | JSON manifests (world, dialogue, quests, shops) and bundled fonts. |
 | `tools/RatnaBay.Tools/` | `doctor`, `validate`, `sim`, `mine`, `review`. |
 | `tests/RatnaBay.Domain.Tests/` | Headless domain tests. |
@@ -126,8 +126,7 @@ the interface to all of `Game1`.
 - Generated mines are deterministic from their seed and must not be written into installed
   content during play.
 - Do not revive parked features or add a package without a focused spike and a passing
-  release-shaped build. Do not add `RatnaBay.Engine.csproj` until every engine type compiles
-  without `using RatnaBay.Domain`.
+release-shaped build. The engine project must not reference `RatnaBay.Domain`.
 
 ## Where a screen lives
 
@@ -147,18 +146,19 @@ the interface to all of `Game1`.
 | Store cover | `Ui/CoverRenderer.cs` | 1260×1000 1:1; `--cover` |
 | Nameplates, floating damage, threat arrows, yard signs, content errors | `Ui/MarkerRenderer.cs` | projected via `WorldProjector` |
 | Developer console and watches | `Ui/ConsoleRenderer.cs` | local panels; typing in `ConsoleInput` |
-| Lit boxes, crystal, carved faces, glow | `Render/SceneRenderer.cs` | per-frame `Begin` |
-| Imported props | `Render/ModelCache.cs` | loaded once, drawn by key |
+| Lit boxes, crystal, carved faces, glow | `src/RatnaBay.Engine` (`SceneRenderer`) | per-frame `Begin` |
+| Imported props | `src/RatnaBay.Engine` (`ModelCache`) | loaded once, drawn by key |
 | Speakers, watchers, enemies, bolts | `World/FigurePresenter.cs` | `BillboardRenderer` |
 | Moodboard, stambha, asset case | `World/SpikeScenes.cs` | SceneRenderer + canvas; `--moodboard` / `--stambha` |
-| Devices, fonts, canvas, capture frame | `Engine/EngineHost.cs` | subclass this, not `Game1` |
+| Devices, fonts, canvas, capture frame | `src/RatnaBay.Engine` (`EngineHost`) | subclass this, not `Game1` |
 
-Still in `Game1`: applying commands, building snapshots, `IConsoleTarget`, and `--show` /
-`--swing` / `--cast`. Overlay-stack selection is `OverlayInput`; world-panel selection is
-`WorldPanelInput`; console typing is `ConsoleInput`; panel flags are `ScreenStack`; a
-session command is `SessionInput` / `SessionDirector`; combat is `CombatDirector`; script
-execution is `ConsoleHost`; draw order is `FramePresenter`; launch flags are `LaunchOptions`.
-Do not put those back into `Game1`.
+Still in `Game1`: applying commands, `IConsoleTarget`, and `--show` / `--swing` / `--cast`.
+HUD and prompt snapshots are `WorldHudBuilder` / `PromptBuilder`. Overlay-stack selection
+is `OverlayInput`; world-panel selection is `WorldPanelInput`; console typing is
+`ConsoleInput`; panel flags are `ScreenStack`; a session command is `SessionInput` /
+`SessionDirector`; content manifests are `ContentLoader`; combat is `CombatDirector`;
+script execution is `ConsoleHost`; draw order is `FramePresenter`; launch flags are
+`LaunchOptions`. Do not put those back into `Game1`.
 Do not put look/walk, 3D primitives, authored-world iteration, figures, spike scenes, PNG
 capture or the device/font/canvas attach back into `Game1` — those seams are
 `FirstPersonView`, `SceneRenderer`, `WorldPresenter`, `FigurePresenter`, `SpikeScenes`,
@@ -230,6 +230,5 @@ a dependency, update the doctor command, attribution records, and this file in t
 - [`Docs/design_pivot.md`](Docs/design_pivot.md) — what the game is.
 - [`Docs/PRODUCTION_PLAN.md`](Docs/PRODUCTION_PLAN.md) — what gets built, and closed decisions.
 - [`Docs/TRAILER.md`](Docs/TRAILER.md) — scope contract for the slice.
-- [`Docs/ENGINE.md`](Docs/ENGINE.md) — which client types a second game can reuse, and the gate
-  for cutting a `RatnaBay.Engine` project.
+- [`Docs/ENGINE.md`](Docs/ENGINE.md) — which types a second game can reuse from `RatnaBay.Engine`.
 - [`Docs/AI_READINESS_ROADMAP.md`](Docs/AI_READINESS_ROADMAP.md) — remaining client decomposition.

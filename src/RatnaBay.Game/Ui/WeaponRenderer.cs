@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RatnaBay.Domain;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 /// <summary>
 /// The weapon in the player's hand.

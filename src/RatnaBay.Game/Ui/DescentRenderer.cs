@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 /// <summary>
 /// Descent-loop panels: the shut door, the camp trader, the shaft, the ledger, and the

@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Input;
 using RatnaBay.Domain;
 using System;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Combat;
 
 /// <summary>
 /// Hitstop, shake, stride, vital pulses, swing buffer, and the sounds a blow makes.

@@ -3,7 +3,7 @@ using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 /// <summary>
 /// Flat interface anchored to things in the world: nameplates, floating damage, threat arrows.

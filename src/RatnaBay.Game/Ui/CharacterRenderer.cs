@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using RatnaBay.Domain;
 using System;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 /// <summary>
 /// Character sheet: vitals, stones, equipped slots, pack and live skills.

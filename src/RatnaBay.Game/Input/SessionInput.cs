@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework.Input;
 using RatnaBay.Domain;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Input;
 
 internal enum SessionAction
 {

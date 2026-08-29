@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 internal readonly record struct VitalBarState(float Value, float Max, float Pulse = 0f);
 

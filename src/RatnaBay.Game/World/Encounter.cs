@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.World;
 
 /// <summary>The enemies currently in the scene, and the fight between them and the player.</summary>
 public sealed class Encounter

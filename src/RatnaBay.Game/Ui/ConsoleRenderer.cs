@@ -2,7 +2,7 @@ using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 using System.Collections.Generic;
 
-namespace RatnaBay.Client;
+namespace RatnaBay.Client.Ui;
 
 /// <summary>
 /// The developer console, and the values pinned beside it.
