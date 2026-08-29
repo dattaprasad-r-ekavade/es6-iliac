@@ -662,33 +662,20 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
         if (Pressed(keyboard, Keys.Escape))
         {
-            if (_screen == GameScreen.MainMenu)
+            switch (EscapeLadder.Read(
+                onMainMenu: _screen == GameScreen.MainMenu,
+                settingsOpen: _overlay.ShowSettings,
+                paused: _stack.Paused,
+                atShaft: _stack.Shaft,
+                summaryShowing: _runSummary is not null,
+                anyPanelOpen: AnyPanelOpen))
             {
-                if (_overlay.ShowSettings) _overlay.ShowSettings = false;
-            }
-            else if (_stack.Paused)
-            {
-                ResumeFromPause();
-            }
-            else if (_stack.Shaft)
-            {
-                _stack.Shaft = false;
-                SetMouseLook(true);
-            }
-            else if (_runSummary is not null)
-            {
-                ReturnToTheSurface();
-            }
-            else if (AnyPanelOpen)
-            {
-                ClosePanels();
-            }
-            else
-            {
-                // This used to drop straight to the main menu, which silently threw away a
-                // descent in progress: the one key everybody presses to pause was the one key
-                // that lost the run.
-                Pause();
+                case EscapeAction.CloseSettings: _overlay.ShowSettings = false; break;
+                case EscapeAction.Resume: ResumeFromPause(); break;
+                case EscapeAction.LeaveShaft: _stack.Shaft = false; SetMouseLook(true); break;
+                case EscapeAction.ReturnToSurface: ReturnToTheSurface(); break;
+                case EscapeAction.ClosePanels: ClosePanels(); break;
+                case EscapeAction.Pause: Pause(); break;
             }
         }
 
