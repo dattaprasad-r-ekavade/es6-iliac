@@ -16,6 +16,22 @@ game has somewhere to start.
 A second game should reference `RatnaBay.Engine` and write its own presenter, screens and
 domain. It subclasses `EngineHost`, not `Game1`.
 
+That sentence used to be a promise. It is now a project: `samples/FirstLight` is a game of
+about 150 lines that references the engine and nothing else — a room, a lamp, walking,
+collision, a line of text, and `--screenshot`. It is in `RatnaBay.sln`, so every build compiles
+it, and the day an extraction drags a Ratna Bay type into the engine it stops compiling. A
+document can go stale quietly; this cannot.
+
+```
+dotnet build samples/FirstLight/FirstLight.csproj
+dotnet samples/FirstLight/bin/Debug/net9.0-windows/win-x64/FirstLight.dll --windowed
+```
+
+What that sample had to write for itself is the honest measure of what the engine does *not*
+do yet: a `Draw` that clears and calls `SceneRenderer`, an `Update` that samples input and
+steps the view, a collision callback, and the knowledge that `SceneRenderer` must be built in
+`LoadContent` rather than in the constructor, because `GraphicsDevice` is null until then.
+
 ## What is already engine
 
 These types have no Ratna Bay rules in them. A different first-person game would take them

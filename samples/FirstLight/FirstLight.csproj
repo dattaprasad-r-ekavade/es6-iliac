@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The smallest game that can be built on RatnaBay.Engine.
+
+    It exists to prove the engine is separable rather than to be played. ENGINE.md claims a
+    second game "subclasses EngineHost, not Game1" and references the engine alone; this is
+    that claim compiled. If a future extraction drags a Ratna Bay type into the engine, this
+    project stops building — a louder failure than a document going quietly stale.
+
+    Note what is absent: no reference to RatnaBay.Domain, and no reference to the
+    RatnaBay.Game assembly.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>FirstLight</RootNamespace>
+    <AssemblyName>FirstLight</AssemblyName>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RatnaBay.Engine\RatnaBay.Engine.csproj" />
+  </ItemGroup>
+
+  <!--
+    Fonts are assets, not code. Linked out of the game's content folder rather than copied, so
+    the repository does not carry two megabytes of Noto Sans twice. The link is to a folder of
+    .ttf files, not to the game assembly, so it costs nothing this sample is here to prove — a
+    real second game would ship its own faces.
+  -->
+  <ItemGroup>
+    <None Include="..\..\src\RatnaBay.Game\Content\Feasibility\Fonts\NotoSans\NotoSans-wght.ttf"
+          Link="Content\Fonts\NotoSans-wght.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\RatnaBay.Game\Content\Feasibility\Fonts\Cinzel\Cinzel-wght.ttf"
+          Link="Content\Fonts\Cinzel-wght.ttf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
