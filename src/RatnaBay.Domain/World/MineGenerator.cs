@@ -75,6 +75,19 @@ public static class MineGenerator
     /// </summary>
     private const float DoorwayHeight = 3.4f;
 
+    /// <summary>Under the lintel, so the lamp is inside the passage rather than above it.</summary>
+    private const float LanternHeight = 2.4f;
+
+    /// <summary>How far inside the mouth a lamp sits. Far enough to light the jambs.</summary>
+    private const float LanternInset = 1.6f;
+
+    private const float LanternRange = 9f;
+
+    /// <summary>Below a room's 1.0, so the room stays the brighter of the two.</summary>
+    private const float LanternIntensity = 0.75f;
+
+    private static readonly WorldColor LanternColour = new(255, 196, 132);
+
     /// <summary>
     /// How far a passage is buried into the rooms at each end.
     ///
@@ -155,7 +168,7 @@ public static class MineGenerator
 
         foreach (var link in links)
             EmitCorridor(manifest, link.From, link.To, link.Side,
-                $"{settings.MineId}.link{link.Index:00}", locked: true);
+                $"{settings.MineId}.link{link.Index:00}");
 
         // A corridor and a door reaching the next cell, with nothing behind them yet. What
         // lies past it is built when somebody opens it.
@@ -279,7 +292,7 @@ public static class MineGenerator
 
         foreach (var link in links)
             EmitCorridor(delta, link.From, link.To, link.Side,
-                $"{settings.MineId}.s{segment:00}.link{link.Index:00}", locked: true);
+                $"{settings.MineId}.s{segment:00}.link{link.Index:00}");
 
         EmitOnward(delta, cells[^1], settings.MineId, segment);
         PlaceEnemies(delta, cells, settings, random, roomOffset: offset);
@@ -391,7 +404,7 @@ public static class MineGenerator
 
     /// <summary>The passage between two rooms, and the door standing in it.</summary>
     private static void EmitCorridor(WorldManifest manifest, Cell from, Cell to, Side side,
-        string prefix, bool locked)
+        string prefix)
     {
         var stone = new WorldColor(78, 72, 66);
         const float outer = RoomHalf + WallThickness;
@@ -404,7 +417,10 @@ public static class MineGenerator
 
             Passage(manifest, prefix, cx - DoorwayHalf, cx + DoorwayHalf, minZ, maxZ, true, stone);
             Door(manifest, $"{prefix}.door", cx - DoorwayHalf, cx + DoorwayHalf,
-                (minZ + maxZ) * 0.5f, true, locked);
+                (minZ + maxZ) * 0.5f, true);
+            MouthLights(manifest, prefix,
+                new WorldVector(cx, LanternHeight, minZ + LanternInset),
+                new WorldVector(cx, LanternHeight, maxZ - LanternInset));
             return;
         }
 
@@ -414,7 +430,48 @@ public static class MineGenerator
 
         Passage(manifest, prefix, minX, maxX, cz - DoorwayHalf, cz + DoorwayHalf, false, stone);
         Door(manifest, $"{prefix}.door", cz - DoorwayHalf, cz + DoorwayHalf,
-            (minX + maxX) * 0.5f, false, locked);
+            (minX + maxX) * 0.5f, false);
+        MouthLights(manifest, prefix,
+            new WorldVector(minX + LanternInset, LanternHeight, cz),
+            new WorldVector(maxX - LanternInset, LanternHeight, cz));
+    }
+
+    /// <summary>
+    /// A lamp just inside each mouth of a corridor.
+    ///
+    /// Rooms have been lit since the generator was written; corridors and the doorways into
+    /// them never were. That left every opening a black rectangle in a brown wall, and the
+    /// only way on indistinguishable from the wall beside it. The first outside player spent
+    /// an hour and fifty minutes in a corridor without ever finding the next room, walking
+    /// back into the first room eight times looking for a way they had already passed.
+    ///
+    /// The lamps go *inside* the passage rather than on the room wall on purpose: it is light
+    /// spilling from behind an opening that makes it read as somewhere to go. A lamp on the
+    /// near face would light the wall and leave the hole just as black.
+    ///
+    /// Dimmer than a room light, so a room still reads as the brighter destination and the
+    /// corridor as the way between.
+    /// </summary>
+    private static void MouthLights(WorldManifest manifest, string prefix,
+        WorldVector near, WorldVector far)
+    {
+        manifest.Lights.Add(new WorldLight
+        {
+            Id = $"{prefix}.light.a",
+            Position = near,
+            Color = LanternColour,
+            Intensity = LanternIntensity,
+            Range = LanternRange
+        });
+
+        manifest.Lights.Add(new WorldLight
+        {
+            Id = $"{prefix}.light.b",
+            Position = far,
+            Color = LanternColour,
+            Intensity = LanternIntensity,
+            Range = LanternRange
+        });
     }
 
     /// <summary>The way out: a short passage past the last door, ending in the dark.</summary>
@@ -438,7 +495,15 @@ public static class MineGenerator
 
         Passage(manifest, prefix, cx - DoorwayHalf, cx + DoorwayHalf, minZ, maxZ, true, stone);
         Door(manifest, $"{prefix}.door", cx - DoorwayHalf, cx + DoorwayHalf,
-            (minZ + maxZ) * 0.5f, true, locked: true);
+            (minZ + maxZ) * 0.5f, true);
+
+        // Lit like any other corridor. This one is emitted separately from the chain, which is
+        // how it came to be the one unlit passage in the mine after the others were fixed --
+        // and it is the doorway a player looks for the moment a room goes quiet, so it is the
+        // worst one to leave dark. The test caught this; I had missed it.
+        MouthLights(manifest, prefix,
+            new WorldVector(cx, LanternHeight, minZ + LanternInset),
+            new WorldVector(cx, LanternHeight, maxZ - LanternInset));
     }
 
     /// <summary>Floor, ceiling and the two side walls of a passage.</summary>
@@ -489,7 +554,7 @@ public static class MineGenerator
     }
 
     private static void Door(WorldManifest manifest, string id, float spanMin, float spanMax,
-        float centre, bool alongZ, bool locked)
+        float centre, bool alongZ)
     {
         const float half = 0.2f;
         const float height = DoorwayHeight;
@@ -504,10 +569,19 @@ public static class MineGenerator
                 ? new WorldVector(spanMax, FloorTop + height, centre + half)
                 : new WorldVector(centre + half, FloorTop + height, spanMax),
             Color = new WorldColor(120, 84, 54),
-            Locked = locked,
 
             // Mine doors are shut, not locked. The gate on pressing deeper is meant to be the
-            // player's nerve, not their Security skill.
+            // player's nerve, not their Security skill -- and the room-clearing gate is a
+            // separate thing that shows "Barred | clear this room first".
+            //
+            // This said `Locked = locked`, and every caller passes locked: true, so it
+            // contradicted the line above it. With Difficulty 0 the door still opened on the
+            // first press -- Security 0 is not below 0 -- but the prompt is chosen on
+            // IsLocked, not on whether the pick would succeed, so every door in every mine
+            // read "Locked | a key, or Security 0". No verb, no key, and no hint that E does
+            // anything. The first outside player stood in that corridor for 110 minutes and
+            // never opened the first door.
+            Locked = false,
             Difficulty = 0f,
             KeyItemId = string.Empty,
             PickingIsCrime = false,
