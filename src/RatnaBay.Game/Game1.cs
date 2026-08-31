@@ -234,7 +234,16 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>The weapon in hand, and the swing it is part-way through.</summary>
     private readonly WeaponView _weaponView = new();
     private readonly UiCanvas _ui;
-    private readonly UiScreens _screens;
+
+    /// <summary>
+    /// Every 2D screen renderer. Built in LoadContent, not in the constructor.
+    ///
+    /// Two of them — the fort and the weapon — take a <see cref="GraphicsDevice"/> so they can
+    /// forge a texture on demand, and MonoGame does not create the device until after the
+    /// constructor has run. Building this early captured a null and crashed the first time the
+    /// weapon was drawn. Not readonly for that reason.
+    /// </summary>
+    private UiScreens _screens = null!;
     private readonly CaptureHost _capture;
 
     /// <summary>Set by --faces: write the portrait contact sheet and quit without a frame.</summary>
@@ -553,7 +562,6 @@ public sealed class Game1 : Game, IConsoleTarget
         }
 
         _ui = new UiCanvas(LogicalWidth, LogicalHeight);
-        _screens = new UiScreens(_ui, GraphicsDevice);
     }
 
     private static bool HasArgument(string[] args, string argument)
@@ -695,6 +703,9 @@ public sealed class Game1 : Game, IConsoleTarget
         // Everything the canvas paints with, handed over once. It is constructed before
         // LoadContent runs, so it cannot take these in its constructor.
         _ui.Attach(spriteBatch, _white, _fontSystem, _headingFontSystem);
+
+        // Here rather than in the constructor: the device exists by now. See the field.
+        _screens = new UiScreens(_ui, GraphicsDevice);
 
         if (!AmbientAudio.TryStart(out _ambientAudio, out var ambientError)
             && !string.IsNullOrWhiteSpace(ambientError))
