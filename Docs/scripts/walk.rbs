@@ -1,0 +1,70 @@
+# Can a stranger actually walk from the mine entrance to the first room?
+#
+#     build\RatnaBay.exe --yard --script Docs\scripts\walk.rbs
+#
+# smoke.rbs answers a different question. It turns on noclip and god and then
+# `goto 0 -30`, teleporting through the wall into the room -- so it proves the
+# room exists and is fightable, not that anyone can reach it. Its check was also
+# `assert where has room`, which passes on the string "room 0", the answer you
+# get standing at the entrance having gone nowhere.
+#
+# The one outside player this alpha has had spent 110 minutes in the corridor
+# and never found the first room. Nothing in the gate could have caught that,
+# because nothing in the gate walked.
+#
+# So: no noclip, no god, no goto, no move. `walk` holds W through the same
+# controller and the same collision callback a player's keyboard does, so a wall
+# stops it exactly as a wall should.
+
+echo === down the free mine, as a new player ===
+
+# The seed is pinned, and it has to be. A mine's chain leaves the entrance room
+# on whichever side the walk chose, so on most seeds the way on is east or west
+# and a script that can only hold W would walk into a wall and report a fault
+# that is not there. 20789 leaves northward, and is the seed smoke.rbs already
+# uses. What is being tested is the route, not the compass.
+descend 1 20789
+wait 2
+
+# Entrance room, before going anywhere. Nothing is awake yet.
+assert enemies has clear
+
+echo === walk north, and keep walking ===
+
+# The route is a straight line from the entrance: through the doorway, along the
+# corridor, into room one. Roughly forty metres at 6 m/s, taken in stages so a
+# failure says how far it got rather than only that it did not arrive.
+look 0 0
+walk 4
+where
+
+# The door out of the entrance room. It is shut, as every mine door is, and it
+# opens on the first press because a mine door is not locked. It used to be
+# emitted locked with Difficulty 0 -- openable, but reading "Locked  |  a key,
+# or Security 0", which is a refusal with no verb in it. This is the press the
+# one real player either never made or never believed would work.
+assert use has Opened
+
+walk 4
+where
+walk 4
+where
+
+echo === arrival ===
+
+# The proof. Enemies only exist once RunRuntime.EnterRoom has run, which only
+# happens when the player is physically inside the room volume. If the route is
+# blocked, unlit past finding, or the trigger stops firing, there is nothing to
+# list and this fails.
+wait 2
+assert enemies has Bandit
+assert enemies not rising
+shot captures/walk-room-one.png
+
+echo === and it is a real fight, not an empty box ===
+
+kill all
+wait 0.5
+assert enemies has clear
+
+quit

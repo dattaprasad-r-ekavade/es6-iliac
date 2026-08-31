@@ -51,10 +51,10 @@ function Assert-LastExitCode([string] $what) {
     of this, so it is launched directly.
 #>
 function Invoke-Script([string] $filePath, [string[]] $leadingArguments,
-    [string] $workingDirectory, [string] $what) {
+    [string] $workingDirectory, [string] $what, [string] $script = 'smoke.rbs') {
     $logPath = Join-Path $env:TEMP 'ratnabay-smoke.log'
     $arguments = $leadingArguments + @(
-        '--yard', '--script', (Join-Path $root 'Docs\scripts\smoke.rbs'))
+        '--yard', '--script', (Join-Path $root "Docs\scripts\$script"))
 
     $run = Start-Process -FilePath $filePath -ArgumentList $arguments `
         -WorkingDirectory $workingDirectory -NoNewWindow -Wait -PassThru `
@@ -101,6 +101,16 @@ try {
     if (-not (Test-Path $clientDll)) { throw "No client at $clientDll" }
 
     Invoke-Script 'dotnet' @($clientDll) $clientDir 'the build output'
+
+    # And the same client again, walking instead of teleporting.
+    #
+    # smoke.rbs turns on noclip and god and `goto`es into the room, so it proves the room
+    # exists and is fightable. walk.rbs holds W through the real controller and presses E on
+    # the door, so it proves somebody can get there. The alpha's one outside player spent 110
+    # minutes failing to, and every check in this file was green throughout.
+    Write-Host ''
+    Write-Host '==> Walking it, rather than teleporting' -ForegroundColor Cyan
+    Invoke-Script 'dotnet' @($clientDll) $clientDir 'the build output, walking' 'walk.rbs'
 
     if ($Pack) {
         Write-Host ''

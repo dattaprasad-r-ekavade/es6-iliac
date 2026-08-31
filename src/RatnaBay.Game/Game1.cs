@@ -162,6 +162,9 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private float _scriptWaitSeconds;
 
+    /// <summary>Seconds of held W left on a scripted walk. See IConsoleTarget.WalkForward.</summary>
+    private float _scriptWalkSeconds;
+
     /// <summary>Set by a failed 'assert'. Becomes the process exit code.</summary>
     private bool _scriptFailed;
 
@@ -2090,39 +2093,50 @@ public sealed class Game1 : Game, IConsoleTarget
             }
         }
 
-        if (Pressed(keyboard, Keys.E))
-        {
-            var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
-            var actor = _dialogue?.FindActor(player, _camera.Yaw);
-            if (actor is not null)
-            {
-                OpenDialogue(actor);
-            }
-            else if (_world is not null)
-            {
-                var fixture = OnTheSurface ? Surface.FixtureAt(player) : SurfaceFixture.None;
-                var pickup = FindPickup(player, _camera.Yaw);
-
-                if (fixture != SurfaceFixture.None)
-                {
-                    UseFixture(fixture);
-                }
-                else if (pickup is not null)
-                {
-                    TakePickup(pickup);
-                }
-                else if (_run is { BarsTheWay: true } && _world.FindDoor(player, _camera.Yaw) is not null)
-                {
-                    _session.ShowToast("Not while something in here is still moving.");
-                }
-                else
-                {
-                    TryOpenDoorAhead(player);
-                }
-            }
-        }
+        if (Pressed(keyboard, Keys.E)) Interact();
 
         UpdateCombat(gameTime, keyboard);
+    }
+
+    /// <summary>
+    /// Talk, open, take — whatever the crosshair is on. What the E key does.
+    ///
+    /// Its own method so a script can call it. Opening a door is the single most important
+    /// interaction in the game and had no test that could reach it: the console could walk and
+    /// teleport but never press a key, so no gate could tell a door that opens from one that
+    /// does not.
+    /// </summary>
+    private void Interact()
+    {
+        var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
+        var actor = _dialogue?.FindActor(player, _camera.Yaw);
+        if (actor is not null)
+        {
+            OpenDialogue(actor);
+            return;
+        }
+
+        if (_world is null) return;
+
+        var fixture = OnTheSurface ? Surface.FixtureAt(player) : SurfaceFixture.None;
+        var pickup = FindPickup(player, _camera.Yaw);
+
+        if (fixture != SurfaceFixture.None)
+        {
+            UseFixture(fixture);
+        }
+        else if (pickup is not null)
+        {
+            TakePickup(pickup);
+        }
+        else if (_run is { BarsTheWay: true } && _world.FindDoor(player, _camera.Yaw) is not null)
+        {
+            _session.ShowToast("Not while something in here is still moving.");
+        }
+        else
+        {
+            TryOpenDoorAhead(player);
+        }
     }
 
     /// <summary>
@@ -3127,10 +3141,18 @@ public sealed class Game1 : Game, IConsoleTarget
             }
             : null;
 
+        var seconds = StepSeconds(gameTime);
+
+        // A scripted walk is held here rather than faked further down, so it goes through the
+        // same collision callback and the same grounding as the key does. A route that a wall
+        // blocks must block this too, or the test proves nothing.
+        var scriptedWalk = _scriptWalkSeconds > 0f;
+        if (scriptedWalk) _scriptWalkSeconds = MathF.Max(0f, _scriptWalkSeconds - seconds);
+
         var moved = _camera.Step(
-            StepSeconds(gameTime),
+            seconds,
             new WalkInput(
-                Forward: keyboard.IsKeyDown(Keys.W),
+                Forward: keyboard.IsKeyDown(Keys.W) || scriptedWalk,
                 Back: keyboard.IsKeyDown(Keys.S),
                 Left: keyboard.IsKeyDown(Keys.A),
                 Right: keyboard.IsKeyDown(Keys.D),
@@ -4332,6 +4354,38 @@ public sealed class Game1 : Game, IConsoleTarget
     }
 
     void IConsoleTarget.WaitSeconds(float seconds) => _scriptWaitSeconds = seconds;
+
+    /// <summary>
+    /// Walk forward for a while, through the controller rather than around it.
+    ///
+    /// Holds the script for the same span, so a script reads as a sequence of moves rather
+    /// than as a set of overlapping timers.
+    /// </summary>
+    void IConsoleTarget.WalkForward(float seconds)
+    {
+        _scriptWalkSeconds = seconds;
+        _scriptWaitSeconds = seconds;
+    }
+
+    /// <summary>
+    /// Press E, and say what it did — the door state is the answer a script needs.
+    ///
+    /// Reported by looking at the door ahead before and after, because Interact itself is
+    /// deliberately void: what the key does is show a toast or open something, not return.
+    /// </summary>
+    string IConsoleTarget.Use()
+    {
+        var before = _world is null
+            ? null
+            : _world.FindDoor(
+                new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z),
+                _camera.Yaw);
+
+        Interact();
+
+        if (before is null) return "Used what was ahead.";
+        return before.Lock.IsOpen ? $"Opened {before.Definition.Id}." : $"{before.Definition.Id} did not open.";
+    }
 
     void IConsoleTarget.FailScript(string why) => FailScript(why);
 

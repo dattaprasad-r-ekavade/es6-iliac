@@ -52,6 +52,19 @@ internal interface IConsoleTarget
     /// <summary>Hold the rest of a script for this much simulated time.</summary>
     void WaitSeconds(float seconds);
 
+    /// <summary>
+    /// Hold the walk-forward key for a while, and hold the script until it is done.
+    ///
+    /// Unlike <c>move</c>, which places the camera and cannot be stopped by a wall, this goes
+    /// through the same controller and the same collision callback a player's W key does. It
+    /// is the only command that can prove a route is walkable rather than merely that the
+    /// destination exists.
+    /// </summary>
+    void WalkForward(float seconds);
+
+    /// <summary>Press E: talk, open, take. Returns what the game said about it.</summary>
+    string Use();
+
     /// <summary>Record that an assertion failed, so the process can exit non-zero.</summary>
     void FailScript(string why);
 
@@ -558,6 +571,22 @@ internal static class GameConsole
                 game.WaitSeconds(seconds);
                 return $"Waiting {seconds:0.00}s.";
             });
+
+        console.Register("walk",
+            "walk [seconds]",
+            "Hold W and actually walk, colliding with walls. Default 1 second.",
+            args =>
+            {
+                var seconds = Math.Clamp(args.Number(0, 1f), 0.01f, 120f);
+                game.WalkForward(seconds);
+                return $"Walking {seconds:0.00}s.";
+            });
+
+        console.Register("use",
+            "use",
+            "Press E on whatever the crosshair is on: talk, open, take.",
+            _ => game.Use(),
+            "e", "open", "interact");
 
         console.Register("assert",
             "assert <command> has <text>   |   assert <command> not <text>",
