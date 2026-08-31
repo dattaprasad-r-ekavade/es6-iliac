@@ -128,6 +128,18 @@ try {
         if (-not (Test-Path $exe)) { throw "No packaged build at $exe" }
 
         Invoke-Script $exe @() (Join-Path $root 'build') 'the packaged build'
+
+        # The scripts take screenshots, `shot` writes relative to the working directory, and
+        # the working directory has to be the build folder for the packaged run to be the real
+        # thing. So gating the artifact leaves 4.5 MB of PNGs inside the artifact.
+        #
+        # This never showed up while the packaged step was invoked with `& $exe`, because that
+        # returned before the game had drawn anything. Fixing the launch is what surfaced it.
+        $shots = Join-Path $root 'build\captures'
+        if (Test-Path $shots) {
+            Remove-Item $shots -Recurse -Force
+            Write-Host '    (removed the screenshots the smoke script left in the build)'
+        }
     }
 
     Write-Host ''
