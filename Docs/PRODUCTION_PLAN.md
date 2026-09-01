@@ -333,16 +333,23 @@ anybody *plays* is a question about a player, and none has yet chosen a cave.
 
 ---
 
-### Iteration 19 — The fort (3–4 weeks)
+### Iteration 19 — The fort ✅ risk retired; the walk-through is deliberately unbuilt
 
 **Risk retired:** content authoring throughput — the number that decides whether this is
-finishable.
+finishable. **Retired, and the number is below.**
 
-- Ten rooms, opened by wins and gold.
-- Occupants stay silent until a rank or a sum is reached.
-- Story fragments attached to rooms rather than to a questline.
+- [x] Ten rooms, opened by wins and gold. Ten in `Fort.Rooms`, gated through
+      `IsUnlocked(rank, deepestEver)`, and the screen names the bar it wants — *"Vitala at 2
+      descents and 20 stones banked."*
+- [x] Occupants stay silent until a rank or a sum is reached. A shut room shows the rank it
+      wants and nothing else.
+- [x] Story fragments attached to rooms rather than to a questline. Twenty-four of them, 20
+      tests.
 
-**Playable:** a fort worth walking around between runs.
+**Playable:** a fort worth walking around between runs. **This half is not built, on purpose.**
+The fort is a list of doors rather than geometry, and `ALPHA_CHECKLIST.md` §E names that a
+staging decision rather than a gap. What the iteration existed to learn is learnt; corridors
+would have spent the expensive weeks to find out nothing about the cheap ones.
 
 **Done when:** you can state **hours of authoring per hour of play**. Record it. This is the
 single most useful figure for planning everything after release.
@@ -380,14 +387,25 @@ thing that decides whether this is finishable.
 
 ---
 
-### Iteration 20 — Bosses (2–3 weeks)
+### Iteration 20 — Bosses (2–3 weeks) — **genuinely unbuilt**
 
 **Risk retired:** is there a reason to reach the bottom?
 
-- Three distinct fight behaviours, dressed per theme to make six or seven encounters.
-- A boss ends a deeper mine rather than a camp.
+- [ ] Three distinct fight behaviours, dressed per theme to make six or seven encounters.
+- [ ] A boss ends a deeper mine rather than a camp.
 
 **Playable:** a run that ends on a fight worth the descent.
+
+**Checked 2026-09-01, against the code rather than this document.** `EnemyCatalog` holds five
+archetypes — bandit, archer, chhaya, vetala, pishacha — and the word *boss* appears nowhere in
+`src`. Unlike 17, 18 and the roster half of 19, none of this is quietly already done. It is the
+only iteration left on the board that is real, unwritten work.
+
+**And it is the structural hole the alpha has.** A mine has no bottom, only an edge that keeps
+moving, so a run stops rather than climaxes: every run in the recording corpus ends in a camp or
+a corpse, never in an ending. That is worth knowing before it is built, though — whether players
+*want* a bottom is a question the second playtest can answer, and building three fight
+behaviours to find out is the expensive way round.
 
 ---
 
@@ -441,9 +459,17 @@ One board. Work in progress limit: **one**.
 
 ### Ready
 
-- Iteration 19 — the fort. Also where three parked features would come back.
-- Iteration 20 — bosses.
-- Iteration 21 — slice lock.
+- **Iteration 20 — bosses.** The only unbuilt iteration on this board, checked against the code
+  rather than against this document. Also the structural hole: a run stops rather than
+  climaxes, and every run in the recording corpus ends in a camp or a corpse.
+- **Iteration 21 — slice lock.**
+- **Iteration 19's second half** — the fort as somewhere to walk, and where three parked
+  features would come back. Its risk is already retired; this is the staged remainder.
+
+**Checked 2026-09-01.** Iterations 17, 18 and the roster half of 19 were all sitting here as
+Ready while already built and tested. The board had drifted behind the code by three iterations,
+which is the same failure the modularisation plan had — a document confident about work nobody
+had re-read. Anything below should be checked against `src` before it is started.
 
 ### Known gaps, none blocking
 
