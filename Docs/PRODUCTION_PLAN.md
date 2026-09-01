@@ -399,18 +399,14 @@ One board. Work in progress limit: **one**.
 
 ### In progress
 
-- None. Gate green at `9f13305` plus two ported store-page fixes.
+- **Iteration 17 — the ratchet.** Started 2026-09-01.
 
 ### Next — pick one
 
-- **Push a current build, and let a stranger play it.** The alpha is live at
-  `datathecodie.itch.io/ratna-bay`, but the uploaded build is `alpha-2026.08.25-1277591` —
-  which predates audio, maces, shields, bows and the whole stones system. Anyone downloading
-  today plays a materially worse game than the one in the repository. `.\release.ps1` is one
-  command and butler ships a patch of a few hundred KB.
-- **Iteration 17 — the ratchet.** Amulets that survive death, and levels that grant points
-  rather than numbers. The natural follow-on now that in-run variety exists: 16 made a single
-  run varied, 17 makes a *lost* run still worth something.
+- **A second playtest.** The first produced one downloader, who spent 119 minutes in the
+  entrance room because the first door said it was locked when it was not. That is fixed and
+  live as `alpha-2026.08.31-b7ee12c`; what is missing now is people. `ALPHA_CHECKLIST.md` §D
+  lists the channels, and r/IndianGaming is the highest-yield one still untried.
 - **Iteration 18 — cave themes.** Pulled forward in thinking once, then held: the sameness was
   mechanical rather than visual, and its causes have since been fixed. Worth re-judging
   against a fresh recording rather than the one that prompted it.
@@ -433,7 +429,10 @@ One board. Work in progress limit: **one**.
 - **The store page has no cover or screenshots yet.** `build\RatnaBay.exe --cover` and
   `--screenshot` produce them; uploading them is a manual step in the itch page editor, which
   butler cannot do.
-- **Gold pacing is a guess.** Roughly 250 a run against a 450 sword, never measured.
+- **The page overstates run length by about three times.** It says five to ten minutes a run.
+  Measured across 21 fought runs in the recording corpus, the median is **1.8 minutes** and the
+  longest anybody has managed — nine rooms — is 5.8. Honest copy is two to six. Owner runs
+  only, so read it as a floor. Full table in `ALPHA_CHECKLIST.md` §A.
 - **Two cave themes, one fort room, and the preta rise** — the remaining trailer build list.
 
 ### Done this stretch
