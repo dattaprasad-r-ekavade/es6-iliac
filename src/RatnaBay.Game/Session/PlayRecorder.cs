@@ -38,6 +38,16 @@ public sealed class PlayRecorder
         System.IO.Path.Combine(GameSession.SaveDirectory, "recordings");
 
     /// <summary>
+    /// The file this sitting is writing to, so the uploader can leave it alone.
+    ///
+    /// The sweep used to identify the in-progress recording by asking whether it had been
+    /// touched in the last two minutes, which is a guess standing in for a fact the process
+    /// already holds. It also made sending on the way out impossible: the recording had just
+    /// been written, so it always looked like the live one and was always skipped.
+    /// </summary>
+    public string Path => _path;
+
+    /// <summary>
     /// The recordings folder as it should be shown to a player, rather than as it is on disk.
     ///
     /// The expanded path names whoever is running the build, and the screen it appears on is

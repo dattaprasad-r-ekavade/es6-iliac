@@ -160,6 +160,14 @@ public sealed class Game1 : Game, IConsoleTarget
     /// of the floor. It read as a rendering bug for an hour. A script asks for time; how many
     /// frames that takes is the machine's business.
     /// </summary>
+    /// <summary>
+    /// True when this process was launched with --script.
+    ///
+    /// Gates anything that assumes a person is at the keyboard -- mouse capture, and the
+    /// borderless fullscreen the game otherwise opens in.
+    /// </summary>
+    private bool _scripted;
+
     private float _scriptWaitSeconds;
 
     /// <summary>Seconds of held W left on a scripted walk. See IConsoleTarget.WalkForward.</summary>
@@ -498,6 +506,7 @@ public sealed class Game1 : Game, IConsoleTarget
         // A file of them, for a test that is longer than a command line. Read here and folded
         // into the same queue, so --script and --exec behave identically from then on.
         var scriptFile = ParseOption(args, "--script");
+        _scripted = !string.IsNullOrWhiteSpace(scriptFile);
         if (scriptFile is not null)
         {
             // A named script that is not there is a broken invocation, not an empty one. It
@@ -555,7 +564,13 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_capture.ApplyWindow(_graphics, Window, LogicalWidth, LogicalHeight))
             _borderlessFullscreen = false;
 
-        if (HasArgument(args, "--windowed"))
+        // A scripted run is a test, not a sitting: it must not seize the display.
+        //
+        // Capture runs were already windowed, because ApplyWindow above sizes them, but a
+        // plain --script run went borderless fullscreen and took over the screen for as long
+        // as the gate ran. verify.ps1 now runs two of them on every invocation, so that is
+        // twice a build, on top of every ad-hoc script.
+        if (HasArgument(args, "--windowed") || !string.IsNullOrWhiteSpace(scriptFile))
         {
             _borderlessFullscreen = false;
             _graphics.PreferredBackBufferWidth = LogicalWidth;
@@ -639,7 +654,7 @@ public sealed class Game1 : Game, IConsoleTarget
             && !_consent.Asked
             && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
 
-        if (!_askingConsent && !capturing) _uploader.SendPending();
+        if (!_askingConsent && !capturing) _uploader.SendPending(_recorder.Path);
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.
@@ -793,8 +808,13 @@ public sealed class Game1 : Game, IConsoleTarget
         PropTextures.Clear();
         ItemSprites.Clear();
         PortraitForge.Clear();
-        // A sitting that ends by closing the window is still a sitting worth reading back.
+        // A sitting that ends by closing the window is still a sitting worth reading back --
+        // and, now, worth sending. Flushed first so the file on disk is the whole sitting, then
+        // offered to the uploader with no in-progress file to skip, because there no longer is
+        // one. Three seconds: a player quitting is not made to wait on a network, and anything
+        // unsent is still picked up by the next launch if there ever is one.
         _recorder.Flush();
+        _uploader?.SendNow(inProgress: null, TimeSpan.FromSeconds(3));
 
         _ambientAudio?.Dispose();
         _sfx?.Dispose();
@@ -920,9 +940,19 @@ public sealed class Game1 : Game, IConsoleTarget
     /// While captured the cursor is hidden and re-centred every frame, so looking around
     /// never runs out of desk and never lets a click land outside the window.
     /// </summary>
+    /// <summary>
+    /// Turn mouse look on or off.
+    ///
+    /// Refused outright during a capture, and during a script, for the same reason: nobody is
+    /// holding the mouse. Mouse look re-centres the system cursor every frame, so a scripted
+    /// run took the cursor away from whoever was using the machine and kept warping it back to
+    /// the middle of the game window for as long as the gate ran. A script drives the camera
+    /// with `look` and `walk`; the mouse has nothing to contribute and every opportunity to
+    /// interfere.
+    /// </summary>
     private void SetMouseLook(bool enabled, bool forPanel = false)
     {
-        if (_capture.IsCapturing) enabled = false;
+        if (_capture.IsCapturing || _scripted) enabled = false;
 
         if (enabled) _mouseFreedForPanel = false;
         else if (forPanel) _mouseFreedForPanel = true;
@@ -1264,7 +1294,7 @@ public sealed class Game1 : Game, IConsoleTarget
         _consent.Save();
 
         _askingConsent = false;
-        if (_consent.Allowed) _uploader?.SendPending();
+        if (_consent.Allowed) _uploader?.SendPending(_recorder.Path);
     }
 
     /// <summary>
