@@ -346,10 +346,28 @@ finishable. **Retired, and the number is below.**
 - [x] Story fragments attached to rooms rather than to a questline. Twenty-four of them, 20
       tests.
 
-**Playable:** a fort worth walking around between runs. **This half is not built, on purpose.**
-The fort is a list of doors rather than geometry, and `ALPHA_CHECKLIST.md` §E names that a
-staging decision rather than a gap. What the iteration existed to learn is learnt; corridors
-would have spent the expensive weeks to find out nothing about the cheap ones.
+**Playable:** a fort worth walking around between runs. **The geometry exists as of 2026-09-01;
+the client does not yet load it.**
+
+`FortHall.Build()` emits the place as a `WorldManifest` — a hall with five chambers down each
+side, a cut doorway and a lit chamber per roster room, and a stand for each occupant. Staged
+second on purpose: this iteration existed to retire authoring throughput, and corridors would
+have spent the expensive weeks to learn nothing about the cheap ones. The number came back at
+~700 words an hour, so the place is now worth building.
+
+**Rank is deliberately not in the geometry.** Whether a door opens is `FortRoom.IsOpen`, asked
+per visit. Baking progress into the world would mean rebuilding the fort on every promotion,
+and a manifest that depends on progress cannot be cached, validated or hot-reloaded.
+
+**Thirteen assertions stand in for walking it**, because the faults that matter here are
+invisible: a doorway never cut, a chamber wall closed across its own entrance, an occupant
+inside the masonry — all of them look correct and are all impassable. The reachability tests
+walk the hall, cross each doorway and cross each chamber at head height. They were checked by
+plugging every doorway, which failed exactly the two tests it should.
+
+**Still to do, and it needs a running client to verify:** loading the manifest, walking in from
+the yard, placing the ten occupants, and retiring the panel that currently stands in for the
+place.
 
 **Done when:** you can state **hours of authoring per hour of play**. Record it. This is the
 single most useful figure for planning everything after release.
@@ -478,8 +496,10 @@ One board. Work in progress limit: **one**.
 ### Ready
 
 - **Iteration 21 — slice lock.**
-- **Iteration 19's second half** — the fort as somewhere to walk, and where three parked
-  features would come back. Its risk is already retired; this is the staged remainder.
+- **Iteration 19's second half — the client wiring.** The fort's geometry is built and asserted
+  (`FortHall`); what remains is loading it, walking in from the yard, placing the ten occupants
+  and retiring the panel. Needs a running client to verify, so it was left at the domain
+  boundary. Also where three parked features would come back.
 
 **Checked 2026-09-01.** Iterations 17, 18 and the roster half of 19 were all sitting here as
 Ready while already built and tested. The board had drifted behind the code by three iterations,
