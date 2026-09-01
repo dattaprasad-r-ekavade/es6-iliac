@@ -132,12 +132,24 @@ Say "    [ok] $Target is reachable"
 Set-Content -Path $targetFile -Value $Target -Encoding utf8 -NoNewline
 
 # ---------------------------------------------------------------- the gate
+#
+# verify.ps1 -Pack, not publish.ps1.
+#
+# publish.ps1 runs the domain tests and the packaged self-test, and neither of those draws a
+# frame or walks anywhere: the self-test's ten fort-portrait checks call PortraitForge.Render,
+# which takes no GraphicsDevice at all. A null device that crashed the game on the first frame
+# it drew a weapon passed both, and so did every mine door reporting itself locked.
+#
+# verify.ps1 -Pack is publish.ps1 plus the three scripted playthroughs -- smoke against the
+# build output and the packaged build, and walk.rbs, which holds W through the real controller
+# and presses E on a door rather than teleporting past it. This is the last gate before
+# strangers download the result, so it should be the strictest one, not the quickest.
 Step "Running the full build gate"
-Native { & (Join-Path $root "publish.ps1") } | ForEach-Object { Write-Host $_ }
+Native { & (Join-Path $root "verify.ps1") -Pack } | ForEach-Object { Write-Host $_ }
 if ($LASTEXITCODE -ne 0) { Die "The gate failed. Nothing was uploaded." }
 
 if (-not (Test-Path (Join-Path $buildDir "RatnaBay.exe"))) {
-    Die "publish.ps1 reported success but build\RatnaBay.exe is missing."
+    Die "The gate reported success but build\RatnaBay.exe is missing."
 }
 
 # ---------------------------------------------------------------- the version people will quote

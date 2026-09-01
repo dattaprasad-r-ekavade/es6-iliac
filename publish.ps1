@@ -14,8 +14,17 @@
     Launch the game as soon as it is built.
 
 .PARAMETER SkipTests
-    Skip the test and self-test gates. For quick iteration only; never for a build you hand
-    to someone else.
+    Skip the domain tests and the simulation. For quick iteration, and for callers that have
+    just run them themselves -- verify.ps1 does exactly that before it packages.
+
+    It used to skip the packaged self-test as well, which conflated two different things: the
+    domain tests prove the rules, and the self-test proves the artifact. verify.ps1 -Pack
+    passes this flag, so the one gate that runs a playthrough was also the one that skipped
+    the 219 checks on the folder people download.
+
+.PARAMETER SkipSelfTest
+    Skip the packaged build's own self-test. Never for a build you hand to someone else --
+    this is the only check that runs the real executable out of the real folder.
 
 .PARAMETER Framework
     Produce a smaller framework-dependent build (needs the .NET 9 desktop runtime installed).
@@ -34,6 +43,7 @@
 param(
     [switch] $Run,
     [switch] $SkipTests,
+    [switch] $SkipSelfTest,
     [switch] $Framework,
     [switch] $Clean,
 
@@ -126,7 +136,7 @@ try {
 
     Write-Host "    [ok] $($rootEntries.Count) entries at the root"
 
-    if (-not $SkipTests) {
+    if (-not $SkipSelfTest) {
         Write-Step 'Smoke-testing the published build'
         # Runs the real executable from the real folder: if content, fonts or the save path
         # are wrong in the published layout, this is where it surfaces.

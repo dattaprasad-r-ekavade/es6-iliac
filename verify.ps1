@@ -14,8 +14,10 @@
     needs a Windows machine and writes into .\build.
 
 .PARAMETER Pack
-    Also run publish.ps1 -SkipTests, then drive the packaged build through the smoke script.
-    That last step is the only gate that asserts on a running client, so it needs the exe.
+    Also package the build, run the packaged self-test, and drive the packaged executable
+    through the smoke script. With this, verify.ps1 is the whole gate -- rules, content,
+    simulation, three playthroughs and the artifact -- which is why release.ps1 runs it rather
+    than publish.ps1 on its own.
 
 .PARAMETER Configuration
     Build configuration. Release is the default, matching the publish gate.
@@ -115,6 +117,10 @@ try {
     if ($Pack) {
         Write-Host ''
         Write-Host '==> Packaging' -ForegroundColor Cyan
+        # -SkipTests only: the domain tests and the simulation have already run above, but the
+        # packaged self-test has not, and it is the only check that runs the real executable
+        # out of the real folder. That flag used to skip both, so this -- the one gate with a
+        # playthrough in it -- was also the one that skipped the 219 checks on the artifact.
         & (Join-Path $root 'publish.ps1') -Configuration $Configuration -SkipTests
         Assert-LastExitCode 'publish.ps1'
 
