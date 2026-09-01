@@ -83,6 +83,15 @@ internal interface IConsoleTarget
     string Capture(string path);
 
     /// <summary>
+    /// Record a numbered frame sequence for a clip, and hold the script while it runs.
+    ///
+    /// Frames are timed off simulated seconds, so the same script produces the same clip on
+    /// any machine -- which is what makes marketing footage something that can be regenerated
+    /// after an art change rather than re-performed.
+    /// </summary>
+    string Record(string directory, float seconds, float fps);
+
+    /// <summary>
     /// What is under the crosshair, or under one screen pixel when given.
     ///
     /// The pixel form is what makes a screenshot answerable: something odd in a captured
@@ -688,6 +697,15 @@ internal static class GameConsole
             args => args.Count >= 2 && args.TryInteger(0, out var px) && args.TryInteger(1, out var py)
                 ? game.PickAt(px, py)
                 : game.PickAt(null, null));
+
+        console.Register("record",
+            "record <folder> [seconds] [fps]",
+            "Write a numbered frame sequence for a clip. Holds the script while it runs.",
+            args => game.Record(
+                args.Text(0).Length > 0 ? args.Text(0) : "captures/clip",
+                Math.Clamp(args.Number(1, 6f), 0.2f, 60f),
+                Math.Clamp(args.Number(2, 30f), 5f, 60f)),
+            "clip");
 
         console.Register("time",
             "time [scale]",

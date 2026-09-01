@@ -171,6 +171,9 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>When the last "this run is going nowhere" note was written. See NoteIfStuck.</summary>
     private DateTime _lastStuckNote = DateTime.MinValue;
 
+    /// <summary>Simulated seconds in the last Update, read by the clip recorder in Draw.</summary>
+    private float _lastSimulatedSeconds;
+
     private float _scriptWaitSeconds;
 
     /// <summary>Seconds of held W left on a scripted walk. See IConsoleTarget.WalkForward.</summary>
@@ -882,7 +885,10 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_hitstop > 0f) _hitstop = MathF.Max(0f, _hitstop - real);
         if (_shake > 0f) _shake = MathF.Max(0f, _shake - real);
 
-        PumpScript(RealSeconds(gameTime) * _timeScale);
+        // Kept for the recorder, which runs in Draw and has no GameTime of its own. One
+        // number, so a clip's clock and the script's `wait` cannot drift apart.
+        _lastSimulatedSeconds = RealSeconds(gameTime) * _timeScale;
+        PumpScript(_lastSimulatedSeconds);
         UpdateWatches();
 
         // First, and it swallows the frame when it is open: a console you cannot type an S
@@ -1107,6 +1113,15 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_scriptQueue.Count == 0)
         {
             // A script that asked to quit does so once it has run out of things to say.
+            // A clip outlives the commands that set it going.
+            //
+            // The first version held the script for the clip's length, which was wrong twice
+            // over: the following commands are what the clip is *of*, so holding them makes a
+            // still, and `walk` overwrites the hold anyway. The script runs on; what it must
+            // not do is quit with frames outstanding, which truncated the first recording at
+            // 155 of 210 frames.
+            if (_capture.Recording) return;
+
             if (_scriptQuitWhenDone)
             {
                 _scriptQuitWhenDone = false;
@@ -1206,6 +1221,9 @@ public sealed class Game1 : Game, IConsoleTarget
     protected override void Draw(GameTime gameTime)
     {
         ApplyCaptureScreen();
+
+        // Before BeginFrame, so a frame queued this tick is the frame about to be drawn.
+        _capture.TickClip(_lastSimulatedSeconds);
         _capture.BeginFrame(GraphicsDevice);
 
         _fpsFrames++;
@@ -2301,10 +2319,44 @@ public sealed class Game1 : Game, IConsoleTarget
         {
             _session.ShowToast("Not while something in here is still moving.");
         }
+        else if (_inFort && FortDoorRefusedByRank(player) is { } shut)
+        {
+            // The rank gate has to be on the door, not only on the conversation.
+            //
+            // Fort doors are unlocked -- deliberately, for the reason every mine door is -- so
+            // TryOpenDoorAhead opened any of them on the first press. A level-one player could
+            // walk into the Physician's room, and the Governor's, and the whole ladder the
+            // fort is built on meant nothing the moment somebody tried a door rather than
+            // talking to whoever was behind it.
+            //
+            // Named rather than refused blankly: a shut door that says what it wants is a
+            // goal, and one that only says no is the fault that cost this game its first
+            // outside player 110 minutes.
+            _session?.ShowToast($"{shut.DisplayName} is shut. {Ranks.LabelOf(shut.RequiredRank)}.");
+        }
         else
         {
             TryOpenDoorAhead(player);
         }
+    }
+
+    /// <summary>
+    /// The fort room whose door is in front of the player and is not open to them yet, or null.
+    /// </summary>
+    private FortRoom? FortDoorRefusedByRank(WorldPoint player)
+    {
+        if (_session is null || _world is null) return null;
+
+        var door = _world.FindDoor(player, _camera.Yaw);
+        if (door is null) return null;
+
+        var roomId = FortHall.RoomOfDoor(door.Definition.Id);
+        if (roomId is null) return null;
+
+        var room = FortRoster.Find(roomId);
+        return room is not null && !room.IsOpen(_session.Player.Legacy.Service.Rank)
+            ? room
+            : null;
     }
 
     /// <summary>
@@ -4729,6 +4781,22 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         _capture.Queue(path);
         return $"Saving {path}.";
+    }
+
+    /// <summary>
+    /// Record a clip, and hold the script for exactly as long as it takes.
+    ///
+    /// The hold matters: without it the script would run on and quit while the recorder still
+    /// had frames to write, and a clip would end wherever the rest of the script happened to
+    /// be. Holding for the clip's own duration means a recording is a statement about a span
+    /// of play rather than about how fast the machine got through the commands.
+    /// </summary>
+    string IConsoleTarget.Record(string directory, float seconds, float fps)
+    {
+        var frames = (int)MathF.Round(seconds * fps);
+        _capture.StartClip(directory, frames, fps);
+
+        return $"Recording {frames} frames at {fps:0} fps into {directory}.";
     }
 
     /// <summary>

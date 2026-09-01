@@ -93,6 +93,65 @@ public sealed class CaptureHost : IDisposable
     /// <summary>Save a frame without ending the run, unlike --screenshot.</summary>
     public void Queue(string path) => _pending = path;
 
+    // ------------------------------------------------------------------ recording
+
+    private string? _clipDirectory;
+    private int _clipFrame;
+    private int _clipFramesLeft;
+    private float _clipInterval;
+    private float _clipCountdown;
+
+    /// <summary>True while a clip is still being written.</summary>
+    public bool Recording => _clipFramesLeft > 0;
+
+    /// <summary>Where the frames of the clip in progress are going.</summary>
+    public string? ClipDirectory => _clipDirectory;
+
+    /// <summary>How many frames the clip in progress has written.</summary>
+    public int ClipFrames => _clipFrame;
+
+    /// <summary>
+    /// Start writing a numbered frame sequence, one every 1/fps of *simulated* time.
+    ///
+    /// Simulated rather than wall-clock, which is the whole point. A capture run is uncapped
+    /// and a frame costs a back-buffer read and a PNG encode, so wall-clock timing would give
+    /// a clip whose speed depended on the machine that recorded it. Driving it from the same
+    /// clock the script's `wait` uses makes a clip a reproducible artifact: the marketing
+    /// footage can be regenerated after an art change instead of re-performed by hand, and it
+    /// comes back identical.
+    /// </summary>
+    public void StartClip(string directory, int frames, float fps)
+    {
+        _clipDirectory = directory;
+        _clipFrame = 0;
+        _clipFramesLeft = Math.Max(1, frames);
+        _clipInterval = 1f / Math.Max(1f, fps);
+        _clipCountdown = 0f;
+
+        Directory.CreateDirectory(directory);
+    }
+
+    /// <summary>
+    /// Advance the clip's clock and queue a frame when one is due.
+    ///
+    /// Called with simulated seconds, before the frame is drawn. A queued clip frame goes
+    /// through the same path a `shot` does, so there is one way of getting pixels off the
+    /// back buffer rather than two that could disagree.
+    /// </summary>
+    public void TickClip(float simulatedSeconds)
+    {
+        if (_clipFramesLeft <= 0) return;
+
+        _clipCountdown -= simulatedSeconds;
+        if (_clipCountdown > 0f) return;
+
+        _clipCountdown += _clipInterval;
+        _clipFramesLeft--;
+
+        _pending = System.IO.Path.Combine(_clipDirectory!, $"frame_{_clipFrame:0000}.png");
+        _clipFrame++;
+    }
+
     /// <summary>
     /// Flush a queued 'shot', unbind the cover target, and quit once warmup and any script hold
     /// have passed.

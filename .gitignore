@@ -20,3 +20,12 @@ tools/butler/
 itch.target
 
 artifacts/
+
+# Clip gifs, but not the mp4s beside them.
+#
+# A gif of this game runs 9-12 MB where the same seconds are 1.8 MB as h264, and a
+# README that costs ten megabytes to scroll past is worse than one with a still in
+# it. They regenerate from Docs\scripts\clip-*.rbs and tools\make-clips.ps1 in one
+# command, so there is nothing here to lose. Commit one only once it has been cut
+# to a size worth downloading.
+Docs/clips/*.gif
