@@ -303,16 +303,33 @@ answer it.
 
 ---
 
-### Iteration 18 — Cave themes (2 weeks)
+### Iteration 18 — Cave themes ✅ built, not yet judged
 
 **Risk retired:** does theme change how you play, or only how it looks?
 
-- Five themes: colour shading, preta sprite set, one resisted and one feared element.
-- Resistance, never immunity.
-- The theme is shown before the player pays to open the mine.
+- [x] Five themes: colour shading, preta sprite set, one resisted and one feared element. The
+      "sprite set" is a palette shift at draw time rather than five hand-drawn sets, which is
+      what the phrase means in a game whose art is generated — held to a quarter tint, because
+      the three tiers of risen are told apart by their flesh colours and a full wash would make
+      a chhaya in the Ossuary read as a vetala anywhere else.
+- [x] Resistance, never immunity. `ResistedFactor` 0.45 and `FearedFactor` 1.55, applied in
+      `SpellCaster` through `CaveThemeCatalog.DamageFactor` — one place, so the shaft screen's
+      promise and the damage actually dealt cannot drift apart.
+- [x] The theme is shown before the player pays. Each tier on the shaft screen carries its rock,
+      what it shrugs off and what it fears, beside its price.
 
 **Playable:** choose which cave to buy into, knowing what is down there, and ready the right
 spell for it.
+
+**Fixed while verifying it:** the five offers were seeded independently, and a theme is a pure
+function of seed and tier, so the board collided — five themes into four free slots duplicates
+the free granite about three times in five. Paying eighty stones for the same tactical problem
+as the free mine is the opposite of the choice the screen exists to present. The shaft now
+re-rolls a seed rather than overriding a label, so `CaveThemeCatalog.For` stays the one
+authority the shaft, the generator and the renderer all read.
+
+**Not yet judged**, and it is the same sentence as iteration 17: whether theme changes how
+anybody *plays* is a question about a player, and none has yet chosen a cave.
 
 ---
 
@@ -421,9 +438,6 @@ One board. Work in progress limit: **one**.
   entrance room because the first door said it was locked when it was not. That is fixed and
   live as `alpha-2026.08.31-b7ee12c`; what is missing now is people. `ALPHA_CHECKLIST.md` §D
   lists the channels, and r/IndianGaming is the highest-yield one still untried.
-- **Iteration 18 — cave themes.** Pulled forward in thinking once, then held: the sameness was
-  mechanical rather than visual, and its causes have since been fixed. Worth re-judging
-  against a fresh recording rather than the one that prompted it.
 
 ### Ready
 

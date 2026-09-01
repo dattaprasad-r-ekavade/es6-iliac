@@ -1618,9 +1618,33 @@ public sealed class Game1 : Game, IConsoleTarget
         // A fresh set of offers each time the shaft is opened. Backing out and looking again
         // re-rolls them, which is deliberate: it is free, it costs no stones, and a player who
         // does not like any of today's caves should be able to come back tomorrow.
+        // Seeds chosen so the five offers are five different caves.
+        //
+        // They used to be rolled independently, and a theme is a pure function of its seed and
+        // tier, so the board collided constantly: five themes into four free slots leaves the
+        // free granite workings duplicated by a paid tier about three times in five. A shaft
+        // offering "Tier 1, free: cold grey granite" beside "Tier 5, 80 stones: cold grey
+        // granite" is asking the player to pay eighty stones for the same tactical problem,
+        // which is the opposite of the choice this screen exists to present.
+        //
+        // The seed is re-rolled rather than the theme being overridden, because CaveThemeCatalog
+        // .For is the single authority the shaft, the generator and the renderer all read. Fix
+        // it here and the three still agree; override the label and they do not.
+        //
+        // Tier one is always granite by design, so it is seeded first and claims that theme.
         var roll = new Random(Environment.TickCount);
+        var taken = new HashSet<string>(StringComparer.Ordinal);
+
         for (var tier = MineEntry.MinTier; tier <= MineEntry.MaxTier; tier++)
-            _shaftSeeds[tier] = roll.Next(int.MinValue, int.MaxValue);
+        {
+            // Bounded: with more tiers than themes a repeat is unavoidable, and a shaft that
+            // hangs looking for the impossible is far worse than one that repeats a cave.
+            for (var attempt = 0; attempt < 24; attempt++)
+            {
+                _shaftSeeds[tier] = roll.Next(int.MinValue, int.MaxValue);
+                if (taken.Add(CaveThemeCatalog.For(_shaftSeeds[tier], tier).Id)) break;
+            }
+        }
 
         SetMouseLook(false, forPanel: true);
     }
@@ -4331,8 +4355,16 @@ public sealed class Game1 : Game, IConsoleTarget
             case "journal": _showJournal = true; break;
             case "help": _showHelp = true; break;
             case "depth" or "shaft":
+                // Through the real opener, not by setting the flag.
+                //
+                // Setting _choosingDepth by hand left every shaft seed at its default zero, and
+                // a theme is a pure function of seed and tier, so the captured board was one no
+                // player ever sees -- the same five caves every time, with tier five showing
+                // the granite that tier one is always given. A screenshot of a state that
+                // cannot occur is worse than no screenshot: it was read, here, as a design
+                // fault in theme selection.
+                OpenTheShaft();
                 _depthSelection = 3;
-                _choosingDepth = true;
                 break;
             case "shop" or "stall": _showShop = true; break;
             case "camp" or "trader": _campTraderOpen = true; break;
