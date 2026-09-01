@@ -2203,7 +2203,19 @@ public sealed class Game1 : Game, IConsoleTarget
         // listening, so the player presses harder, and the log fills with nothing.
         if (_swingBuffered > 0f) _swingBuffered -= step;
 
-        if (Clicked(mouse) && !_session.Player.Combat.IsReady && _encounter.Focused is not null)
+        // Regardless of whether anything is being aimed at.
+        //
+        // This used to require a focused enemy, which meant the fix above only applied to
+        // somebody already in a fight -- and the player who needed it most was not. The
+        // alpha's one outside player spent an hour swinging at a door in an empty corridor:
+        // no enemy, so no buffering, so every click that arrived inside the 0.45s cooldown
+        // did nothing, made no sound and moved nothing. Five of them are in their recording
+        // as "too soon", and the rest of that hour is the behaviour the comment above
+        // predicts -- pressing harder at a game that appears not to be listening.
+        //
+        // A swing at air is a legitimate thing to ask for. It already works when the weapon
+        // is ready; it should not silently stop working because the weapon is not.
+        if (Clicked(mouse) && !_session.Player.Combat.IsReady)
             _swingBuffered = SwingBufferSeconds;
 
         var releaseBuffered = _swingBuffered > 0f && _session.Player.Combat.IsReady;
