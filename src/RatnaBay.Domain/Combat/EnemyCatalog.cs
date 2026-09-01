@@ -47,6 +47,34 @@ public static class EnemyCatalog
     /// </summary>
     public const string PretaId = "preta";
 
+    /// <summary>
+    /// The three that lead a boss room, one per fight behaviour.
+    ///
+    /// Named rather than generated so a bug report can say which one it was, and so the fort's
+    /// occupants can eventually be given something to say about each. The names are what the
+    /// miners would call them: a khanda is a broad straight blade, netra an eye, chhala a
+    /// trick or a feint.
+    /// </summary>
+    public const string KhandaId = "boss.khanda";
+    public const string NetraId = "boss.netra";
+    public const string ChhalaId = "boss.chhala";
+
+    /// <summary>Every boss, in catalogue order.</summary>
+    public static readonly string[] BossIds = { KhandaId, NetraId, ChhalaId };
+
+    /// <summary>
+    /// Which boss stands in a given boss room.
+    ///
+    /// Chosen from the mine's own seed and the room, so the shaft's promise, the generator and
+    /// a replay of the same seed all agree -- the same rule the cave theme follows, and for the
+    /// same reason. Mixed so that neighbouring rooms do not give neighbouring bosses.
+    /// </summary>
+    public static string BossFor(int seed, int roomNumber)
+    {
+        var mixed = unchecked((uint)(seed * 2654435761u + (uint)roomNumber * 2246822519u));
+        return BossIds[(int)(mixed % (uint)BossIds.Length)];
+    }
+
     private static readonly Dictionary<string, EnemyArchetype> Archetypes =
         new(StringComparer.Ordinal)
         {
@@ -128,6 +156,65 @@ public static class EnemyCatalog
                 AttackDamage = 8f,
                 AttackCooldown = 2.1f,
                 XpReward = 24
+            },
+
+            // ---------------------------------------------------------------- the three bosses
+            //
+            // Each is the same creature the mine is already full of, grown into something that
+            // leads a room. Not new species: a player who has learned to read a vetala should
+            // recognise what is standing in the boss room, and be wrong about how to fight it.
+            //
+            // Health is high but not absurd. A boss that takes four minutes to kill is not
+            // harder, it is longer, and a run is under two minutes -- one that trebles because
+            // of a health bar has stopped being press-your-luck and started being a slog.
+
+            // Breaker. Slower than the player, hits harder than anything else in the game.
+            // The whole answer is footwork, and standing still is the mistake.
+            [KhandaId] = new EnemyArchetype
+            {
+                Id = KhandaId,
+                DisplayName = "Khanda, the Breaker",
+                MaxHealth = 420f,
+                MoveSpeed = 3.2f,
+                AggroRange = 26f,
+                AttackRange = 3.4f,
+                AttackDamage = 34f,
+                AttackCooldown = 2.4f,
+                XpReward = 400,
+                Behaviour = BossBehaviour.Breaker
+            },
+
+            // Warden. The mirror: it will not come to you, and the approach is the fight.
+            // Frailer than the Breaker because closing the gap is meant to be the cost.
+            [NetraId] = new EnemyArchetype
+            {
+                Id = NetraId,
+                DisplayName = "Netra, the Watcher in the Seam",
+                MaxHealth = 240f,
+                MoveSpeed = 4.2f,
+                AggroRange = 30f,
+                AttackRange = 18f,
+                StandOffRange = 12f,
+                AttackDamage = 15f,
+                AttackCooldown = 1.9f,
+                XpReward = 380,
+                Behaviour = BossBehaviour.Warden
+            },
+
+            // Harrier. Neither durable nor especially damaging; it is fast, and it is already
+            // leaving by the time the player answers. The one that punishes a slow reaction.
+            [ChhalaId] = new EnemyArchetype
+            {
+                Id = ChhalaId,
+                DisplayName = "Chhala, the Quick",
+                MaxHealth = 200f,
+                MoveSpeed = 6.4f,
+                AggroRange = 28f,
+                AttackRange = 2.4f,
+                AttackDamage = 19f,
+                AttackCooldown = 1.8f,
+                XpReward = 360,
+                Behaviour = BossBehaviour.Harrier
             }
         };
 

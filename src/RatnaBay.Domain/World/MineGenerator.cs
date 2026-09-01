@@ -631,6 +631,51 @@ public static class MineGenerator
             var isLast = local == cells.Count - 1;
             var count = Math.Min(MaxEnemiesPerRoom, 1 + index / 2 + (isLast ? 1 : 0));
 
+            // Every fifth room is a boss room: one boss, and one archer, and nothing else.
+            //
+            // Not a crowd. A boss with a room full of chhaya around it is not a boss fight, it
+            // is a bad room -- the player fights the crowd, and the behaviour that is the whole
+            // reason the boss exists never gets read. Each of the three asks a different
+            // question and a question cannot be asked over noise.
+            //
+            // But not alone either, and the archer is not there to satisfy a test. Strip the
+            // ranged threat and a boss room can be fought from the doorway, which is fine
+            // against a crowd that funnels and fatal to the point of a Breaker: it is slow,
+            // it hits harder than anything the player can trade with, and the entire answer is
+            // footwork. A corridor deletes footwork. One archer makes standing still cost
+            // something, which is what puts the player back in the room.
+            if (RunState.IsBossRoom(index))
+            {
+                var seats = new List<WorldVector>();
+                var seat = FindSpawnPoint(cell, seats, random);
+                if (seat is not null)
+                {
+                    seats.Add(seat);
+                    manifest.Spawns.Add(new WorldEnemySpawn
+                    {
+                        Id = $"{request.MineId}.room{index:00}.boss",
+                        ArchetypeId = EnemyCatalog.BossFor(request.Seed, index),
+                        Level = EnemyLevels.Roll(request.Depth, index, elite: true, random),
+                        Position = seat,
+                        RoomIndex = index
+                    });
+
+                    if (FindSpawnPoint(cell, seats, random) is { } perch)
+                    {
+                        manifest.Spawns.Add(new WorldEnemySpawn
+                        {
+                            Id = $"{request.MineId}.room{index:00}.enemy00",
+                            ArchetypeId = EnemyCatalog.ArcherId,
+                            Level = EnemyLevels.Roll(request.Depth, index, elite: false, random),
+                            Position = perch,
+                            RoomIndex = index
+                        });
+                    }
+
+                    continue;
+                }
+            }
+
             // Depth has to bite, or a long mine is only a long walk. Enemies gain levels as
             // the mine goes on, so the room after the door is always worse than the one behind
             // it — which is the only thing that makes pressing on a risk rather than a chore.

@@ -25,6 +25,20 @@ public sealed class EnemyArchetype
     public int Level { get; init; } = 1;
 
     /// <summary>
+    /// How this thing fights, where that is more than a set of numbers.
+    ///
+    /// Ordinary enemies need no entry here: a closer and a shooter fall out of MoveSpeed,
+    /// AttackRange and StandOffRange, and adding a mode for them would be inventing a
+    /// distinction the fight does not have. Bosses need it, because "three distinct fight
+    /// behaviours" is the point of them, and three sets of the same four numbers is one
+    /// behaviour at three difficulties.
+    /// </summary>
+    public BossBehaviour Behaviour { get; init; } = BossBehaviour.None;
+
+    /// <summary>Whether this archetype leads a room on its own.</summary>
+    public bool IsBoss => Behaviour != BossBehaviour.None;
+
+    /// <summary>
     /// The distance this enemy tries to keep. Zero means it closes and swings like anything
     /// else; anything above its attack range would be nonsense, so it is clamped in use.
     /// </summary>
@@ -82,12 +96,61 @@ public sealed class EnemyArchetype
             AttackCooldown = AttackCooldown,
             XpReward = (int)MathF.Round(XpReward * (1f + XpPerLevel * steps)),
             DropsLoot = DropsLoot,
-            StandOffRange = StandOffRange
+            StandOffRange = StandOffRange,
+
+            // Every field here is copied by hand, and Behaviour was the one that got missed.
+            //
+            // The cost was invisible and total: every boss is spawned through AtLevel, so a
+            // levelled boss came back with Behaviour.None and all three fought identically.
+            // The Harrier never withdrew, the drop never fired, and nothing failed -- the
+            // domain tests call EnemyCatalog.Find directly, where steps is zero and this
+            // method returns `this` untouched.
+            //
+            // AtLevelPreservesEverythingItDoesNotScale walks these properties by reflection
+            // rather than listing them, so the next field added here cannot be forgotten
+            // quietly the way this one was.
+            Behaviour = Behaviour
         };
     }
 }
 
 /// <summary>What an enemy wants to do this frame.</summary>
+/// <summary>
+/// The three ways a boss fights, which are three different problems rather than three sizes.
+///
+/// The test each one has to pass: it should change what the *player* does. A boss that is only
+/// bigger changes how long they hold the button.
+/// </summary>
+public enum BossBehaviour
+{
+    /// <summary>Not a boss. Fights by its numbers, like everything else.</summary>
+    None,
+
+    /// <summary>
+    /// Slow, enormous, and hits like a fall. Never gives ground.
+    ///
+    /// The answer is footwork: it out-damages anything the player can trade with, and it is
+    /// slower than they are. Standing still is the mistake.
+    /// </summary>
+    Breaker,
+
+    /// <summary>
+    /// Keeps its distance and punishes the approach.
+    ///
+    /// The mirror of the Breaker. Closing is the whole fight, and the room's shape matters for
+    /// the first time -- there is a reason to use the pillars rather than walk the diagonal.
+    /// </summary>
+    Warden,
+
+    /// <summary>
+    /// Strikes and gives ground before the answer lands.
+    ///
+    /// Neither of the other two punishes a slow reaction the way this does. It withdraws after
+    /// every blow, so the opening is short and comes to the player rather than being taken.
+    /// </summary>
+    Harrier
+}
+
 public enum EnemyIntent
 {
     /// <summary>Out of range, staggered, or dead. Stand still.</summary>
@@ -266,8 +329,31 @@ public sealed class Enemy : IEnemy, ITargetable
         if (Archetype.IsRanged && distance < Archetype.StandOffRange * TooCloseFraction)
             return _attackCooldown <= 0f ? EnemyIntent.Attack : EnemyIntent.Withdraw;
 
-        return _attackCooldown <= 0f ? EnemyIntent.Attack : EnemyIntent.Idle;
+        if (_attackCooldown <= 0f) return EnemyIntent.Attack;
+
+        // A Harrier does not stand and wait out its own cooldown.
+        //
+        // This is the whole of what makes it a third behaviour rather than a fast Breaker.
+        // Everything else in the game holds its ground between blows, which lets the player
+        // answer at leisure; this one is already leaving. The opening it offers is real but it
+        // arrives on the Harrier's schedule, not the player's.
+        //
+        // It gives ground only for the first part of the cooldown, or it would simply never be
+        // in reach and the fight would be a chase with no fight in it.
+        if (Archetype.Behaviour == BossBehaviour.Harrier
+            && _attackCooldown > Archetype.AttackCooldown * (1f - HarrierWithdrawFraction))
+            return EnemyIntent.Withdraw;
+
+        return EnemyIntent.Idle;
     }
+
+    /// <summary>
+    /// How much of its cooldown a Harrier spends backing away.
+    ///
+    /// Half. Less and the withdrawal does not read as one; more and it is out of reach by the
+    /// time it is ready again, which turns the fight into following something around a room.
+    /// </summary>
+    public const float HarrierWithdrawFraction = 0.5f;
 
     /// <summary>How far past its aggro range an enemy will follow before giving up.</summary>
     private const float LeashFactor = 2.8f;

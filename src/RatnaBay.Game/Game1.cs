@@ -2939,6 +2939,18 @@ public sealed class Game1 : Game, IConsoleTarget
         {
             _sfx?.Play(Sfx.Death, Weight(enemy));
             Impact(0.85f);
+
+            // A boss drops into the pot rather than paying its room more.
+            //
+            // Additive on purpose: tripling what a boss room pays would make the room after it
+            // pay less, and a prize that stops outgrowing the pot turns "one more room?" into a
+            // question with a known answer. A drop leaves the payout curve alone and fattens
+            // the stake instead, so the door after a boss is the tensest in the run rather than
+            // an obvious bank.
+            if (!enemy.Archetype.IsBoss || _run is not { Run.IsActive: true } active) return;
+
+            active.Run.Collect(RunState.BossStones);
+            _session?.ShowToast($"{enemy.DisplayName} is down. {RunState.BossStones} stones.");
         };
 
         encounter.SpellLanded += (_, _, _) =>

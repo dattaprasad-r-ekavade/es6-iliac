@@ -387,25 +387,42 @@ thing that decides whether this is finishable.
 
 ---
 
-### Iteration 20 — Bosses (2–3 weeks) — **genuinely unbuilt**
+### Iteration 20 — Bosses ✅ built 2026-09-01, not yet judged
 
 **Risk retired:** is there a reason to reach the bottom?
 
-- [ ] Three distinct fight behaviours, dressed per theme to make six or seven encounters.
-- [ ] A boss ends a deeper mine rather than a camp.
+- [x] Three distinct fight behaviours. **Breaker** — slow, out-damages anything you can trade
+      with, and the whole answer is footwork. **Warden** — will not come to you, so the approach
+      is the fight. **Harrier** — gives ground between blows, so the opening arrives on its
+      schedule rather than yours. Nothing else in the game withdraws mid-melee; that rule is
+      what makes the third a behaviour rather than a fast Breaker.
+- [x] ~~A boss ends a deeper mine rather than a camp.~~ **Deliberately not built as written.**
 
-**Playable:** a run that ends on a fight worth the descent.
+**The wording contradicted a closed decision, and the decision won.** An exhaustible mine is the
+exact thing recorded play threw out — *press-your-luck cannot work in a level you can finish* —
+and a run that ends because the level did is four decisions and a wall. So the boss is a
+milestone: **every fifth room**, with the mine still endless underneath it. That inverts it from
+a terminus into a reason to press *on*, and makes the door after a boss the sharpest instance of
+the only question this game asks — you are standing on the fattest pot of the run, and the next
+room is ordinary again.
 
-**Checked 2026-09-01, against the code rather than this document.** `EnemyCatalog` holds five
-archetypes — bandit, archer, chhaya, vetala, pishacha — and the word *boss* appears nowhere in
-`src`. Unlike 17, 18 and the roster half of 19, none of this is quietly already done. It is the
-only iteration left on the board that is real, unwritten work.
+**Playable:** a run that ends on a fight worth the descent — by choosing to camp on it.
 
-**And it is the structural hole the alpha has.** A mine has no bottom, only an edge that keeps
-moving, so a run stops rather than climaxes: every run in the recording corpus ends in a camp or
-a corpse, never in an ending. That is worth knowing before it is built, though — whether players
-*want* a bottom is a question the second playtest can answer, and building three fight
-behaviours to find out is the expensive way round.
+**Three things the build caught, all of which would have shipped silently:**
+
+- A boss room paying triple made room six pay less than room five, so banking became correct
+  after every boss. `PressingOnAlwaysPaysMoreThanTheRoomBefore` caught it. A boss now pays by
+  dropping stones into the pot, which leaves the prize curve alone and fattens the stake.
+- A boss standing alone can be fought from the doorway, which deletes the footwork that *is* the
+  Breaker. One archer stands with it, and that is why.
+- **`AtLevel` copies `EnemyArchetype` field by field and did not copy `Behaviour`.** Every boss
+  is spawned through it, so all three came back as `Behaviour.None` and fought identically. No
+  test failed, because they all call `EnemyCatalog.Find` directly where the level is one and
+  `AtLevel` returns the archetype untouched. `AtLevelPreservesEverythingItDoesNotScale` now
+  walks the properties by reflection, so the next field added cannot be dropped in silence.
+
+**Not yet judged.** Whether a milestone gives anybody a reason to keep going is a question about
+a player, and the same sentence closes 17 and 18.
 
 ---
 
@@ -448,7 +465,8 @@ One board. Work in progress limit: **one**.
 
 ### In progress
 
-- None.
+- None. Iterations 17 through 20 are all built and none of them is judged; what every one of
+  them is waiting on is a player.
 
 ### Next — pick one
 
@@ -459,9 +477,6 @@ One board. Work in progress limit: **one**.
 
 ### Ready
 
-- **Iteration 20 — bosses.** The only unbuilt iteration on this board, checked against the code
-  rather than against this document. Also the structural hole: a run stops rather than
-  climaxes, and every run in the recording corpus ends in a camp or a corpse.
 - **Iteration 21 — slice lock.**
 - **Iteration 19's second half** — the fort as somewhere to walk, and where three parked
   features would come back. Its risk is already retired; this is the staged remainder.
