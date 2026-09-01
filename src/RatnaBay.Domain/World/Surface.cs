@@ -40,6 +40,15 @@ public static class Surface
     /// <summary>The carved pillar, which is set dressing and the game's thesis at once.</summary>
     public static readonly WorldPoint Stambha = new(9.5f, 0f, 1f);
 
+    /// <summary>
+    /// The fort gate, set into the west wall.
+    ///
+    /// Away from the shaft on purpose. The two are the only places in the yard that take the
+    /// player somewhere else, and a player who means to go down should never be a step away
+    /// from a door that takes them indoors instead.
+    /// </summary>
+    public static readonly WorldPoint FortGate = new(-Half + 0.9f, 0f, -6f);
+
     /// <summary>How near a fixture must be stood at before it can be used.</summary>
     public const float InteractRange = 3.4f;
 
@@ -61,6 +70,7 @@ public static class Surface
         TheShaft(manifest);
         TheStall(manifest);
         ThePillar(manifest);
+        TheFortGate(manifest);
         Dressing(manifest);
         Lanterns(manifest);
 
@@ -244,6 +254,31 @@ public static class Surface
     /// level rather than a place people work. None of this does anything, and that is fine —
     /// a yard that looks used is what makes the three things that *do* work look deliberate.
     /// </summary>
+    /// <summary>
+    /// The way into the fort: a framed doorway in the west wall.
+    ///
+    /// The wall behind it stays solid, and the client moves the player rather than letting
+    /// them walk through — the fort is its own manifest, so this is a threshold rather than a
+    /// hole. Lit, and framed in timber, because an unlit opening in a dark wall is invisible
+    /// and that mistake has already cost this game a player.
+    /// </summary>
+    private static void TheFortGate(WorldManifest manifest)
+    {
+        var timber = new WorldColor(96, 68, 44);
+        var x = -Half;
+        var z = FortGate.Z;
+
+        // Jambs and a lintel, standing proud of the wall so the doorway reads from across
+        // the yard rather than only from in front of it.
+        Box(manifest, "surface.fort.jamb.n", x, FloorTop, z - 2.2f, x + 0.7f, 4.2f, z - 1.6f, timber);
+        Box(manifest, "surface.fort.jamb.s", x, FloorTop, z + 1.6f, x + 0.7f, 4.2f, z + 2.2f, timber);
+        Box(manifest, "surface.fort.lintel", x, 3.9f, z - 2.2f, x + 0.7f, 4.5f, z + 2.2f, timber);
+
+        // The dark of the passage beyond, so the frame has something behind it.
+        Box(manifest, "surface.fort.threshold", x + 0.55f, FloorTop, z - 1.6f,
+            x + 0.7f, 3.9f, z + 1.6f, new WorldColor(26, 24, 24));
+    }
+
     private static void Dressing(WorldManifest manifest)
     {
         var timber = new WorldColor(110, 80, 52);
@@ -298,6 +333,7 @@ public static class Surface
         Light(manifest, "surface.light.stall", -10.5f, 3f, 1f, 18f);
         Light(manifest, "surface.light.gate", 0f, 4f, 11f, 22f);
         Light(manifest, "surface.light.brazier", 5.9f, 2.2f, 8.9f, 14f);
+        Light(manifest, "surface.light.fort", FortGate.X + 1.2f, 3f, FortGate.Z, 16f);
     }
 
     private static void Light(WorldManifest manifest, string id, float x, float y, float z,
@@ -380,6 +416,7 @@ public static class Surface
         if (player.FlatDistanceTo(Shaft) <= InteractRange + 2f) return SurfaceFixture.Shaft;
         if (player.FlatDistanceTo(Trader) <= InteractRange) return SurfaceFixture.Trader;
         if (player.FlatDistanceTo(Stambha) <= InteractRange) return SurfaceFixture.Stambha;
+        if (player.FlatDistanceTo(FortGate) <= InteractRange) return SurfaceFixture.Fort;
         return SurfaceFixture.None;
     }
 
@@ -389,6 +426,7 @@ public static class Surface
         SurfaceFixture.Shaft => Shaft,
         SurfaceFixture.Trader => Trader,
         SurfaceFixture.Stambha => Stambha,
+        SurfaceFixture.Fort => FortGate,
         _ => Spawn
     };
 
@@ -413,7 +451,9 @@ public static class Surface
             ["trader"] = SurfaceFixture.Trader,
             ["shop"] = SurfaceFixture.Trader,
             ["stambha"] = SurfaceFixture.Stambha,
-            ["pillar"] = SurfaceFixture.Stambha
+            ["pillar"] = SurfaceFixture.Stambha,
+            ["fort"] = SurfaceFixture.Fort,
+            ["gate"] = SurfaceFixture.Fort
         };
 
     /// <summary>Look up a landmark by the name somebody typed.</summary>
@@ -439,5 +479,8 @@ public enum SurfaceFixture
     Trader,
 
     /// <summary>The carved pillar.</summary>
-    Stambha
+    Stambha,
+
+    /// <summary>The gate into the fort, where the order keeps its rooms.</summary>
+    Fort
 }

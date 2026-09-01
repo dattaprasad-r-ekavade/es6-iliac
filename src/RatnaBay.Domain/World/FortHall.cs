@@ -51,6 +51,15 @@ public static class FortHall
     /// <summary>Where the player stands on arriving, just inside the entrance.</summary>
     public static readonly WorldPoint Spawn = new(0f, 2.4f, EntranceZ - 3f);
 
+    /// <summary>
+    /// Facing down the hall, not back out of it.
+    ///
+    /// Forward is (sin yaw, 0, -cos yaw), so zero looks along -Z, which is where the chambers
+    /// are. The first version spawned at pi and the player arrived looking at the wall behind
+    /// them, one step from walking straight back out again.
+    /// </summary>
+    public const float SpawnYaw = 0f;
+
     private static readonly WorldColor Stone = new(78, 74, 70);
     private static readonly WorldColor Trim = new(96, 82, 62);
     private static readonly WorldColor Floor = new(64, 60, 58);
@@ -72,7 +81,7 @@ public static class FortHall
             PlayerSpawn = new WorldSpawn
             {
                 Position = new WorldVector(Spawn.X, Spawn.Y, Spawn.Z),
-                Yaw = 0f
+                Yaw = SpawnYaw
             }
         };
 
@@ -173,10 +182,17 @@ public static class FortHall
                 Stone);
         }
 
-        // The ends. The entrance is a way back to the yard rather than a wall, so it is left
-        // open and the client decides what stepping through it means.
+        // Both ends are walled.
+        //
+        // The entrance was left open at first, on the theory that the client would decide what
+        // stepping through it meant -- and the first screenshot from inside was half brickwork
+        // and half empty sky, because an open end is a hole with nothing behind it. A place is
+        // enclosed. Leaving is a threshold just inside this wall, which the client watches for.
         Box(manifest, $"{Id}.wall.far", -HallHalf - WallThickness, FloorTop, far - WallThickness,
             HallHalf + WallThickness, WallTop, far, Trim);
+
+        Box(manifest, $"{Id}.wall.near", -HallHalf - WallThickness, FloorTop, near,
+            HallHalf + WallThickness, WallTop, near + WallThickness, Trim);
 
         Light(manifest, $"{Id}.light.entrance", 0f, 3.6f, EntranceZ - 2f, 20f);
         Light(manifest, $"{Id}.light.middle", 0f, 3.6f, 0f, 24f);

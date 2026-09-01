@@ -210,6 +210,16 @@ public sealed class Game1 : Game, IConsoleTarget
     /// <summary>The fort, opened with F on the surface. Null room id means the corridor.</summary>
     private bool _showFort;
 
+    /// <summary>
+    /// True while the player is standing in the fort rather than the yard.
+    ///
+    /// A third place alongside the yard and a mine. Kept as its own flag rather than folded
+    /// into _mineSeed, because the fort is neither: it has no run, no pot and no way down.
+    /// </summary>
+    private bool _inFort;
+
+    private FortRuntime? _fort;
+
     private int _fortSelection;
     private string? _openFortRoom;
 
@@ -1429,7 +1439,88 @@ public sealed class Game1 : Game, IConsoleTarget
     {
         _runSummary = null;
         _succession = null;
+        _inFort = false;
         EnterWorld(null);
+    }
+
+    /// <summary>
+    /// Step through the gate in the west wall, into the order's own rooms.
+    ///
+    /// A change of place rather than a panel. The fort used to be a list of doors drawn over
+    /// the yard; it is a manifest now, so entering it is the same operation as entering a mine
+    /// -- discard the world, load the other one, put the player at its spawn.
+    ///
+    /// Refused mid-descent. There is no way into the fort from underground and no reason to
+    /// want one, but the guard is here rather than assumed because the console can put the
+    /// player anywhere.
+    /// </summary>
+    private void EnterTheFort()
+    {
+        if (_session is null) return;
+
+        if (_run is { Run.IsActive: true })
+        {
+            _session.ShowToast("Not from down here.");
+            return;
+        }
+
+        _inFort = true;
+        _fort = new FortRuntime();
+        _world = null;
+        _mineSeed = null;
+        _cave = null;
+
+        LoadWorldManifest();
+
+        // Rank decides which doors stand open, and it is applied to the world rather than
+        // built into it -- see FortHall. A promotion between visits opens a door without the
+        // fort having to be generated a second way.
+        // RestoreOpenedDoors rather than opening each by hand: it takes ids, applies them to
+        // the door runtimes and rebuilds collision, which is exactly the job, and a second way
+        // of doing it would be a second way to get it wrong.
+        _world?.RestoreOpenedDoors(_fort.OpenDoorsFor(_session.Player.Legacy.Service.Rank).ToList());
+
+        PlaceAtFortSpawn();
+        _session.ShowToast("The fort. Ten doors, and what is behind them.");
+    }
+
+    /// <summary>
+    /// Walking back out of the entrance is how you leave.
+    ///
+    /// No prompt and no key. The fort has one way in and the same way out, and a place you
+    /// leave by walking out of is a place rather than a screen -- which is the entire point of
+    /// having built it as geometry. The threshold is behind the spawn, so arriving does not
+    /// immediately trigger it.
+    /// </summary>
+    private void LeaveTheFortIfWalkedOut()
+    {
+        if (!_inFort || AnyPanelOpen) return;
+        if (_camera.Position.Z < FortHall.Spawn.Z + 2.4f) return;
+
+        LeaveTheFort();
+    }
+
+    /// <summary>Back out to the yard, from inside the fort.</summary>
+    private void LeaveTheFort()
+    {
+        if (!_inFort) return;
+
+        _inFort = false;
+        _fort = null;
+        _world = null;
+        _mineSeed = null;
+
+        LoadWorldManifest();
+        _camera.Position = new Vector3(Surface.FortGate.X + 2f, FortHall.Spawn.Y, Surface.FortGate.Z);
+        _camera.Yaw = 1.57f;
+        _session?.ShowToast("Back in the yard.");
+    }
+
+    private void PlaceAtFortSpawn()
+    {
+        _camera.Position = new Vector3(FortHall.Spawn.X, FortHall.Spawn.Y, FortHall.Spawn.Z);
+        _camera.Yaw = FortHall.SpawnYaw;
+        _camera.Pitch = -0.06f;
     }
 
     /// <summary>
@@ -1528,6 +1619,10 @@ public sealed class Game1 : Game, IConsoleTarget
 
             case SurfaceFixture.Stambha:
                 _session.ShowToast("मा गृधः कस्य स्विद्धनम्  —  covet not; for whose is wealth?");
+                break;
+
+            case SurfaceFixture.Fort:
+                EnterTheFort();
                 break;
         }
     }
@@ -2032,6 +2127,7 @@ public sealed class Game1 : Game, IConsoleTarget
         if (_screen == GameScreen.WorldScene)
             UpdateSession(gameTime, keyboard, mouse);
 
+        LeaveTheFortIfWalkedOut();
         RestoreMouseLookAfterPanels();
     }
 
@@ -2180,6 +2276,15 @@ public sealed class Game1 : Game, IConsoleTarget
         }
 
         if (_world is null) return;
+
+        // In the fort, the person in front of you is the interaction. Asked before fixtures
+        // and doors, because an occupant stands well inside their chamber and nothing else in
+        // the fort is within reach of them.
+        if (_inFort && _fort?.FindOccupant(player, _camera.Yaw) is { } occupant)
+        {
+            OpenFortRoom(occupant.Room);
+            return;
+        }
 
         var fixture = OnTheSurface ? Surface.FixtureAt(player) : SurfaceFixture.None;
         var pickup = FindPickup(player, _camera.Yaw);
@@ -2601,6 +2706,32 @@ public sealed class Game1 : Game, IConsoleTarget
     /// corridor, from the corridor out. A single Escape that dumps the player onto the yard
     /// from three rooms deep is the thing that makes a menu feel like a trap.
     /// </summary>
+    /// <summary>
+    /// Open one occupant's room, having walked up to them.
+    ///
+    /// Reuses the panel the fort has always drawn rather than writing a second one. The list
+    /// of doors it used to be reached through is gone: the fort is a place now, and the way to
+    /// a person is to walk to them. What they say, and whether they will say it, is unchanged.
+    /// </summary>
+    private void OpenFortRoom(FortRoom room)
+    {
+        if (_session is null) return;
+
+        var rank = _session.Player.Legacy.Service.Rank;
+        if (!room.IsOpen(rank))
+        {
+            // The door is shut, and the reason is named. A refusal with no reason in it is
+            // the fault that cost this game its first outside player 110 minutes.
+            _session.ShowToast($"{room.DisplayName} is shut. {Ranks.LabelOf(room.RequiredRank)}.");
+            return;
+        }
+
+        _showFort = true;
+        _openFortRoom = room.Id;
+        _fortSelection = Math.Max(0, FortRoster.All.ToList().FindIndex(r => r.Id == room.Id));
+        SetMouseLook(false, forPanel: true);
+    }
+
     private void UpdateFort(KeyboardState keyboard, MouseState mouse)
     {
         if (_session is null) { _showFort = false; return; }
@@ -3301,7 +3432,9 @@ public sealed class Game1 : Game, IConsoleTarget
         ? _cave is null
             ? $"MINE {seed}  ·  TIER {_mineDepth}"
             : $"{_cave.DisplayName.ToUpperInvariant()}  ·  TIER {_mineDepth}  ·  MINE {seed}"
-        : "THE YARD  ·  RATNA BAY";
+        : _inFort
+            ? "THE FORT  ·  RATNA BAY"
+            : "THE YARD  ·  RATNA BAY";
 
     private void ResetCamera()
     {
@@ -3349,6 +3482,20 @@ public sealed class Game1 : Game, IConsoleTarget
             return;
         }
 
+        // Indoors, between runs. Built from the roster, so a room added to the fort is a room
+        // in the world without anybody drawing a corridor for it.
+        if (_inFort)
+        {
+            if (!WorldRuntime.TryCreate(FortHall.Build(), out var fort, out var fortError))
+            {
+                _assetErrors.Add(fortError);
+                return;
+            }
+
+            _world = fort;
+            return;
+        }
+
         // Above ground is the yard. It is where a run starts, where it ends, and the only
         // place stones turn into anything — which is the half of the loop that did not exist.
         if (!WorldRuntime.TryCreate(Surface.Build(), out var yard, out var yardError))
@@ -3360,8 +3507,16 @@ public sealed class Game1 : Game, IConsoleTarget
         _world = yard;
     }
 
-    /// <summary>True while the player is standing in the yard rather than down a mine.</summary>
-    private bool OnTheSurface => _mineSeed is null;
+    /// <summary>
+    /// True while the player is standing in the yard.
+    ///
+    /// **Not simply "not in a mine".** There are three places now, and this used to be
+    /// `_mineSeed is null`, which the fort also satisfies — so the yard's signs were drawn
+    /// down the fort's hall, `Surface.FixtureAt` was live in there, and standing near the
+    /// fort's entrance put the player within reach of a shaft two worlds away. The daylight
+    /// palette followed the same test.
+    /// </summary>
+    private bool OnTheSurface => _mineSeed is null && !_inFort;
 
     /// <summary>The one pickup that is not part of the level it appears in.</summary>
     private const string CachePickupId = "cache.fallen";
@@ -3882,7 +4037,7 @@ public sealed class Game1 : Game, IConsoleTarget
 
         DrawAuthoredWorld();
         _figures.Draw(GraphicsDevice, _scene, _billboards, _camera, _dialogue, _watchers,
-            _encounter, _cave);
+            _encounter, _cave, _fort);
 
         if (_capture.CoverMode)
         {
@@ -4069,6 +4224,28 @@ public sealed class Game1 : Game, IConsoleTarget
         var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
         var chips = new List<PromptChip>();
 
+        // In the fort, the only thing to interact with is a person, and whether you may is
+        // rank. A shut room names the rank it wants rather than refusing without a reason --
+        // the fault that cost this game its first outside player 110 minutes.
+        if (_inFort)
+        {
+            if (_fort?.FindOccupant(player, _camera.Yaw) is not { } occupant)
+                return PromptState.Empty;
+
+            var rank = _session.Player.Legacy.Service.Rank;
+            var open = occupant.Room.IsOpen(rank);
+
+            chips.Add(new PromptChip(
+                open
+                    ? $"Click / E  Speak to {occupant.Room.Occupant}"
+                    : $"{occupant.Room.DisplayName} — {Ranks.LabelOf(occupant.Room.RequiredRank)}",
+                UiLayout.TalkPrompt,
+                open ? PromptRole.Talk : PromptRole.Barred,
+                Fit: true));
+
+            return new PromptState(chips);
+        }
+
         if (OnTheSurface)
         {
             var fixture = Surface.FixtureAt(player);
@@ -4079,6 +4256,7 @@ public sealed class Game1 : Game, IConsoleTarget
             {
                 SurfaceFixture.Shaft => $"E  Open a shaft   ({stones} stones)",
                 SurfaceFixture.Trader => "E  Trade",
+                SurfaceFixture.Fort => "E  Into the fort",
                 _ => "E  Read the carving"
             };
 

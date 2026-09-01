@@ -365,9 +365,26 @@ inside the masonry — all of them look correct and are all impassable. The reac
 walk the hall, cross each doorway and cross each chamber at head height. They were checked by
 plugging every doorway, which failed exactly the two tests it should.
 
-**Still to do, and it needs a running client to verify:** loading the manifest, walking in from
-the yard, placing the ten occupants, and retiring the panel that currently stands in for the
-place.
+**Wired and walked, 2026-09-01.** A gate in the yard's west wall leads in; the hall loads as its
+own world; the ten occupants stand in their chambers and are spoken to by walking up to them;
+walking back out of the entrance returns to the yard. The room panel is kept — what an occupant
+says was never the problem — but it is reached by standing in front of somebody rather than by
+scrolling a list.
+
+Three faults found by walking it, none of which a domain test could see:
+
+- The player spawned facing the exit. Forward is `(sin yaw, 0, -cos yaw)`, so the hall wanted a
+  yaw of zero and had been given pi.
+- The entrance end was left open, on the theory that the client would decide what stepping
+  through it meant. The first screenshot from inside was half brickwork and half empty sky.
+  Both ends are walled now, and leaving is a threshold just inside the near one.
+- **`OnTheSurface` meant "not in a mine".** The fort satisfies that, so the yard's signs were
+  drawn down the fort's hall, `Surface.FixtureAt` was live inside it, and standing near the
+  fort's entrance put the player in reach of a shaft in another world.
+
+And one that was already there and had simply never been looked at: the room panel drew a
+centred header at y=222 and a left-aligned column at y=224, so the occupant's office and their
+greeting were painted through each other, and both ran under the portrait.
 
 **Done when:** you can state **hours of authoring per hour of play**. Record it. This is the
 single most useful figure for planning everything after release.
@@ -495,11 +512,10 @@ One board. Work in progress limit: **one**.
 
 ### Ready
 
-- **Iteration 21 — slice lock.**
-- **Iteration 19's second half — the client wiring.** The fort's geometry is built and asserted
-  (`FortHall`); what remains is loading it, walking in from the yard, placing the ten occupants
-  and retiring the panel. Needs a running client to verify, so it was left at the domain
-  boundary. Also where three parked features would come back.
+- **Iteration 21 — slice lock.** Its done-when is three people playing several runs each, so it
+  cannot be finished by building.
+- **The fort is where three parked features would come back** — pickpocketing, lockpicking and
+  watchers all wanted somewhere with occupants and doors, and now there is one.
 
 **Checked 2026-09-01.** Iterations 17, 18 and the roster half of 19 were all sitting here as
 Ready while already built and tested. The board had drifted behind the code by three iterations,
