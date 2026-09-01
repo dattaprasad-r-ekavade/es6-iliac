@@ -168,6 +168,9 @@ public sealed class Game1 : Game, IConsoleTarget
     /// </summary>
     private bool _scripted;
 
+    /// <summary>When the last "this run is going nowhere" note was written. See NoteIfStuck.</summary>
+    private DateTime _lastStuckNote = DateTime.MinValue;
+
     private float _scriptWaitSeconds;
 
     /// <summary>Seconds of held W left on a scripted walk. See IConsoleTarget.WalkForward.</summary>
@@ -654,7 +657,7 @@ public sealed class Game1 : Game, IConsoleTarget
             && !_consent.Asked
             && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
 
-        if (!_askingConsent && !capturing) _uploader.SendPending(_recorder.Path);
+        if (!_askingConsent && !capturing) _uploader.SendPending(_recorder.FilePath);
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.
@@ -1294,7 +1297,7 @@ public sealed class Game1 : Game, IConsoleTarget
         _consent.Save();
 
         _askingConsent = false;
-        if (_consent.Allowed) _uploader?.SendPending(_recorder.Path);
+        if (_consent.Allowed) _uploader?.SendPending(_recorder.FilePath);
     }
 
     /// <summary>
@@ -2791,6 +2794,34 @@ public sealed class Game1 : Game, IConsoleTarget
         _recorder.Record(PlayEventKind.Stance, where,
             _encounter.NearestEnemyRange(), inDoorway ? 1f : 0f,
             _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+
+        NoteIfStuck(where);
+    }
+
+    /// <summary>
+    /// Say so, in the log, when a run stops going anywhere.
+    ///
+    /// Read the stance samples of a session that went nowhere and the story is there, but only
+    /// to somebody already looking for it: the shape of the alpha's one outside player being
+    /// stuck for 110 minutes was eight room-to-corridor transitions and then a ninety-two
+    /// minute silence, which took an afternoon and a hand-written script to see. An absence is
+    /// the hardest thing to spot in a log and the easiest to mistake for boredom.
+    ///
+    /// Four minutes before the first one, then every five, so a long fight or a careful player
+    /// reading a panel is never called stuck, and a genuinely stuck session accumulates a
+    /// visible row of them rather than one line that could be a blip.
+    /// </summary>
+    private void NoteIfStuck(string where)
+    {
+        var idle = _recorder.SinceProgress;
+        if (idle < TimeSpan.FromMinutes(4)) return;
+
+        var now = DateTime.UtcNow;
+        if (now - _lastStuckNote < TimeSpan.FromMinutes(5)) return;
+
+        _lastStuckNote = now;
+        _recorder.Record(PlayEventKind.Stuck, where, (float)idle.TotalMinutes, 0f,
+            _session?.Player.Vitals.Health ?? 0f, _session?.Player.Vitals.Prana ?? 0f);
     }
 
     /// <summary>Light a bar that has just been restored, and fade the light back out.</summary>

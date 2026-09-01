@@ -57,6 +57,22 @@ public static class PlayEventKind
     /// or through the doorway of the one before it cannot be inferred from a list of swings.
     /// </summary>
     public const string Stance = "stance";
+
+    /// <summary>
+    /// A run that has stopped going anywhere. Value carries the minutes since the last thing
+    /// the player achieved; Detail is where they were standing when it was noticed.
+    ///
+    /// **Added because the alpha's first outside player was invisible in their own recording.**
+    /// They spent 119 minutes in a tier-1 mine and never entered a single room. Nothing in the
+    /// log said so. The evidence was an absence — no room.entered, no enemy.killed, no
+    /// room.cleared, ever — and the shape of it had to be reconstructed by hand from a
+    /// once-a-second stance sample, counting eight round trips between the entrance room and
+    /// the corridor and then a ninety-two minute gap.
+    ///
+    /// An absence is the hardest thing to notice in a log and the easiest to explain away as
+    /// "they got bored". Being stuck is a fact about the game, and it should announce itself.
+    /// </summary>
+    public const string Stuck = "player.stuck";
     public const string PlayerHurt = "player.hurt";
     public const string SpellCast = "spell.cast";
     public const string ItemUsed = "item.used";
@@ -220,9 +236,26 @@ public sealed record RunReview(
     int RoomsTakenFromTheDoorway,
 
     IReadOnlyList<DecisionReview> Decisions,
-    IReadOnlyList<float> RoomSeconds)
+    IReadOnlyList<float> RoomSeconds,
+
+    /// <summary>
+    /// How long the run spent going nowhere, in minutes, from the stuck notes in the log.
+    ///
+    /// The largest gap rather than the total, because two idle stretches of four minutes is a
+    /// player taking breaks and one of ninety-two is a player who cannot find the way on. A
+    /// sum would report those as the same session.
+    /// </summary>
+    float LongestStuckMinutes)
 {
     public float Seconds => MathF.Max(0f, EndedAt - StartedAt);
+
+    /// <summary>
+    /// The run went nowhere for long enough that it is the headline, not a detail.
+    ///
+    /// Ten minutes: long past a hard fight or a careful read of the inventory, and far short
+    /// of the 110 minutes the alpha's one outside player spent unable to open the first door.
+    /// </summary>
+    public bool WasStuck => LongestStuckMinutes >= 10f;
 
     /// <summary>Did the run end at all, or did the recording stop mid-descent?</summary>
     public bool Finished => Survived || StonesLost > 0 || RoomsCleared > 0;
@@ -317,6 +350,10 @@ public static class PlayReview
         var spellRanges = new List<float>();
         var stances = 0;
         var inDoorways = 0;
+
+        // The worst single idle stretch, not their sum: two four-minute breaks and one
+        // ninety-two minute wall are different sessions, and adding them says they are not.
+        var longestStuck = 0f;
 
         // A room's real cost is measured from the moment the player committed to it — the
         // door closing behind them — not from when they finally walked in. Timing it from
@@ -453,6 +490,12 @@ public static class PlayReview
                     if (item.Extra > 0f) inDoorways++;
                     break;
 
+                case PlayEventKind.Stuck:
+                    // Value is the minutes since the run last got anywhere, and the notes
+                    // repeat while it stays stuck, so the last one carries the whole stretch.
+                    if (item.Value > longestStuck) longestStuck = item.Value;
+                    break;
+
                 case PlayEventKind.CastFailed:
                     refused++;
                     break;
@@ -482,7 +525,7 @@ public static class PlayReview
                 StringComparer.Ordinal),
             Median(meleeRanges), Median(spellRanges),
             stances == 0 ? 0f : inDoorways / (float)stances,
-            fromDoorway, decisions, roomSeconds);
+            fromDoorway, decisions, roomSeconds, longestStuck);
 
         // The clock on the next room starts when the door opens, not when it is walked through.
         bool SetSegment(float at)
