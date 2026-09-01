@@ -5,43 +5,52 @@
 
 > *"By iteration 14, a stranger should play three runs in a row without being asked to."*
 
-`PLAYTEST_NOTES.md` records owner passes only. **No person who is not the author has ever played
-this game.** Everything below is in service of changing that, and anything that does not serve it
-is in the last section on purpose.
+**One stranger has now played it, and it did not go well.** On 2026-08-30 somebody downloaded the
+alpha and spent 119 minutes in a tier-1 mine without entering a single room, because the first
+door told them it was locked when it was not, and the corridor it stood in had no light. They
+never reached a shut door, so the question this whole list is built around was not merely
+unanswered — it was unaskable.
 
-The build is ready. The *release* is not, and the gap is hours rather than weeks.
+Both faults are fixed and asserted, and the build carrying the fix is live. The list below is
+what stands between that and a second attempt.
+
+Everything here is in service of the sentence above, and anything that does not serve it is in
+the last section on purpose.
 
 ---
 
 ## A. Blocking — a stranger cannot usefully play without these
 
-- [ ] **Push the current build.** The live build is `alpha-2026.08.25-1277591`, which predates
-      procedural audio, maces, shields, bows, the entire stones system, amulets, cave themes, the
-      fort, and every portrait. Anyone downloading today plays a materially worse game than the
-      one in this repository, and their feedback would be about a version that no longer exists.
-      One command: `.\release.ps1`. The gate runs first and refuses to upload if anything fails.
+- [x] ~~**Push the current build.**~~ Live as `alpha-2026.08.31-b7ee12c`, confirmed processed on
+      the `windows` channel. It carries the lit corridors and the unlocked mine doors, which is
+      the difference between a game a stranger can leave the first room in and one they cannot.
 
-- [ ] **Time one real run.** *(Now also a rules problem: r/playmygame rule 4 is "be truthful, no
-      false claims about your game", so an unmeasured run length cannot go in a post there.)* The page said *"around twenty minutes"* against five to eight in
-      every design doc, and it now says five to ten. Neither figure is measured on the current
-      build: the eight-minute number came from nine recorded sessions that predate stones,
-      amulets, cave themes and twelve-room mines, and there is no timing data on disk newer than
-      that. One played run with a clock settles it, and a tester promised twenty minutes who
-      gets six will report that as a pacing fault.
+- [x] ~~**Time one real run.**~~ **Measured, from 273 recordings on the server.** 21 runs where
+      the player swung and something hit them back:
 
-- [x] ~~**Replace the placeholder email.**~~ Now `feedback@datathecodie.com`, with the Google
-      Form as the primary channel above it. **The page copy still has to be pasted into the itch
-      editor by hand** — butler uploads the build, not the description.
+      | | |
+      |---|---:|
+      | median run | **1.8 min** |
+      | range | 0.2 – 5.8 min |
+      | 4–5 rooms | ~1 – 1.8 min |
+      | 7 rooms | ~2 – 3.4 min |
+      | 9 rooms | ~5.2 – 5.8 min |
+
+      **The page's "five to ten minutes a run" is about three times the truth.** Nine rooms —
+      the longest anybody has cleared — is 5.8 minutes. Honest copy is *"two to six minutes"*,
+      and it should say so before anybody is recruited on the old number: a tester promised ten
+      minutes who gets two reports that as the game being thin.
+
+      One caveat, stated rather than buried: every one of these runs is the owner's, and the
+      owner knows where the doors are. Treat 1.8 minutes as a floor.
 
 - [ ] **Generate and upload a cover and screenshots.** `build\RatnaBay.exe --cover` and
-      `--screenshot` produce them; attaching them to the page is a manual step in the itch
-      editor that butler cannot do. A store page with no images converts close to nothing, and
-      the cover is the only thing most people will ever see.
+      `--screenshot` produce them; attaching them is a manual step in the itch editor that
+      butler cannot do. *Not verifiable from the build machine — itch.io is not always
+      reachable from here, so this stays open until somebody looks at the page.*
 
-- [ ] **Make the page reachable.** `PLAYTEST_DISTRIBUTION.md` §5 recommends keeping the project
-      **Restricted with a password in the invite link** — correct for five named testers, wrong
-      for public recruitment. If a link posted to a forum asks for a password, most of the
-      click-throughs are lost. Decide which mode this round is, and set it deliberately.
+- [x] ~~**Make the page reachable.**~~ The page loads anonymously, so the project is public
+      rather than Restricted. Correct for public recruitment.
 
 - [ ] **Run the published build on a machine that is not the dev box.** The only way to find out
       what SmartScreen, Defender or Smart App Control do to an unsigned binary. A tester who is
@@ -51,27 +60,34 @@ The build is ready. The *release* is not, and the gap is hours rather than weeks
 
 ## B. Needed to get anything *back* from the playtest
 
-Instrumentation exists and the last step of it does not, which means a tester can play perfectly
-and you still learn nothing.
+- [x] ~~**A way for a tester to hand over a recording.**~~ **Solved by not needing one.** The
+      recording now uploads when the game closes, so there is nothing for a tester to find,
+      zip or attach. The two settings buttons this item asked for are no longer worth building.
 
-- [ ] **A way for a tester to hand over a recording.** `PlayRecorder` writes every session and
-      the help overlay prints the folder as *text* — there is no button to open it and no way to
-      copy a summary. `PLAYTEST_DISTRIBUTION.md` §5 asks for two settings buttons — reveal the
-      recordings folder, and copy the review to the clipboard — and neither is built. **This is
-      the highest-value unbuilt item on the whole list**, because without it the playtest
-      produces opinions and no data.
+      This mattered more than it looked. Sends only ever happened at launch and at the moment
+      consent was granted — and the second fires when there is nothing yet to send — so anybody
+      who played once and never opened the game again uploaded **nothing, ever**. That is the
+      ordinary case for an alpha, and it is why the one outside player's two hours arrived at
+      all only because they happened to launch a second time.
 
-- [ ] **Build the feedback form and link it from the page.** Template ready in
-      [`PLAYTEST_FORM.md`](PLAYTEST_FORM.md) — twelve questions, one required, under three
-      minutes. It is the only channel that works for a tester with no itch.io account and no
-      wish to send an email.
+- [x] ~~**Build the feedback form and link it from the page.**~~ Live, twelve questions, one
+      required, no account needed. Linked from the store page and the devlog — and now from
+      inside the game, on the pause and help screens, which is where somebody about to give up
+      actually is.
 
 - [ ] **Record which route each tester took** (`ITCHIO_APP`), so "did not play" can be told apart
       from "played and the data never arrived."
 
-- [ ] **Read the first recording by hand.** Every one of the nine findings in the production
-      plan came from reading a recording rather than from a summary, and four of them corrected a
-      confident wrong conclusion. Do not automate this until it has been done manually once.
+- [x] ~~**Read the first recording by hand.**~~ Done, and it paid for the whole exercise. The one
+      outside session was 119 minutes, 61 swings, no damage taken, and **not a single room
+      entered**. Reading it found two faults that no test could see: every mine door was flagged
+      locked, so the prompt read *"Locked | a key, or Security 0"* on a door that would have
+      opened on the first press; and corridors had no lights, so the way on was a black
+      rectangle in a brown wall. Both are fixed and both are now asserted.
+
+      It also found a third thing, which is why this item said not to automate it: the player
+      was *invisible in their own recording*. The evidence was an absence. `player.stuck` exists
+      now so the next one announces itself.
 
 ---
 
@@ -137,8 +153,10 @@ says nothing about where the testers come from. In order of expected yield:
 - [ ] **r/IndianGaming.** The highest-yield free channel available and the most underused. A
       Mauryan-era roguelite from a solo Indian developer is novel there in a way it is not on a
       general gamedev board — the setting does the work that a marketing budget otherwise would.
-- [ ] **r/playmygame** and **r/gamedev's Feedback Friday.** Reciprocal: real time spent playing
-      other people's games in exchange for eyes on yours.
+- [x] ~~**r/playmygame.**~~ Posted 2026-08-28. It produced exactly one downloader, whose session
+      is the one described at the top of this file. One is not a sample, but it was enough to
+      find two blocking faults, which is a better return than the post looked like it got.
+      **r/gamedev's Feedback Friday** is still unused.
 - [ ] **r/roguelites.** Players rather than developers, which matters — developers find bugs,
       players find out whether it is fun, and the open question is the second kind. Read the
       self-promotion rules first; a ban costs the channel permanently.
@@ -178,7 +196,10 @@ Named so they stop feeling like debt.
 
 ## The measure
 
-Not "did they like it." Three things, and the first is the only one that is really the test:
+Not "did they like it." Three things, and the first is the only one that is really the test.
+
+**Nothing below has been measured on a stranger yet.** The one who tried never reached a door,
+so all three are still open, and the numbers in point 2 remain one person's:
 
 1. **Did anybody play three runs in a row without being asked to?**
 2. **At the shut door, did they hesitate?** Nine sessions of owner recordings say the decision is

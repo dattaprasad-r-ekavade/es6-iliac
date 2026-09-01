@@ -651,7 +651,12 @@ public sealed class Game1 : Game, IConsoleTarget
         // a few frames and exits, nobody is playing, and there is no session to consent to
         // sending. Nothing is uploaded either way, because SendPending is not reached.
         // --cover already funnels into CaptureHost.OutputPath, so this covers both.
-        var capturing = _capture.IsCapturing;
+        // A script and a capture are both tests, and neither is a sitting anybody played.
+        // Their recordings are noise in the corpus the playtest exists to produce: the sixty
+        // most recent recordings on the server are already mostly gate runs, median seven
+        // events each, none of them a complete run. verify.ps1 launches the client twice, so
+        // this was two junk uploads per build.
+        var capturing = _capture.IsCapturing || _scripted;
 
         _askingConsent = !capturing
             && !_consent.Asked
@@ -817,7 +822,8 @@ public sealed class Game1 : Game, IConsoleTarget
         // one. Three seconds: a player quitting is not made to wait on a network, and anything
         // unsent is still picked up by the next launch if there ever is one.
         _recorder.Flush();
-        _uploader?.SendNow(inProgress: null, TimeSpan.FromSeconds(3));
+        if (!_capture.IsCapturing && !_scripted)
+            _uploader?.SendNow(inProgress: null, TimeSpan.FromSeconds(3));
 
         _ambientAudio?.Dispose();
         _sfx?.Dispose();
