@@ -3893,7 +3893,18 @@ public sealed class Game1 : Game, IConsoleTarget
 
         if (!_hideInterface)
         {
-            _screens.Hud.DrawToasts(hudState);
+            // Not while the door decision is up.
+            //
+            // Toasts are drawn after the decision panel, and clearing a room fires three of
+            // them -- the kill, the room, and anything the room dropped -- at the same instant
+            // the panel opens. They land straight across its middle, so "stones held", the
+            // staking ratio and the trader line are all read through "Splitting Stone found."
+            // The most important screen in the game was illegible at the moment it appeared.
+            //
+            // Suppressed rather than moved, because the panel already says what they say: the
+            // room count and the stones are on it, in larger type, and they stay there instead
+            // of fading after two seconds.
+            if (_run is not { AtDecision: true }) _screens.Hud.DrawToasts(hudState);
             DrawContentErrors();
         }
 

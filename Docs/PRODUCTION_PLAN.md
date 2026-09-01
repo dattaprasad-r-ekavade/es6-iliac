@@ -277,15 +277,29 @@ That is a question for a recording, not for the author.
 
 ---
 
-### Iteration 17 — The ratchet (2 weeks)
+### Iteration 17 — The ratchet ✅ built 2026-08-27, not yet judged
 
 **Risk retired:** does a losing run still pull you back in?
 
-- Amulets drop on clearing a mine; permanent, and they survive death.
-- Character level moves onto the experience track; level-up grants skill points.
-- A between-run screen showing what was gained.
+- [x] Amulets drop on clearing a mine; permanent, and they survive death. Five of them, held in
+      `Legacy` rather than on the character, which is why they survive without anybody
+      remembering to copy them — `Succession.Promote` replaces the person and never touches the
+      legacy. Earned on a high-water mark, so a run that ends in a corpse two rooms past the
+      previous best still pays, and dying never lowers the bar.
+- [x] Character level moves onto the experience track; level-up grants skill points. The old
+      skills-to-level path was circular — training raised the level, which granted points, which
+      raised the skill. `PointsPerCharacterLevel` is 2, wired by
+      `Vitals.LevelGained += _ => Skills.GrantPoints()`.
+- [x] A between-run screen showing what was gained. `DescentRenderer` grows a ratchet section
+      that reads the same after a death as after a win, and names the next milestone.
 
 **Playable:** lose a run and still be measurably stronger for the next one.
+
+**Not yet judged**, and that is the whole of what is left here. The risk this iteration exists to
+retire is a question about a player, and no player outside the author has ever reached a second
+run — the one who tried never left the entrance room. The mechanism is built and tested; whether
+it *pulls anybody back in* is unmeasured, and the second playtest is the only thing that can
+answer it.
 
 ---
 
@@ -399,7 +413,7 @@ One board. Work in progress limit: **one**.
 
 ### In progress
 
-- **Iteration 17 — the ratchet.** Started 2026-09-01.
+- None.
 
 ### Next — pick one
 
@@ -413,7 +427,6 @@ One board. Work in progress limit: **one**.
 
 ### Ready
 
-- Iteration 17 — the ratchet. Amulets, and levels that grant points rather than numbers.
 - Iteration 19 — the fort. Also where three parked features would come back.
 - Iteration 20 — bosses.
 - Iteration 21 — slice lock.

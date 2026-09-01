@@ -25,8 +25,6 @@ public sealed class SkillProgression
 {
     public const float MaxSkill = 100f;
 
-    /// <summary>Total skill points needed per character level.</summary>
-
     /// <summary>Ceiling on how much one skill can gain within a single fight.</summary>
     private const float EncounterGainCap = 6f;
 
