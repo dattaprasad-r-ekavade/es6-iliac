@@ -57,12 +57,12 @@ internal sealed class OverlayRenderer
                 UiTheme.RowText(selected));
         }
 
+        // Above the controls line, not below it: the pause panel is sized to its buttons, and
+        // a second footer under the first straddled the bottom border.
+        _ui.TextCentred(FeedbackLine, panel.Center.X, panel.Bottom - 50f, 12, UiTheme.Muted);
+
         _ui.TextCentred("Click or arrows select      Enter confirm      Esc resume",
             panel.Center.X, panel.Bottom - 30f, 13, UiTheme.HintDim);
-
-        // Under the controls line, because somebody who has opened this menu to give up is
-        // exactly the person worth hearing from and the least likely to go looking.
-        _ui.TextCentred(FeedbackLine, panel.Center.X, panel.Bottom - 12f, 12, UiTheme.Muted);
     }
 
     public void DrawSettings(OverlayState state)
