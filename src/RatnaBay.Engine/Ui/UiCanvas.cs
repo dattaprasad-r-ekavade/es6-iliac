@@ -141,6 +141,17 @@ public sealed class UiCanvas
     /// <summary>Draw all text as 8×8 sprite glyphs from here on. Null restores the .ttf path.</summary>
     public void AttachPixelType(SpriteType? type) => _type = type;
 
+    /// <summary>
+    /// The pixel face for this string, or null when it has to be set in the .ttf.
+    ///
+    /// One line of this game is Devanagari -- the verse carved on the pillar -- and the sprite
+    /// face is printable ASCII. Falling back for the whole string rather than per character,
+    /// because a sentence set half in one face and half in another looks like a bug, while a
+    /// single line in the book face reads as a quotation, which is what it is.
+    /// </summary>
+    private SpriteType? TypeFor(string? value) =>
+        _type is { } type && SpriteType.Handles(value) ? type : null;
+
     public bool UsingPixelType => _type is not null;
 
     // Point sampling for the pixel face, and only for it. Linear filtering on an 8×8 glyph
@@ -193,7 +204,7 @@ public sealed class UiCanvas
 
     public void Text(string value, Vector2 position, float scale, Color color)
     {
-        if (_type is { } type)
+        if (TypeFor(value) is { } type)
         {
             type.Draw(_batch, value, position, PixelScaleFor(scale), color);
             return;
@@ -213,13 +224,18 @@ public sealed class UiCanvas
 
     public void TextFit(string value, Vector2 position, float maxWidth, float scale, Color color)
     {
-        if (_type is { } type)
+        if (TypeFor(value) is { } type)
         {
             // A pixel face cannot be squeezed to fit -- that is the whole of its contract --
-            // so the only honest fit is to step down a whole cell, and then to let it run.
+            // so fitting is stepping down a whole cell, and then cutting the line short.
+            //
+            // Cutting rather than letting it run, because the .ttf path shrank text to fit and
+            // every panel in this game was laid out on that promise. Set in cells instead, a
+            // shop description ran out past its tile and over the one beside it, which reads
+            // as a broken panel where an elision reads as a long name.
             var pixel = PixelScaleFor(scale);
             while (pixel > 1 && type.Measure(value, pixel) > maxWidth) pixel--;
-            type.Draw(_batch, value, position, pixel, color);
+            type.Draw(_batch, Elide(type, value, maxWidth, pixel), position, pixel, color);
             return;
         }
 
@@ -233,7 +249,7 @@ public sealed class UiCanvas
 
     public void TextCentred(string value, float centreX, float y, float scale, Color color)
     {
-        if (_type is { } type)
+        if (TypeFor(value) is { } type)
         {
             var pixel = PixelScaleFor(scale);
             type.Draw(_batch, value,
@@ -248,7 +264,7 @@ public sealed class UiCanvas
 
     public void TextRight(string value, float right, float y, float scale, Color color)
     {
-        if (_type is { } type)
+        if (TypeFor(value) is { } type)
         {
             var pixel = PixelScaleFor(scale);
             type.Draw(_batch, value,
@@ -307,11 +323,38 @@ public sealed class UiCanvas
         return y - position.Y;
     }
 
+    /// <summary>
+    /// Right-aligned, and cut to a width rather than running back over whatever is to its left.
+    ///
+    /// Right-aligned text grows leftward, so the thing it collides with is never the panel
+    /// edge -- it is the label on the same row, which is exactly what happened to "IN HAND"
+    /// when the interface changed face.
+    /// </summary>
+    public void TextFitRight(string value, float right, float y, float maxWidth, float scale,
+        Color color)
+    {
+        if (TypeFor(value) is { } type)
+        {
+            var pixel = PixelScaleFor(scale);
+            while (pixel > 1 && type.Measure(value, pixel) > maxWidth) pixel--;
+            var cut = Elide(type, value, maxWidth, pixel);
+            type.Draw(_batch, cut, new Vector2(right - type.Measure(cut, pixel), y), pixel, color);
+            return;
+        }
+
+        var (font, drawScale) = SelectFont(scale);
+        var measured = font.MeasureString(value).X * drawScale;
+        if (measured > maxWidth && measured > 0f) drawScale *= maxWidth / measured;
+
+        var width = font.MeasureString(value).X * drawScale;
+        DrawString(font, value, new Vector2(right - width, y), drawScale, color);
+    }
+
     /// <summary>Centred, and shrunk to fit rather than running off its panel.</summary>
     public void TextFitCentred(string value, float centreX, float y, float maxWidth, float scale,
         Color color)
     {
-        if (_type is { } type)
+        if (TypeFor(value) is { } type)
         {
             var pixel = PixelScaleFor(scale);
             while (pixel > 1 && type.Measure(value, pixel) > maxWidth) pixel--;
@@ -328,10 +371,30 @@ public sealed class UiCanvas
         DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
     }
 
+    /// <summary>
+    /// The longest head of a string that fits, with a full stop for what was dropped.
+    ///
+    /// Three dots rather than an ellipsis character: the face has a full stop and does not
+    /// have an ellipsis, and a missing glyph would come out as the question mark that this
+    /// whole path exists to avoid.
+    /// </summary>
+    private static string Elide(SpriteType type, string value, float maxWidth, int pixel)
+    {
+        if (type.Measure(value, pixel) <= maxWidth) return value;
+
+        for (var length = value.Length - 1; length > 1; length--)
+        {
+            var candidate = value[..length].TrimEnd(' ', ',', '.') + "...";
+            if (type.Measure(candidate, pixel) <= maxWidth) return candidate;
+        }
+
+        return value;
+    }
+
     /// <summary>How wide a string will be, for anything that has to lay out around it.</summary>
     public float MeasureText(string value, float scale)
     {
-        if (_type is { } type) return type.Measure(value, PixelScaleFor(scale));
+        if (TypeFor(value) is { } type) return type.Measure(value, PixelScaleFor(scale));
 
         var (font, drawScale) = SelectFont(scale);
         return font.MeasureString(value).X * drawScale;

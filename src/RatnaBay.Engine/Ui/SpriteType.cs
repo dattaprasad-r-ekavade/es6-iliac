@@ -32,6 +32,11 @@ public sealed class SpriteType : IDisposable
     private const int Dot = 98;
     private const int Slots = 99;
 
+    /// <summary>
+    /// How many cuts of the face are baked. Three, and the reason is in <see cref="HandFor"/>.
+    /// </summary>
+    public const int Hands = 3;
+
     private readonly Texture2D _atlas;
     private readonly byte[] _advance = new byte[Slots];
 
@@ -80,7 +85,7 @@ public sealed class SpriteType : IDisposable
 
     public static SpriteType Bake(GraphicsDevice device)
     {
-        var rows = (Slots + Cols - 1) / Cols;
+        var rows = (Slots * Hands + Cols - 1) / Cols;
         var width = Cols * Glyph;
         var height = rows * Glyph;
         var pixels = new Color[width * height];
@@ -88,22 +93,153 @@ public sealed class SpriteType : IDisposable
 
         for (var i = 0; i < Count; i++)
         {
-            Stamp(pixels, width, i, Bits.AsSpan(i * Glyph, Glyph));
-            type._advance[i] = AdvanceOf(Bits.AsSpan(i * Glyph, Glyph));
+            var glyph = Bits.AsSpan(i * Glyph, Glyph);
+
+            // The advance is the base cut's, for every cut. A hand that changed the width
+            // would change where the next letter starts, so the same sentence would measure
+            // differently depending on which letters happened to be cut which way -- and a
+            // panel laid out around it would move as the text was re-hashed.
+            type._advance[i] = AdvanceOf(glyph);
+
+            for (var hand = 0; hand < Hands; hand++)
+                Stamp(pixels, width, i + hand * Slots, Cut(glyph, hand, i));
         }
 
-        Stamp(pixels, width, Up, Triangle(up: true));
-        Stamp(pixels, width, Down, Triangle(up: false));
-        Stamp(pixels, width, Times, Cross());
-        Stamp(pixels, width, Dot, MidDot());
-        type._advance[Up] = 8;
-        type._advance[Down] = 8;
-        type._advance[Times] = 7;
-        type._advance[Dot] = 4;
+        foreach (var (slot, bits, advance) in new (int, byte[], byte)[]
+        {
+            (Up, Triangle(up: true), 8),
+            (Down, Triangle(up: false), 8),
+            (Times, Cross(), 7),
+            (Dot, MidDot(), 6)
+        })
+        {
+            type._advance[slot] = advance;
+
+            // Marks are cut once and used in all three hands. A wobbling arrow is a broken
+            // arrow: these are read as symbols rather than as letters, and an eye forgives an
+            // uneven 'e' where it will not forgive an uneven ▲.
+            for (var hand = 0; hand < Hands; hand++)
+                Stamp(pixels, width, slot + hand * Slots, bits);
+        }
+
         type._advance[0] = 4;
 
         type._atlas.SetData(pixels);
         return type;
+    }
+
+    /// <summary>
+    /// One glyph, cut three ways.
+    ///
+    /// Type set by hand is uneven: the same letter twice in a word is never quite the same
+    /// letter, because the ink took differently and the sort sat differently in the stick.
+    /// A bitmap face has the opposite problem -- every 'e' on the screen is pixel-identical,
+    /// which is exactly what makes a wall of it read as a spreadsheet.
+    ///
+    /// Three cuts, then, chosen per letter and per position, so a word is set from three
+    /// slightly different sorts:
+    ///
+    /// - **0, the clean cut.** The face as drawn. Roughly half of everything.
+    /// - **1, the inked cut.** One extra pixel where a stroke already ends, so the letter
+    ///   looks like it took a little more ink. Never outside the letter's own bounding box:
+    ///   spreading past it would touch the neighbour and read as a rendering fault.
+    /// - **2, the worn cut.** One pixel lifted from a corner, the way a sort loses its edge.
+    ///
+    /// Deliberately small. At eight pixels a letter has about forty lit cells, so a single
+    /// pixel is a two-per-cent change -- and two pixels is a different letter. Every attempt
+    /// at something bolder here reads as damage rather than as character.
+    /// </summary>
+    private static byte[] Cut(ReadOnlySpan<byte> rows, int hand, int glyph)
+    {
+        var cut = new byte[Glyph];
+        for (var y = 0; y < Glyph; y++) cut[y] = rows[y];
+        if (hand == 0) return cut;
+
+        var top = -1;
+        var bottom = -1;
+        for (var y = 0; y < Glyph; y++)
+        {
+            if (cut[y] == 0) continue;
+            if (top < 0) top = y;
+            bottom = y;
+        }
+
+        // Nothing to cut in a space, and nothing safe to cut in a two-row mark.
+        if (top < 0 || bottom - top < 2) return cut;
+
+        if (hand == 1)
+        {
+            // Inked: a single nub above one end of the top stroke -- where a pen starts and
+            // leaves a little more ink than it meant to.
+            //
+            // Above, not below, and that is not a preference. A nub under a round letter is a
+            // descender: an inked 'o' read as a 'q' and "one" came out "qne". The head of a
+            // letter has no such reading, so the same pixel there is just weight.
+            //
+            // A nub, not a thickened row, for the same class of reason. Thickening ORs a
+            // stroke into the row beside it, which closes the counter of every e, a, o and g
+            // on the screen -- at eight pixels a counter is one or two pixels of hole, and
+            // filling it turns the letter into a blob.
+            if (top - 1 < 0) return cut;
+
+            var head = cut[top];
+            cut[top - 1] |= (byte)(glyph % 2 == 0 ? head & (byte)-head : HighestBit(head));
+            return cut;
+        }
+
+        // Worn: one pixel off the outside edge of the bottom stroke, and only when that stroke
+        // is three or more pixels wide, so a stem never loses half its width and a serif never
+        // vanishes entirely. Wear belongs at the foot, which is the part that takes the weight.
+        var foot = cut[bottom];
+        if (BitCount(foot) < 3) return cut;
+
+        cut[bottom] = (byte)(foot & ~(glyph % 2 == 0 ? HighestBit(foot) : foot & (byte)-foot));
+        return cut;
+    }
+
+    private static byte HighestBit(byte value)
+    {
+        var bit = 0;
+        for (var i = 0; i < 8; i++)
+            if ((value & (1 << i)) != 0) bit = i;
+
+        return (byte)(1 << bit);
+    }
+
+    private static int BitCount(byte value)
+    {
+        var count = 0;
+        for (var i = 0; i < 8; i++)
+            if ((value & (1 << i)) != 0) count++;
+
+        return count;
+    }
+
+    /// <summary>
+    /// Which cut a letter is set in, decided by where it is rather than by chance.
+    ///
+    /// **This must be a pure function of the text and the position, and never of time.** Text
+    /// is redrawn every frame; a random cut per frame would make every label on the screen
+    /// crawl. The mix below is the cheapest thing that scatters well: the letter, its index,
+    /// and the length of the line it is in, so the same word in two different sentences is
+    /// still set differently.
+    /// </summary>
+    private static int HandFor(char value, int index, int length)
+    {
+        var mix = value * 2654435761u + (uint)index * 2246822519u + (uint)length * 3266489917u;
+        mix ^= mix >> 15;
+        mix *= 2246822519u;
+        mix ^= mix >> 13;
+
+        // Weighted: half clean, and the worn cut rarer than the inked one. An even three-way
+        // split looked like a font with a bug in it -- unevenness reads as craft only while
+        // most of the letters are still the plain ones.
+        return (mix % 8) switch
+        {
+            0 or 1 or 2 or 3 or 4 => 0,
+            5 or 6 => 1,
+            _ => 2
+        };
     }
 
     /// <summary>Map a UI size onto 1× / 2× / 3× sprite cells. Keep scale low so stems stay open.</summary>
@@ -116,6 +252,7 @@ public sealed class SpriteType : IDisposable
 
     public static float LineHeight(int pixelScale) => Glyph * pixelScale + 2;
 
+    /// <summary>Width in logical pixels. Independent of which cut each letter is set in.</summary>
     public float Measure(string value, int pixelScale)
     {
         if (string.IsNullOrEmpty(value)) return 0f;
@@ -133,16 +270,40 @@ public sealed class SpriteType : IDisposable
         var y = (int)MathF.Round(position.Y);
         var shadow = new Color((byte)0, (byte)0, (byte)0, (byte)Math.Min(color.A, (byte)110));
 
-        foreach (var c in value)
+        for (var i = 0; i < value.Length; i++)
         {
+            var c = value[i];
             var index = IndexOf(c);
-            var src = Cell(index);
+            var src = Cell(index + HandFor(c, i, value.Length) * Slots);
             var dest = new Rectangle(x, y, Glyph * pixelScale, Glyph * pixelScale);
             if (shadow.A > 20)
                 batch.Draw(_atlas, Offset(dest, 1, 1), src, shadow);
             batch.Draw(_atlas, dest, src, color);
             x += _advance[index] * pixelScale;
         }
+    }
+
+    /// <summary>
+    /// True when every character in the string has a glyph in this face.
+    ///
+    /// The face is printable ASCII and a handful of marks. Ratna Bay has one line of
+    /// Devanagari in it -- the verse on the pillar -- and rendering that as a row of question
+    /// marks is worse than rendering it in a different typeface. The canvas asks this and
+    /// falls back for the whole string rather than mixing faces inside one line.
+    /// </summary>
+    public static bool Handles(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return true;
+
+        foreach (var c in value)
+        {
+            if (c is '▲' or '▲' or '▼' or '▼' or '×' or '✕' or '✖' or '·' or '•'
+                or '—' or '–' or '−' or '’' or '‘' or '‛' or '“' or '”') continue;
+
+            if (c < First || c >= First + Count) return false;
+        }
+
+        return true;
     }
 
     public void Dispose() => _atlas.Dispose();

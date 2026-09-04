@@ -163,10 +163,12 @@ internal sealed class CharacterRenderer
 
         string[] labels = { "IN HAND", "WORN" };
         string[] names = { weapon.DisplayName, armour?.DisplayName ?? "Nothing" };
+        // Short, because this line is right-aligned against a label on the same row: a long
+        // one does not wrap or shrink, it runs backwards into "IN HAND" and the two overlap.
         string[] notes =
         {
-            $"{weapon.Damage:0} damage   {weapon.Range:0.0} m   {(weapon.CanBlock ? "guards" : "no guard")}",
-            armour is null ? "no protection" : $"{armour.Armour:0} damage reduction"
+            $"{weapon.Damage:0} dmg  {weapon.Range:0.0} m  {(weapon.CanBlock ? "guards" : "no guard")}",
+            armour is null ? "no armour" : $"{armour.Armour:0} armour"
         };
 
         for (var index = 0; index < 2; index++)
@@ -177,11 +179,16 @@ internal sealed class CharacterRenderer
             _ui.Panel(slot, new Color(14, 24, 32, 235),
                 filled ? new Color(120, 150, 130) : new Color(54, 68, 76));
 
-            _ui.Text(labels[index], new Vector2(slot.X + 12, slot.Y + 8), 11,
-                new Color(140, 168, 160));
+            var label = new Vector2(slot.X + 12, slot.Y + 8);
+            _ui.Text(labels[index], label, 11, new Color(140, 168, 160));
             _ui.TextFit(names[index], new Vector2(slot.X + 12, slot.Y + 24), slot.Width - 24, 15,
                 filled ? Color.White : new Color(128, 138, 142));
-            _ui.TextRight(notes[index], slot.Right - 12, slot.Y + 8, 11, UiTheme.Muted);
+
+            // Measured against what the label actually occupies rather than against a number
+            // somebody picked once: the interface font can be changed, and a gap that was
+            // comfortable in one face is an overlap in another.
+            var free = slot.Right - 12 - (label.X + _ui.MeasureText(labels[index], 11) + 10);
+            _ui.TextFitRight(notes[index], slot.Right - 12, slot.Y + 8, free, 11, UiTheme.Muted);
         }
     }
 

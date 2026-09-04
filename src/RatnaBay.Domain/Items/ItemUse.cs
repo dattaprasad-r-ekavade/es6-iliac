@@ -40,29 +40,36 @@ public static class ItemUse
         return string.Equals(kind, "potion", StringComparison.OrdinalIgnoreCase) ? "Drink" : "—";
     }
 
-    /// <summary>A one-line explanation of the item itself, for the UI.</summary>
+    /// <summary>
+    /// A one-line explanation of the item itself, for the UI.
+    ///
+    /// Written short on purpose. These lines sit in a shop tile about forty characters wide,
+    /// and the sentence they used to be -- "34 damage, 3.0 m reach, cannot guard." -- ran past
+    /// the tile and was cut at "cann...", which is exactly the word the player is buying on.
+    /// A line that fits says more than a sentence that is trimmed at the decision.
+    /// </summary>
     public static string Describe(string? itemId, string? kind)
     {
         if (EquipmentCatalog.IsWeapon(itemId))
         {
             var weapon = EquipmentCatalog.GetWeapon(itemId);
-            var guard = weapon.CanBlock ? "can guard" : "cannot guard";
-            return $"{weapon.Damage:0} damage, {weapon.Range:0.0} m reach, {guard}.";
+            var guard = weapon.CanBlock ? "guards" : "no guard";
+            return $"{weapon.Damage:0} dmg · {weapon.Range:0.0} m · {guard}";
         }
 
         if (EquipmentCatalog.IsArmour(itemId))
-            return $"{EquipmentCatalog.GetArmour(itemId)!.Armour:0} damage reduction.";
+            return $"{EquipmentCatalog.GetArmour(itemId)!.Armour:0} armour";
 
         if (string.Equals(itemId, SoulCrystals.LesserId, StringComparison.Ordinal))
-            return $"Restores {SoulCrystals.LesserCharge:0} prana when drawn on.";
+            return $"Restores {SoulCrystals.LesserCharge:0} prana";
 
         if (string.Equals(kind, "potion", StringComparison.OrdinalIgnoreCase))
-            return $"Restores {PotionHeal:0} health.";
+            return $"Restores {PotionHeal:0} health";
 
         if (string.Equals(kind, "key", StringComparison.OrdinalIgnoreCase))
-            return "Opens one specific lock.";
+            return "Opens one lock";
 
-        return "Worth something to the right buyer.";
+        return "Worth selling";
     }
 
     /// <summary>
