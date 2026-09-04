@@ -31,9 +31,11 @@ internal sealed class FigurePresenter
         DialogueRuntime? dialogue,
         WatcherRuntime? watchers,
         Encounter? encounter,
-        CaveTheme? cave)
+        CaveTheme? cave,
+        FortRuntime? fort = null)
     {
         DrawActors(device, scene, billboards, camera, dialogue);
+        DrawFortOccupants(device, billboards, camera, fort);
         DrawWatchers(device, billboards, camera, watchers);
         DrawEnemies(device, billboards, camera, encounter, cave);
         DrawBolts(device, billboards, camera, encounter);
@@ -65,6 +67,41 @@ internal sealed class FigurePresenter
                 PaletteFor(actor.Palette));
             var feet = new Vector3(actor.Position.X, actor.Position.Y, actor.Position.Z);
             billboards.Draw(texture, feet, actor.Height, camera.Yaw, Color.White);
+        }
+
+        RestoreWorldState(device);
+    }
+
+    /// <summary>
+    /// The ten of the fort, each standing in their own chamber.
+    ///
+    /// Drawn the same way dialogue actors are, and for the same reason the fort borrows
+    /// DialogueRuntime's proximity rule: two ways of putting a person in a room would drift,
+    /// and the one that drifted would be the one without a test.
+    ///
+    /// A closed room's occupant is still drawn. They are behind a shut door, so the player
+    /// cannot reach them — but the door is a promise about somebody, and an empty chamber
+    /// glimpsed through a doorway is a worse promise than a figure you cannot get to yet.
+    /// </summary>
+    private static void DrawFortOccupants(
+        GraphicsDevice device,
+        BillboardRenderer billboards,
+        FirstPersonView camera,
+        FortRuntime? fort)
+    {
+        if (fort is null || fort.Occupants.Count == 0) return;
+
+        billboards.Begin(camera.View, camera.Projection);
+
+        var sorted = new List<FortOccupant>(fort.Occupants);
+        sorted.Sort((a, b) => DistanceSquared(camera.Position, b.Position)
+            .CompareTo(DistanceSquared(camera.Position, a.Position)));
+
+        foreach (var occupant in sorted)
+        {
+            var texture = CharacterSprites.Get(device, $"fort.{occupant.Room.Id}",
+                PaletteFor(occupant.Room.Id));
+            billboards.Draw(texture, FortRuntime.Feet(occupant), 1.8f, camera.Yaw, Color.White);
         }
 
         RestoreWorldState(device);

@@ -1,0 +1,47 @@
+# The fort: a hall, ten doors, and somebody behind each of them.
+#
+#     build\RatnaBay.exe --yard --script Docs\scripts\clip-fort.rbs
+#     powershell -File tools\make-clips.ps1
+#
+# This is the clip the console records well, and it is worth being clear about why.
+# A scripted fight is a poor performance -- the swings are on a timer rather than
+# on a read of the room, and the console cannot aim -- but walking through a place
+# is exactly what a script does honestly. The fort is thirty metres of lit hall
+# with a figure standing in every chamber, and that reads on its own.
+
+descend 1 20789
+wait 0.5
+surface
+wait 1
+
+goto fort
+wait 0.5
+look 4.712 0
+use
+wait 1.2
+
+record captures/clip-fort 10 30
+
+# Down the hall to the chamber at z=0, which is 18 metres at 6 m/s.
+#
+# Timed from the geometry rather than guessed. The first cut walked 3.2 seconds --
+# 19.2 metres -- which stopped 1.2 metres past the doorway's centre line, and since
+# a doorway is 3 metres wide the turn met a jamb. Every chamber centre is a
+# multiple of the 7-metre pitch from a spawn at z=18, so the walk that lands on one
+# is arithmetic, not trial and error.
+walk 3.0
+where
+
+# Turn into it. Yaw is radians and 3*pi/2 looks down -X, which is the west side.
+look 4.712 0
+wait 0.7
+
+# In to the occupant: 9.1 metres from the middle of the hall to where they stand.
+walk 1.45
+wait 0.4
+
+# And what they have to say.
+use
+wait 3
+
+quit

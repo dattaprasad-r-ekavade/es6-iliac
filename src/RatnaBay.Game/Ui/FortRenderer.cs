@@ -107,9 +107,15 @@ internal sealed class FortRenderer
 
     private void DrawRoom(FortRoom room, Legacy legacy)
     {
+        // One column beside the portrait, not a centred header and a column at once.
+        //
+        // The name, the office and the description used to be centred across the full panel
+        // while the greeting and the fragments ran down a column at x=580. The two overlapped:
+        // the office sat at y=222 and the greeting at y=224, so they were drawn through each
+        // other, and the centred lines ran under the portrait as well. Everything but the room
+        // name is left-aligned in the same column now, and the column owns its own vertical
+        // cursor so nothing has a hard-coded y to collide with.
         _ui.TextCentred(room.DisplayName.ToUpperInvariant(), 640f, 190f, 22, Color.White);
-        _ui.TextCentred($"{room.Occupant}  ·  {room.Office}", 640f, 222f, 15, UiTheme.Accent);
-        _ui.TextCentred(room.Description, 640f, 248f, 13, UiTheme.Muted);
 
         var fragments = room.AvailableTo(legacy.Service.Rank, legacy.DeepestEver);
 
@@ -126,6 +132,15 @@ internal sealed class FortRenderer
         const float TextWidth = 434f;
 
         var y = 224f;
+
+        _ui.TextFit($"{room.Occupant}  ·  {room.Office}", new Vector2(TextLeft, y), TextWidth,
+            15, UiTheme.Accent);
+        y += 26f;
+
+        y += _ui.TextWrapped(room.Description, new Vector2(TextLeft, y), TextWidth, 13,
+            UiTheme.Muted, maxLines: 3);
+        y += 12f;
+
         _ui.TextFit($"“{room.Greeting}”", new Vector2(TextLeft, y), TextWidth, 15,
             new Color(226, 220, 208));
         y += 40f;

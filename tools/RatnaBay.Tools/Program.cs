@@ -351,6 +351,16 @@ static int RunReview(string[] arguments)
             Console.WriteLine($"  bought before going down: "
                 + string.Join(", ", bought.Select(item => $"{item.Detail} ({item.Value:0}g)")));
 
+        // Before anything else about the run, because a run that went nowhere makes every
+        // other number below it meaningless -- a hit rate over sixty swings at a wall is not a
+        // hit rate. This is the line whose absence cost an afternoon of reading a stance
+        // sample by hand to discover that a player had never reached a room at all.
+        if (run.WasStuck)
+            Console.WriteLine($"  STUCK: {run.LongestStuckMinutes:0} minutes without reaching a "
+                + "room, opening a door or killing anything. Read this run as a fault report.");
+        else if (run.LongestStuckMinutes > 0f)
+            Console.WriteLine($"  idle for {run.LongestStuckMinutes:0} minutes at the longest");
+
         if (run.ShareOfTimeInDoorways > 0f)
             Console.WriteLine($"  {run.ShareOfTimeInDoorways * 100:0}% of the run spent in or "
                 + "beside a doorway");

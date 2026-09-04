@@ -256,12 +256,45 @@ public static class ItemSprites
     public static Texture2D PishachaSprite(GraphicsDevice device) =>
         Get(device, "risen.pishacha", 64, forge => Risen(forge, Pishacha));
 
+    /// <summary>
+    /// The three that lead a boss room, built from the same parts at a larger scale.
+    ///
+    /// Deliberately the same creature the mine is already full of. A player who has learned to
+    /// read a vetala should recognise what is standing in the boss room and be wrong about how
+    /// to fight it -- the surprise is the behaviour, not the silhouette. Each is given the
+    /// build that matches how it fights: the Breaker is the widest and most stooped, the
+    /// Warden narrow and upright, the Harrier small and forward.
+    /// </summary>
+    private static readonly RisenBuild Breaker =
+        new(1.5f, 14.5f, 4.2f, new Color(86, 48, 44), new Color(255, 96, 32), 3);
+
+    private static readonly RisenBuild Warden =
+        new(1.34f, 7.4f, 0f, new Color(52, 62, 96), new Color(126, 214, 255), 3);
+
+    private static readonly RisenBuild Harrier =
+        new(1.16f, 8.0f, 2.4f, new Color(60, 74, 56), new Color(180, 255, 120), 2);
+
+    public static Texture2D BreakerSprite(GraphicsDevice device) =>
+        Get(device, "boss.khanda", 64, forge => Risen(forge, Breaker));
+
+    public static Texture2D WardenSprite(GraphicsDevice device) =>
+        Get(device, "boss.netra", 64, forge => Risen(forge, Warden));
+
+    public static Texture2D HarrierSprite(GraphicsDevice device) =>
+        Get(device, "boss.chhala", 64, forge => Risen(forge, Harrier));
+
     /// <summary>The sprite for an enemy archetype, or null if it is not one of the risen.</summary>
     public static Texture2D? Risen(GraphicsDevice device, string archetypeId) => archetypeId switch
     {
         "chhaya" or "preta" => ChhayaSprite(device),
         "vetala" => VetalaSprite(device),
         "pishacha" => PishachaSprite(device),
+        // Literals, like the three above them, because this file carries no reference to
+        // RatnaBay.Domain and is on the list of files an engine split would take unchanged.
+        // One using for three constants would be a poor trade.
+        "boss.khanda" => BreakerSprite(device),
+        "boss.netra" => WardenSprite(device),
+        "boss.chhala" => HarrierSprite(device),
         _ => null
     };
 

@@ -24,6 +24,15 @@ internal sealed class LaunchOptions
     public bool StambhaPreview { get; init; }
     public string? ConsoleScript { get; init; }
     public string? ScriptMissing { get; init; }
+
+    /// <summary>
+    /// True when --script named a file, whether or not it could be read.
+    ///
+    /// Separate from ConsoleScript because a scripted run is a *kind of run* rather than a
+    /// body of commands: it gates mouse capture, fullscreen and telemetry, and it has to do
+    /// that even when the script turns out to be missing.
+    /// </summary>
+    public bool Scripted { get; init; }
     public bool StartOnTheSurface { get; init; }
     public bool Moodboard { get; init; }
     public bool AssetCase { get; init; }
@@ -112,6 +121,7 @@ internal sealed class LaunchOptions
             StambhaPreview = stambha,
             ConsoleScript = consoleScript,
             ScriptMissing = scriptMissing,
+            Scripted = !string.IsNullOrWhiteSpace(scriptFile),
             StartOnTheSurface = startOnSurface,
             Moodboard = moodboard,
             AssetCase = assetCase,

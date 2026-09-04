@@ -52,6 +52,28 @@ internal interface IConsoleTarget
     /// <summary>Hold the rest of a script for this much simulated time.</summary>
     void WaitSeconds(float seconds);
 
+    /// <summary>
+    /// Hold the walk-forward key for a while, and hold the script until it is done.
+    ///
+    /// Unlike <c>move</c>, which places the camera and cannot be stopped by a wall, this goes
+    /// through the same controller and the same collision callback a player's W key does. It
+    /// is the only command that can prove a route is walkable rather than merely that the
+    /// destination exists.
+    /// </summary>
+    void WalkForward(float seconds);
+
+    /// <summary>Press E: talk, open, take. Returns what the game said about it.</summary>
+    string Use();
+
+    /// <summary>
+    /// Where the player is, in words: the yard, the fort, underground.
+    ///
+    /// `where` had no word for the fort, so standing in it reported "the yard" — which is the
+    /// shape of bug this project keeps finding: a log with no word for something reports its
+    /// absence as a fact. A scripted gate could not tell the two places apart.
+    /// </summary>
+    string Place { get; }
+
     /// <summary>Record that an assertion failed, so the process can exit non-zero.</summary>
     void FailScript(string why);
 
@@ -68,6 +90,15 @@ internal interface IConsoleTarget
 
     /// <summary>Take a picture now, from wherever the camera is.</summary>
     string Capture(string path);
+
+    /// <summary>
+    /// Record a numbered frame sequence for a clip, and hold the script while it runs.
+    ///
+    /// Frames are timed off simulated seconds, so the same script produces the same clip on
+    /// any machine -- which is what makes marketing footage something that can be regenerated
+    /// after an art change rather than re-performed.
+    /// </summary>
+    string Record(string directory, float seconds, float fps);
 
     /// <summary>
     /// What is under the crosshair, or under one screen pixel when given.
@@ -177,7 +208,7 @@ internal static class GameConsole
                 var here = game.CameraPosition;
                 var room = game.Run?.Run is { IsActive: true } run
                     ? $"room {run.RoomsCleared}, {run.Pending} at risk"
-                    : "the yard";
+                    : game.Place;
 
                 return $"{here.X:0.0}, {here.Y:0.0}, {here.Z:0.0}  ·  "
                     + $"yaw {game.CameraYaw:0.00} pitch {game.CameraPitch:0.00}  ·  {room}";
@@ -559,6 +590,22 @@ internal static class GameConsole
                 return $"Waiting {seconds:0.00}s.";
             });
 
+        console.Register("walk",
+            "walk [seconds]",
+            "Hold W and actually walk, colliding with walls. Default 1 second.",
+            args =>
+            {
+                var seconds = Math.Clamp(args.Number(0, 1f), 0.01f, 120f);
+                game.WalkForward(seconds);
+                return $"Walking {seconds:0.00}s.";
+            });
+
+        console.Register("use",
+            "use",
+            "Press E on whatever the crosshair is on: talk, open, take.",
+            _ => game.Use(),
+            "e", "open", "interact");
+
         console.Register("assert",
             "assert <command> has <text>   |   assert <command> not <text>",
             "Run a command and check its answer. A failure makes the process exit non-zero.",
@@ -659,6 +706,15 @@ internal static class GameConsole
             args => args.Count >= 2 && args.TryInteger(0, out var px) && args.TryInteger(1, out var py)
                 ? game.PickAt(px, py)
                 : game.PickAt(null, null));
+
+        console.Register("record",
+            "record <folder> [seconds] [fps]",
+            "Write a numbered frame sequence for a clip. Holds the script while it runs.",
+            args => game.Record(
+                args.Text(0).Length > 0 ? args.Text(0) : "captures/clip",
+                Math.Clamp(args.Number(1, 6f), 0.2f, 60f),
+                Math.Clamp(args.Number(2, 30f), 5f, 60f)),
+            "clip");
 
         console.Register("time",
             "time [scale]",

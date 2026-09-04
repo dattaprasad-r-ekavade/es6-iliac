@@ -22,6 +22,10 @@ build\RatnaBay.exe --yard --script Docs\scripts\smoke.rbs   # a scripted playthr
 
 A stage is done when all three are green **and** the stage's own check passes.
 
+Run `verify.ps1` **without piping it**. In a shell pipeline the exit status you read is the last
+command's, not PowerShell's, so a failed gate looks green. `-File` propagates a throw as exit 1
+correctly on its own.
+
 ---
 
 ## Ground truth
@@ -35,6 +39,17 @@ A stage is done when all three are green **and** the stage's own check passes.
 | Code references to `Game1` outside itself | **1** (`Program.cs`) | still 1 |
 | Files touching MonoGame's `Game` base | **1** (`EngineHost`) | still 1, now in `RatnaBay.Engine` |
 | Build warnings | 0 | 0 |
+
+---
+
+### How `Game1` got here, commit by commit
+
+Kept because the shape of it is the argument: no single cut was large, and the file more than
+halved anyway.
+
+| Commit | Lines |
+|
+| after the merge with the fort, bosses and clips | **3,216** |
 
 ---
 

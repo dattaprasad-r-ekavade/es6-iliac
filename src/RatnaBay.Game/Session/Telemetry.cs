@@ -190,20 +190,50 @@ public sealed class TelemetryUploader
     /// Safe to call as often as it is convenient: it returns immediately if a sweep is already
     /// running, and a recording already delivered is skipped by its marker.
     /// </summary>
-    public void SendPending()
+    public void SendPending(string? inProgress = null)
     {
         if (!CanSend) return;
         if (Interlocked.Exchange(ref _running, 1) == 1) return;
 
         _ = Task.Run(async () =>
         {
-            try { await SweepAsync().ConfigureAwait(false); }
+            try { await SweepAsync(inProgress).ConfigureAwait(false); }
             catch (Exception exception) { Status = $"upload failed: {exception.Message}"; }
             finally { Interlocked.Exchange(ref _running, 0); }
         });
     }
 
-    private async Task SweepAsync()
+    /// <summary>
+    /// Send on the way out, and wait — briefly — for it to finish.
+    ///
+    /// Without this a tester who plays once and never opens the game again uploads nothing at
+    /// all. Their recording is written, flushed, and then sits in their save folder for ever,
+    /// because the only sweeps were at launch and the moment consent was given, and neither
+    /// happens again for somebody who played once. That is the ordinary case for an alpha, and
+    /// it is why one player's two hours arrived as a single file only because they had opened
+    /// the game a second time.
+    ///
+    /// Bounded, because this runs while the window is closing: a player quitting must not be
+    /// held up by a slow network. Anything unsent is picked up by the launch sweep if there
+    /// ever is another launch, so the cost of the timeout expiring is what the old behaviour
+    /// was anyway.
+    /// </summary>
+    public bool SendNow(string? inProgress, TimeSpan timeout)
+    {
+        if (!CanSend) return false;
+
+        try
+        {
+            return SweepAsync(inProgress).Wait(timeout);
+        }
+        catch (Exception exception)
+        {
+            Status = $"upload failed: {exception.Message}";
+            return false;
+        }
+    }
+
+    private async Task SweepAsync(string? inProgress = null)
     {
         var directory = PlayRecorder.Directory;
         if (!Directory.Exists(directory)) return;
@@ -216,10 +246,16 @@ public sealed class TelemetryUploader
             var info = new FileInfo(path);
             if (info.Length == 0 || info.Length > Telemetry.MaxUploadBytes) continue;
 
-            // The newest file is the session in progress and is still being written to. Only
-            // finished recordings are sent, which is why this runs on launch rather than on
-            // the way out.
-            if (DateTime.UtcNow - info.LastWriteTimeUtc < TimeSpan.FromMinutes(2)) continue;
+            // Skip the sitting still being written, named rather than guessed at. This was a
+            // "modified in the last two minutes" test, which is the same guess made badly: it
+            // skipped finished recordings from a session that had only just ended, and it made
+            // sending on the way out impossible, because a recording flushed a moment ago
+            // always looks like the live one.
+            //
+            // A recording left behind by a crash has no owner at the next launch, so it is
+            // sent then, which is what should happen to it.
+            if (inProgress is not null &&
+                string.Equals(path, inProgress, StringComparison.OrdinalIgnoreCase)) continue;
 
             if (await SendAsync(path).ConfigureAwait(false)) sent++;
         }

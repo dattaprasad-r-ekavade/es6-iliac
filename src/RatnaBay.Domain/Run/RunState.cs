@@ -102,6 +102,49 @@ public sealed class RunState
         Math.Max(0, roomNumber) * Math.Max(MinTier, tier);
 
     /// <summary>
+    /// How often something is waiting that leads rather than fills a room.
+    ///
+    /// Every fifth room, and the mine still has no bottom. A boss that *ended* a mine was the
+    /// obvious reading of the iteration, and it is the wrong one: an exhaustible level is the
+    /// exact thing recorded play threw out, because press-your-luck cannot work in a level you
+    /// can finish. Four real decisions and a wall is not a run.
+    ///
+    /// As a milestone it does the opposite. The boss is a reason to press *on*, and the door
+    /// after it is the sharpest version of the only question this game asks: you are standing
+    /// on the fattest pot of the run, and the next room is ordinary again.
+    /// </summary>
+    public const int BossEvery = 5;
+
+    /// <summary>
+    /// What a boss leaves behind, on top of what its room pays.
+    ///
+    /// **Deliberately not a multiplier on the room's payout.** Tripling room five would make
+    /// room six pay less than room five, and RunStateTests.PressingOnAlwaysPaysMoreThanTheRoomBefore
+    /// exists to stop exactly that: "a flat reward makes banking immediately correct at every
+    /// step, because the pot grows while the prize does not — and then 'one more room?' has a
+    /// known answer and stops being a question." A spike in the curve is a flat reward with
+    /// extra steps.
+    ///
+    /// A drop is additive instead. The prize curve stays monotonic, the pot jumps, and the
+    /// stake against the next room climbs — which makes the door after a boss the tensest one
+    /// in the run rather than an obvious bank.
+    /// </summary>
+    public const int BossStones = 8;
+
+    /// <summary>
+    /// Whether the given room number is one a boss stands in.
+    ///
+    /// Room numbers are one-based and the entrance is not one of them, so the first boss is
+    /// the fifth payable room -- far enough in that a new player meets the loop first, close
+    /// enough that they meet a boss inside a single deep run.
+    /// </summary>
+    public static bool IsBossRoom(int roomNumber) =>
+        roomNumber > 0 && roomNumber % BossEvery == 0;
+
+    /// <summary>True when the room the player is about to open has a boss in it.</summary>
+    public bool NextRoomHasABoss => !IsExhausted && IsBossRoom(RoomsCleared + 1);
+
+    /// <summary>
     /// What clearing the next room would add. Zero once the mine is exhausted, which is how
     /// the game layer knows to offer the way out rather than another door.
     /// </summary>

@@ -65,6 +65,26 @@ internal static class SessionInput
 
         if (!input.Pressed(keyboard, Keys.E)) return SessionCommand.Idle;
 
+        return Interact(position, yaw, dialogue, world, onSurface, pickups);
+    }
+
+    /// <summary>
+    /// Talk, open, take — whatever the crosshair is on. What the E key asks for.
+    ///
+    /// Split out of <see cref="Step"/> so a script can ask for it too. Opening a door is the
+    /// single most important interaction in the game and had no test that could reach it: the
+    /// console could walk and teleport but never press a key, so no gate could tell a door
+    /// that opens from one that does not.
+    /// </summary>
+    public static SessionCommand Interact(
+        WorldPoint position,
+        float yaw,
+        DialogueRuntime? dialogue,
+        WorldRuntime? world,
+        bool onSurface,
+        IReadOnlyList<WorldPickup> pickups)
+    {
+        var actor = dialogue?.FindActor(position, yaw);
         if (actor is not null)
             return new SessionCommand(SessionAction.Talk, actor);
 

@@ -1,0 +1,65 @@
+# The shut door: the one decision the whole game is built on.
+#
+#     build\RatnaBay.exe --yard --script Docs\scripts\clip-door.rbs
+#     powershell -File tools\make-clips.ps1
+#
+# This is the clip to lead with. Not the prettiest seconds in the game, but the only
+# ones that show what it *is*: a room cleared, a pot you are holding, and a door
+# that will not tell you what is behind it.
+#
+# Scripted rather than performed, and that is the point. Footage captured by hand
+# has to be re-performed every time the art changes and never comes back quite the
+# same. This regenerates identically, from any machine, in one command.
+#
+# The HUD stays on. It is not clutter here -- health, the pot and the stones at
+# risk are the numbers the decision is made with, and a clip of the decision with
+# the numbers hidden is a clip of a man looking at a door.
+
+# Same seed and the same route as walk.rbs, which is the one sequence in the repo
+# that is known to reach room one on foot rather than through a wall.
+descend 1 20789
+wait 1.5
+
+look 0 0
+walk 4
+use
+wait 0.5
+
+# Recording starts once the door is open, so the clip opens on movement rather than
+# on somebody standing still reading a prompt.
+record captures/clip-door 12 30
+
+# Down the corridor and into the room.
+walk 4.5
+
+# Let them come. A bandit closes from seven metres to two in about a second and a
+# half, and swinging before it arrives is what the first attempt at this clip did:
+# twelve swings, one miss, eleven refused by the cooldown, and no fight on screen.
+god on
+wait 1.4
+
+# Swung one at a time with the cooldown respected. `swing 12` in a single frame
+# reports eleven refusals and shows one animation; a sword swings every 0.45s and
+# the clip should look like somebody fighting rather than like somebody mashing.
+#
+# These swings do not connect, and that is a known fault rather than a staging
+# choice: a console swing runs in PumpScript, which is earlier in Update than the
+# encounter, so Encounter.Focused is not what the crosshair is on by the time
+# PlayerAttack reads it. A bandit standing 2.1m dead ahead inside a 2.4m reach is
+# missed every time. It does not hurt the footage -- a miss still swings the
+# weapon and still makes the sound -- but it is on the board to fix.
+swing 1
+wait 0.5
+swing 1
+wait 0.5
+swing 1
+wait 0.5
+swing 1
+wait 0.5
+
+# The room resolved. Not how a player would do it, and the only staged beat in the
+# clip: what follows is the panel, and the panel is what this is for.
+kill all
+wait 3.5
+
+quit

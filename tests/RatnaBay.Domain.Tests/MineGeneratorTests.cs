@@ -240,6 +240,11 @@ public class MineGeneratorTests
     [Test]
     public void EveryRoomPastTheThirdHasSomethingThatShootsBack()
     {
+        // Boss rooms are included rather than exempted, and the reason is sharper there than
+        // anywhere else: a Breaker is slow and out-damages anything the player can trade with,
+        // so the whole answer to it is footwork -- and a corridor deletes footwork. The archer
+        // beside it is what keeps the player in the room.
+
         // The structural answer to a recorded run that cleared seven of nine rooms from the
         // previous doorway. Every enemy chasing in a straight line makes a corridor the
         // safest place in the mine; something that shoots and gives ground makes it the worst.
@@ -561,7 +566,13 @@ public class MineGeneratorTests
             for (var room = 1; room < 20; room++)
             {
                 var count = mine.Spawns.Count(spawn => spawn.RoomIndex == room);
-                var wanted = Math.Min(5, 1 + room / 2 + (room == 19 ? 1 : 0));
+
+                // A boss room is deliberately two bodies -- the boss and one archer -- rather
+                // than the depth formula. Exempting it keeps this test pointed at what it is
+                // for, which is placement quietly giving up, and not at a design decision.
+                var wanted = RunState.IsBossRoom(room)
+                    ? 2
+                    : Math.Min(5, 1 + room / 2 + (room == 19 ? 1 : 0));
 
                 if (count < wanted) shortfalls.Add($"seed {seed} room {room}: {count}/{wanted}");
             }

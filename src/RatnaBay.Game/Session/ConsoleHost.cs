@@ -86,8 +86,15 @@ internal sealed class ConsoleHost
         while (Output.Count > 200) Output.RemoveAt(0);
     }
 
-    /// <summary>True when the host asked the game to exit after draining the queue.</summary>
-    public bool Pump(float simulatedSeconds, IConsoleTarget target, out bool exit)
+    /// <summary>
+    /// True when the host asked the game to exit after draining the queue.
+    /// </summary>
+    /// <param name="holdQuit">
+    /// Something outside the script still needs frames -- a clip being recorded -- so an
+    /// empty queue must not end the process yet. The quit is kept, not cancelled.
+    /// </param>
+    public bool Pump(float simulatedSeconds, IConsoleTarget target, out bool exit,
+        bool holdQuit = false)
     {
         exit = false;
         if (WaitSeconds > 0f)
@@ -98,6 +105,8 @@ internal sealed class ConsoleHost
 
         if (Queue.Count == 0)
         {
+            if (holdQuit) return false;
+
             if (QuitWhenDone)
             {
                 QuitWhenDone = false;

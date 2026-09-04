@@ -94,7 +94,13 @@ public abstract class EngineHost : Game
         if (_capture.ApplyWindow(_graphics, Window, LogicalWidth, LogicalHeight))
             _borderlessFullscreen = false;
 
-        if (HasArgument(args, "--windowed"))
+        // A scripted run is a test, not a sitting: it must not seize the display.
+        //
+        // Capture runs were already windowed, because ApplyWindow above sizes them, but a
+        // plain --script run went borderless fullscreen and took over the screen for as long
+        // as the gate ran -- twice per build, on top of every ad-hoc script. The host owns the
+        // window, so the rule lives here rather than in a game that would have to remember it.
+        if (HasArgument(args, "--windowed") || ParseOption(args, "--script") is not null)
         {
             _borderlessFullscreen = false;
             _graphics.PreferredBackBufferWidth = LogicalWidth;

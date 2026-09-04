@@ -20,12 +20,35 @@ internal static class PromptBuilder
         WorldRuntime? world,
         RunRuntime? run,
         IReadOnlyDictionary<string, PickpocketTarget> pockets,
-        WorldPickup? pickup)
+        WorldPickup? pickup,
+        FortRuntime? fort = null)
     {
         if (session is null) return PromptState.Empty;
 
         var player = new WorldPoint(camera.Position.X, camera.Position.Y, camera.Position.Z);
         var chips = new List<PromptChip>();
+
+        // In the fort, the only thing to interact with is a person, and whether you may is
+        // rank. A shut room names the rank it wants rather than refusing without a reason --
+        // the fault that cost this game its first outside player 110 minutes.
+        if (fort is not null)
+        {
+            if (fort.FindOccupant(player, camera.Yaw) is not { } occupant)
+                return PromptState.Empty;
+
+            var rank = session.Player.Legacy.Service.Rank;
+            var open = occupant.Room.IsOpen(rank);
+
+            chips.Add(new PromptChip(
+                open
+                    ? $"Click / E  Speak to {occupant.Room.Occupant}"
+                    : $"{occupant.Room.DisplayName} — {Ranks.LabelOf(occupant.Room.RequiredRank)}",
+                UiLayout.TalkPrompt,
+                open ? PromptRole.Talk : PromptRole.Barred,
+                Fit: true));
+
+            return new PromptState(chips);
+        }
 
         if (onTheSurface)
         {
@@ -37,6 +60,7 @@ internal static class PromptBuilder
             {
                 SurfaceFixture.Shaft => $"E  Open a shaft   ({stones} stones)",
                 SurfaceFixture.Trader => "E  Trade",
+                SurfaceFixture.Fort => "E  Into the fort",
                 _ => "E  Read the carving"
             };
 

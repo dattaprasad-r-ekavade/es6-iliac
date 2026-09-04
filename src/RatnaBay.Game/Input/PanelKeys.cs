@@ -7,7 +7,6 @@ public enum PanelRequest
 {
     None,
     Help,
-    Fort,
     Journal,
     Character,
     Settings,
@@ -49,14 +48,14 @@ public static class PanelKeys
     /// inventory opening on top of the depth choice is a stack of two panels neither of which
     /// expected the other. Collapsing these into one read at the top of the frame quietly
     /// removed that guard — which is exactly what happened when this type was first written.
-    ///
-    /// <paramref name="onTheSurface"/> gates the fort: it is what a run is *for*, not something
-    /// to read halfway down a shaft with a door waiting.
     /// </summary>
-    public static PanelRequest Read(InputRouter input, KeyboardState keyboard, bool onTheSurface)
+    public static PanelRequest Read(InputRouter input, KeyboardState keyboard)
     {
         if (input.Pressed(keyboard, Keys.Tab)) return PanelRequest.ToggleMouseLook;
-        if (onTheSurface && input.Pressed(keyboard, Keys.F)) return PanelRequest.Fort;
+        // No F for the fort any more. It is a place you walk into through the gate in the west
+        // wall, not a list of doors drawn over the yard, and a key that opened the roster from
+        // the middle of the yard was the last thing keeping it a menu.
+
         if (input.Pressed(keyboard, Keys.J)) return PanelRequest.Journal;
 
         // I and K both, because the sheet is "inventory" to one player and "kit" to another,

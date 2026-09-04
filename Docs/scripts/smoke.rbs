@@ -31,6 +31,26 @@ look at shaft -0.6
 assert pick has shaft
 shot captures/script-1-shaft.png
 
+# The fort is a place you walk into, not a panel. It arrived on one branch while
+# the client was being split on another, so nothing had ever driven it: the two
+# asserts below are the only thing standing between "the gate opens" and a fort
+# nobody can reach.
+echo === the fort ===
+
+goto fort
+look 4.71 0
+use
+wait 1
+assert where has fort
+assert geo has fort
+shot captures/script-1b-fort.png
+
+# Out past the threshold behind the spawn. Walking out is the only way to leave,
+# so a fort you cannot leave is one bad number away at all times.
+goto 0 2.4 21
+wait 1
+assert where has yard
+
 echo === buying in ===
 
 gold 500

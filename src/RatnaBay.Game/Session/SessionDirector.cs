@@ -38,6 +38,16 @@ internal sealed class PlayState
     public Random StoneDrops = new(0);
     public IReadOnlyList<string> EarnedAmulets = Array.Empty<string>();
     public readonly Dictionary<string, PickpocketTarget> Pockets = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// True while the player is standing in the fort rather than the yard.
+    ///
+    /// A third place alongside the yard and a mine. Kept as its own flag rather than folded
+    /// into MineSeed, because the fort is neither: it has no run, no pot and no way down.
+    /// </summary>
+    public bool InFort;
+
+    public FortRuntime? Fort;
 }
 
 /// <summary>
@@ -98,7 +108,16 @@ internal sealed class SessionDirector
 
     public PlayState Play => _play;
 
-    public bool OnTheSurface => _play.MineSeed is null;
+    /// <summary>
+    /// True while the player is standing in the yard.
+    ///
+    /// **Not simply "not in a mine".** There are three places now, and this used to be
+    /// `MineSeed is null`, which the fort also satisfies — so the yard's signs were drawn down
+    /// the fort's hall, `Surface.FixtureAt` was live in there, and standing near the fort's
+    /// entrance put the player within reach of a shaft two worlds away. The daylight palette
+    /// followed the same test.
+    /// </summary>
+    public bool OnTheSurface => _play.MineSeed is null && !_play.InFort;
 
     public void ApplyCave()
     {
@@ -109,7 +128,91 @@ internal sealed class SessionDirector
     {
         _play.Summary = null;
         _play.Succession = null;
+        _play.InFort = false;
         EnterWorld(null);
+    }
+
+    /// <summary>
+    /// Step through the gate in the west wall, into the order's own rooms.
+    ///
+    /// A change of place rather than a panel. The fort used to be a list of doors drawn over
+    /// the yard; it is a manifest now, so entering it is the same operation as entering a mine
+    /// -- discard the world, load the other one, put the player at its spawn.
+    ///
+    /// Refused mid-descent. There is no way into the fort from underground and no reason to
+    /// want one, but the guard is here rather than assumed because the console can put the
+    /// player anywhere.
+    /// </summary>
+    public void EnterTheFort()
+    {
+        if (_play.Session is null) return;
+
+        if (_play.Run is { Run.IsActive: true })
+        {
+            _play.Session.ShowToast("Not from down here.");
+            return;
+        }
+
+        _play.InFort = true;
+        _play.Fort = new FortRuntime();
+        _play.World = null;
+        _play.MineSeed = null;
+        _play.Cave = null;
+
+        LoadWorldManifest();
+
+        // Rank decides which doors stand open, and it is applied to the world rather than
+        // built into it -- see FortHall. A promotion between visits opens a door without the
+        // fort having to be generated a second way.
+        //
+        // RestoreOpenedDoors rather than opening each by hand: it takes ids, applies them to
+        // the door runtimes and rebuilds collision, which is exactly the job, and a second way
+        // of doing it would be a second way to get it wrong.
+        _play.World?.RestoreOpenedDoors(
+            _play.Fort.OpenDoorsFor(_play.Session.Player.Legacy.Service.Rank).ToList());
+
+        PlaceAtFortSpawn();
+        _play.Session.ShowToast("The fort. Ten doors, and what is behind them.");
+    }
+
+    /// <summary>
+    /// Walking back out of the entrance is how you leave.
+    ///
+    /// No prompt and no key. The fort has one way in and the same way out, and a place you
+    /// leave by walking out of is a place rather than a screen -- which is the entire point of
+    /// having built it as geometry. The threshold is behind the spawn, so arriving does not
+    /// immediately trigger it.
+    /// </summary>
+    public void LeaveTheFortIfWalkedOut(bool anyPanelOpen)
+    {
+        if (!_play.InFort || anyPanelOpen) return;
+        if (_hooks.Camera.Position.Z < FortHall.Spawn.Z + 2.4f) return;
+
+        LeaveTheFort();
+    }
+
+    /// <summary>Back out to the yard, from inside the fort.</summary>
+    public void LeaveTheFort()
+    {
+        if (!_play.InFort) return;
+
+        _play.InFort = false;
+        _play.Fort = null;
+        _play.World = null;
+        _play.MineSeed = null;
+
+        LoadWorldManifest();
+        _hooks.Camera.Position =
+            new Vector3(Surface.FortGate.X + 2f, FortHall.Spawn.Y, Surface.FortGate.Z);
+        _hooks.Camera.Yaw = 1.57f;
+        _play.Session?.ShowToast("Back in the yard.");
+    }
+
+    private void PlaceAtFortSpawn()
+    {
+        _hooks.Camera.Position = new Vector3(FortHall.Spawn.X, FortHall.Spawn.Y, FortHall.Spawn.Z);
+        _hooks.Camera.Yaw = FortHall.SpawnYaw;
+        _hooks.Camera.Pitch = -0.06f;
     }
 
     public void EnterWorld(int? mineSeed, bool newCharacter = false, int tier = 1)
@@ -312,6 +415,20 @@ internal sealed class SessionDirector
             }
 
             _play.World = generated;
+            return;
+        }
+
+        // Indoors, between runs. Built from the roster, so a room added to the fort is a room
+        // in the world without anybody drawing a corridor for it.
+        if (_play.InFort)
+        {
+            if (!WorldRuntime.TryCreate(FortHall.Build(), out var fort, out var fortError))
+            {
+                _hooks.AssetErrors.Add(fortError);
+                return;
+            }
+
+            _play.World = fort;
             return;
         }
 

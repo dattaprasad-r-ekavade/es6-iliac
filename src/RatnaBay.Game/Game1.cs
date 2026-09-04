@@ -134,6 +134,23 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <summary>--exec / --script: commands to run once the world exists.</summary>
     private string? _consoleScript;
 
+    /// <summary>
+    /// True when this process was launched with --script.
+    ///
+    /// Gates anything that assumes a person is at the keyboard -- mouse capture, telemetry,
+    /// and the borderless fullscreen the game otherwise opens in.
+    /// </summary>
+    private bool _scripted;
+
+    /// <summary>When the last "this run is going nowhere" note was written. See NoteIfStuck.</summary>
+    private DateTime _lastStuckNote = DateTime.MinValue;
+
+    /// <summary>Simulated seconds in the last Update, read by the clip recorder in Draw.</summary>
+    private float _lastSimulatedSeconds;
+
+    /// <summary>Seconds of held W left on a scripted walk. See IConsoleTarget.WalkForward.</summary>
+    private float _scriptWalkSeconds;
+
     private string? _scriptMissing;
     public int ScriptExitCode => _scripts.ScriptExitCode;
 
@@ -444,6 +461,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _stambhaPreview = launch.StambhaPreview;
         _consoleScript = launch.ConsoleScript;
         _scriptMissing = launch.ScriptMissing;
+        _scripted = launch.Scripted;
         _startOnTheSurface = launch.StartOnTheSurface;
         _moodboard = launch.Moodboard;
         _assetCase = launch.AssetCase;
@@ -491,7 +509,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             && !_consent.Asked
             && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
 
-        if (!_askingConsent && !capturing) _uploader.SendPending();
+        // A script and a capture are both tests, and neither is a sitting anybody played.
+        // Their recordings are noise in the corpus the playtest exists to produce: the sixty
+        // most recent recordings on the server are already mostly gate runs, median seven
+        // events each, none of them a complete run. verify.ps1 launches the client twice, so
+        // this was two junk uploads per build.
+        if (!_askingConsent && !capturing && !_scripted) _uploader.SendPending(_recorder.FilePath);
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.
@@ -582,8 +605,14 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         PropTextures.Clear();
         ItemSprites.Clear();
         PortraitForge.Clear();
-        // A sitting that ends by closing the window is still a sitting worth reading back.
+        // A sitting that ends by closing the window is still a sitting worth reading back --
+        // and, now, worth sending. Flushed first so the file on disk is the whole sitting, then
+        // offered to the uploader with no in-progress file to skip, because there no longer is
+        // one. Three seconds: a player quitting is not made to wait on a network, and anything
+        // unsent is still picked up by the next launch if there ever is one.
         _recorder.Flush();
+        if (!_capture.IsCapturing && !_scripted)
+            _uploader?.SendNow(inProgress: null, TimeSpan.FromSeconds(3));
 
         Ambience?.Dispose();
         Sounds?.Dispose();
@@ -621,7 +650,10 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _clock += real;
         _feel.TickRealTime(real);
 
-        PumpScript(RealSeconds(gameTime) * _timeScale);
+        // Kept for the recorder, which runs in Draw and has no GameTime of its own. One
+        // number, so a clip's clock and the script's `wait` cannot drift apart.
+        _lastSimulatedSeconds = RealSeconds(gameTime) * _timeScale;
+        PumpScript(_lastSimulatedSeconds);
         UpdateWatches();
 
         // First, and it swallows the frame when it is open: a console you cannot type an S
@@ -685,8 +717,20 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// While captured the cursor is hidden and re-centred every frame, so looking around
     /// never runs out of desk and never lets a click land outside the window.
     /// </summary>
+    /// <summary>
+    /// Turn mouse look on or off.
+    ///
+    /// Refused outright during a capture, and during a script, for the same reason: nobody is
+    /// holding the mouse. Mouse look re-centres the system cursor every frame, so a scripted
+    /// run took the cursor away from whoever was using the machine and kept warping it back to
+    /// the middle of the game window for as long as the gate ran. A script drives the camera
+    /// with `look` and `walk`; the mouse has nothing to contribute and every opportunity to
+    /// interfere.
+    /// </summary>
     private void SetMouseLook(bool enabled, bool forPanel = false)
     {
+        if (_capture.IsCapturing || _scripted) enabled = false;
+
         if (_capture.IsCapturing) enabled = false;
 
         if (enabled) _mouseFreedForPanel = false;
@@ -774,7 +818,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// </summary>
     private void PumpScript(float simulatedSeconds)
     {
-        _scripts.Pump(simulatedSeconds, this, out var exit);
+        // A clip outlives the commands that set it going. The first version held the script
+        // for the clip's length, which was wrong twice over: the following commands are what
+        // the clip is *of*, so holding them makes a still, and `walk` overwrites the hold
+        // anyway. The script runs on; what it must not do is quit with frames outstanding,
+        // which truncated the first recording at 155 of 210 frames.
+        _scripts.Pump(simulatedSeconds, this, out var exit, holdQuit: _capture.Recording);
         if (exit) Exit();
     }
 
@@ -789,6 +838,9 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     protected override void Draw(GameTime gameTime)
     {
         ApplyCaptureScreen();
+
+        // Before BeginHostFrame, so a frame queued this tick is the frame about to be drawn.
+        _capture.TickClip(_lastSimulatedSeconds);
         BeginHostFrame();
 
         GraphicsDevice.Clear(new Color(9, 15, 25));
@@ -870,7 +922,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _consent.Save();
 
         _askingConsent = false;
-        if (_consent.Allowed) _uploader?.SendPending();
+        if (_consent.Allowed) _uploader?.SendPending(_recorder.FilePath);
     }
 
     /// <summary>
@@ -1021,6 +1073,10 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
             case SurfaceFixture.Stambha:
                 _session.ShowToast("मा गृधः कस्य स्विद्धनम्  —  covet not; for whose is wealth?");
+                break;
+
+            case SurfaceFixture.Fort:
+                _director.EnterTheFort();
                 break;
         }
     }
@@ -1310,7 +1366,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         var alreadyOpen = request switch
         {
             PanelRequest.Help => _stack.Help,
-            PanelRequest.Fort => _stack.Fort,
             PanelRequest.Journal => _stack.Journal,
             PanelRequest.Character => _stack.Character,
             _ => false
@@ -1325,7 +1380,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         switch (request)
         {
             case PanelRequest.Help: _stack.Help = true; break;
-            case PanelRequest.Fort: _stack.OpenFort(); _panels.FortSelection = 0; break;
             case PanelRequest.Journal: _stack.OpenJournal(); break;
             case PanelRequest.Character: _stack.OpenCharacter(); _panels.InventorySelection = 0; break;
         }
@@ -1392,7 +1446,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
         // The rest of the panel keys, after the early holds have had their say. A panel that
         // owns the screen must be able to swallow them.
-        OpenPanel(PanelKeys.Read(_input, keyboard, OnTheSurface));
+        OpenPanel(PanelKeys.Read(_input, keyboard));
 
         switch (_stack.LateHold(_overlay))
         {
@@ -1543,8 +1597,83 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             _run is { Run.IsActive: true }, _dialogue, _world, OnTheSurface, _pickups);
         ApplySession(cmd, new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z));
 
+        LeaveTheFortIfWalkedOut();
+
         UpdateCombat(gameTime, keyboard);
     }
+
+    /// <summary>
+    /// Press E, wherever the player is standing.
+    ///
+    /// Its own method because the console calls it too: `use` is how a scripted gate proves a
+    /// door opens, which nothing could do while the key was read and answered in one place.
+    /// </summary>
+    private void Interact()
+    {
+        if (_session is null) return;
+
+        var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
+
+        // In the fort, the person in front of you is the interaction. Asked before fixtures
+        // and doors, because an occupant stands well inside their chamber and nothing else in
+        // the fort is within reach of them.
+        if (_inFort && _fort?.FindOccupant(player, _camera.Yaw) is { } occupant)
+        {
+            OpenFortRoom(occupant.Room);
+            return;
+        }
+
+        ApplySession(
+            SessionInput.Interact(player, _camera.Yaw, _dialogue, _world, OnTheSurface, _pickups),
+            player);
+    }
+
+    /// <summary>
+    /// Open one occupant's room, having walked up to them.
+    ///
+    /// Reuses the panel the fort has always drawn rather than writing a second one. The list
+    /// of doors it used to be reached through is gone: the fort is a place now, and the way to
+    /// a person is to walk to them. What they say, and whether they will say it, is unchanged.
+    /// </summary>
+    private void OpenFortRoom(FortRoom room)
+    {
+        if (_session is null) return;
+
+        var rank = _session.Player.Legacy.Service.Rank;
+        if (!room.IsOpen(rank))
+        {
+            // The door is shut, and the reason is named. A refusal with no reason in it is
+            // the fault that cost this game its first outside player 110 minutes.
+            _session.ShowToast($"{room.DisplayName} is shut. {Ranks.LabelOf(room.RequiredRank)}.");
+            return;
+        }
+
+        _stack.Fort = true;
+        _stack.FortRoom = room.Id;
+        _panels.FortSelection = Math.Max(0, FortRoster.All.ToList().FindIndex(r => r.Id == room.Id));
+        SetMouseLook(false, forPanel: true);
+    }
+
+    /// <summary>
+    /// The fort room whose door is in front of the player and is not open to them yet, or null.
+    /// </summary>
+    private FortRoom? FortDoorRefusedByRank(WorldPoint player)
+    {
+        if (_session is null || _world is null) return null;
+
+        var door = _world.FindDoor(player, _camera.Yaw);
+        if (door is null) return null;
+
+        var roomId = FortHall.RoomOfDoor(door.Definition.Id);
+        if (roomId is null) return null;
+
+        var room = FortRoster.Find(roomId);
+        return room is not null && !room.IsOpen(_session.Player.Legacy.Service.Rank)
+            ? room
+            : null;
+    }
+
+    private void LeaveTheFortIfWalkedOut() => _director.LeaveTheFortIfWalkedOut(AnyPanelOpen);
 
     private void ApplySession(SessionCommand cmd, WorldPoint player)
     {
@@ -1581,9 +1710,29 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
                 return;
             case SessionAction.OpenDoor:
                 if (_run is { BarsTheWay: true } && _world?.FindDoor(player, _camera.Yaw) is not null)
+                {
                     _session.ShowToast("Not while something in here is still moving.");
+                }
+                else if (_inFort && FortDoorRefusedByRank(player) is { } shut)
+                {
+                    // The rank gate has to be on the door, not only on the conversation.
+                    //
+                    // Fort doors are unlocked -- deliberately, for the reason every mine door
+                    // is -- so TryOpenDoorAhead opened any of them on the first press. A
+                    // level-one player could walk into the Physician's room, and the
+                    // Governor's, and the whole ladder the fort is built on meant nothing the
+                    // moment somebody tried a door rather than talking to whoever was behind
+                    // it.
+                    //
+                    // Named rather than refused blankly: a shut door that says what it wants
+                    // is a goal, and one that only says no is the fault that cost this game
+                    // its first outside player 110 minutes.
+                    _session.ShowToast($"{shut.DisplayName} is shut. {Ranks.LabelOf(shut.RequiredRank)}.");
+                }
                 else
+                {
                     TryOpenDoorAhead(player);
+                }
                 return;
         }
     }
@@ -1936,6 +2085,34 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _recorder.Record(PlayEventKind.Stance, where,
             _encounter.NearestEnemyRange(), inDoorway ? 1f : 0f,
             _session.Player.Vitals.Health, _session.Player.Vitals.Prana);
+
+        NoteIfStuck(where);
+    }
+
+    /// <summary>
+    /// Say so, in the log, when a run stops going anywhere.
+    ///
+    /// Read the stance samples of a session that went nowhere and the story is there, but only
+    /// to somebody already looking for it: the shape of the alpha's one outside player being
+    /// stuck for 110 minutes was eight room-to-corridor transitions and then a ninety-two
+    /// minute silence, which took an afternoon and a hand-written script to see. An absence is
+    /// the hardest thing to spot in a log and the easiest to mistake for boredom.
+    ///
+    /// Four minutes before the first one, then every five, so a long fight or a careful player
+    /// reading a panel is never called stuck, and a genuinely stuck session accumulates a
+    /// visible row of them rather than one line that could be a blip.
+    /// </summary>
+    private void NoteIfStuck(string where)
+    {
+        var idle = _recorder.SinceProgress;
+        if (idle < TimeSpan.FromMinutes(4)) return;
+
+        var now = DateTime.UtcNow;
+        if (now - _lastStuckNote < TimeSpan.FromMinutes(5)) return;
+
+        _lastStuckNote = now;
+        _recorder.Record(PlayEventKind.Stuck, where, (float)idle.TotalMinutes, 0f,
+            _session?.Player.Vitals.Health ?? 0f, _session?.Player.Vitals.Prana ?? 0f);
     }
 
     private void TickVitalPulses(float deltaSeconds) =>
@@ -1948,8 +2125,28 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     private void WatchSessionForTheFeel(GameSession session) =>
         _feel.WatchSession(session, Sounds);
 
-    private void WatchForTheFeel(Encounter encounter) =>
+    private void WatchForTheFeel(Encounter encounter)
+    {
         _feel.WatchEncounter(encounter, Sounds);
+
+        // A boss drops into the pot rather than paying its room more.
+        //
+        // Additive on purpose: tripling what a boss room pays would make the room after it pay
+        // less, and a prize that stops outgrowing the pot turns "one more room?" into a
+        // question with a known answer. A drop leaves the payout curve alone and fattens the
+        // stake instead, so the door after a boss is the tensest in the run rather than an
+        // obvious bank.
+        //
+        // Subscribed here and not inside CombatFeel: that type owns how a kill *feels* --
+        // sound, hitstop, shake -- and this moves stones between a run and a player.
+        encounter.EnemyDefeated += enemy =>
+        {
+            if (!enemy.Archetype.IsBoss || _run is not { Run.IsActive: true } active) return;
+
+            active.Run.Collect(RunState.BossStones);
+            _session?.ShowToast($"{enemy.DisplayName} is down. {RunState.BossStones} stones.");
+        };
+    }
 
     /// <summary>
     /// Subscribe the recorder to the fight.
@@ -2050,10 +2247,17 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             }
             : null;
 
+        // A scripted walk is held here rather than faked further down, so it goes through the
+        // same collision callback and the same grounding as the key does. A route that a wall
+        // blocks must block this too, or the test proves nothing.
+        var scriptedWalk = _scriptWalkSeconds > 0f;
+        if (scriptedWalk)
+            _scriptWalkSeconds = MathF.Max(0f, _scriptWalkSeconds - StepSeconds(gameTime));
+
         var moved = _camera.Step(
             StepSeconds(gameTime),
             new WalkInput(
-                Forward: keyboard.IsKeyDown(Keys.W),
+                Forward: keyboard.IsKeyDown(Keys.W) || scriptedWalk,
                 Back: keyboard.IsKeyDown(Keys.S),
                 Left: keyboard.IsKeyDown(Keys.A),
                 Right: keyboard.IsKeyDown(Keys.D),
@@ -2087,7 +2291,9 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         ? _cave is null
             ? $"MINE {seed}  ·  TIER {_mineDepth}"
             : $"{_cave.DisplayName.ToUpperInvariant()}  ·  TIER {_mineDepth}  ·  MINE {seed}"
-        : "THE YARD  ·  RATNA BAY";
+        : _inFort
+            ? "THE FORT  ·  RATNA BAY"
+            : "THE YARD  ·  RATNA BAY";
 
     private void ResetCamera()
     {
@@ -2108,8 +2314,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
     private void LoadWorldManifest() => _director.LoadWorldManifest();
 
-    /// <summary>True while the player is standing in the yard rather than down a mine.</summary>
-    private bool OnTheSurface => _mineSeed is null;
+    /// <summary>True while the player is standing in the yard rather than down a mine or in
+    /// the fort. The director owns the test; there are three places now, not two.</summary>
+    private bool OnTheSurface => _director.OnTheSurface;
+
+    private bool _inFort => _play.InFort;
+    private FortRuntime? _fort => _play.Fort;
 
     /// <summary>The one pickup that is not part of the level it appears in.</summary>
     private const string CachePickupId = SessionDirector.CachePickupId;
@@ -2349,7 +2559,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
         DrawAuthoredWorld();
         _figures.Draw(GraphicsDevice, _scene, Billboards, _camera, _dialogue, _watchers,
-            _encounter, _cave);
+            _encounter, _cave, _fort);
 
         if (_capture.CoverMode)
         {
@@ -2389,7 +2599,19 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             },
             toasts: () =>
             {
-                _screens.Hud.DrawToasts(hudState);
+                // Not while the door decision is up.
+                //
+                // Toasts are drawn after the decision panel, and clearing a room fires three
+                // of them -- the kill, the room, and anything the room dropped -- at the same
+                // instant the panel opens. They land straight across its middle, so "stones
+                // held", the staking ratio and the trader line are all read through
+                // "Splitting Stone found." The most important screen in the game was
+                // illegible at the moment it appeared.
+                //
+                // Suppressed rather than moved, because the panel already says what they say:
+                // the room count and the stones are on it, in larger type, and they stay there
+                // instead of fading after two seconds.
+                if (_run is not { AtDecision: true }) _screens.Hud.DrawToasts(hudState);
                 DrawContentErrors();
             },
             panels: () =>
@@ -2516,7 +2738,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     {
         var player = new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z);
         return PromptBuilder.Build(_session, _camera, OnTheSurface, _dialogue, _shop, _world, _run,
-            _pockets, FindPickup(player, _camera.Yaw));
+            _pockets, FindPickup(player, _camera.Yaw), _inFort ? _fort : null);
     }
 
     private void DrawDialogue()
@@ -2650,8 +2872,16 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             case "journal": _stack.Journal = true; break;
             case "help": _stack.Help = true; break;
             case "depth" or "shaft":
+                // Through the real opener, not by setting the flag.
+                //
+                // Setting the flag by hand left every shaft seed at its default zero, and a
+                // theme is a pure function of seed and tier, so the captured board was one no
+                // player ever sees -- the same five caves every time, with tier five showing
+                // the granite that tier one is always given. A screenshot of a state that
+                // cannot occur is worse than no screenshot: it was read, here, as a design
+                // fault in theme selection.
+                OpenTheShaft();
                 _panels.DepthSelection = 3;
-                _stack.Shaft = true;
                 break;
             case "shop" or "stall": _stack.Shop = true; break;
             case "camp" or "trader": _stack.CampTrader = true; break;
@@ -2807,6 +3037,50 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     }
 
     void IConsoleTarget.WaitSeconds(float seconds) => _scripts.WaitSeconds = seconds;
+
+    /// <summary>
+    /// Walk forward for a while, through the controller rather than around it.
+    ///
+    /// Holds the script for the same span, so a script reads as a sequence of moves rather
+    /// than as a set of overlapping timers.
+    /// </summary>
+    void IConsoleTarget.WalkForward(float seconds)
+    {
+        _scriptWalkSeconds = seconds;
+        _scripts.WaitSeconds = seconds;
+    }
+
+    /// <summary>
+    /// Press E, and say what it did — the door state is the answer a script needs.
+    ///
+    /// Reported by looking at the door ahead before and after, because Interact itself is
+    /// deliberately void: what the key does is show a toast or open something, not return.
+    /// </summary>
+    string IConsoleTarget.Place =>
+        _inFort ? "the fort" : OnTheSurface ? "the yard" : "underground";
+
+    string IConsoleTarget.Use()
+    {
+        var before = _world?.FindDoor(
+            new WorldPoint(_camera.Position.X, _camera.Position.Y, _camera.Position.Z),
+            _camera.Yaw);
+
+        Interact();
+
+        if (before is null) return "Used what was ahead.";
+        return before.Lock.IsOpen
+            ? $"Opened {before.Definition.Id}."
+            : $"{before.Definition.Id} did not open.";
+    }
+
+    /// <summary>Record a numbered frame sequence for a clip. See CaptureHost.StartClip.</summary>
+    string IConsoleTarget.Record(string directory, float seconds, float fps)
+    {
+        var frames = (int)MathF.Round(seconds * fps);
+        _capture.StartClip(directory, frames, fps);
+
+        return $"Recording {frames} frames at {fps:0} fps into {directory}.";
+    }
 
     void IConsoleTarget.FailScript(string why) => FailScript(why);
 

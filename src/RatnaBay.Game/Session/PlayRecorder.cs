@@ -24,6 +24,7 @@ public sealed class PlayRecorder
     private readonly PlayRecording _recording = new();
     private readonly string _path;
     private DateTime _started = DateTime.UtcNow;
+    private DateTime _lastProgress = DateTime.UtcNow;
     private int _sinceFlush;
     private bool _broken;
 
@@ -63,6 +64,14 @@ public sealed class PlayRecorder
         }
     }
 
+    /// <summary>
+    /// The file this sitting is writing to, so the uploader can leave it alone.
+    ///
+    /// The sweep used to identify the in-progress recording by asking whether it had been
+    /// touched in the last two minutes, which is a guess standing in for a fact the process
+    /// already holds. It also made sending on the way out impossible: the recording had just
+    /// been written, so it always looked like the live one and was always skipped.
+    /// </summary>
     public string FilePath => _path;
     public int Count => _recording.Events.Count;
 
@@ -91,9 +100,37 @@ public sealed class PlayRecorder
             Distance = distance
         });
 
+        if (IsProgress(kind)) _lastProgress = DateTime.UtcNow;
+
         if (++_sinceFlush < FlushEvery) return;
         Flush();
     }
+
+    /// <summary>
+    /// How long since the player last got anywhere.
+    ///
+    /// Measured here rather than in Game1 because the recorder already sees every event, so
+    /// the definition of progress cannot drift away from the list of things that are recorded
+    /// as progress.
+    /// </summary>
+    public TimeSpan SinceProgress => DateTime.UtcNow - _lastProgress;
+
+    /// <summary>
+    /// What counts as getting somewhere.
+    ///
+    /// Swinging is not on this list, and that is the point: the one player who was stuck swung
+    /// sixty times without ever hitting anything. Activity is not progress, and a definition
+    /// that counted it would have called that session busy.
+    /// </summary>
+    private static bool IsProgress(string kind) =>
+        kind is PlayEventKind.RunStarted
+             or PlayEventKind.RoomEntered
+             or PlayEventKind.RoomCleared
+             or PlayEventKind.EnemyKilled
+             or PlayEventKind.DoorOpened
+             or PlayEventKind.DecisionOffered
+             or PlayEventKind.Camped
+             or PlayEventKind.PressedOn;
 
     /// <summary>
     /// Put it on disk. Failure disables the recorder rather than reporting itself: a player

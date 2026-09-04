@@ -18,6 +18,18 @@ public sealed class OverlayRenderer
 
     public OverlayRenderer(UiCanvas ui) => _ui = ui;
 
+    /// <summary>
+    /// Where to say something, on the two screens somebody reaches when they stop.
+    ///
+    /// The alpha's first outside player spent 110 minutes unable to open the first door and
+    /// then quit. They had no way to say so from inside the game: the feedback form existed
+    /// only on the itch page, which is a page you read before you play and never see again.
+    /// An address short enough to read off the screen and type is worth more here than the
+    /// form's seventy-character URL, which nobody is going to copy by hand.
+    /// </summary>
+    private const string FeedbackLine =
+        "Stuck, or something broken?  feedback@datathecodie.com  ·  the form is on the itch page";
+
     public void DrawPause(OverlayState state)
     {
         _ui.Scrim(UiTheme.Scrim, UiTheme.NoBorder);
@@ -45,6 +57,10 @@ public sealed class OverlayRenderer
             _ui.TextCentred(state.PauseItems[index], bounds.Center.X, bounds.Y + 10f, 16,
                 UiTheme.RowText(selected));
         }
+
+        // Above the controls line, not below it: the pause panel is sized to its buttons, and
+        // a second footer under the first straddled the bottom border.
+        _ui.TextCentred(FeedbackLine, panel.Center.X, panel.Bottom - 50f, 12, UiTheme.Muted);
 
         _ui.TextCentred("Click or arrows select      Enter confirm      Esc resume",
             panel.Center.X, panel.Bottom - 30f, 13, UiTheme.HintDim);
@@ -147,6 +163,9 @@ public sealed class OverlayRenderer
 
         _ui.TextCentred($"This session is being recorded to {state.RecordingDirectory}",
             panel.X + panel.Width / 2f, panel.Bottom - 42f, 13, UiTheme.HintDim);
+
+        _ui.TextCentred(FeedbackLine, panel.X + panel.Width / 2f, panel.Bottom - 22f, 12,
+            UiTheme.Muted);
     }
 
     /// <summary>

@@ -518,6 +518,56 @@ public class PlayReviewTests
         });
     }
 
+    /// <summary>
+    /// The session this whole signal exists for, in miniature.
+    ///
+    /// The alpha's one outside player swung sixty times, took no damage, and never entered a
+    /// room in 119 minutes. Read as a list of actions it looks like somebody fighting. The
+    /// only honest reading is that nothing was achieved, and that has to be a number.
+    /// </summary>
+    [Test]
+    public void ARunThatNeverGetsAnywhereIsReportedAsStuck()
+    {
+        var recording = new Tape().At(PlayEventKind.RunStarted, "mine.01", 1, 1);
+
+        // Busy, and going nowhere: swinging at a door that will not open.
+        for (var swing = 0; swing < 60; swing++)
+            recording.Wait(1f).At(PlayEventKind.MeleeSwing, "Iron Sword");
+
+        recording.Wait(1f).At(PlayEventKind.Stuck, "corridor", 92f);
+
+        var run = PlayReview.Runs(recording.Done())[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.WasStuck, Is.True, "sixty swings and no room entered is a stuck run");
+            Assert.That(run.LongestStuckMinutes, Is.EqualTo(92f).Within(0.01f));
+            Assert.That(run.MeleeSwings, Is.EqualTo(60), "activity is still counted, just not as progress");
+            Assert.That(run.RoomsCleared, Is.Zero);
+        });
+    }
+
+    /// <summary>
+    /// The worst stretch, not the sum. Two short breaks are a person having a life; one long
+    /// silence is a person who cannot find the way on, and adding them conflates the two.
+    /// </summary>
+    [Test]
+    public void TheLongestIdleStretchIsReportedRatherThanTheTotal()
+    {
+        var recording = new Tape()
+            .At(PlayEventKind.RunStarted, "mine.01", 1, 1)
+            .Wait(1f).At(PlayEventKind.Stuck, "room 0", 5f)
+            .Wait(1f).At(PlayEventKind.Stuck, "room 0", 6f)
+            .Wait(1f).At(PlayEventKind.RoomEntered, "room 1")
+            .Wait(1f).At(PlayEventKind.Stuck, "corridor", 7f);
+
+        var run = PlayReview.Runs(recording.Done())[0];
+
+        Assert.That(run.LongestStuckMinutes, Is.EqualTo(7f).Within(0.01f),
+            "18 would be the sum of three separate stretches, which is a different claim");
+        Assert.That(run.WasStuck, Is.False, "seven minutes is a slow player, not a wall");
+    }
+
     [Test]
     public void TimeSpentStandingInDoorwaysIsMeasured()
     {

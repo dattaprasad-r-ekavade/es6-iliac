@@ -277,41 +277,114 @@ That is a question for a recording, not for the author.
 
 ---
 
-### Iteration 17 — The ratchet (2 weeks)
+### Iteration 17 — The ratchet ✅ built 2026-08-27, not yet judged
 
 **Risk retired:** does a losing run still pull you back in?
 
-- Amulets drop on clearing a mine; permanent, and they survive death.
-- Character level moves onto the experience track; level-up grants skill points.
-- A between-run screen showing what was gained.
+- [x] Amulets drop on clearing a mine; permanent, and they survive death. Five of them, held in
+      `Legacy` rather than on the character, which is why they survive without anybody
+      remembering to copy them — `Succession.Promote` replaces the person and never touches the
+      legacy. Earned on a high-water mark, so a run that ends in a corpse two rooms past the
+      previous best still pays, and dying never lowers the bar.
+- [x] Character level moves onto the experience track; level-up grants skill points. The old
+      skills-to-level path was circular — training raised the level, which granted points, which
+      raised the skill. `PointsPerCharacterLevel` is 2, wired by
+      `Vitals.LevelGained += _ => Skills.GrantPoints()`.
+- [x] A between-run screen showing what was gained. `DescentRenderer` grows a ratchet section
+      that reads the same after a death as after a win, and names the next milestone.
 
 **Playable:** lose a run and still be measurably stronger for the next one.
 
+**Not yet judged**, and that is the whole of what is left here. The risk this iteration exists to
+retire is a question about a player, and no player outside the author has ever reached a second
+run — the one who tried never left the entrance room. The mechanism is built and tested; whether
+it *pulls anybody back in* is unmeasured, and the second playtest is the only thing that can
+answer it.
+
 ---
 
-### Iteration 18 — Cave themes (2 weeks)
+### Iteration 18 — Cave themes ✅ built, not yet judged
 
 **Risk retired:** does theme change how you play, or only how it looks?
 
-- Five themes: colour shading, preta sprite set, one resisted and one feared element.
-- Resistance, never immunity.
-- The theme is shown before the player pays to open the mine.
+- [x] Five themes: colour shading, preta sprite set, one resisted and one feared element. The
+      "sprite set" is a palette shift at draw time rather than five hand-drawn sets, which is
+      what the phrase means in a game whose art is generated — held to a quarter tint, because
+      the three tiers of risen are told apart by their flesh colours and a full wash would make
+      a chhaya in the Ossuary read as a vetala anywhere else.
+- [x] Resistance, never immunity. `ResistedFactor` 0.45 and `FearedFactor` 1.55, applied in
+      `SpellCaster` through `CaveThemeCatalog.DamageFactor` — one place, so the shaft screen's
+      promise and the damage actually dealt cannot drift apart.
+- [x] The theme is shown before the player pays. Each tier on the shaft screen carries its rock,
+      what it shrugs off and what it fears, beside its price.
 
 **Playable:** choose which cave to buy into, knowing what is down there, and ready the right
 spell for it.
 
+**Fixed while verifying it:** the five offers were seeded independently, and a theme is a pure
+function of seed and tier, so the board collided — five themes into four free slots duplicates
+the free granite about three times in five. Paying eighty stones for the same tactical problem
+as the free mine is the opposite of the choice the screen exists to present. The shaft now
+re-rolls a seed rather than overriding a label, so `CaveThemeCatalog.For` stays the one
+authority the shaft, the generator and the renderer all read.
+
+**Not yet judged**, and it is the same sentence as iteration 17: whether theme changes how
+anybody *plays* is a question about a player, and none has yet chosen a cave.
+
 ---
 
-### Iteration 19 — The fort (3–4 weeks)
+### Iteration 19 — The fort ✅ risk retired; the walk-through is deliberately unbuilt
 
 **Risk retired:** content authoring throughput — the number that decides whether this is
-finishable.
+finishable. **Retired, and the number is below.**
 
-- Ten rooms, opened by wins and gold.
-- Occupants stay silent until a rank or a sum is reached.
-- Story fragments attached to rooms rather than to a questline.
+- [x] Ten rooms, opened by wins and gold. Ten in `Fort.Rooms`, gated through
+      `IsUnlocked(rank, deepestEver)`, and the screen names the bar it wants — *"Vitala at 2
+      descents and 20 stones banked."*
+- [x] Occupants stay silent until a rank or a sum is reached. A shut room shows the rank it
+      wants and nothing else.
+- [x] Story fragments attached to rooms rather than to a questline. Twenty-four of them, 20
+      tests.
 
-**Playable:** a fort worth walking around between runs.
+**Playable:** a fort worth walking around between runs. **The geometry exists as of 2026-09-01;
+the client does not yet load it.**
+
+`FortHall.Build()` emits the place as a `WorldManifest` — a hall with five chambers down each
+side, a cut doorway and a lit chamber per roster room, and a stand for each occupant. Staged
+second on purpose: this iteration existed to retire authoring throughput, and corridors would
+have spent the expensive weeks to learn nothing about the cheap ones. The number came back at
+~700 words an hour, so the place is now worth building.
+
+**Rank is deliberately not in the geometry.** Whether a door opens is `FortRoom.IsOpen`, asked
+per visit. Baking progress into the world would mean rebuilding the fort on every promotion,
+and a manifest that depends on progress cannot be cached, validated or hot-reloaded.
+
+**Thirteen assertions stand in for walking it**, because the faults that matter here are
+invisible: a doorway never cut, a chamber wall closed across its own entrance, an occupant
+inside the masonry — all of them look correct and are all impassable. The reachability tests
+walk the hall, cross each doorway and cross each chamber at head height. They were checked by
+plugging every doorway, which failed exactly the two tests it should.
+
+**Wired and walked, 2026-09-01.** A gate in the yard's west wall leads in; the hall loads as its
+own world; the ten occupants stand in their chambers and are spoken to by walking up to them;
+walking back out of the entrance returns to the yard. The room panel is kept — what an occupant
+says was never the problem — but it is reached by standing in front of somebody rather than by
+scrolling a list.
+
+Three faults found by walking it, none of which a domain test could see:
+
+- The player spawned facing the exit. Forward is `(sin yaw, 0, -cos yaw)`, so the hall wanted a
+  yaw of zero and had been given pi.
+- The entrance end was left open, on the theory that the client would decide what stepping
+  through it meant. The first screenshot from inside was half brickwork and half empty sky.
+  Both ends are walled now, and leaving is a threshold just inside the near one.
+- **`OnTheSurface` meant "not in a mine".** The fort satisfies that, so the yard's signs were
+  drawn down the fort's hall, `Surface.FixtureAt` was live inside it, and standing near the
+  fort's entrance put the player in reach of a shaft in another world.
+
+And one that was already there and had simply never been looked at: the room panel drew a
+centred header at y=222 and a left-aligned column at y=224, so the occupant's office and their
+greeting were painted through each other, and both ran under the portrait.
 
 **Done when:** you can state **hours of authoring per hour of play**. Record it. This is the
 single most useful figure for planning everything after release.
@@ -349,14 +422,42 @@ thing that decides whether this is finishable.
 
 ---
 
-### Iteration 20 — Bosses (2–3 weeks)
+### Iteration 20 — Bosses ✅ built 2026-09-01, not yet judged
 
 **Risk retired:** is there a reason to reach the bottom?
 
-- Three distinct fight behaviours, dressed per theme to make six or seven encounters.
-- A boss ends a deeper mine rather than a camp.
+- [x] Three distinct fight behaviours. **Breaker** — slow, out-damages anything you can trade
+      with, and the whole answer is footwork. **Warden** — will not come to you, so the approach
+      is the fight. **Harrier** — gives ground between blows, so the opening arrives on its
+      schedule rather than yours. Nothing else in the game withdraws mid-melee; that rule is
+      what makes the third a behaviour rather than a fast Breaker.
+- [x] ~~A boss ends a deeper mine rather than a camp.~~ **Deliberately not built as written.**
 
-**Playable:** a run that ends on a fight worth the descent.
+**The wording contradicted a closed decision, and the decision won.** An exhaustible mine is the
+exact thing recorded play threw out — *press-your-luck cannot work in a level you can finish* —
+and a run that ends because the level did is four decisions and a wall. So the boss is a
+milestone: **every fifth room**, with the mine still endless underneath it. That inverts it from
+a terminus into a reason to press *on*, and makes the door after a boss the sharpest instance of
+the only question this game asks — you are standing on the fattest pot of the run, and the next
+room is ordinary again.
+
+**Playable:** a run that ends on a fight worth the descent — by choosing to camp on it.
+
+**Three things the build caught, all of which would have shipped silently:**
+
+- A boss room paying triple made room six pay less than room five, so banking became correct
+  after every boss. `PressingOnAlwaysPaysMoreThanTheRoomBefore` caught it. A boss now pays by
+  dropping stones into the pot, which leaves the prize curve alone and fattens the stake.
+- A boss standing alone can be fought from the doorway, which deletes the footwork that *is* the
+  Breaker. One archer stands with it, and that is why.
+- **`AtLevel` copies `EnemyArchetype` field by field and did not copy `Behaviour`.** Every boss
+  is spawned through it, so all three came back as `Behaviour.None` and fought identically. No
+  test failed, because they all call `EnemyCatalog.Find` directly where the level is one and
+  `AtLevel` returns the archetype untouched. `AtLevelPreservesEverythingItDoesNotScale` now
+  walks the properties by reflection, so the next field added cannot be dropped in silence.
+
+**Not yet judged.** Whether a milestone gives anybody a reason to keep going is a question about
+a player, and the same sentence closes 17 and 18.
 
 ---
 
@@ -399,28 +500,27 @@ One board. Work in progress limit: **one**.
 
 ### In progress
 
-- None. Gate green at `9f13305` plus two ported store-page fixes.
+- None. Iterations 17 through 20 are all built and none of them is judged; what every one of
+  them is waiting on is a player.
 
 ### Next — pick one
 
-- **Push a current build, and let a stranger play it.** The alpha is live at
-  `datathecodie.itch.io/ratna-bay`, but the uploaded build is `alpha-2026.08.25-1277591` —
-  which predates audio, maces, shields, bows and the whole stones system. Anyone downloading
-  today plays a materially worse game than the one in the repository. `.\release.ps1` is one
-  command and butler ships a patch of a few hundred KB.
-- **Iteration 17 — the ratchet.** Amulets that survive death, and levels that grant points
-  rather than numbers. The natural follow-on now that in-run variety exists: 16 made a single
-  run varied, 17 makes a *lost* run still worth something.
-- **Iteration 18 — cave themes.** Pulled forward in thinking once, then held: the sameness was
-  mechanical rather than visual, and its causes have since been fixed. Worth re-judging
-  against a fresh recording rather than the one that prompted it.
+- **A second playtest.** The first produced one downloader, who spent 119 minutes in the
+  entrance room because the first door said it was locked when it was not. That is fixed and
+  live as `alpha-2026.08.31-b7ee12c`; what is missing now is people. `ALPHA_CHECKLIST.md` §D
+  lists the channels, and r/IndianGaming is the highest-yield one still untried.
 
 ### Ready
 
-- Iteration 17 — the ratchet. Amulets, and levels that grant points rather than numbers.
-- Iteration 19 — the fort. Also where three parked features would come back.
-- Iteration 20 — bosses.
-- Iteration 21 — slice lock.
+- **Iteration 21 — slice lock.** Its done-when is three people playing several runs each, so it
+  cannot be finished by building.
+- **The fort is where three parked features would come back** — pickpocketing, lockpicking and
+  watchers all wanted somewhere with occupants and doors, and now there is one.
+
+**Checked 2026-09-01.** Iterations 17, 18 and the roster half of 19 were all sitting here as
+Ready while already built and tested. The board had drifted behind the code by three iterations,
+which is the same failure the modularisation plan had — a document confident about work nobody
+had re-read. Anything below should be checked against `src` before it is started.
 
 ### Known gaps, none blocking
 
@@ -433,7 +533,10 @@ One board. Work in progress limit: **one**.
 - **The store page has no cover or screenshots yet.** `build\RatnaBay.exe --cover` and
   `--screenshot` produce them; uploading them is a manual step in the itch page editor, which
   butler cannot do.
-- **Gold pacing is a guess.** Roughly 250 a run against a 450 sword, never measured.
+- **The page overstates run length by about three times.** It says five to ten minutes a run.
+  Measured across 21 fought runs in the recording corpus, the median is **1.8 minutes** and the
+  longest anybody has managed — nine rooms — is 5.8. Honest copy is two to six. Owner runs
+  only, so read it as a floor. Full table in `ALPHA_CHECKLIST.md` §A.
 - **Two cave themes, one fort room, and the preta rise** — the remaining trailer build list.
 
 ### Done this stretch

@@ -3,15 +3,21 @@
     One command that proves a Ratna Bay change is safe to commit.
 
 .DESCRIPTION
-    Runs the Release build, tool doctor, domain tests, content validation, and the
-    deterministic simulation. This is the check AGENTS.md asks for.
+    Runs the Release build, tool doctor, domain tests, content validation, the
+    deterministic simulation, and a scripted playthrough of the built client. This is the
+    check AGENTS.md asks for.
+
+    The playthrough is the only step that draws a frame, and so the only one that can catch a
+    rendering fault. It needs a display.
 
     Packaging (publish.ps1 and the packaged self-test) is opt-in with -Pack, because it
     needs a Windows machine and writes into .\build.
 
 .PARAMETER Pack
-    Also run publish.ps1 -SkipTests, then drive the packaged build through the smoke script.
-    That last step is the only gate that asserts on a running client, so it needs the exe.
+    Also package the build, run the packaged self-test, and drive the packaged executable
+    through the smoke script. With this, verify.ps1 is the whole gate -- rules, content,
+    simulation, three playthroughs and the artifact -- which is why release.ps1 runs it rather
+    than publish.ps1 on its own.
 
 .PARAMETER Configuration
     Build configuration. Release is the default, matching the publish gate.
@@ -30,6 +36,50 @@ function Assert-LastExitCode([string] $what) {
     if ($LASTEXITCODE -ne 0) { throw "$what failed with exit code $LASTEXITCODE" }
 }
 
+<#
+.SYNOPSIS
+    Run smoke.rbs through a client and fail if it does not pass.
+
+.DESCRIPTION
+    Start-Process -Wait, not `& $client`. The game is a WinExe, so PowerShell does not block
+    on it — calling it directly returns instantly and the exit-code check reads a stale value
+    from the previous command. That is not hypothetical: this step was first written with `&`
+    and reported a green playthrough while the client was crashing on its first drawn frame.
+
+    The build output is launched as `dotnet RatnaBay.dll` rather than through its apphost.
+    The apphost in bin\ is framework-dependent, and under Start-Process it fails to locate the
+    runtime — "Could not resolve CoreCLR path" — before any of our code runs. Going through
+    the muxer sidesteps host resolution. The packaged build is self-contained and needs none
+    of this, so it is launched directly.
+#>
+function Invoke-Script([string] $filePath, [string[]] $leadingArguments,
+    [string] $workingDirectory, [string] $what, [string] $script = 'smoke.rbs') {
+    $logPath = Join-Path $env:TEMP 'ratnabay-smoke.log'
+    $arguments = $leadingArguments + @(
+        '--yard', '--script', (Join-Path $root "Docs\scripts\$script"))
+
+    # Quoted, because Start-Process joins this array into one command line without quoting it
+    # and this repository lives under a path with a space in it. Unquoted, `dotnet` was handed
+    # "D:\Projects\Elder" as its command and answered that dotnet-D:\Projects\Elder does not
+    # exist -- which reads as a broken toolchain rather than a broken argument list.
+    $arguments = $arguments | ForEach-Object {
+        if ($_ -match '\s') { '"' + $_ + '"' } else { $_ }
+    }
+
+    $run = Start-Process -FilePath $filePath -ArgumentList $arguments `
+        -WorkingDirectory $workingDirectory -NoNewWindow -Wait -PassThru `
+        -RedirectStandardOutput $logPath
+
+    if (Test-Path $logPath) {
+        Get-Content $logPath | Select-Object -Last 12 | ForEach-Object { Write-Host "    $_" }
+        Remove-Item $logPath -Force
+    }
+
+    if ($run.ExitCode -ne 0) {
+        throw "smoke.rbs failed against $what (exit code $($run.ExitCode))."
+    }
+}
+
 Push-Location $root
 try {
     & (Join-Path $root 'build.ps1') -Configuration $Configuration
@@ -45,22 +95,65 @@ try {
     dotnet run --project 'tools\RatnaBay.Tools\RatnaBay.Tools.csproj' --configuration $Configuration --no-build -- sim
     Assert-LastExitCode 'RatnaBay.Tools sim'
 
+    # The only step above this line that draws anything is none of them.
+    #
+    # Everything else here checks rules, content and generated pixels -- and all of it stayed
+    # green through a null GraphicsDevice that crashed the game on the first frame it drew a
+    # weapon. The ten fort-portrait checks in the packaged self-test passed too, because they
+    # call PortraitForge.Render, which takes no device. A renderer is only exercised by running
+    # the client, so the gate has to run the client.
+    #
+    # Needs a display. There is no CI; this is run on a dev machine.
+    Write-Host ''
+    Write-Host '==> Driving a scripted playthrough' -ForegroundColor Cyan
+    $clientDir = Join-Path $root "src\RatnaBay.Game\bin\$Configuration\net9.0-windows\win-x64"
+    $clientDll = Join-Path $clientDir 'RatnaBay.dll'
+    if (-not (Test-Path $clientDll)) { throw "No client at $clientDll" }
+
+    Invoke-Script 'dotnet' @($clientDll) $clientDir 'the build output'
+
+    # And the same client again, walking instead of teleporting.
+    #
+    # smoke.rbs turns on noclip and god and `goto`es into the room, so it proves the room
+    # exists and is fightable. walk.rbs holds W through the real controller and presses E on
+    # the door, so it proves somebody can get there. The alpha's one outside player spent 110
+    # minutes failing to, and every check in this file was green throughout.
+    Write-Host ''
+    Write-Host '==> Walking it, rather than teleporting' -ForegroundColor Cyan
+    Invoke-Script 'dotnet' @($clientDll) $clientDir 'the build output, walking' 'walk.rbs'
+
     if ($Pack) {
         Write-Host ''
         Write-Host '==> Packaging' -ForegroundColor Cyan
+        # -SkipTests only: the domain tests and the simulation have already run above, but the
+        # packaged self-test has not, and it is the only check that runs the real executable
+        # out of the real folder. That flag used to skip both, so this -- the one gate with a
+        # playthrough in it -- was also the one that skipped the 219 checks on the artifact.
         & (Join-Path $root 'publish.ps1') -Configuration $Configuration -SkipTests
         Assert-LastExitCode 'publish.ps1'
 
-        # The only gate that asserts on a running client. Everything above this proves the
-        # rules; this proves the yard has a floor, the shaft is a hole you can see down, and a
-        # descent still fills a room -- none of which a domain test can see.
+        # The same script again, against the packaged build rather than the build output.
+        # Not redundant: the run above proves the code draws, this proves the artifact people
+        # actually download does. Single-file publish has swallowed the bundled fonts once
+        # before, and only a packaged run can see that.
         Write-Host ''
         Write-Host '==> Driving the build through the smoke script' -ForegroundColor Cyan
         $exe = Join-Path $root 'build\RatnaBay.exe'
         if (-not (Test-Path $exe)) { throw "No packaged build at $exe" }
 
-        & $exe --script (Join-Path $root 'Docs\scripts\smoke.rbs')
-        Assert-LastExitCode 'smoke.rbs'
+        Invoke-Script $exe @() (Join-Path $root 'build') 'the packaged build'
+
+        # The scripts take screenshots, `shot` writes relative to the working directory, and
+        # the working directory has to be the build folder for the packaged run to be the real
+        # thing. So gating the artifact leaves 4.5 MB of PNGs inside the artifact.
+        #
+        # This never showed up while the packaged step was invoked with `& $exe`, because that
+        # returned before the game had drawn anything. Fixing the launch is what surfaced it.
+        $shots = Join-Path $root 'build\captures'
+        if (Test-Path $shots) {
+            Remove-Item $shots -Recurse -Force
+            Write-Host '    (removed the screenshots the smoke script left in the build)'
+        }
     }
 
     Write-Host ''
