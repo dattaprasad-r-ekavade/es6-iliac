@@ -28,7 +28,12 @@ public static class ItemSprites
 
     public static void Clear()
     {
-        foreach (var texture in Cache.Values) texture.Dispose();
+        // Painted sprites belong to SpriteOverrides; disposing one here would leave the other
+        // holder with a dead texture.
+        foreach (var pair in Cache)
+            if (!SpriteOverrides.TryGet(pair.Key, out _))
+                pair.Value.Dispose();
+
         Cache.Clear();
     }
 
@@ -93,6 +98,13 @@ public static class ItemSprites
     private static Texture2D Get(GraphicsDevice device, string key, int size, Action<SpriteForge> build)
     {
         if (Cache.TryGetValue(key, out var cached)) return cached;
+
+        // A painted sprite for this key wins, and the forge is never run. See SpriteOverrides.
+        if (SpriteOverrides.TryGet(key, out var painted))
+        {
+            Cache[key] = painted;
+            return painted;
+        }
 
         var forge = new SpriteForge(size, size);
         build(forge);

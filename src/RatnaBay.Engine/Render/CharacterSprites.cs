@@ -89,6 +89,14 @@ public static class CharacterSprites
     {
         if (Cache.TryGetValue(key, out var cached)) return cached;
 
+        // A painted sprite for this key wins, and is cached like any other so the lookup
+        // happens once rather than per draw. See SpriteOverrides.
+        if (SpriteOverrides.TryGet(key, out var painted))
+        {
+            Cache[key] = painted;
+            return painted;
+        }
+
         var texture = Build(device, palette);
         Cache[key] = texture;
         return texture;
@@ -96,7 +104,12 @@ public static class CharacterSprites
 
     public static void Clear()
     {
-        foreach (var texture in Cache.Values) texture.Dispose();
+        // Anything painted is owned by SpriteOverrides and disposed there. Disposing it here
+        // as well would hand the next load a dead texture, which draws as solid black.
+        foreach (var pair in Cache)
+            if (!SpriteOverrides.TryGet(pair.Key, out _))
+                pair.Value.Dispose();
+
         Cache.Clear();
     }
 

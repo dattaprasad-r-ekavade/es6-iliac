@@ -15,6 +15,9 @@ internal sealed class LaunchOptions
 {
     public GameScreen Screen { get; init; } = GameScreen.MainMenu;
     public string? FacesPath { get; init; }
+
+    /// <summary>--sprites: write every forged sprite to this folder and quit. See SpriteSheetWriter.</summary>
+    public string? SpritesPath { get; init; }
     public string? FaceOnly { get; init; }
     public int FaceSheetScale { get; init; } = 2;
     public bool ForceCrouch { get; init; }
@@ -112,6 +115,7 @@ internal sealed class LaunchOptions
         {
             Screen = screen,
             FacesPath = option(args, "--faces"),
+            SpritesPath = option(args, "--sprites"),
             FaceOnly = option(args, "--face"),
             FaceSheetScale = faceScale,
             ForceCrouch = flag(args, "--sneak"),

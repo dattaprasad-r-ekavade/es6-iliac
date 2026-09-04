@@ -526,10 +526,73 @@ static int RunValidate(string root, string[] arguments)
             + $"{manifest.Pickups.Count} pickups)");
     }
 
+    failures += ValidatePaintedSprites(root);
+
     Console.WriteLine(failures == 0
         ? "World, dialogue, quest, shop and pickup content is valid."
         : $"{failures} content manifest(s) failed validation.");
     return failures == 0 ? 0 : 1;
+}
+
+/// <summary>
+/// Check the painted sprites are readable PNGs of a sane size.
+///
+/// A sprite override is a file whose only contract is its name, so the ways it can be wrong
+/// are all quiet ones: a JPEG renamed .png, a half-written file, a canvas somebody resized to
+/// 512 that will draw as a billboard four times too large. None of those fail a build, and the
+/// first two do not even fail a launch -- they fail one draw, in one room, once somebody walks
+/// into it.
+///
+/// Header-only on purpose: no image library, no graphics device, and it runs in the same gate
+/// as the manifests rather than needing the game.
+/// </summary>
+static int ValidatePaintedSprites(string root)
+{
+    var directory = Path.Combine(root, "src", "RatnaBay.Game", "Content", "Art", "Sprites");
+    if (!Directory.Exists(directory)) return 0;
+
+    var files = Directory.GetFiles(directory, "*.png");
+    if (files.Length == 0) return 0;
+
+    var failures = 0;
+    foreach (var file in files.OrderBy(name => name, StringComparer.Ordinal))
+    {
+        var name = Path.GetFileName(file);
+        var header = new byte[24];
+
+        using (var stream = File.OpenRead(file))
+        {
+            if (stream.Read(header, 0, header.Length) < header.Length)
+            {
+                Console.WriteLine($"[FAIL] painted sprite {name}: too small to be a PNG");
+                failures++;
+                continue;
+            }
+        }
+
+        // The eight-byte PNG signature, then IHDR's width and height as big-endian ints.
+        var signature = new byte[] { 0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A };
+        if (!header.Take(8).SequenceEqual(signature))
+        {
+            Console.WriteLine($"[FAIL] painted sprite {name}: not a PNG");
+            failures++;
+            continue;
+        }
+
+        var width = (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
+        var height = (header[20] << 24) | (header[21] << 16) | (header[22] << 8) | header[23];
+
+        if (width is < 1 or > 512 || height is < 1 or > 512)
+        {
+            Console.WriteLine($"[FAIL] painted sprite {name}: {width}x{height} is outside 1..512");
+            failures++;
+            continue;
+        }
+
+        Console.WriteLine($"[OK] painted sprite {name} ({width}x{height})");
+    }
+
+    return failures;
 }
 
 static int PrintHelp()

@@ -99,7 +99,11 @@ internal sealed class FigurePresenter
 
         foreach (var occupant in sorted)
         {
-            var texture = CharacterSprites.Get(device, $"fort.{occupant.Room.Id}",
+            // The room id is already fort.gate, fort.forge and so on, so it is the key as it
+            // stands. Prefixing it again keyed every one of these fort.fort.gate -- invisible
+            // while the keys were only a cache, and a stutter in the file name the moment a
+            // painted sprite is named after one.
+            var texture = CharacterSprites.Get(device, occupant.Room.Id,
                 PaletteFor(occupant.Room.Id));
             billboards.Draw(texture, FortRuntime.Feet(occupant), 1.8f, camera.Yaw, Color.White);
         }

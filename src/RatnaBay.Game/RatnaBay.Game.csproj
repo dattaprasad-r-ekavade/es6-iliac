@@ -61,6 +61,13 @@
     <None Include="Content\Dialogue\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Quests\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Shops\*.json" CopyToOutputDirectory="PreserveNewest" />
+
+    <!--
+      Painted sprites, if there are any. A wildcard rather than a list: adding one is dropping
+      a PNG in the folder, and having to edit the project file to make it take effect is the
+      difference between an artist trying six versions and an artist trying one.
+    -->
+    <None Include="Content\Art\Sprites\*.png" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\Cinzel\Cinzel-wght.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\Cinzel\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\Cinzel\DESCRIPTION.en_us.html" CopyToOutputDirectory="PreserveNewest" />

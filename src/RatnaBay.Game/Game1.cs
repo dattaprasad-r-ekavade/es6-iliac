@@ -229,6 +229,9 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <summary>Set by --faces: write the portrait contact sheet and quit without a frame.</summary>
     private string? _facesPath;
 
+    /// <summary>Set by --sprites: write every forged sprite and quit without a frame.</summary>
+    private string? _spritesPath;
+
     /// <summary>--face-scale: how far to blow the sheet up. Four is where a brow is arguable.</summary>
     private int _faceSheetScale = 2;
 
@@ -452,6 +455,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         var launch = LaunchOptions.Parse(args, _capture.CoverMode, ParseOption, HasArgument);
         _screen = launch.Screen;
         _facesPath = launch.FacesPath;
+        _spritesPath = launch.SpritesPath;
         _faceOnly = launch.FaceOnly;
         _faceSheetScale = launch.FaceSheetScale;
         _forceCrouch = launch.ForceCrouch;
@@ -542,11 +546,19 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
     protected override void LoadContent()
     {
-        // Before anything else loads: this needs a graphics device and nothing more, and the
-        // point of it is to be runnable on a machine where the rest of the game will not start.
+        // Before anything else loads: these need a graphics device and nothing more, and the
+        // point of them is to be runnable on a machine where the rest of the game will not
+        // start.
         if (_facesPath is not null)
         {
             FaceSheet.Write(GraphicsDevice, _facesPath, _faceOnly, _faceSheetScale);
+            Exit();
+            return;
+        }
+
+        if (_spritesPath is not null)
+        {
+            SpriteSheetWriter.Write(GraphicsDevice, _spritesPath);
             Exit();
             return;
         }
@@ -561,6 +573,14 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             Path.Combine(fontsDirectory, "NotoSans", "NotoSans-wght.ttf"),
             Path.Combine(fontsDirectory, "Cinzel", "Cinzel-wght.ttf"));
         _screens = new UiScreens(_ui, GraphicsDevice);
+
+        // Painted sprites, if anybody has painted any. Loaded before the first draw, because
+        // the forge caches whatever it is asked for first and an override arriving later would
+        // be ignored for the rest of the run.
+        SpriteOverrides.LoadFrom(
+            GraphicsDevice,
+            Path.Combine(AppContext.BaseDirectory, "Content", "Art", "Sprites"),
+            _assetErrors);
 
         // Devanagari for the carved verses. Absent, the pillar simply stands blank.
         StambhaCarving.Load(fontsDirectory);
@@ -597,7 +617,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // --faces returns out of LoadContent before any of this exists, so there is nothing
         // here to release and every line below would throw on a null.
         DisposeHost();
-        if (_facesPath is not null) return;
+        if (_facesPath is not null || _spritesPath is not null) return;
 
         LitEffect.Dispose();
         Billboards.Dispose();
@@ -605,6 +625,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         PropTextures.Clear();
         ItemSprites.Clear();
         PortraitForge.Clear();
+        SpriteOverrides.Clear();
         // A sitting that ends by closing the window is still a sitting worth reading back --
         // and, now, worth sending. Flushed first so the file on disk is the whole sitting, then
         // offered to the uploader with no in-progress file to skip, because there no longer is
