@@ -1,6 +1,8 @@
 using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace RatnaBay.Client.Ui;
 
@@ -15,7 +17,21 @@ internal sealed class JournalRenderer
 
     public void Draw(PlayerCharacter player)
     {
-        var quests = player.Quests.Quests;
+        // Only work the player has actually taken on.
+        //
+        // The panel listed every quest the manifest defines, accepted or not, so the journal's
+        // one entry was "Northwatch — Not accepted": a job from the story slice this game was
+        // built out of, offered by somebody who is not in the yard, for a place there is no
+        // longer any way to reach. A journal that lists work you cannot start is worse than an
+        // empty one -- an empty journal says there is nothing to do, and that one said there
+        // is something to do and you cannot find it.
+        //
+        // Filtered here rather than dropped from the manifest: the quest still runs, the
+        // dialogue still offers it, and both are still covered by the gate. If it is ever
+        // reachable again it appears the moment somebody accepts it, with no code change.
+        var quests = player.Quests.Quests
+            .Where(quest => quest.IsActive || quest.IsCompleted)
+            .ToList();
 
         // Sized to what is in it, the way the pause screen is.
         //
@@ -35,19 +51,19 @@ internal sealed class JournalRenderer
 
         if (quests.Count == 0)
         {
-            _ui.Text("No quests have been recorded.", new Vector2(panel.X + 30, panel.Y + 112), 17,
-                UiTheme.Prompt);
+            // The ordinary case now, not an edge one, so it says what the panel is for rather
+            // than only that it is empty.
+            _ui.Text("Nothing taken on. Work you accept is kept here.",
+                new Vector2(panel.X + 30, panel.Y + 112), 17, UiTheme.Prompt);
         }
         else
         {
             var y = panel.Y + 108;
             foreach (var quest in quests)
             {
-                var colour = quest.IsCompleted ? new Color(143, 180, 142)
-                    : quest.IsActive ? Color.White : UiTheme.Faint;
+                var colour = quest.IsCompleted ? new Color(143, 180, 142) : Color.White;
                 _ui.TextFit(quest.Title, new Vector2(panel.X + 30, y), 440f, 19, colour);
-                var state = quest.IsCompleted ? "COMPLETE"
-                    : quest.IsActive ? quest.StageText : "Not accepted";
+                var state = quest.IsCompleted ? "COMPLETE" : quest.StageText;
                 _ui.TextFit(state, new Vector2(panel.X + 54, y + 30), 760f, 15,
                     quest.IsCompleted ? new Color(143, 180, 142) : UiTheme.Body);
                 y += 76;

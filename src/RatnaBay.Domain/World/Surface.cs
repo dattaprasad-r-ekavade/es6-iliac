@@ -156,14 +156,37 @@ public static class Surface
         // needs sides going down and a floor a long way below them before it reads as
         // somewhere you could be lowered into.
         const float shaftFloor = -9f;
-        var lining = new WorldColor(62, 58, 54);
 
-        // NOTE: this still reads far too bright for nine metres underground. Darkening it
-        // needs a change to the cave shader, not to this file -- see WorldMaterials.
-        Box(manifest, "surface.shaft.line.n", -2.1f, shaftFloor, -11.1f, 2.1f, FloorTop, -10.8f, lining);
-        Box(manifest, "surface.shaft.line.s", -2.1f, shaftFloor, -7.2f, 2.1f, FloorTop, -6.9f, lining);
-        Box(manifest, "surface.shaft.line.w", -2.1f, shaftFloor, -10.8f, -1.8f, FloorTop, -7.2f, lining);
-        Box(manifest, "surface.shaft.line.e", 1.8f, shaftFloor, -10.8f, 2.1f, FloorTop, -7.2f, lining);
+        // Three bands down each wall, each darker than the one above it.
+        //
+        // Daylight reaches a metre or two into a shaft and no further, and this renderer has
+        // no shadows to say so: the key light and the yard's lanterns fall on the bottom of
+        // the hole exactly as hard as they fall on the ground beside it. Painting the fall-off
+        // in is what makes nine metres read as nine metres rather than as a lined crate.
+        //
+        // Shadowed rather than Stone, or none of this arrives: ordinary stone has its colour
+        // pulled toward white, which is what turned the old single dark lining into pale
+        // blockwork. See WorldMaterials.Shadowed.
+        var bands = new[]
+        {
+            (Top: FloorTop, Bottom: FloorTop - 2.6f, Colour: new WorldColor(74, 70, 64)),
+            (Top: FloorTop - 2.6f, Bottom: FloorTop - 5.4f, Colour: new WorldColor(42, 40, 38)),
+            (Top: FloorTop - 5.4f, Bottom: shaftFloor, Colour: new WorldColor(23, 22, 22))
+        };
+
+        for (var band = 0; band < bands.Length; band++)
+        {
+            var (top, bottom, colour) = bands[band];
+
+            Box(manifest, $"surface.shaft.line.n.{band}", -2.1f, bottom, -11.1f, 2.1f, top, -10.8f,
+                colour, WorldMaterials.Shadowed);
+            Box(manifest, $"surface.shaft.line.s.{band}", -2.1f, bottom, -7.2f, 2.1f, top, -6.9f,
+                colour, WorldMaterials.Shadowed);
+            Box(manifest, $"surface.shaft.line.w.{band}", -2.1f, bottom, -10.8f, -1.8f, top, -7.2f,
+                colour, WorldMaterials.Shadowed);
+            Box(manifest, $"surface.shaft.line.e.{band}", 1.8f, bottom, -10.8f, 2.1f, top, -7.2f,
+                colour, WorldMaterials.Shadowed);
+        }
 
         // The dark at the bottom, far enough down that the sides do the work.
         Box(manifest, "surface.shaft.dark", -1.8f, shaftFloor - 0.4f, -10.8f, 1.8f, shaftFloor,

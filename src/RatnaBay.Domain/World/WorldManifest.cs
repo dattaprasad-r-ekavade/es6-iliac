@@ -268,17 +268,21 @@ public static class WorldMaterials
     public const string Rope = "rope";
 
 
-    // There is deliberately no "unlit" here yet.
-    //
-    // The inside of the shaft is lit like the yard it is a hole in, nine metres down, and an
-    // unlit material was the obvious fix. It was built, and it changed the mean brightness of
-    // the frame from 82.8 to 83.1 -- which is to say nothing at all. The cause is that the
-    // cave shader ignores DiffuseColour for world geometry: a wall tinted magenta renders
-    // brown. Every surface is its texture times its light, and the authored colour has not
-    // reached the glass since the shader replaced BasicEffect.
-    //
-    // So darkening a surface is a shader change, not a manifest one, and a switch that
-    // reports success while changing nothing is worse than no switch at all.
+    /// <summary>
+    /// Stone that keeps the colour it was authored with, however dark that is.
+    ///
+    /// Ordinary stone has its colour pulled toward white so the tint modulates the texture
+    /// instead of drowning it — which is right for a room and wrong for a hole. The inside of
+    /// the shaft is nine metres underground and was lit exactly like the yard it is a hole in,
+    /// because the darkness it was painted with never survived that pull.
+    ///
+    /// The note that used to stand here said this needed a shader change, and blamed the cave
+    /// shader for ignoring DiffuseColour. It does not ignore it. The colour was being thrown
+    /// away one layer earlier, in the renderer, which painted every non-stone material white.
+    /// A wrong diagnosis in a comment outlives the bug it describes, so: the shader was never
+    /// the problem.
+    /// </summary>
+    public const string Shadowed = "shadowed";
 }
 
 public sealed class WorldProp

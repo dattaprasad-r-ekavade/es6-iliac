@@ -166,9 +166,28 @@ public sealed class SceneRenderer
                 : StoneTextures.Wall(_device, _stone)
         };
 
-        // Planks and weave carry their own colour, so tinting them by the authored colour
-        // would put the sandstone back over the thing that just stopped being it.
-        var painted = material is "stone" or null or "" ? TintFor(color) : Color.White;
+        var painted = material switch
+        {
+            // Stone takes the authored colour pulled toward white, so it modulates the
+            // texture rather than drowning it.
+            "stone" or null or "" => TintFor(color),
+
+            // Shadowed is stone with that pull taken off: the authored colour multiplies the
+            // texture as it stands. It is the only way a surface here can end up darker than
+            // the light falling on it, and it is what the inside of a hole needs.
+            //
+            // This is the missing half of a fix that was tried once and abandoned. An "unlit"
+            // material was added, changed the frame's mean brightness from 82.8 to 83.1, and
+            // was written off as the shader ignoring DiffuseColour. The shader does not ignore
+            // it -- CaveLighting.fx ends in surface.rgb * DiffuseColour * light. The line
+            // below is what threw the colour away: every material that was not stone was
+            // painted white before it ever reached the glass.
+            "shadowed" => color,
+
+            // Planks and weave carry their own colour, so tinting them by the authored colour
+            // would put the sandstone back over the thing that just stopped being it.
+            _ => Color.White
+        };
 
         // A rope is a few centimetres across and a couple of metres long. At the stone tiling
         // its whole length is a fraction of one texture repeat, which is what drew plank grain

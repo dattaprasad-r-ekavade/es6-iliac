@@ -63,9 +63,46 @@ public sealed class SurfaceYardTests
         var yard = Yard();
         var lining = yard.Geometry.Where(g => g.Id.StartsWith("surface.shaft.line.")).ToArray();
 
-        Assert.That(lining, Has.Length.EqualTo(4), "a shaft needs four sides");
+        Assert.That(lining.Select(g => g.Id.Split('.')[3]).Distinct().Count(), Is.EqualTo(4),
+            "a shaft needs four sides");
         Assert.That(lining.Min(g => g.Min.Y), Is.LessThan(-6f),
             "and they have to go far enough down to read as depth rather than as a dark tile");
+    }
+
+    /// <summary>
+    /// Depth is painted, because nothing else here can paint it.
+    ///
+    /// There are no shadows: the key light and the yard's lanterns reach the bottom of the
+    /// hole exactly as hard as they reach the ground beside it, so the fall-off has to be in
+    /// the authored colours. And it only survives to the screen on the Shadowed material --
+    /// ordinary stone has its colour pulled toward white, which is what left nine metres of
+    /// shaft looking like a lined crate.
+    /// </summary>
+    [Test]
+    public void TheShaftGetsDarkerTheDeeperItGoes()
+    {
+        var lining = Yard().Geometry
+            .Where(g => g.Id.StartsWith("surface.shaft.line."))
+            .ToArray();
+
+        Assert.That(lining.Select(g => g.Material).Distinct(),
+            Is.EquivalentTo(new[] { WorldMaterials.Shadowed }),
+            "stone would pull these colours back toward white");
+
+        var byDepth = lining
+            .GroupBy(g => g.Min.Y)
+            .OrderByDescending(band => band.Key)
+            .Select(band => band.First().Color.R)
+            .ToArray();
+
+        Assert.That(byDepth.Length, Is.GreaterThanOrEqualTo(3),
+            "one colour top to bottom reads as a box, not as a hole");
+
+        for (var band = 1; band < byDepth.Length; band++)
+        {
+            Assert.That(byDepth[band], Is.LessThan(byDepth[band - 1]),
+                $"band {band} is not darker than the one above it");
+        }
     }
 
     /// <summary>
