@@ -232,6 +232,12 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
     /// <summary>Set by --sprites: write every forged sprite and quit without a frame.</summary>
     private string? _spritesPath;
 
+    /// <summary>Set by --pixel-font: draw the interface in the 8x8 sprite face.</summary>
+    private bool _pixelFont;
+
+    /// <summary>The sprite face, baked once, or null on the .ttf path.</summary>
+    private SpriteType? _spriteType;
+
     /// <summary>--face-scale: how far to blow the sheet up. Four is where a brow is arguable.</summary>
     private int _faceSheetScale = 2;
 
@@ -456,6 +462,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _screen = launch.Screen;
         _facesPath = launch.FacesPath;
         _spritesPath = launch.SpritesPath;
+        _pixelFont = launch.PixelFont;
         _faceOnly = launch.FaceOnly;
         _faceSheetScale = launch.FaceSheetScale;
         _forceCrouch = launch.ForceCrouch;
@@ -591,6 +598,15 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // Billboards, the lit effect and both audio banks. None of them know what game this
         // is, so the engine owns them; this method is left with the models below, which is
         // the only part of loading that is actually about Ratna Bay.
+        // The pixel face, when it was asked for. Baked after the canvas has its batch, and
+        // attached before a single panel is drawn, because a face swapped mid-frame would show
+        // as one screen in two typefaces.
+        if (_pixelFont)
+        {
+            _spriteType = SpriteType.Bake(GraphicsDevice);
+            _ui.AttachPixelType(_spriteType);
+        }
+
         AttachScene(_assetErrors);
 
         _modelCache.Load(Content, "bridge", "Feasibility/Models/Kenney/bridge_wood");
@@ -626,6 +642,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         ItemSprites.Clear();
         PortraitForge.Clear();
         SpriteOverrides.Clear();
+        _spriteType?.Dispose();
         // A sitting that ends by closing the window is still a sitting worth reading back --
         // and, now, worth sending. Flushed first so the file on disk is the whole sitting, then
         // offered to the uploader with no in-progress file to skip, because there no longer is

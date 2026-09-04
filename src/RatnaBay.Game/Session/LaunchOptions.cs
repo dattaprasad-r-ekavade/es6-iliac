@@ -18,6 +18,9 @@ internal sealed class LaunchOptions
 
     /// <summary>--sprites: write every forged sprite to this folder and quit. See SpriteSheetWriter.</summary>
     public string? SpritesPath { get; init; }
+
+    /// <summary>--pixel-font: draw the interface in the 8x8 sprite face instead of the .ttf.</summary>
+    public bool PixelFont { get; init; }
     public string? FaceOnly { get; init; }
     public int FaceSheetScale { get; init; } = 2;
     public bool ForceCrouch { get; init; }
@@ -116,6 +119,7 @@ internal sealed class LaunchOptions
             Screen = screen,
             FacesPath = option(args, "--faces"),
             SpritesPath = option(args, "--sprites"),
+            PixelFont = flag(args, "--pixel-font"),
             FaceOnly = option(args, "--face"),
             FaceSheetScale = faceScale,
             ForceCrouch = flag(args, "--sneak"),

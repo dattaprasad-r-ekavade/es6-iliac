@@ -130,8 +130,24 @@ public sealed class UiCanvas
         return new Vector2((deviceX - offsetX) / Scale, (deviceY - offsetY) / Scale);
     }
 
+    /// <summary>
+    /// The pixel face, when the game has asked for one. Null means the FontStash path.
+    ///
+    /// Held as an alternative rather than a replacement so both can be seen in the same build:
+    /// a typeface is a decision to make by looking, not by reading a diff.
+    /// </summary>
+    private SpriteType? _type;
+
+    /// <summary>Draw all text as 8×8 sprite glyphs from here on. Null restores the .ttf path.</summary>
+    public void AttachPixelType(SpriteType? type) => _type = type;
+
+    public bool UsingPixelType => _type is not null;
+
+    // Point sampling for the pixel face, and only for it. Linear filtering on an 8×8 glyph
+    // scaled by three is a grey smear of the thing it is meant to be.
     public void Begin() => _batch.Begin(
-        SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp,
+        SpriteSortMode.Deferred, BlendState.AlphaBlend,
+        _type is null ? SamplerState.LinearClamp : SamplerState.PointClamp,
         DepthStencilState.None, RasterizerState.CullNone, null, _transform);
 
     public void End() => _batch.End();
@@ -177,12 +193,36 @@ public sealed class UiCanvas
 
     public void Text(string value, Vector2 position, float scale, Color color)
     {
+        if (_type is { } type)
+        {
+            type.Draw(_batch, value, position, PixelScaleFor(scale), color);
+            return;
+        }
+
         var (font, drawScale) = SelectFont(scale);
         DrawString(font, value, position, drawScale, color);
     }
 
+    /// <summary>
+    /// Which integer multiple of the 8×8 cell a requested point size lands on.
+    ///
+    /// Headings and body text are told apart by the same threshold the .ttf path uses, so
+    /// switching faces does not also reshuffle the hierarchy of the screen.
+    /// </summary>
+    private static int PixelScaleFor(float scale) => scale >= 28f ? 3 : scale >= 17f ? 2 : 1;
+
     public void TextFit(string value, Vector2 position, float maxWidth, float scale, Color color)
     {
+        if (_type is { } type)
+        {
+            // A pixel face cannot be squeezed to fit -- that is the whole of its contract --
+            // so the only honest fit is to step down a whole cell, and then to let it run.
+            var pixel = PixelScaleFor(scale);
+            while (pixel > 1 && type.Measure(value, pixel) > maxWidth) pixel--;
+            type.Draw(_batch, value, position, pixel, color);
+            return;
+        }
+
         var (font, drawScale) = SelectFont(scale);
         var measuredWidth = font.MeasureString(value).X * drawScale;
         if (measuredWidth > maxWidth && measuredWidth > 0f)
@@ -193,6 +233,14 @@ public sealed class UiCanvas
 
     public void TextCentred(string value, float centreX, float y, float scale, Color color)
     {
+        if (_type is { } type)
+        {
+            var pixel = PixelScaleFor(scale);
+            type.Draw(_batch, value,
+                new Vector2(centreX - type.Measure(value, pixel) * 0.5f, y), pixel, color);
+            return;
+        }
+
         var (font, drawScale) = SelectFont(scale);
         var width = font.MeasureString(value).X * drawScale;
         DrawString(font, value, new Vector2(centreX - width * 0.5f, y), drawScale, color);
@@ -200,6 +248,14 @@ public sealed class UiCanvas
 
     public void TextRight(string value, float right, float y, float scale, Color color)
     {
+        if (_type is { } type)
+        {
+            var pixel = PixelScaleFor(scale);
+            type.Draw(_batch, value,
+                new Vector2(right - type.Measure(value, pixel), y), pixel, color);
+            return;
+        }
+
         var (font, drawScale) = SelectFont(scale);
         var width = font.MeasureString(value).X * drawScale;
         DrawString(font, value, new Vector2(right - width, y), drawScale, color);
@@ -210,8 +266,13 @@ public sealed class UiCanvas
     {
         if (string.IsNullOrWhiteSpace(value)) return 0f;
 
-        var (font, drawScale) = SelectFont(scale);
-        var lineHeight = scale * 1.34f;
+        // Measured and drawn through this type's own Text/MeasureText rather than through a
+        // font directly, so the wrap is computed against whichever face is in force. Written
+        // against FontStash, it wrapped .ttf metrics around pixel glyphs and every line came
+        // out short.
+        var lineHeight = _type is null
+            ? scale * 1.34f
+            : SpriteType.LineHeight(PixelScaleFor(scale));
         var words = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         var line = string.Empty;
@@ -221,7 +282,7 @@ public sealed class UiCanvas
         foreach (var word in words)
         {
             var candidate = line.Length == 0 ? word : $"{line} {word}";
-            if (font.MeasureString(candidate).X * drawScale <= maxWidth)
+            if (MeasureText(candidate, scale) <= maxWidth)
             {
                 line = candidate;
                 continue;
@@ -229,7 +290,7 @@ public sealed class UiCanvas
 
             if (line.Length > 0)
             {
-                DrawString(font, line, new Vector2(position.X, y), drawScale, color);
+                Text(line, new Vector2(position.X, y), scale, color);
                 y += lineHeight;
                 if (++lines >= maxLines) return y - position.Y;
             }
@@ -239,7 +300,7 @@ public sealed class UiCanvas
 
         if (line.Length > 0)
         {
-            DrawString(font, line, new Vector2(position.X, y), drawScale, color);
+            Text(line, new Vector2(position.X, y), scale, color);
             y += lineHeight;
         }
 
@@ -250,6 +311,15 @@ public sealed class UiCanvas
     public void TextFitCentred(string value, float centreX, float y, float maxWidth, float scale,
         Color color)
     {
+        if (_type is { } type)
+        {
+            var pixel = PixelScaleFor(scale);
+            while (pixel > 1 && type.Measure(value, pixel) > maxWidth) pixel--;
+            type.Draw(_batch, value,
+                new Vector2(centreX - type.Measure(value, pixel) * 0.5f, y), pixel, color);
+            return;
+        }
+
         var (font, drawScale) = SelectFont(scale);
         var measured = font.MeasureString(value).X * drawScale;
         if (measured > maxWidth && measured > 0f) drawScale *= maxWidth / measured;
@@ -261,6 +331,8 @@ public sealed class UiCanvas
     /// <summary>How wide a string will be, for anything that has to lay out around it.</summary>
     public float MeasureText(string value, float scale)
     {
+        if (_type is { } type) return type.Measure(value, PixelScaleFor(scale));
+
         var (font, drawScale) = SelectFont(scale);
         return font.MeasureString(value).X * drawScale;
     }
