@@ -82,6 +82,24 @@ public sealed class PlayRecorder
         return new PlayRecorder(System.IO.Path.Combine(Directory, name));
     }
 
+    /// <summary>
+    /// Stop recording entirely, for a run nobody is playing.
+    ///
+    /// A scripted gate run and a capture are tests. Their recordings are noise in the corpus
+    /// the playtest exists to produce, and the corpus is what every claim about how this game
+    /// plays is measured from -- 82 of the 180 recordings uploaded on 6 September were gate
+    /// runs, median three events, and not one of them was a sitting.
+    ///
+    /// **Not recording at all, rather than not uploading.** Suppressing only the upload was
+    /// tried first and did not work: the file still landed in the queue, and the next launch
+    /// that was not itself a script sent the whole backlog. There is nothing to send if there
+    /// is nothing on disk.
+    /// </summary>
+    public void Disable() => _broken = true;
+
+    /// <summary>False when this run is not being recorded at all. See <see cref="Disable"/>.</summary>
+    public bool Enabled => !_broken;
+
     public void Record(string kind, string detail = "", float value = 0f, float extra = 0f,
         float health = 0f, float prana = 0f, string target = "", float distance = 0f)
     {

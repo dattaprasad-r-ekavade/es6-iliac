@@ -473,6 +473,13 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         _consoleScript = launch.ConsoleScript;
         _scriptMissing = launch.ScriptMissing;
         _scripted = launch.Scripted;
+
+        // Nobody is playing a script, a capture or a tool mode, so nothing about them belongs
+        // in the corpus. Switched off here rather than filtered later, because a recording that
+        // exists on disk is a recording something eventually uploads.
+        if (_scripted || _capture.IsCapturing || launch.FacesPath is not null
+            || launch.SpritesPath is not null)
+            _recorder.Disable();
         _startOnTheSurface = launch.StartOnTheSurface;
         _moodboard = launch.Moodboard;
         _assetCase = launch.AssetCase;
@@ -514,17 +521,26 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // a few frames and exits, nobody is playing, and there is no session to consent to
         // sending. Nothing is uploaded either way, because SendPending is not reached.
         // --cover already funnels into CaptureHost.OutputPath, so this covers both.
-        var capturing = _capture.IsCapturing;
+        // Tool modes count as captures here too. They return out of LoadContent before a frame
+        // is drawn -- but Initialize runs first, so --faces and --sprites reached the upload
+        // below and flushed the queue. Thirty --faces invocations in one afternoon is how a
+        // day of gate runs reached the server on 6 September, after the scripted-run guard was
+        // supposed to have stopped exactly that.
+        var capturing = _capture.IsCapturing
+            || _facesPath is not null || _spritesPath is not null;
 
         _askingConsent = !capturing
             && !_consent.Asked
             && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
 
-        // A script and a capture are both tests, and neither is a sitting anybody played.
-        // Their recordings are noise in the corpus the playtest exists to produce: the sixty
-        // most recent recordings on the server are already mostly gate runs, median seven
-        // events each, none of them a complete run. verify.ps1 launches the client twice, so
-        // this was two junk uploads per build.
+        // A script, a capture and a tool mode are all tests, and none of them is a sitting
+        // anybody played. Their recordings are noise in the corpus every claim about how this
+        // game plays is measured from: of the 180 recordings that reached the server by
+        // 6 September, 82 were gate runs from a single afternoon -- median three events,
+        // 42 runs started, 13 doors reached, not one purchase or camp between them.
+        //
+        // Suppressing the upload is the second guard, not the first. The recorder is switched
+        // off for these runs in the constructor, so there is nothing on disk to send.
         if (!_askingConsent && !capturing && !_scripted) _uploader.SendPending(_recorder.FilePath);
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
