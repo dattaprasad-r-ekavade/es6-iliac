@@ -12,6 +12,7 @@ renders, samples input, and loads content. Read this file before changing code.
 | `src/RatnaBay.Game/` | This game: screens that know mines, session, world presenters, HUD. References Domain and Engine. |
 | `src/RatnaBay.Game/Ui/` | This game's 2D screens and HUD. Shared canvas, theme and layout live in `RatnaBay.Engine`. |
 | `src/RatnaBay.Game/Render/` | Game-specific sprites (weapons, portraits, carvings). Boxes and models live in `RatnaBay.Engine`. |
+| `src/RatnaBay.Game/Content/Art/Portraits/` | Large painted dialogue portraits, separate from world sprites. Atlas mapping and provenance in its README. |
 | `src/RatnaBay.Game/World/` | Live world, encounters, `WorldPresenter`, `FigurePresenter`, spike scenes. |
 | `src/RatnaBay.Game/Input/` | World-panel selection (`WorldPanelInput`) and session keys (`SessionInput`). Device sampling and overlay picking live in `RatnaBay.Engine`. |
 | `src/RatnaBay.Game/Content/` | JSON manifests (world, dialogue, quests, shops) and bundled fonts. |
@@ -19,6 +20,7 @@ renders, samples input, and loads content. Read this file before changing code.
 | `tests/RatnaBay.Domain.Tests/` | Headless domain tests. |
 | `Docs/` | Design and production records. Update them when a closed decision or behaviour changes. |
 | `COMPLETE_OUTLINE.md` | What the game is: loop, world, lore, story, and the design and craft principles. Read first. |
+| `ROAD_TO_STEAM.md` | Where the project stands, what is left, and the order to do it in. |
 | `ParkedFeatures.cs` | Built, tested, unreachable player-facing surfaces. Do not revive without a product decision. |
 
 `Game1` is Ratna Bay on `EngineHost`. New independent systems do not go in `Game1`. A second
@@ -138,6 +140,7 @@ release-shaped build. The engine project must not reference `RatnaBay.Domain`.
 | Title menu | `Ui/MenuRenderer.cs` | `UiLayout.MenuItem`; input in `OverlayInput` |
 | Character / pack / stones | `Ui/CharacterRenderer.cs` | `UiLayout.InventoryTile`; input in `WorldPanelInput` |
 | Dialogue | `Ui/DialogueRenderer.cs` | `UiLayout.DialogueTopic`; input in `WorldPanelInput` |
+| Fort conversations | `Ui/FortRenderer.cs` | `UiLayout.Conversation*`; passages selected by `WorldPanelInput`, heard state applied in `Game1` |
 | Stall | `Ui/ShopRenderer.cs` | `UiLayout.ShopItem`; input in `WorldPanelInput` |
 | Journal | `Ui/JournalRenderer.cs` | local panel |
 | Recording consent | `Ui/ConsentRenderer.cs` | `UiLayout.ConsentButton`; input in `OverlayInput` |
@@ -147,7 +150,7 @@ release-shaped build. The engine project must not reference `RatnaBay.Domain`.
 | Store cover | `Ui/CoverRenderer.cs` | 1260×1000 1:1; `--cover` |
 | Nameplates, floating damage, threat arrows, yard signs, content errors | `Ui/MarkerRenderer.cs` | projected via `WorldProjector` |
 | Developer console and watches | `Ui/ConsoleRenderer.cs` | local panels; typing in `ConsoleInput` |
-| Lit boxes, crystal, carved faces, glow | `src/RatnaBay.Engine` (`SceneRenderer`) | per-frame `Begin` |
+| Lit boxes, faceted rock, crystal, carved faces, glow | `src/RatnaBay.Engine` (`SceneRenderer`) | per-frame `Begin` |
 | Imported props | `src/RatnaBay.Engine` (`ModelCache`) | loaded once, drawn by key |
 | Speakers, watchers, enemies, bolts | `World/FigurePresenter.cs` | `BillboardRenderer` |
 | Moodboard, stambha, asset case | `World/SpikeScenes.cs` | SceneRenderer + canvas; `--moodboard` / `--stambha` |

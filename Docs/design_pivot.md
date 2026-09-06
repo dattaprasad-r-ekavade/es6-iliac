@@ -135,9 +135,33 @@ Two rules keep this a decision instead of a punishment:
 
 ---
 
-## 4. Life paths
+## 4. Life paths — **parked, 2026-09-06**
 
-The three life paths are the starting classes. They already exist in the codebase as
+**Nothing in the client has ever let a player choose one.** `SelectLifePath` and `SelectRoute`
+exist, they set the multipliers below, they grant skill affinities, and their only callers in
+the whole client are two lines in `SessionSelfTest.cs`. Every player who has launched this game
+has played the same unnamed default.
+
+So this was never cut; it was designed for the story-RPG slice the pivot replaced and then never
+wired up. Three reasons not to wire it up now:
+
+- **It contradicts §6.** A build cannot form inside a five-minute run, so identity lives in
+  amulets and levels — things the player *discovers*. A class chosen before the first run
+  declares identity where this game is built to reveal it.
+- **It triples an unjudged balance surface.** Eight iterations are already built and unjudged by
+  anybody but the author. Three classes is three of those.
+- **It was the scaffolding under the three endings**, and those are now one (`SCRIPT.md` §10).
+
+**What stays:** everything below, plus `LifePath`, `StoryDirector`'s route ids, the skill
+affinities and their tests. Parking is the switch in `ParkedFeatures`, not a deletion — the
+rules keep running and cannot rot.
+
+**When it might come back:** the trader's price curve is the one piece worth reviving, and as an
+**amulet or a rank perk** rather than a class. A compounding discount somebody earned across
+forty runs is meta-progression; the same number handed out at character creation is a difficulty
+setting nobody asked for.
+
+The three life paths were the starting classes. They already exist in the codebase as
 `route.warrior`, `route.mage` and `route.trade`.
 
 | Path | Weapons | Spells | Trade prices | Shape of the curve |

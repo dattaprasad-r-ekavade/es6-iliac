@@ -175,10 +175,11 @@ the other half of the game stops mattering.
   admits a little more. *Covet not — for whose is wealth?* is carved by the state, in a mine the
   state opened, to extract wealth. *Turn: the order was founded to stop this, and the state
   captured it — not by force, but by being the most reliable employer in the province.*
-- **Act III — The choice.** Three endings, each costing somebody: **The Ledger** (expose it; the
-  province is shut down and innocent people starve), **The Lamp** (take the trade over and run it
-  better; you become the thing), **The Release** (break the stones; end the economy and the risen
-  together). Same content, three doors — a player can reach any ending from any path, harder.
+- **Act III — The end of it.** One ending, delivered as a scene: you go down and **relieve
+  her**, carrying the name of the man she went back for. The three positions the game used to
+  branch on — write the true count, take the trade over and regulate it, shut the seam again —
+  are the argument in the room rather than three finales, and the epilogue reports the cost by
+  name. See `Docs/SCRIPT.md` §10.
 
 ### The delivery problem, stated plainly
 
@@ -204,7 +205,7 @@ authoring project.*
 | The fort | **built** | Ten rooms, ten occupants, gated by rank. A place you walk into through the gate in the west wall, not a menu |
 | Succession, amulets, stone slots | **built** | Amulets are permanent and quiet; stones are loud and answer one cave |
 | Skills | **built** | Eight, grown by use: Blade, Block, Heavy, Marksman, Destruction, Restoration, Stealth, Security |
-| Life paths | **built** | Warrior (weapons ×2), Mage (spells ×2), Trader (prices `x⁰·⁷⁵` — negligible early, decisive late) |
+| Life paths | **parked** | Warrior, Mage and Trader exist in the domain with their multipliers and tests, and nothing in the client has ever let a player pick one. Identity lives in amulets and levels instead, which is what the design says carries it |
 | Saves, dialogue, quests, shops | **built** | JSON manifests, hot-reloadable, validated in the build gate |
 | Developer console + scripting | **built** | Commands, scripts, asserts, exit codes; a script is a build gate |
 | Telemetry | **built** | Consent asked before a single byte leaves the machine, and never during a capture or a script |
@@ -300,10 +301,18 @@ project's history.
 **Never trust a switch that reports success.** Three separate features were a flag that was set,
 logged as set, and read by nothing. If you add a toggle, prove it changes pixels.
 
-**Art is generated, and overridable.** Sprites, textures and sound effects are forged in code —
-one shading model, so a bandit and the sword he holds are lit by the same lamp. Any of it can be
-replaced one file at a time by dropping a painted PNG in `Content/Art/Sprites`. The interface is
-set in an 8×8 pixel face cut three ways, so no two letters on a line are quite identical.
+**World art is generated, and overridable.** Sprites, textures and sound effects are forged in
+code. World sprites can be replaced one file at a time with painted PNGs in `Content/Art/Sprites`.
+Dialogue uses separate, large painted portraits from `Content/Art/Portraits`, so the small world
+billboard is not also the face the player reads a conversation beside. Revati's revised design
+is approximately twenty-seven; Uttara is included in the art reference for proposed story content.
+The interface uses readable book text, charcoal panels and bronze frames; `--pixel-font` keeps
+the earlier 8×8 face available for comparison. See `Docs/UI_ART_DIRECTION.md`.
+
+Generated mine surfaces now use fractured rock, gravel and faceted perimeter/roof formations;
+town masonry remains distinct. The underlying layout is still a chain of combat chambers,
+not yet an organic cavern network. See `Docs/CAVE_ART_DIRECTION.md` for the implemented pass
+and proposed worked-seam, water-cut and sealed-workings identities.
 
 **Comments carry the reason, not the mechanism.** The code says what it does; the comment says
 what went wrong the last time somebody assumed otherwise. A wrong diagnosis left in a comment
@@ -321,6 +330,9 @@ rewrite.
 | `Docs/design_pivot.md` | What the player does. The loop, the numbers, the balance passes |
 | `Docs/SETTING.md` | What the world is — period, province, economy, what a room contains |
 | `Docs/STORY.md` | How a roguelite tells a story: the arc, the two taps, the trigger rules |
+| `Docs/SCRIPT.md` | Proposed expanded plot, Uttara, the chronology and revised endings; not all implemented |
+| `Docs/STORY_REVIEW_2026-09-06.md` | Review of that proposal, continuity issues and suggested improvements |
+| `Docs/UI_ART_DIRECTION.md` | Large dialogue portraits and the current interface direction |
 | `Docs/NAMES_AND_OFFICES.md` | What people are called, what their jobs are, what the law does |
 | `Docs/STORY_AND_SYSTEMS.md` | Where the fiction and the systems have to agree |
 | `Docs/PRODUCTION_PLAN.md` | The board: what is being built, in what order |

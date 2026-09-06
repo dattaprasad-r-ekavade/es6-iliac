@@ -109,20 +109,22 @@ is carved by the state, in a mine the state opened, to extract wealth.
 > the state captured it — not by force, but by making it the most reliable employer in the
 > province.
 
-### Act III — The choice
+### Act III — The end of it
 
-The truth is now yours to do something with, and every option costs somebody.
+**Superseded, 6 September 2026.** This section used to describe three endings mapped onto the
+three life paths — the trader had the leverage, the warrior the force, the mage the
+understanding. Both halves of that are gone: the life paths are parked (`design_pivot.md` §4)
+and the branch is cut. `SCRIPT.md` §10 is now the canonical version.
 
-| Ending | What you do | What it costs | Natural path |
-|---|---|---|---|
-| **The Ledger** | Expose the drip-feeding to the capital | The province is shut down. People who did nothing wrong starve | Trader |
-| **The Lamp** | Take the trade over and run it better | You become the thing. It is genuinely better, for a while | Warrior |
-| **The Release** | Break the stones. End the economy and the risen together | Everything. The town has nothing else | Mage |
+**One ending, delivered as a scene.** The truth is yours to do something with, and what you do
+is go down and relieve the woman who has been holding the door for ten years. The three
+positions survive as the argument in the room — write the true count, take the trade over and
+regulate it, or shut the seam again — put by people who believe them, and settled by what she
+decided in 310 rather than by a menu.
 
-The three map onto the existing life paths without being locked to them: the trader has the
-leverage, the warrior has the force, the mage understands prana well enough to end it. **Same
-content, three doors** — and a player who wants the ending their path does not favour can still
-reach it, harder.
+The reasoning, kept because it still applies: three finales is three times the most expensive
+content in the game for something seen once, and the branch existed to give the life paths
+somewhere to land.
 
 ---
 

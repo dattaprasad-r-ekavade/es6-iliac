@@ -38,6 +38,30 @@ public static class ParkedFeatures
     public static readonly bool Pickpocketing = false;
 
     /// <summary>
+    /// The three life paths: warrior, mage and trader.
+    ///
+    /// **Parked 2026-09-06, and it was never switched on.** <c>PlayerCharacter.SelectLifePath</c>
+    /// sets a weapon multiplier, a spell multiplier and a price exponent, and grants two skill
+    /// affinities. Nothing in the client has ever called it: the only callers anywhere are two
+    /// lines in <c>SessionSelfTest</c>. Every player who has launched this game has played the
+    /// same unnamed default, which is what this switch now says out loud.
+    ///
+    /// They were designed for the story slice the run loop replaced. They also contradict the
+    /// progression the design settled on: a build cannot form inside a five-minute run, so
+    /// identity is carried by amulets and levels — things found across many runs — and a class
+    /// picked before the first one declares in advance what this game is built to reveal.
+    ///
+    /// **What stays:** <see cref="RatnaBay.Domain.LifePath"/>, the route ids on
+    /// <c>StoryDirector</c>, the skill affinities and every test over them. The multipliers
+    /// still work; nothing asks for them.
+    ///
+    /// **When it might come back:** the trader's compounding price curve is the piece worth
+    /// reviving, and as an amulet or a rank perk rather than a class. Earned across forty runs
+    /// it is meta-progression; handed out at creation it is a difficulty setting.
+    /// </summary>
+    public static readonly bool LifePaths = false;
+
+    /// <summary>
     /// Lockpicking, and the Security skill that exists only to serve it.
     ///
     /// **Parked 2026-08-25.** Nothing in the live game makes a lock worth picking. Mine doors

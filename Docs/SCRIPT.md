@@ -1,5 +1,14 @@
 # Ratna Bay — The Script
 
+> **Continuity settled 6 September 2026.** The twelve conflicts listed in
+> [`STORY_REVIEW_2026-09-06.md`](STORY_REVIEW_2026-09-06.md) are resolved in this document:
+> the order's age, who forced the door, Uttara's two durations, when the preta were first
+> *recorded*, how fifty-seven people survived, how old prana warfare is, how much of the
+> shortage is made rather than suffered, what Act I admits, how many authored descents are
+> budgeted, the campaign length to build against, and what `Fort.cs` actually contains.
+> `COMPLETE_OUTLINE.md` and `STORY.md` still describe the **older** ending structure and have
+> not been reconciled with this one.
+
 **Status:** proposed, and the place to argue before anything is written into content files.
 [`STORY.md`](STORY.md) is the structure. [`STORY_AND_SYSTEMS.md`](STORY_AND_SYSTEMS.md) is where
 it meets the mechanics. **This is the plot** — what is true, who wants what, and what is
@@ -13,8 +22,9 @@ Jiva stones are not a curiosity in a mining town. **They are what the empire is 
 
 Lamps burn them. Foundries are heated by them. Blades are quenched with them and hold an edge
 no ordinary steel holds. Physicians spend them. Messages move on them. An army that carries them
-beats an army that does not, and every campaign of the last forty years was decided by who had
-more.
+beats an army that does not, and **every campaign of the last fifteen years** has been decided
+by who had more. The stones have been known to hold power for twenty-five; the army has been
+unable to fight without them for fifteen.
 
 **None of it was regulated**, because nothing that works that well ever is. It was asked for —
 formally, twice, by people whose names are on the request — and refused. Nobody wanted to know
@@ -104,11 +114,11 @@ anchor — the offices, the courts and the decision to carve in Brahmi all depen
 | **322 BCE** | **The committee reports.** It calls the stones the most powerful thing the empire has held and asks that they be regulated before they are used. The king refuses. The skeptics say the effect is exaggerated |
 | **315 BCE** | **War**, and the first campaign decided by prana. A mining body is founded *to regulate supply* and does not — it mines, and it supplies. **Uttara is given the mines.** She delivers her quotas, and she is known for something else: she counts her people in and she counts them out |
 | **312 BCE** | **Sixty-one men do not come out.** A season of small losses ends in one large one, and she is the only official in the province who can say the number, because she is the only one keeping that column. **Bhagiratha, her husband, is on it** |
-| **311 BCE** | **Her campaign, and the rescue.** A year spent clearing the deep workings. She brings **fifty-seven of the sixty-one back out alive** — the largest thing anyone in the province has ever seen done, and the reason her name means anything. It opens more of the mountain than anybody had reached before. **Prices soar**, and the committee asks a second time for research into what the stones do. Nobody answers |
+| **311 BCE** | **Her campaign, and the rescue.** A year spent clearing the deep workings — not a year of men waiting in the dark. The falls cut the deep galleries off from the entrance, not from each other, and the workings have water and their own air; the first parties are reached in days and the last in months, and what the year is spent on is opening a route wide enough to carry them out through. She brings **fifty-seven of the sixty-one back out alive** — the largest thing anyone in the province has ever seen done, and the reason her name means anything. It opens more of the mountain than anybody had reached before. **Prices soar**, and the committee asks a second time for research into what the stones do. Nobody answers |
 | **310 BCE** | **Four were never found, and she goes back for them.** The men she had just carried out tell her what is down there and ask her not to. She goes alone. **She does not come out**, and the entrance she went in by is shut *from the inside*. Nobody knows why, and the deep workings are lost with her |
 | **305 BCE** | Five years of a sealed seam and a rising quota. Demand has outrun what the shallow workings can give, and the province needs what is behind that door. **New miners force it open** |
-| **304 BCE** | **The first preta.** The province learns what she had shut in, seven years after asking a question nobody answered |
-| **301 BCE** | **The supply collapses** under what is now coming out of the mountain to meet it. The economy splits — the great houses hoard and grow, everybody else falls, and the two never meet again |
+| **304 BCE** | **The first preta above ground, and the first anybody wrote down.** Not the first: the miners who told her what was down there in 310 were describing them, and were not believed. What changes in 304 is that one is seen where the officials are, and the province learns what she had shut in — seven years after asking a question nobody answered |
+| **301 BCE** | **The supply falls** — genuinely, under what is now coming out of the mountain to meet the miners. Then it is made much worse than it needs to be: the army is served first and the great houses hoard against the rise. Output is down by a third and the market is down by four fifths, and the difference between those two numbers is sitting in cellars. The economy splits, and the two halves never meet again |
 | **300 BCE** | **The story.** The committee founds an order of explorers to clear what was let out. It does not name them. The miners do, and the word they use is the one they have been using since she went in: **Bhagiratha** |
 
 ### Three things this chronology decides
@@ -180,8 +190,10 @@ Everything hangs on one fact, and the province has never had it.
 **She never left, and she is not hungry.**
 
 Every other preta in the mountain wants a number. Uttara wants nothing — she is simply still at
-her post, five years past the point of anyone relieving her, doing the last thing she decided to
-do. That is what makes her terrible to meet and impossible to hate.
+her post, **ten years in and five years past the last time the door she shut was shut**, doing
+the last thing she decided to do. Keep the two durations apart, because they mean different
+things: ten years is how long she has held it, and five is how long she held it before anybody
+came the other way through the door. That is what makes her terrible to meet and impossible to hate.
 
 She is the fight at the bottom, and she is not an enemy.
 
@@ -313,9 +325,16 @@ player's guilt:
 
 ### Act I — The world before it *(runs 1–8, Atala to Sutala)*
 
-**Nothing is wrong yet.** The fort is warm, the work is dangerous and honest, the economy makes
-sense, and a player learning to descend is also learning how a province that runs on prana
-actually functions — who buys, who weighs, who records, who takes a cut.
+**Nothing has been explained yet** — which is not the same as nothing being wrong, and the
+difference matters. Most recruits do not come back, the price of lamp fuel is the first thing
+anybody complains about, and the market collapsed the year before the player arrived. All of
+that is visible in Act I and none of it is understood.
+
+What Act I establishes is why the town is still worth living in anyway: the fort is warm, the
+work is dangerous and honest, and a player learning to descend is also learning how a province
+that runs on prana actually functions — who buys, who weighs, who records, who takes a cut.
+Warmth does not require pretending, and a first act that denies the obvious teaches the player
+not to trust what they are shown.
 
 This is the act that has to be **pleasant**, and it is the one most likely to be cut short in
 development because it feels like it is not doing anything. It is doing the most important thing
@@ -373,9 +392,17 @@ The premise from §1 stops being background and becomes the level design.
 
 ---
 
+> **On the run counts above.** They describe a twenty-five to forty run campaign, and
+> `COMPLETE_OUTLINE.md` targets roughly 150 runs across twenty hours. **The short arc is the one
+> to build**: prototype the story at this length, measure what a run actually costs to author,
+> and extend only when the content earns it. A twenty-hour target with fifteen beats in it is one
+> beat every ten runs, which is how a story-driven roguelite dies.
+
 ### Act III — The decision, and what it does *(runs 25+, Patala)*
 
-**The seam.** One authored descent, the only one in the game, and this is what earns it. You find
+**The seam.** The second of the game's **two** authored descents — the house in §9 is the other,
+and the reusable room technology does not make either of them free. Budget both, plus the fort
+finale. This is what the seam earns. You find
 Uttara. You learn that it worked — the door held five years and would have held forever — and you
 learn what holding it costs, because she is still paying.
 
@@ -439,18 +466,25 @@ are somebody's staff, and the man paying you to clear them out is upstairs.
 
 ### What the house gives the player
 
-**The shortage is artificial.** This is the beat's real payload and it reframes the whole middle
-act: the mountain has not stopped producing. The stones are in cellars. The province is not
-running out — it is being sat on, and everyone bidding the price up is bidding against a hoard
-they cannot see.
+**Most of the shortage is made.** This is the beat's real payload and it reframes the whole
+middle act — but state it exactly, because overstating it breaks the chronology in §2 and the
+player has spent twenty runs seeing why the mountain is harder to work than it was.
+
+Output *has* fallen: the deep seams are dangerous now in a way they were not before 304. It has
+fallen by about a third. The market has fallen by four fifths. **The difference between those
+two numbers is in cellars**, and everyone bidding the price up is bidding against a hoard they
+cannot see. The mountain is failing and the province is being sat on, and the second is doing
+far more damage than the first.
 
 **And a document.** A great house keeps a household register. It lists servants who died in
 service and were never entered on the town roll — the first hard evidence in the game that the
 counting is wrong, and the first thing the player could put in front of the clerk.
 
-That matters structurally: **The Ledger ending needs proof, and this is where proof enters the
-story.** A player who never takes this job can still reach that ending, but they will be arguing
-from suspicion rather than from paper.
+That matters structurally: **the argument in the last scene needs proof, and this is where
+proof enters the story.** Chandrashri's case for writing the true count is the one thing in the
+finale that can be held in a hand, and a player who never takes this job hears it argued from
+suspicion instead of from paper. The ending does not change; what it is worth listening to
+does.
 
 ### The small choice, which is the whole game in miniature
 
@@ -506,51 +540,73 @@ them is another cellar that should not be haunted and is.
 
 ---
 
-## 10. The three endings
+## 10. The ending
 
-The premise raises the stakes on all three, and it turns The Lamp from villainy into a position.
+**One ending, delivered as a scene.** The three positions this section used to branch on — the
+Ledger, the Lamp, the Release — are kept in full, but they are what the **last conversation is
+an argument about**, not three finales to author, test and balance. The player hears all three
+put by people who believe them, and then the game ends the way the story has been pointing since
+the first hall fragment.
 
-| | What you do | What happens | Who pays |
-|---|---|---|---|
-| **The Ledger** | Write the true count. Every name — the mine, the houses, and Uttara | The dead are counted and rest. The corrected books reach the capital, and the whole arrangement is finally looked at | Ratna Bay, which is finished as a place. And it will be looked at everywhere else too |
-| **The Lamp** | Take the trade over and impose the regulation nobody ever imposed | The province lives. The supply is measured, rationed, and permanent. Somebody is finally in charge | Whoever is being drained, forever and efficiently. You are the thing the order was founded to stop, and you are good at it |
-| **The Release** | Shut the door again, and stay to hold it, as she did | It works, exactly as it worked for five years. The oldest seam in the empire goes quiet and everything built on it begins to fail | Everyone, slowly. And the province has already lived through five years of it and will not choose it twice |
+Two reasons, and the second is the one that decides it:
 
-**None is clean, and the game never says which is right.** The Ledger is what the preta are
-asking for and it ends the town. The Lamp saves the most lives and makes you the villain of the
-rest of it. The Release is the one Uttara chose, and the province has already been through five
-years of what it costs and broke the door open rather than finish them.
+- **Three finales is three times the most expensive content in the game**, for something a
+  player sees once. The loop is what brings anybody back, not the ending.
+- **The branch was scaffolded on the three life paths** — trader argued the Ledger, warrior the
+  Lamp, mage the Release — and those are parked (`design_pivot.md` §4). A branch whose
+  justification has been removed is a branch that has to justify itself again, and it cannot.
 
-**Default: The Lamp.** A player who committed to nothing gets the ending for people who commit to
-nothing, and the province goes on as it was. That is not a punishment; it is the truest outcome
-of indifference, and it should be delivered without comment.
+### What happens
+
+**You reach her, and you relieve her.** That is the whole of it. The door at the bottom is
+opened from the player's side by somebody carrying the name of the man she went back for, which
+is the sentence the entire order is named out of: *you are the one somebody is coming for.* She
+has held that post for ten years. She is the fight, she is not an enemy, and what ends the fight
+is being relieved rather than being beaten.
+
+It is **The Release**, in the terms of the old table — the door is shut again and this time
+somebody chose to be on the other side of it — and it costs exactly what that table said it
+costs. The province has already lived through five years of a closed seam and broke it open
+rather than finish them. It will not thank you.
+
+**Nobody in the scene agrees about it.** The Ledger and the Lamp are argued, by name, in the
+minutes before: Chandrashri wants the true count written and the whole arrangement looked at;
+the governor wants the trade taken over and finally regulated, and he is not wrong about how
+many people that saves. They lose the argument because the woman at the bottom already settled
+it in 310, not because the script says they are villains.
+
+> **This is the call most easily overturned.** If the Lamp is the better ending for the game
+> this becomes, it is one section rewritten and no code at all. What must not come back is the
+> branch.
+
+### Production: what "a scene" is allowed to mean
+
+**The frame this game already draws.** A portrait, a name, text, and the fort screen after it.
+There is no animation, no camera scripting and no voice in this project, and an ending that
+needs any of them is an ending that does not ship. A slow sequence of stills with text under
+them is the ceiling, and the existing conversation panel is the floor.
 
 ### The epilogue, which is half of Act III
 
-Per §8, the act is not over at the choice. **Every ending owes the player three things, in this
+Per §8, the act is not over at the door. **The ending owes the player three things, in this
 order**, and they are cheap because they are text over the fort screen:
 
-**One — the people, by name.** Revati, Ganaka and Visakha appear in all three. The player knows
-what those three want; the ending has to say whether they got it. An ending that reports a
-province and not a person is a policy summary, and the player did not spend forty hours on
-policy.
+**One — the people, by name.** Revati, Ganaka and Visakha. The player knows what those three
+want; the ending has to say whether they got it. An ending that reports a province and not a
+person is a policy summary, and nobody spent twenty hours on policy.
 
-**Two — the fifty-seven.** The men Uttara brought out are alive somewhere in the lower town and
-are the only people in the province with an uncomplicated opinion of her. Each ending should say
-what happens to them, because they are the measure of whether her act meant anything.
+**Two — the fifty-seven.** The men Uttara brought out are alive in the lower town and are the
+only people in the province with an uncomplicated opinion of her. The epilogue says what happens
+to them, because they are the measure of whether her act meant anything — and now, of whether
+yours did.
 
 **Three — somewhere else.** §1 establishes that Ratna Bay is the oldest seam and the empire has
-opened others: **the province is not special, it is early.** So the last beat of every ending is
-the same argument starting in a place the player has never seen, with different names — and being
-settled the way this one was, because a precedent is now available.
+opened others: **the province is not special, it is early.** So the last beat is the same
+argument starting somewhere the player has never seen, with different names. Nobody follows what
+was done here. They watch what closing a seam did to Ratna Bay and quietly resolve never to do
+it — which is the bleakest available sentence and the truest one.
 
-| | Elsewhere |
-|---|---|
-| **The Ledger** | The count is demanded in every province with a seam, and several of them cannot survive answering it |
-| **The Lamp** | The arrangement is copied, competently, by people who never met Uttara and have no reason to stop at rationing |
-| **The Release** | Nobody follows. They watch what closing a seam did to Ratna Bay and quietly resolve never to do it |
-
-**The epilogue reports; it never grades.** No ending is revealed to have been correct, no counter
+**The epilogue reports; it never grades.** Nothing is revealed to have been correct, no counter
 is shown, and nothing is unlocked. The last thing the player reads should be a fact, not a
 verdict.
 
@@ -577,7 +633,10 @@ take wealth out of it. Adding a character who notices that out loud ruins it.
 **One idea per fragment, two lines at most.** They are read between runs by somebody with a door
 waiting.
 
-**The order says "we" about the founding.** Always. Three hundred years old, and inherited.
+**The order says "we" about the founding, and the founding was last year.** Always "we" — but
+it is not an inherited "we". The order is **one year old**. Everyone who made every decision is
+alive, most are in office, and several are in the fort: the "we" means the people in the room,
+which is what makes it cost something to say.
 
 **Preta testimony is a number and a name, never a plea.** *"Forty went in. The register says
 twelve."* Not *"help us."* The horror is the arithmetic.
@@ -587,19 +646,28 @@ and never self-pitying.
 
 ---
 
-## 12. Content already reconciled
+## 12. Content reconciled, and checked against the build
 
-Four shipped fragments in `RatnaBay.Domain/Fort/Fort.cs` are rewritten to match the chronology
-rather than left contradicting it:
+**Read against `RatnaBay.Domain/Fort/Fort.cs` on 6 September 2026**, rather than asserted. A
+claim that content has been reconciled is worth nothing until somebody has opened the file, and
+this section previously described one line that does not exist.
 
-- `gate.3` — the tally-keeper's totals still never balance, and now the last person who said so
-  out loud is behind a door at the bottom of a mine. The theme arrives in the first room.
-- `hall.2` — the order is one year old and named for a woman who **counted her people in and
-  out, which nobody had thought to do before.** Her habit is the theme.
-- `hall.3` — her lamp is first on the wall and her name is on no roll in the province. *"We
-  remembered her and never once wrote her down."*
-- `gov.2` — the governor's confession, and the hardest line in the fort: *"We did not lose it.
-  We ordered it broken open, because the quota came."*
+- `gate.3` — **matches.** The tally-keeper has kept the ledger eleven years, the totals never
+  balance, and the last person who said so out loud is behind a door at the bottom of a mine.
+  The theme arrives in the first room.
+- `hall.2` — **matches the chronology, not the description that used to be here.** The shipped
+  line is about the woman who counted her people in and out, and the sixty-one and the
+  fifty-seven. It does not say the order is one year old and it does not say the order is named
+  after her — correctly, because it is not: see §3 and the closed decision in §13. The old
+  wording of this bullet reintroduced exactly the conflict that decision settled.
+- `hall.3` — **matches.** Four never found, her husband among them, the miners' warning, and
+  *"So they put his name on the rest of us."*
+- `gov.2` — **matches**, and it is still the hardest line in the fort: *"We did not lose it. We
+  ordered it broken open, because the quota came."* Note that it says **we**, not *the order* —
+  which is the distinction §13 now insists on.
+
+**Not yet written, and previously easy to mistake for written:** her lamp first on the wall, and
+her name on no roll in the province. There is no such fragment in `Fort.cs`.
 
 ---
 
@@ -609,7 +677,10 @@ rather than left contradicting it:
   said, and nobody in the province knowing is better than any answer.
 - **How much of the rich quarter is ever walkable** beyond the one house. The streets above are
   probably better as a place seen and not entered; the cellars are the level.
-- **Does the player ever learn the order reopened the seam?** The darkest fact in the game.
+- **Does the player ever learn who reopened the seam?** The darkest fact in the game — and the
+  wording has to be exact, because the order did not exist in 305. The door was forced on the
+  authority of the same committee that founded the order five years later, and the man who
+  signed for it is in the fort. Say *"our founders"*, or name him. Never *"the order"*.
   Suggested: from Revati, at the highest rank, in the hall — the only person who would say it, and
   only to somebody who has come back often enough to be worth telling.
 - **Whether the mahamatra can be turned.** Currently no, and that is stronger. Worth one pass to
