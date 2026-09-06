@@ -51,9 +51,26 @@ public static class UiLayout
         return new Rectangle(panel.X + 40, top + index * 46, panel.Width - 80, 38);
     }
 
-    public static Rectangle DialoguePanel => new(352, 150, 576, 420);
+    public static Rectangle ConversationPanel => new(68, 54, 1144, 612);
+    public static Rectangle ConversationPortrait => new(44, 92, 496, 496);
+    public static Rectangle ConversationText => new(572, 230, 596, 290);
+    public static Rectangle ConversationPrevious => new(572, 586, 174, 42);
+    public static Rectangle ConversationNext => new(760, 586, 216, 42);
+    public static Rectangle ConversationLeave => new(990, 586, 178, 42);
+    public static Rectangle FortPanel => new(220, 70, 840, 596);
+    public static Rectangle FortDoor(int index) => new(252, 156 + index * 43, 776, 39);
+    public static Rectangle HudVitals => new(28, 590, 310, 102);
+    public static Rectangle HudStatus => new(988, 628, 264, 64);
+    public static Rectangle HudSpell => new(468, 628, 344, 64);
+    public static Rectangle HudSockets => new(824, 640, 150, 42);
+    public static Rectangle HudLedger => new(1020, 28, 232, 94);
+    public static Rectangle HudLocation => new(394, 22, 492, 36);
+    public static Rectangle HudToast(int index) => new(368, 480 + index * 28, 544, 26);
+    public static Rectangle HudObjective => new(28, 28, 320, 116);
 
-    public static Rectangle DialogueTopic(int index) => new(376, 300 + index * 34, 528, 30);
+    public static Rectangle DialoguePanel => ConversationPanel;
+
+    public static Rectangle DialogueTopic(int index) => new(572, 352 + index * 36, 596, 32);
 
     /// <summary>The stall's panel. Everything else on that screen is measured from it.</summary>
     public static readonly Rectangle ShopPanel = new(250, 64, 780, 604);

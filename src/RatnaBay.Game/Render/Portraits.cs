@@ -81,7 +81,7 @@ public static class FaceCatalog
                 new FacePalette(new Color(184, 130, 92), new Color(44, 34, 30),
                     new Color(150, 96, 44), new Color(134, 66, 56), new Color(52, 38, 28)),
                 HairStyle.Cloth, Beard.None, Headwear.None, Ornament.Earrings,
-                Width: 0.44f, Age: 0.48f, Build: 0.40f, BrowWeight: 0.34f, NoseLength: 0.44f, Resting: Expression.Warm),
+                Width: 0.44f, Age: 0.14f, Build: 0.40f, BrowWeight: 0.34f, NoseLength: 0.44f, Resting: Expression.Warm),
 
             // Nagadatta. Weighs, does not ask, and never leaves the room.
             ["fort.assay"] = new(

@@ -352,6 +352,30 @@ public static class MineGenerator
         EmitWall(manifest, $"{prefix}.east", cell.Openings.Contains(Side.East),
             cx + RoomHalf, cx + outer, cz - RoomHalf, cz + RoomHalf, horizontal: false, cz, stone);
 
+        // Rock shoulders occupy only the perimeter spawn-exclusion band. Their solid bounds
+        // also shape movement; these are not decorative rocks the player can walk through.
+        var geology = new Prng(unchecked(request.Seed + index * 7919));
+        for (var side = 0; side < 4; side++)
+        for (var rib = 0; rib < 6; rib++)
+        {
+            var along = -10f + rib * 4f;
+            if (MathF.Abs(along) < 3f) continue; // Keep every possible door approach open.
+            along += geology.Next(80) / 100f - .4f;
+            var reach = .65f + geology.Next(60) / 100f;
+            var height = 3.5f + geology.Next(210) / 100f;
+            var x = cx + (side < 2 ? along : (side == 2 ? -1 : 1) * (RoomHalf - reach / 2));
+            var z = cz + (side >= 2 ? along : (side == 0 ? -1 : 1) * (RoomHalf - reach / 2));
+            var sx = side < 2 ? 2.3f + geology.Next(100) / 100f : reach;
+            var sz = side >= 2 ? 2.3f + geology.Next(100) / 100f : reach;
+            Box(manifest, $"{prefix}.outcrop.{side}.{rib}", x - sx / 2, FloorTop, z - sz / 2,
+                x + sx / 2, height, z + sz / 2, stone);
+            // Low shoulders at the roof break the hall's straight ceiling line.
+            var roofX = side < 2 ? sx * 1.35f : 3.7f;
+            var roofZ = side >= 2 ? sz * 1.35f : 3.7f;
+            Box(manifest, $"{prefix}.roofrock.{side}.{rib}", x - roofX, 3.6f + geology.Next(100) / 100f,
+                z - roofZ, x + roofX, CeilingTop + 1.3f, z + roofZ, stone);
+        }
+
         manifest.Rooms.Add(new WorldRoom
         {
             Id = $"{prefix}.room",
@@ -603,6 +627,9 @@ public static class MineGenerator
             Min = new WorldVector(minX, minY, minZ),
             Max = new WorldVector(maxX, maxY, maxZ),
             Color = colour,
+            Material = id.EndsWith(".floor", StringComparison.Ordinal) ? WorldMaterials.Gravel
+                : id.Contains(".outcrop.", StringComparison.Ordinal) || id.Contains(".roofrock.", StringComparison.Ordinal)
+                    ? WorldMaterials.Boulder : WorldMaterials.Rock,
             Solid = true,
             Visible = true
         });

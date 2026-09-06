@@ -253,6 +253,9 @@ public sealed class WorldGeometry
 public static class WorldMaterials
 {
     public const string Stone = "stone";
+    public const string Rock = "rock";
+    public const string Boulder = "boulder";
+    public const string Gravel = "gravel";
     public const string Timber = "timber";
     public const string Cloth = "cloth";
     public const string Earth = "earth";

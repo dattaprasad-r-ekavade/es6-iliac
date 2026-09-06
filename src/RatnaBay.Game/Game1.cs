@@ -641,6 +641,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         PropTextures.Clear();
         ItemSprites.Clear();
         PortraitForge.Clear();
+        DialoguePortraits.Clear();
         SpriteOverrides.Clear();
         _spriteType?.Dispose();
         // A sitting that ends by closing the window is still a sitting worth reading back --
@@ -1688,6 +1689,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
 
         _stack.Fort = true;
         _stack.FortRoom = room.Id;
+        _panels.FortPage = 0;
         _panels.FortSelection = Math.Max(0, FortRoster.All.ToList().FindIndex(r => r.Id == room.Id));
         SetMouseLook(false, forPanel: true);
     }
@@ -1971,6 +1973,21 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             _session is not null, _stack.FortRoom is not null);
         switch (cmd.Action)
         {
+            case FortAction.Next:
+            case FortAction.Previous:
+                if (_session is null || FortRoster.Find(_stack.FortRoom) is not { } speaking) return;
+                var fragments = speaking.AvailableTo(_session.Player.Legacy.Service.Rank,
+                    _session.Player.Legacy.DeepestEver);
+                if (cmd.Action == FortAction.Next && _panels.FortPage >= fragments.Count)
+                {
+                    _stack.FortRoom = null;
+                    return;
+                }
+                _panels.FortPage = Math.Clamp(_panels.FortPage + (cmd.Action == FortAction.Next ? 1 : -1),
+                    0, fragments.Count);
+                if (_panels.FortPage > 0)
+                    _session.Player.Legacy.Hear(fragments[_panels.FortPage - 1].Id);
+                return;
             case FortAction.Back:
                 _stack.FortRoom = null;
                 return;
@@ -2002,6 +2019,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         }
 
         _stack.FortRoom = room.Id;
+        _panels.FortPage = 0;
         Sounds?.Play(Sfx.Door, 0.4f, volumeScale: 0.7f);
     }
 
@@ -2658,7 +2676,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
                 if (_stack.Dialogue) DrawDialogue();
                 if (_stack.Journal) DrawJournal();
                 if (_stack.Fort && _session is not null)
-                    _screens.Fort.Draw(_session.Player.Legacy, _panels.FortSelection, _stack.FortRoom);
+                    _screens.Fort.Draw(_session.Player.Legacy, _panels.FortSelection, _stack.FortRoom, _panels.FortPage);
                 if (_stack.Character) DrawCharacterSheet();
                 if (_stack.Shop) DrawShop();
                 if (_stack.CampTrader) DrawCampTrader();
@@ -2924,14 +2942,15 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
             case "shop" or "stall": _stack.Shop = true; break;
             case "camp" or "trader": _stack.CampTrader = true; break;
             case "fort": _stack.Fort = true; break;
+            case "revati":
+                if (FortRoster.Find("fort.hall") is { } revati) OpenFortRoom(revati);
+                break;
+            case "ganaka":
+                if (FortRoster.Find("fort.gate") is { } ganaka) OpenFortRoom(ganaka);
+                break;
             case "pause": _stack.Paused = true; break;
             case "dialogue":
-                _conversationActor = _dialogue?.Actors.FirstOrDefault();
-                _stack.Dialogue = _conversationActor is not null;
-                _dialogueResponse =
-                    "Northwatch is a border camp built around an older stone watchpost. Keep "
-                    + "your eyes open on the road north, and do not travel it after dark "
-                    + "unless you have a reason worth the risk.";
+                if (_dialogue?.Actors.FirstOrDefault() is { } actor) OpenDialogue(actor);
                 break;
         }
 

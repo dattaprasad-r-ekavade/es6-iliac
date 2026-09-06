@@ -68,6 +68,7 @@
       difference between an artist trying six versions and an artist trying one.
     -->
     <None Include="Content\Art\Sprites\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Content\Art\Portraits\*.png" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\Cinzel\Cinzel-wght.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\Cinzel\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Content\Feasibility\Fonts\Cinzel\DESCRIPTION.en_us.html" CopyToOutputDirectory="PreserveNewest" />

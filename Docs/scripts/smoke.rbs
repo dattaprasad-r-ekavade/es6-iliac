@@ -62,6 +62,8 @@ echo === a descent ===
 descend 3 20789
 wait 0.5
 assert where has room
+assert geo has outcrop
+shot captures/script-1c-cave.png
 
 # Walk in far enough for the room to notice, then let the bodies finish standing
 # up. Asking before they have is how the rise animation gets mistaken for a bug.
@@ -79,6 +81,9 @@ echo === clearing it ===
 kill all
 wait 0.5
 assert enemies has clear
+
+# Keep a populated HUD capture in the release gate after the portrait/interface revamp.
+shot captures/script-3-hud.png
 
 echo === back up ===
 

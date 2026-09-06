@@ -168,15 +168,43 @@ public sealed class UiCanvas
     public void Panel(Rectangle bounds, Color fill, Color border)
     {
         Fill(bounds, fill);
-        Border(bounds, border);
+        if (border.A > 0 && bounds.Width > 40 && bounds.Height > 35)
+        {
+            // Uneven rubbed edges and a faint weave give panels a material without putting
+            // ornamental boxes around every sentence. All marks stay inside the bounds.
+            for (var y = 3; y < bounds.Height - 3; y += 5)
+                Fill(new Rectangle(bounds.X + 3, bounds.Y + y, bounds.Width - 6, 1), border * .025f);
+            for (var x = 0; x < bounds.Width; x += 7)
+            {
+                var wear = (x * 17 + bounds.Height * 3) % 11;
+                Fill(new Rectangle(bounds.X + x, bounds.Y + wear / 4, Math.Min(6, bounds.Width - x), 1), border * .38f);
+                Fill(new Rectangle(bounds.X + x, bounds.Bottom - 1 - wear / 5, Math.Min(5, bounds.Width - x), 1), border * .2f);
+            }
+            Fill(new Rectangle(bounds.X, bounds.Y + 7, 2, bounds.Height - 14), border * .16f);
+            Fill(new Rectangle(bounds.Right - 2, bounds.Y + 9, 2, bounds.Height - 18), border * .12f);
+        }
     }
 
     /// <summary>
     /// One row of a list. Colours are arguments so this type does not know Ratna Bay's palette.
     /// Callers pass <c>UiTheme.Row(selected)</c>.
     /// </summary>
-    public void Row(Rectangle bounds, Color fill, Color border) =>
-        Panel(bounds, fill, border);
+    public void Row(Rectangle bounds, Color fill, Color border)
+    {
+        Fill(bounds, fill * .55f);
+        Fill(new Rectangle(bounds.X, bounds.Y + 6, 3, Math.Max(1, bounds.Height - 12)), border);
+        Fill(new Rectangle(bounds.X + 10, bounds.Bottom - 1, Math.Max(1, bounds.Width - 20), 1), border * .24f);
+    }
+
+    /// <summary>Soft irregular shadow around a portrait, leaving the painted face prominent.</summary>
+    public void PortraitEdge(Rectangle bounds, Color shadow)
+    {
+        for (var i = 0; i < 24; i++)
+        {
+            var shade = shadow * ((24 - i) / 28f);
+            Border(new Rectangle(bounds.X + i, bounds.Y + i, bounds.Width - 2 * i, bounds.Height - 2 * i), shade);
+        }
+    }
 
     /// <summary>
     /// Dim everything already drawn, for a modal to sit on.
@@ -199,6 +227,9 @@ public sealed class UiCanvas
 
     public void Sprite(Texture2D texture, Rectangle destination, Color color) =>
         _batch.Draw(texture, destination, color);
+
+    public void Sprite(Texture2D texture, Rectangle destination, Rectangle source, Color color) =>
+        _batch.Draw(texture, destination, source, color);
 
     // ------------------------------------------------------------------ text
 
@@ -278,7 +309,22 @@ public sealed class UiCanvas
     }
 
     public float TextWrapped(string value, Vector2 position, float maxWidth, float scale,
-        Color color, int maxLines = 6)
+        Color color, int maxLines = 6) =>
+        LayoutWrapped(value, position, maxWidth, scale, color, maxLines, draw: true);
+
+    /// <summary>
+    /// How tall the same text would be, without drawing it.
+    ///
+    /// Shares the wrapping with <see cref="TextWrapped"/> rather than repeating it, because a
+    /// measurement that disagrees with the draw is worse than no measurement: whatever is laid
+    /// out against it lands somewhere the text is not.
+    /// </summary>
+    public float MeasureWrapped(string value, float maxWidth, float scale, int maxLines = 6) =>
+        LayoutWrapped(value, Vector2.Zero, maxWidth, scale, Color.Transparent, maxLines,
+            draw: false);
+
+    private float LayoutWrapped(string value, Vector2 position, float maxWidth, float scale,
+        Color color, int maxLines, bool draw)
     {
         if (string.IsNullOrWhiteSpace(value)) return 0f;
 
@@ -306,7 +352,7 @@ public sealed class UiCanvas
 
             if (line.Length > 0)
             {
-                Text(line, new Vector2(position.X, y), scale, color);
+                if (draw) Text(line, new Vector2(position.X, y), scale, color);
                 y += lineHeight;
                 if (++lines >= maxLines) return y - position.Y;
             }
@@ -316,7 +362,7 @@ public sealed class UiCanvas
 
         if (line.Length > 0)
         {
-            Text(line, new Vector2(position.X, y), scale, color);
+            if (draw) Text(line, new Vector2(position.X, y), scale, color);
             y += lineHeight;
         }
 

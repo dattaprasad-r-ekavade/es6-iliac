@@ -20,10 +20,10 @@ internal sealed class LaunchOptions
     public string? SpritesPath { get; init; }
 
     /// <summary>
-    /// The 8x8 sprite face, which is the game's interface font. --book-font takes the .ttf
-    /// path instead, which is kept for comparing the two rather than for shipping.
+    /// Book text is the default for readable conversations. --pixel-font retains the
+    /// previous sprite typeface as an explicit comparison mode.
     /// </summary>
-    public bool PixelFont { get; init; } = true;
+    public bool PixelFont { get; init; }
     public string? FaceOnly { get; init; }
     public int FaceSheetScale { get; init; } = 2;
     public bool ForceCrouch { get; init; }
@@ -122,7 +122,7 @@ internal sealed class LaunchOptions
             Screen = screen,
             FacesPath = option(args, "--faces"),
             SpritesPath = option(args, "--sprites"),
-            PixelFont = !flag(args, "--book-font"),
+            PixelFont = flag(args, "--pixel-font") && !flag(args, "--book-font"),
             FaceOnly = option(args, "--face"),
             FaceSheetScale = faceScale,
             ForceCrouch = flag(args, "--sneak"),

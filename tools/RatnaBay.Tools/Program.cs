@@ -35,6 +35,7 @@ static int RunDoctor(string root)
         "src/RatnaBay.Engine/RatnaBay.Engine.csproj",
         "src/RatnaBay.Game/RatnaBay.Game.csproj",
         "src/RatnaBay.Game/Content/Content.mgcb",
+        "src/RatnaBay.Game/Content/Art/Portraits/cast.png",
         "src/RatnaBay.Game/.config/dotnet-tools.json",
         "tests/RatnaBay.Domain.Tests/RatnaBay.Domain.Tests.csproj"
     };

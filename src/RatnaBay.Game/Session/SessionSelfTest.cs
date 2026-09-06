@@ -18,6 +18,32 @@ namespace RatnaBay.Client.Session;
 /// </summary>
 public static class SessionSelfTest
 {
+    private static void CheckConversationInput(List<string> failures)
+    {
+        var input = new InputRouter();
+        var panels = new WorldPanelInput();
+        var mouse = default(Microsoft.Xna.Framework.Input.MouseState);
+        var enter = new Microsoft.Xna.Framework.Input.KeyboardState(Microsoft.Xna.Framework.Input.Keys.Enter);
+        var left = new Microsoft.Xna.Framework.Input.KeyboardState(Microsoft.Xna.Framework.Input.Keys.Left);
+        Check(failures, "Enter advances an open fort conversation",
+            panels.StepFortCommand(input, enter, mouse, Vector2.Zero, true, true).Action == FortAction.Next);
+        Check(failures, "Left returns to the previous fort passage",
+            panels.StepFortCommand(input, left, mouse, Vector2.Zero, true, true).Action == FortAction.Previous);
+        var next = UiLayout.ConversationNext.Center;
+        var click = new Microsoft.Xna.Framework.Input.MouseState(next.X, next.Y, 0,
+            Microsoft.Xna.Framework.Input.ButtonState.Pressed, Microsoft.Xna.Framework.Input.ButtonState.Released,
+            Microsoft.Xna.Framework.Input.ButtonState.Released, Microsoft.Xna.Framework.Input.ButtonState.Released,
+            Microsoft.Xna.Framework.Input.ButtonState.Released);
+        Check(failures, "the drawn Continue button advances the same conversation",
+            panels.StepFortCommand(input, default, click, next.ToVector2(), true, true).Action == FortAction.Next);
+        Check(failures, "clicking the portrait never advances the conversation",
+            panels.StepFortCommand(input, default, click, UiLayout.ConversationPortrait.Center.ToVector2(),
+                true, true).Action == FortAction.None);
+        var exit = UiLayout.ConversationLeave.Center.ToVector2();
+        Check(failures, "the drawn Leave button exits topic dialogue",
+            panels.StepDialogueCommand(input, default, click, exit, new[] { "trade" }).Action == DialogueAction.Dismiss);
+    }
+
     public static int Run()
     {
         var failures = new List<string>();
@@ -27,6 +53,9 @@ public static class SessionSelfTest
         try
         {
             Directory.CreateDirectory(testDirectory);
+            Check(failures, "dialogue portrait atlas is packaged",
+                File.Exists(Path.Combine(AppContext.BaseDirectory, "Content", "Art", "Portraits", "cast.png")));
+            CheckConversationInput(failures);
             var session = GameSession.NewGame(savePath);
             var player = session.Player;
 

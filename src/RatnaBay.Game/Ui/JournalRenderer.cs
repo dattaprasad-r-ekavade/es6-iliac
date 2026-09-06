@@ -44,7 +44,7 @@ internal sealed class JournalRenderer
         const int width = 700;
         var panel = new Rectangle((UiLayout.Width - width) / 2, (UiLayout.Height - height) / 2,
             width, height);
-        _ui.Panel(panel, new Color(5, 11, 18, 246), new Color(182, 137, 71));
+        _ui.Panel(panel, UiTheme.Panel, UiTheme.Bronze);
         _ui.Text("JOURNAL", new Vector2(panel.X + 30, panel.Y + 24), 13,
             UiTheme.GoldDim);
         _ui.Text("Current work", new Vector2(panel.X + 30, panel.Y + 56), 28, Color.White);

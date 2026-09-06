@@ -15,7 +15,7 @@ internal sealed class UiScreens
         Overlay = new OverlayRenderer(canvas);
         Menu = new MenuRenderer(canvas);
         Character = new CharacterRenderer(canvas);
-        Dialogue = new DialogueRenderer(canvas);
+        Dialogue = new DialogueRenderer(canvas, device);
         Shop = new ShopRenderer(canvas);
         Journal = new JournalRenderer(canvas);
         Consent = new ConsentRenderer(canvas);

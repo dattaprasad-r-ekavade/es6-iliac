@@ -59,6 +59,49 @@ public static class StoneTextures
     public static Texture2D Floor(GraphicsDevice device, StonePalette palette)
         => Get(device, "floor:" + palette.Id, () => BuildFloor(palette));
 
+    public static Texture2D Rock(GraphicsDevice device, StonePalette palette, bool ground = false)
+        => Get(device, (ground ? "gravel:" : "rock:") + palette.Id, () => BuildRock(palette, ground));
+
+    // Periodic value noise keeps broad geological structures continuous across tile edges.
+    private static float Noise(float x, float y, int cells)
+    {
+        var ix = (int)MathF.Floor(x); var iy = (int)MathF.Floor(y);
+        var fx = x - ix; var fy = y - iy;
+        fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+        float At(int a, int b)
+        {
+            a = (a % cells + cells) % cells; b = (b % cells + cells) % cells;
+            var h = unchecked((uint)(a * 374761393 + b * 668265263 + 1979));
+            h = (h ^ (h >> 13)) * 1274126177u;
+            return (h & 65535) / 65535f;
+        }
+        return MathHelper.Lerp(MathHelper.Lerp(At(ix, iy), At(ix + 1, iy), fx),
+            MathHelper.Lerp(At(ix, iy + 1), At(ix + 1, iy + 1), fx), fy);
+    }
+
+    private static Color[] BuildRock(StonePalette palette, bool ground)
+    {
+        var pixels = new Color[Size * Size];
+        var random = new Random(ground ? 9127 : 7163);
+        for (var y = 0; y < Size; y++)
+        for (var x = 0; x < Size; x++)
+        {
+            var u = x / (float)Size; var v = y / (float)Size;
+            var broad = Noise(u * 4, v * 4, 4);
+            var mid = Noise(u * 16, v * 16, 16);
+            var fine = Noise(u * 64, v * 64, 64);
+            var fold = MathF.Sin((v * 6 + u * 2 + broad * .65f) * MathF.Tau);
+            var fracture = MathF.Abs(MathF.Sin((u * 3 - v * 2 + mid * .16f + broad * .32f) * MathF.Tau));
+            var shade = (broad - .5f) * 48 + (mid - .5f) * 26 + (fine - .5f) * 12;
+            shade += ground ? -12 : fold * 8;
+            if (!ground && fracture < .045f && mid > .44f) shade -= (1 - fracture / .045f) * 22;
+            var mineral = Color.Lerp(palette.Base, palette.Accent, MathF.Max(0, broad - .57f) * .7f);
+            pixels[y * Size + x] = Shift(mineral, shade + random.Next(-3, 4));
+        }
+        if (ground) Pit(pixels, palette, random, 110);
+        return pixels;
+    }
+
     /// <summary>Sawn planks, for stall counters, posts, awning frames and winch timber.</summary>
     public static Texture2D Timber(GraphicsDevice device)
         => Get(device, "timber", BuildTimber);

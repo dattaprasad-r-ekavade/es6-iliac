@@ -70,7 +70,7 @@ public sealed class OverlayRenderer
     {
         _ui.Fill(UiLayout.FullScreen, new Color(3, 7, 12, 214));
         var panel = new Rectangle(260, 92, 760, 536);
-        _ui.Panel(panel, new Color(7, 14, 21, 248), UiTheme.Border);
+        _ui.Panel(panel, UiTheme.Panel, UiTheme.Border);
         _ui.Text("SETTINGS", new Vector2(panel.X + 32, panel.Y + 28), 28, Color.White);
         _ui.Text("Display, interface and current bindings", new Vector2(panel.X + 34, panel.Y + 70), 15,
             UiTheme.Hint);
@@ -92,8 +92,8 @@ public sealed class OverlayRenderer
     public void DrawHelpOverlay(OverlayState state)
     {
         _ui.Fill(UiLayout.FullScreen, new Color(3, 7, 12, 200));
-        var panel = new Rectangle(300, 96, 680, 476);
-        _ui.Panel(panel, new Color(7, 14, 21, 244), UiTheme.Border);
+        var panel = new Rectangle(240, 64, 800, 590);
+        _ui.Panel(panel, UiTheme.Panel, UiTheme.Border);
         _ui.TextCentred("CONTROLS", panel.X + panel.Width / 2f, panel.Y + 26, 24, Color.White);
 
         (string Heading, (string Key, string Action)[] Rows)[] sections =
@@ -118,7 +118,9 @@ public sealed class OverlayRenderer
                 ("E", "talk, open, take"),
                 ("B", "trade with a merchant"),
                 ("I", "character, pack and skills"),
-                ("J", "journal")
+                ("J", "journal"),
+                ("Enter / Right", "continue a fort conversation"),
+                ("Left", "previous passage")
             }),
             ("THE GAME", new[]
             {
@@ -145,7 +147,7 @@ public sealed class OverlayRenderer
                 line = 0;
             }
 
-            var x = panel.X + 40f + column * 316f;
+            var x = panel.X + 32f + column * 384f;
             _ui.Text(heading, new Vector2(x, panel.Y + 82f + line * 30f), 13,
                 UiTheme.Accent);
             line++;
@@ -155,7 +157,7 @@ public sealed class OverlayRenderer
             {
                 var y = panel.Y + 76f + line * 30f;
                 _ui.Text(key, new Vector2(x, y), 16, UiTheme.Gold);
-                _ui.TextFit(action, new Vector2(x + 112f, y), 184f, 16, new Color(214, 226, 222));
+                _ui.TextFit(action, new Vector2(x + 118f, y), 228f, 15, UiTheme.Body);
                 line++;
                 placed++;
             }

@@ -1,48 +1,52 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using RatnaBay.Domain;
+using System;
 
 namespace RatnaBay.Client.Ui;
 
 internal sealed class DialogueRenderer
 {
     private readonly UiCanvas _ui;
+    private readonly GraphicsDevice _device;
 
-    public DialogueRenderer(UiCanvas ui) => _ui = ui;
+    public DialogueRenderer(UiCanvas ui, GraphicsDevice device)
+    {
+        _ui = ui;
+        _device = device;
+    }
 
     public void Draw(SpeakingActor actor, string response, int selection)
     {
         var topics = actor.AvailableTopics();
-        var panel = UiLayout.DialoguePanel;
-        _ui.Panel(panel, UiTheme.Panel, UiTheme.Accent);
+        var panel = UiLayout.ConversationPanel;
+        var portrait = UiLayout.ConversationPortrait;
+        _ui.Scrim(UiTheme.Scrim, UiTheme.NoBorder);
+        _ui.Fill(panel, UiTheme.Panel);
+        _ui.Text("RATNA BAY", new Vector2(572, panel.Y + 24), 14, UiTheme.Accent);
+        DialoguePortraits.Draw(_ui, _device, actor.ActorId, portrait);
+        _ui.PortraitEdge(portrait, UiTheme.Panel);
+        _ui.TextFit(actor.DisplayName, new Vector2(572, 140), 596, 32, UiTheme.Heading);
+        _ui.Text("IN CONVERSATION", new Vector2(574, 192), 14, UiTheme.Accent);
+        _ui.TextWrapped(response, new Vector2(572, 232), 596, 17, UiTheme.Body, maxLines: 5);
 
-        _ui.Text(actor.DisplayName, new Vector2(panel.X + 24, panel.Y + 20), 26, Color.White);
-        _ui.TextWrapped(response, new Vector2(panel.X + 24, panel.Y + 62),
-            panel.Width - 48, 18, new Color(216, 228, 223), maxLines: 4);
-
+        var start = Math.Max(0, selection) / UiLayout.DialogueRows * UiLayout.DialogueRows;
+        for (var index = start; index < topics.Count && index < start + UiLayout.DialogueRows; index++)
+        {
+            var row = UiLayout.DialogueTopic(index - start);
+            var (fill, border) = UiTheme.Row(index == selection);
+            _ui.Row(row, fill, border);
+            _ui.TextFit($"{index + 1}.  {topics[index]}", new Vector2(row.X + 14, row.Y + 6),
+                row.Width - 28, 16, UiTheme.RowText(index == selection));
+        }
         if (topics.Count == 0)
-        {
-            _ui.Text("Nothing you know to ask reaches them.",
-                new Vector2(panel.X + 24, UiLayout.DialogueTopic(0).Y + 6), 17,
-                UiTheme.Prompt);
-        }
-        else
-        {
-            for (var index = 0; index < topics.Count && index < UiLayout.DialogueRows; index++)
-            {
-                var selected = index == selection;
-                var row = UiLayout.DialogueTopic(index);
-                _ui.Fill(row, selected ? new Color(74, 67, 43, 240) : new Color(17, 27, 35, 190));
-                _ui.Text($"{index + 1}. {topics[index]}", new Vector2(row.X + 12, row.Y + 6), 17,
-                    selected ? new Color(245, 209, 124) : new Color(206, 219, 217));
-            }
+            _ui.Text("Nothing you know to ask reaches them.", new Vector2(572, 370), 17, UiTheme.Muted);
 
-            if (topics.Count > UiLayout.DialogueRows)
-                _ui.Text($"+{topics.Count - UiLayout.DialogueRows} more",
-                    new Vector2(panel.X + 24, UiLayout.DialogueTopic(UiLayout.DialogueRows).Y + 4), 14,
-                    UiTheme.Faint);
-        }
-
-        _ui.Text("Enter ask      Esc close", new Vector2(panel.X + 24, panel.Bottom - 30), 15,
-            new Color(170, 197, 200));
+        _ui.Text("Arrows choose  /  Enter ask", new Vector2(572, 600), 15, UiTheme.Hint);
+        var leave = UiLayout.ConversationLeave;
+        var (leaveFill, leaveBorder) = UiTheme.Row(false);
+        _ui.Row(leave, leaveFill, leaveBorder);
+        _ui.TextCentred("Esc  /  Leave", leave.Center.X, leave.Y + 11, 15, UiTheme.Body);
+        _ui.TextCentred(actor.DisplayName, portrait.Center.X, 596, 22, UiTheme.Heading);
     }
 }

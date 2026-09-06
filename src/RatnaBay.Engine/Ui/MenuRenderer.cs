@@ -20,17 +20,17 @@ public sealed class MenuRenderer
     public void Draw(MenuState state, OverlayRenderer overlay)
     {
         _ui.Fill(UiLayout.FullScreen, new Color(3, 7, 12, 178));
-        _ui.Panel(new Rectangle(64, 62, 1152, 596), new Color(5, 11, 18, 232), UiTheme.Border);
+        _ui.Panel(new Rectangle(64, 62, 1152, 596), UiTheme.Panel, UiTheme.Border);
 
         _ui.Text("RATNA BAY", new Vector2(98, 96), 38, Color.White);
         // This screen described the story slice long after the game stopped being one. It is
         // the first thing a stranger reads, and it was promising them exploration, trading and
         // sneaking -- one of which is parked and none of which is what they are about to play.
-        _ui.Text("AN ENDLESS MINE", new Vector2(101, 153), 13, new Color(161, 211, 218));
+        _ui.Text("AN ENDLESS MINE", new Vector2(101, 153), 13, UiTheme.Accent);
         _ui.TextFit("Go down, clear rooms, and decide when to stop", new Vector2(101, 181), 420f, 15,
-            new Color(184, 197, 196));
+            UiTheme.Muted);
 
-        _ui.Panel(new Rectangle(96, 222, 416, 390), new Color(8, 16, 24, 238), UiTheme.BorderDim);
+        _ui.Panel(new Rectangle(96, 222, 416, 390), UiTheme.PanelRaised, UiTheme.BorderDim);
         _ui.Text("MAIN MENU", new Vector2(124, 246), 14, UiTheme.GoldDim);
 
         for (var index = 0; index < state.Items.Count; index++)
@@ -45,7 +45,7 @@ public sealed class MenuRenderer
                 UiTheme.RowText(selected));
         }
 
-        _ui.Panel(new Rectangle(560, 222, 592, 390), new Color(8, 16, 24, 226), UiTheme.BorderDim);
+        _ui.Panel(new Rectangle(560, 222, 592, 390), UiTheme.PanelRaised, UiTheme.BorderDim);
 
         _ui.Text(state.Resuming ? "BELOW RATNA BAY" : "THE YARD AT RATNA BAY",
             new Vector2(592, 246), 14, UiTheme.Accent);
@@ -68,7 +68,7 @@ public sealed class MenuRenderer
 
         for (var line = 0; line < blurb.Length; line++)
             _ui.TextFit(blurb[line], new Vector2(592, 326 + line * 24), 500f, 15,
-                new Color(190, 203, 200));
+                UiTheme.Body);
 
         _ui.Text("WHAT YOU CAN DO", new Vector2(592, 414), 12, UiTheme.GoldDim);
 
@@ -77,7 +77,7 @@ public sealed class MenuRenderer
             : new[] { "Fight through generated rooms", "Bank your stones, or press on", "Die, and send the next one down" };
 
         for (var line = 0; line < doing.Length; line++)
-            _ui.Text(doing[line], new Vector2(592, 442 + line * 26), 14, new Color(190, 215, 208));
+            _ui.Text(doing[line], new Vector2(592, 442 + line * 26), 14, UiTheme.Body);
 
         _ui.Text("Click or hover to choose      Up / Down select      Enter confirm      Esc safe",
             new Vector2(98, 610), 14, UiTheme.Hint);

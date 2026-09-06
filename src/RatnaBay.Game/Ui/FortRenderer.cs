@@ -2,22 +2,10 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RatnaBay.Domain;
 using System;
-using System.Collections.Generic;
 
 namespace RatnaBay.Client.Ui;
 
-/// <summary>
-/// The fort: ten rooms, and whoever will talk to you in them.
-///
-/// Drawn as a list of doors rather than as a place to walk through, and that is a deliberate
-/// staging decision rather than a shortcut. The iteration's risk is **content authoring
-/// throughput** — the number that decides whether this game is finishable — and that number is
-/// about writing rooms and occupants, not about modelling corridors. Building the geometry
-/// first would have spent the expensive weeks before learning anything about the cheap ones.
-///
-/// The rooms, their occupants and their fragments are all data, so the walk-through version
-/// when it comes is a different renderer over the same content.
-/// </summary>
+/// <summary>The fort directory and a close-up, one-passage-at-a-time conversation.</summary>
 internal sealed class FortRenderer
 {
     private readonly UiCanvas _ui;
@@ -29,183 +17,103 @@ internal sealed class FortRenderer
         _device = device;
     }
 
-    /// <summary>Where the occupant's portrait sits. One to one with its generated size.</summary>
-    private static readonly Rectangle Portrait =
-        new(268, 214, PortraitForge.Width, PortraitForge.Height);
+    public static Rectangle DoorRow(int index) => UiLayout.FortDoor(index);
 
-    /// <summary>Where each door sits, so drawing and hit-testing cannot drift apart.</summary>
-    public static Rectangle DoorRow(int index) => new(280, 176 + index * 42, 720, 38);
-
-    public void Draw(Legacy legacy, int selection, string? openRoomId)
+    public void Draw(Legacy legacy, int selection, string? openRoomId, int page)
     {
-        var service = legacy.Service;
-
         _ui.Scrim(UiTheme.Scrim, UiTheme.NoBorder);
-        _ui.Panel(new Rectangle(240, 96, 800, 560), UiTheme.PanelRaised, UiTheme.Bronze);
-
-        _ui.TextCentred("THE FORT", 640f, 118f, 24, UiTheme.Heading);
-        _ui.TextCentred(
-            $"{legacy.CurrentName}, {Ranks.LabelOf(service.Rank)}"
-            + $"  ·  {service.DescentsSurvived} descents  ·  {service.StonesBanked} stones banked",
-            640f, 150f, 14, UiTheme.Accent);
-
-        if (openRoomId is not null && FortRoster.Find(openRoomId) is { } open)
+        if (openRoomId is not null && FortRoster.Find(openRoomId) is { } room)
         {
-            DrawRoom(open, legacy);
+            DrawRoom(room, legacy, page);
             return;
         }
 
-        var rank = service.Rank;
+        var service = legacy.Service;
+        var panel = UiLayout.FortPanel;
+        _ui.Panel(panel, UiTheme.Panel, UiTheme.Bronze);
+        _ui.Text("THE FORT", new Vector2(panel.X + 32, panel.Y + 24), 28, UiTheme.Heading);
+        _ui.TextRight(Ranks.LabelOf(service.Rank), panel.Right - 32, panel.Y + 32, 16, UiTheme.Accent);
+        _ui.Text(
+            $"{legacy.CurrentName}  /  {service.DescentsSurvived} descents  /  "
+                + $"{service.StonesBanked} stones banked",
+            new Vector2(panel.X + 32, panel.Y + 60), 15, UiTheme.Muted);
 
         for (var index = 0; index < FortRoster.All.Count; index++)
         {
-            var room = FortRoster.All[index];
+            var entry = FortRoster.All[index];
             var row = DoorRow(index);
-            var isOpen = room.IsOpen(rank);
-            var selected = index == selection;
-
-            var (fill, border) = UiTheme.Row(selected && isOpen);
+            var isOpen = entry.IsOpen(service.Rank);
+            var (fill, border) = UiTheme.Row(index == selection);
             _ui.Row(row, fill, border);
-
-            var ink = !isOpen ? new Color(104, 96, 92)
-                : selected ? Color.White
-                : UiTheme.RowIdleText;
-
-            _ui.Text(room.DisplayName, new Vector2(row.X + 16, row.Y + 9), 16, ink);
-
-            if (isOpen)
-            {
-                // How much of this room's story is still unheard. A door with something behind
-                // it should say so from the corridor, or a player has to open all ten after
-                // every run to find out which one changed.
-                var available = room.AvailableTo(rank, legacy.DeepestEver);
-                var unheard = 0;
-                foreach (var fragment in available)
-                    if (!legacy.HasHeard(fragment.Id)) unheard++;
-
-                _ui.TextRight(
-                    unheard > 0 ? $"{room.Occupant}  ·  {unheard} new" : room.Occupant,
-                    row.Right - 16, row.Y + 10, 14,
-                    unheard > 0 ? UiTheme.Accent : UiTheme.Muted);
-            }
-            else
-            {
-                _ui.TextRight($"shut — {Ranks.LabelOf(room.RequiredRank)}",
-                    row.Right - 16, row.Y + 10, 13, UiTheme.Warning);
-            }
+            _ui.Text(entry.DisplayName, new Vector2(row.X + 16, row.Y + 9), 16,
+                isOpen ? UiTheme.Body : UiTheme.Disabled);
+            var unheard = 0;
+            foreach (var fragment in entry.AvailableTo(service.Rank, legacy.DeepestEver))
+                if (!legacy.HasHeard(fragment.Id)) unheard++;
+            var label = !isOpen ? $"Requires {Ranks.LabelOf(entry.RequiredRank)}"
+                : unheard > 0 ? $"{entry.Occupant}  /  {unheard} unheard" : entry.Occupant;
+            _ui.TextRight(label, row.Right - 16, row.Y + 10, 15,
+                !isOpen ? UiTheme.Muted : unheard > 0 ? UiTheme.Accent : UiTheme.Body);
         }
 
-        var next = Ranks.Next(rank);
-        _ui.TextCentred(next is null
-                ? "Every door in the fort is open to you."
-                : $"{next.Title} at {next.Descents} descents and {next.Stones} stones banked.",
-            640f, 610f, 13, UiTheme.Muted);
-
-        _ui.TextCentred("Arrows choose      Enter open      Esc leave",
-            640f, 632f, 13, UiTheme.HintDim);
+        var next = Ranks.Next(service.Rank);
+        _ui.TextCentred(next is null ? "Every door is open to you."
+            : $"Next: {next.Title} / {next.Descents} descents / {next.Stones} stones banked",
+            panel.Center.X, 606, 15, UiTheme.Muted);
+        _ui.TextCentred("Arrows choose   /   Enter open   /   Esc leave", panel.Center.X, 636, 14, UiTheme.Hint);
     }
 
-    private void DrawRoom(FortRoom room, Legacy legacy)
+    private void DrawRoom(FortRoom room, Legacy legacy, int page)
     {
-        // One column beside the portrait, not a centred header and a column at once.
-        //
-        // The name, the office and the description used to be centred across the full panel
-        // while the greeting and the fragments ran down a column at x=580. The two overlapped:
-        // the office sat at y=222 and the greeting at y=224, so they were drawn through each
-        // other, and the centred lines ran under the portrait as well. Everything but the room
-        // name is left-aligned in the same column now, and the column owns its own vertical
-        // cursor so nothing has a hard-coded y to collide with.
-        _ui.TextCentred(room.DisplayName.ToUpperInvariant(), 640f, 190f, 22, Color.White);
-
         var fragments = room.AvailableTo(legacy.Service.Rank, legacy.DeepestEver);
+        page = Math.Clamp(page, 0, fragments.Count);
+        var panel = UiLayout.ConversationPanel;
+        var portrait = UiLayout.ConversationPortrait;
+        var text = UiLayout.ConversationText;
 
-        // The portrait wears the mood of the *last* thing they say, so the face the player is
-        // left looking at is the one the room ends on. Choosing the first would put a grieving
-        // face over three lines of paperwork.
-        var mood = fragments.Count > 0
-            ? fragments[^1].Mood
-            : FaceCatalog.Find(room.Id)?.Resting ?? Expression.Neutral;
+        _ui.Fill(panel, UiTheme.Panel);
+        _ui.Text("THE FORT", new Vector2(text.X, panel.Y + 24), 14, UiTheme.Accent);
+        _ui.TextRight(Ranks.LabelOf(legacy.Service.Rank), panel.Right - 44, panel.Y + 24, 14, UiTheme.Muted);
 
-        DrawPortrait(room, mood);
+        DialoguePortraits.Draw(_ui, _device, room.Id, portrait);
+        _ui.PortraitEdge(portrait, UiTheme.Panel);
+        _ui.TextCentred(room.DisplayName, portrait.Center.X, 592, 22, UiTheme.Heading);
+        _ui.TextCentred("BHAGIRATHA  /  " + legacy.CurrentName, portrait.Center.X, 628, 13, UiTheme.Muted);
 
-        const float TextLeft = 580f;
-        const float TextWidth = 434f;
+        _ui.Text(room.Occupant, new Vector2(text.X, 140), 38, UiTheme.Heading);
+        _ui.Text(room.Office.ToUpperInvariant(), new Vector2(text.X + 2, 190), 14, UiTheme.Accent);
+        _ui.Fill(new Rectangle(text.X, 220, text.Width, 1), UiTheme.Rule);
+        _ui.Text(page == 0 ? "" : $"{page} / {fragments.Count}",
+            new Vector2(text.X, text.Y + 12), 13, UiTheme.Muted);
 
-        var y = 224f;
+        // Centred in the space between the rule and the scene line, rather than pinned under
+        // the rule.
+        //
+        // A passage is one line at rank one and nine lines deep in the fort, and the block it
+        // sits in is sized for the nine. Pinned to the top, a greeting left a third of the
+        // panel empty below it and the screen read as unfinished; centred, a short line sits
+        // in the portrait's eyeline and a long one still starts where it always did, because
+        // the offset goes to zero as the text fills the space.
+        var body = page == 0 ? room.Greeting : fragments[page - 1].Text;
+        const float bodyTop = 278f;
+        const float bodyBottom = 500f;
+        var bodyHeight = _ui.MeasureWrapped(body, text.Width - 8, 19, maxLines: 9);
+        var bodyY = bodyTop + Math.Max(0f, (bodyBottom - bodyTop - bodyHeight) * 0.5f);
 
-        _ui.TextFit($"{room.Occupant}  ·  {room.Office}", new Vector2(TextLeft, y), TextWidth,
-            15, UiTheme.Accent);
-        y += 26f;
+        _ui.TextWrapped(body, new Vector2(text.X, bodyY), text.Width - 8, 19,
+            UiTheme.Body, maxLines: 9);
+        _ui.TextWrapped(room.Description, new Vector2(text.X, 514), text.Width, 14, UiTheme.Muted, maxLines: 2);
 
-        y += _ui.TextWrapped(room.Description, new Vector2(TextLeft, y), TextWidth, 13,
-            UiTheme.Muted, maxLines: 3);
-        y += 12f;
-
-        _ui.TextFit($"“{room.Greeting}”", new Vector2(TextLeft, y), TextWidth, 15,
-            new Color(226, 220, 208));
-        y += 40f;
-
-        if (fragments.Count == 0)
-        {
-            _ui.TextFit("They have nothing more to say to you yet.",
-                new Vector2(TextLeft, y), TextWidth, 14, UiTheme.Muted);
-        }
-
-        foreach (var fragment in fragments)
-        {
-            // Marked as heard on being shown, so a fragment is new exactly once. Reading it is
-            // the event, not dismissing it — a player who walks away mid-sentence has still
-            // been told.
-            var isNew = legacy.Hear(fragment.Id);
-
-            foreach (var line in Wrap(fragment.Text, 52))
-            {
-                _ui.TextFit(line, new Vector2(TextLeft, y), TextWidth, 14,
-                    isNew ? new Color(232, 226, 212) : new Color(168, 172, 174));
-                y += 22f;
-            }
-
-            y += 12f;
-        }
-
-        _ui.TextCentred("Esc  step back into the corridor", 640f, 632f, 13, UiTheme.HintDim);
+        DrawButton(UiLayout.ConversationPrevious, "Left  /  Previous", page > 0, false);
+        DrawButton(UiLayout.ConversationNext, page < fragments.Count ? "Enter  /  Continue" : "Enter  /  Leave", true, true);
+        DrawButton(UiLayout.ConversationLeave, "Esc  /  Leave", true, false);
     }
 
-    /// <summary>
-    /// The occupant, drawn at the size they were painted.
-    ///
-    /// No scaling in either direction: the portrait is generated at its final resolution, so
-    /// the UI sampler has nothing to interpolate and nothing to blur. Everything about the
-    /// close-up depends on that — a supersampled, continuously-lit face resampled by a
-    /// sprite batch would give back exactly the softness it was built to avoid.
-    /// </summary>
-    private void DrawPortrait(FortRoom room, Expression mood)
+    private void DrawButton(Rectangle bounds, string label, bool enabled, bool selected)
     {
-        if (FaceCatalog.Find(room.Id) is null) return;
-
-        _ui.Panel(new Rectangle(Portrait.X - 8, Portrait.Y - 8, Portrait.Width + 16,
-            Portrait.Height + 16), UiTheme.Panel, UiTheme.Bronze);
-
-        _ui.Sprite(PortraitForge.Get(_device, room.Id, mood), Portrait, Color.White);
-    }
-
-    /// <summary>Break a line at word boundaries so a long fragment does not run off the panel.</summary>
-    private static IEnumerable<string> Wrap(string text, int width)
-    {
-        var line = string.Empty;
-
-        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (line.Length > 0 && line.Length + word.Length + 1 > width)
-            {
-                yield return line;
-                line = word;
-                continue;
-            }
-
-            line = line.Length == 0 ? word : $"{line} {word}";
-        }
-
-        if (line.Length > 0) yield return line;
+        var (fill, border) = UiTheme.Row(selected);
+        _ui.Row(bounds, fill, enabled ? border : UiTheme.BorderDim);
+        _ui.TextCentred(label, bounds.Center.X, bounds.Y + 11, 15,
+            enabled ? UiTheme.Body : UiTheme.Disabled);
     }
 }

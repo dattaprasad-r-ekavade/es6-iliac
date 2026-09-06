@@ -15,33 +15,41 @@ namespace RatnaBay.Engine.Ui;
 /// </summary>
 public static class UiTheme
 {
+    public static readonly Color Health = new(173, 70, 58);
+    public static readonly Color Prana = new(193, 148, 73);
+    public static readonly Color Stamina = new(111, 139, 101);
+    public static readonly Color Track = new(13, 12, 11, 245);
+    public static readonly Color PortraitShadow = new(15, 13, 11);
+    public static readonly Color Rule = new(119, 92, 55);
+    public static readonly Color Disabled = new(120, 110, 93);
+    public static readonly Color Damage = new(150, 24, 28);
     // ----------------------------------------------------------------- structure
 
     /// <summary>A panel that sits over the world.</summary>
-    public static readonly Color Panel = new(5, 11, 18, 248);
+    public static readonly Color Panel = new(24, 21, 19, 252);
 
     /// <summary>A panel that sits over another panel, so slightly lighter.</summary>
-    public static readonly Color PanelRaised = new(6, 12, 19, 246);
+    public static readonly Color PanelRaised = new(32, 28, 24, 250);
 
     /// <summary>A prompt or ledger the world still shows through.</summary>
-    public static readonly Color PanelSheer = new(5, 11, 18, 225);
+    public static readonly Color PanelSheer = new(22, 20, 18, 228);
 
     /// <summary>Behind a modal, dimming everything under it.</summary>
-    public static readonly Color Scrim = new(3, 6, 10, 214);
+    public static readonly Color Scrim = new(10, 9, 8, 232);
 
     /// <summary>A scrim with no border of its own.</summary>
     public static readonly Color NoBorder = new(3, 6, 10, 0);
 
     /// <summary>The ordinary border of a panel.</summary>
-    public static readonly Color Border = new(91, 146, 159);
+    public static readonly Color Border = new(152, 117, 69);
 
     /// <summary>A quieter border, for a panel inside a panel.</summary>
-    public static readonly Color BorderDim = new(65, 105, 119);
+    public static readonly Color BorderDim = new(82, 69, 50);
 
     // ----------------------------------------------------------------- accents
 
     /// <summary>Section labels, and the colour the interface is built around.</summary>
-    public static readonly Color Accent = new(151, 206, 210);
+    public static readonly Color Accent = new(211, 175, 113);
 
     /// <summary>Money, keys, and anything the player is meant to reach for.</summary>
     public static readonly Color Gold = new(232, 194, 116);
@@ -70,22 +78,22 @@ public static class UiTheme
     // ----------------------------------------------------------------- text
 
     /// <summary>A heading over a panel.</summary>
-    public static readonly Color Heading = new(214, 226, 226);
+    public static readonly Color Heading = new(242, 229, 203);
 
     /// <summary>Ordinary text.</summary>
-    public static readonly Color Body = new(203, 216, 214);
+    public static readonly Color Body = new(220, 210, 190);
 
     /// <summary>Text that is not the point of the panel.</summary>
-    public static readonly Color Muted = new(150, 162, 170);
+    public static readonly Color Muted = new(172, 160, 141);
 
     /// <summary>A footer, or a line of key hints.</summary>
-    public static readonly Color Hint = new(163, 191, 194);
+    public static readonly Color Hint = new(190, 174, 148);
 
     /// <summary>A hint under something already read.</summary>
-    public static readonly Color HintDim = new(140, 156, 164);
+    public static readonly Color HintDim = new(165, 150, 128);
 
     /// <summary>An empty list, or something the player cannot have.</summary>
-    public static readonly Color Faint = new(142, 157, 157);
+    public static readonly Color Faint = new(144, 132, 113);
 
     /// <summary>Something is wrong and the player should know.</summary>
     public static readonly Color Warning = new(196, 118, 96);
@@ -94,21 +102,21 @@ public static class UiTheme
     public static readonly Color Error = new(228, 128, 118);
 
     /// <summary>A prompt or empty-state sentence.</summary>
-    public static readonly Color Prompt = new(174, 188, 186);
+    public static readonly Color Prompt = new(217, 201, 173);
 
     // ----------------------------------------------------------------- rows
 
     /// <summary>Fill of a row the player is on.</summary>
-    public static readonly Color RowSelected = new(74, 67, 43, 245);
+    public static readonly Color RowSelected = new(78, 60, 37, 250);
 
     /// <summary>Fill of a row they are not.</summary>
-    public static readonly Color RowIdle = new(17, 27, 35, 220);
+    public static readonly Color RowIdle = new(37, 32, 26, 242);
 
     /// <summary>Border of the row the player is on.</summary>
     public static readonly Color RowSelectedBorder = new(224, 181, 88);
 
     /// <summary>Border of a row they are not.</summary>
-    public static readonly Color RowIdleBorder = new(54, 82, 91);
+    public static readonly Color RowIdleBorder = new(81, 67, 48);
 
     /// <summary>Border of a selected row that would cost something irreversible.</summary>
     public static readonly Color RowDangerBorder = new(214, 118, 96);
@@ -117,7 +125,7 @@ public static class UiTheme
     public static readonly Color RowSelectedText = Color.White;
 
     /// <summary>Label on a row they are not.</summary>
-    public static readonly Color RowIdleText = new(192, 207, 205);
+    public static readonly Color RowIdleText = new(219, 206, 181);
 
     /// <summary>The fill and border of a list row, given whether it is the current one.</summary>
     public static (Color Fill, Color Border) Row(bool selected) => selected

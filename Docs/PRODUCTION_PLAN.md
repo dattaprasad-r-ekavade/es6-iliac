@@ -17,7 +17,7 @@ failure most likely to end it.
 | **Genre** | **Roguelite** — rank, amulets, gear and half the pack survive a death, which is the definition. Runs of five to eight minutes, generated mines, a fort that opens a room at a time. |
 | **Engine** | MonoGame + custom tooling. The Unity archive is a source of ported logic, not a fallback. |
 | **Game rules live in `RatnaBay.Domain`** | Engine-free C#, tested headlessly. No MonoGame reference, ever. |
-| **Characters and weapons are sprites drawn in code** | A palette and some proportions, not modelled assets. Sidesteps skinned animation entirely. |
+| **World characters and weapons are sprites** | Generated and individually overridable. Dialogue uses large painted close-ups after the September 6 user-directed art change; world billboards still avoid skinned animation. See `UI_ART_DIRECTION.md`. |
 | **Physics is hand-rolled** | Swept AABB against a static BVH, all three axes. BepuPhysics stays unintegrated. |
 | **Navigation is direct pursuit** | Enemies close on the player. DotRecast stays unintegrated. |
 | **UI is immediate-mode on SpriteBatch** | Not Gum. |

@@ -15,6 +15,7 @@ namespace RatnaBay.Client.World;
 /// </summary>
 internal sealed class WorldPresenter
 {
+    private readonly BoundingFrustum _visible = new(Matrix.Identity);
     /// <summary>The stone this room is cut from. Decided here, not via a ref out of Game1.</summary>
     public StoneTextures.StonePalette Stone { get; private set; } = StoneTextures.StonePalette.Granite;
 
@@ -85,9 +86,11 @@ internal sealed class WorldPresenter
                 keyColour: new Vector3(0.20f, 0.20f, 0.26f));
         }
 
+        _visible.Matrix = view * projection;
         foreach (var geometry in world.Manifest.Geometry ?? new List<WorldGeometry>())
         {
             if (!geometry.Visible) continue;
+            if (!_visible.Intersects(new BoundingBox(Vec(geometry.Min), Vec(geometry.Max)))) continue;
             scene.DrawWorldBox(Vec(geometry.Min), Vec(geometry.Max), ToXna(geometry.Color),
                 geometry.Material);
         }
@@ -96,7 +99,7 @@ internal sealed class WorldPresenter
         {
             if (door.Lock.IsOpen) continue;
             scene.DrawWorldBox(Vec(door.Definition.Min), Vec(door.Definition.Max),
-                ToXna(door.Definition.Color));
+                ToXna(door.Definition.Color), onTheSurface ? "stone" : "timber");
         }
 
         foreach (var prop in world.Manifest.Props ?? new List<WorldProp>())

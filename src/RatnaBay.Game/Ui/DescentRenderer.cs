@@ -31,7 +31,7 @@ internal sealed class DescentRenderer
     public void DrawCampDecision(RunState run)
     {
         var panel = new Rectangle(360, 358, 560, 260);
-        _ui.Panel(panel, new Color(6, 12, 19, 240), UiTheme.Bronze);
+        _ui.Panel(panel, UiTheme.Panel, UiTheme.Bronze);
 
         _ui.TextCentred("A CLEARED ROOM, AND A SHUT DOOR", panel.Center.X, panel.Y + 18f, 13,
             UiTheme.Bronze);
@@ -42,14 +42,14 @@ internal sealed class DescentRenderer
             panel.X + 148f, panel.Y + 104f, 13, UiTheme.Muted);
 
         _ui.TextCentred(run.IsExhausted ? "—" : $"+{run.NextRoomPays}",
-            panel.Right - 148f, panel.Y + 52f, 44, new Color(214, 186, 120));
+            panel.Right - 148f, panel.Y + 52f, 44, UiTheme.Gold);
         _ui.TextCentred(run.IsExhausted ? "the mine is spent" : "the next room pays",
             panel.Right - 148f, panel.Y + 104f, 13, UiTheme.Muted);
 
         _ui.TextCentred(run.IsExhausted
                 ? $"{run.RoomsCleared} rooms cleared. There is nothing deeper."
                 : $"{run.RoomsCleared} rooms cleared  ·  staking {run.RiskRatio:0.0} : 1",
-            panel.Center.X, panel.Y + 128f, 15, new Color(206, 212, 218));
+            panel.Center.X, panel.Y + 128f, 15, UiTheme.Body);
 
         if (!run.IsExhausted)
             _ui.TextCentred("Fall in there and you carry out nothing.",
@@ -82,13 +82,13 @@ internal sealed class DescentRenderer
     /// <summary>A quiet running total, so the pot is never a surprise at the door.</summary>
     public void DrawRunLedger(RunState run)
     {
-        var panel = new Rectangle(1016, 84, 240, 62);
-        _ui.Panel(panel, new Color(5, 11, 18, 214), UiTheme.BorderDim);
-
-        _ui.Text("AT RISK", new Vector2(panel.X + 14, panel.Y + 10), 12, UiTheme.Accent);
-        _ui.Text($"{run.Pending}", new Vector2(panel.Right - 44, panel.Y + 8), 18, Color.White);
-        _ui.Text($"room {run.RoomsCleared}  ·  {run.Pending * SoulCrystals.LesserBasePrice} gold",
-            new Vector2(panel.X + 14, panel.Y + 34), 12, UiTheme.Muted);
+        var panel = UiLayout.HudLedger;
+        _ui.Panel(panel, UiTheme.PanelSheer, UiTheme.Bronze);
+        _ui.Text("AT RISK", new Vector2(panel.X + 16, panel.Y + 12), 12, UiTheme.Accent);
+        _ui.TextRight($"{run.Pending}", panel.Right - 16, panel.Y + 22, 34, UiTheme.Heading);
+        _ui.Text("JIVA STONES", new Vector2(panel.X + 16, panel.Y + 36), 13, UiTheme.Muted);
+        _ui.Text($"Room {run.RoomsCleared}  /  next +{run.NextRoomPays}",
+            new Vector2(panel.X + 16, panel.Y + 68), 13, UiTheme.Body);
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ internal sealed class DescentRenderer
             _ui.TextRight(price, row.Right - 18, row.Y + 12, 15,
                 index == 0
                     ? UiTheme.Accent
-                    : affordable ? new Color(214, 186, 120) : UiTheme.Warning);
+                    : affordable ? UiTheme.Gold : UiTheme.Warning);
         }
 
         _ui.TextCentred("Nothing here outlives the descent. Dying still costs you all of it.",
@@ -178,7 +178,7 @@ internal sealed class DescentRenderer
 
             _ui.Text($"Tier {tier}", new Vector2(row.X + 18, row.Y + 6), 18, ink);
             _ui.TextRight(cost == 0 ? "free" : Stones(cost), row.Right - 18, row.Y + 8, 16,
-                affordable ? new Color(214, 186, 120) : UiTheme.Warning);
+                affordable ? UiTheme.Gold : UiTheme.Warning);
             // The cave itself, not just the tier. Choosing which cave to buy into knowing what
             // is down there is the decision the whole loop rests on, and it cannot be made
             // after the stones are spent.
@@ -194,7 +194,7 @@ internal sealed class DescentRenderer
         _ui.TextCentred(breakEven == 0
                 ? "Pays one stone a room. Nothing to make back."
                 : $"Pays {selection} a room, rising. {breakEven} rooms before the door pays for itself.",
-            panel.Center.X, panel.Bottom - 78f, 14, new Color(206, 212, 218));
+            panel.Center.X, panel.Bottom - 78f, 14, UiTheme.Body);
 
         _ui.TextCentred("A harder mine, not a longer one. How far you go is decided at each door.",
             panel.Center.X, panel.Bottom - 52f, 13, UiTheme.Accent);
@@ -220,7 +220,7 @@ internal sealed class DescentRenderer
             panel.Center.X, panel.Y + 30f, 26, accent);
 
         _ui.TextCentred($"{summary.RoomsCleared} rooms cleared at tier {summary.Tier}",
-            panel.Center.X, panel.Y + 78f, 15, new Color(206, 212, 218));
+            panel.Center.X, panel.Y + 78f, 15, UiTheme.Body);
 
         if (summary.Survived)
         {

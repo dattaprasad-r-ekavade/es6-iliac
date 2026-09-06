@@ -50,6 +50,7 @@ public sealed class SceneRenderer
 
     private readonly VertexPositionNormalTexture[] _cube = new VertexPositionNormalTexture[24];
     private readonly short[] _cubeIndices = new short[36];
+    private readonly Dictionary<(Vector3, Vector3, bool), (VertexPositionNormalTexture[], short[])> _rockMeshes = new();
 
     /// <summary>Scratch copy of the cube, rebuilt per draw when its UVs have to be scaled.</summary>
     private readonly VertexPositionNormalTexture[] _texturedCube = new VertexPositionNormalTexture[24];
@@ -157,6 +158,8 @@ public sealed class SceneRenderer
         // packed-earth ground all came out as sandy brick. The material says it instead.
         var texture = material switch
         {
+            "rock" or "boulder" => StoneTextures.Rock(_device, _stone),
+            "gravel" => StoneTextures.Rock(_device, _stone, true),
             "timber" => StoneTextures.Timber(_device),
             "cloth" => StoneTextures.Cloth(_device),
             "earth" => StoneTextures.Earth(_device),
@@ -170,7 +173,7 @@ public sealed class SceneRenderer
         {
             // Stone takes the authored colour pulled toward white, so it modulates the
             // texture rather than drowning it.
-            "stone" or null or "" => TintFor(color),
+            "stone" or "rock" or "boulder" or "gravel" or null or "" => TintFor(color),
 
             // Shadowed is stone with that pull taken off: the authored colour multiplies the
             // texture as it stands. It is the only way a surface here can end up darker than
@@ -208,7 +211,89 @@ public sealed class SceneRenderer
             return;
         }
 
-        DrawTexturedCube(centre, scale, painted, texture, tiling);
+        if (material is "rock" or "boulder")
+            DrawRock(centre, scale, painted, texture, material == "boulder");
+        else
+            DrawTexturedCube(centre, scale, painted, texture, tiling);
+    }
+
+    private void DrawRock(Vector3 centre, Vector3 scale, Color tint, Texture2D texture, bool rounded)
+    {
+        // Meshes stay inside their solid bounds: decoration cannot silently block a passage.
+        var key = (centre, scale, rounded);
+        if (!_rockMeshes.TryGetValue(key, out var mesh))
+        {
+            if (_rockMeshes.Count > 2048) _rockMeshes.Clear();
+            var vertices = new List<VertexPositionNormalTexture>();
+            var indices = new List<short>();
+            for (var face = 0; face < 6; face++)
+            {
+                var a = _cube[face * 4].Position * scale;
+                var b = _cube[face * 4 + 1].Position * scale;
+                var c = _cube[face * 4 + 2].Position * scale;
+                var d = _cube[face * 4 + 3].Position * scale;
+                var normal = _cube[face * 4].Normal;
+                var across = Math.Clamp((int)MathF.Ceiling(Vector3.Distance(a, b) / 1.5f), 4, 20);
+                var down = Math.Clamp((int)MathF.Ceiling(Vector3.Distance(a, d) / 1.5f), 4, 20);
+                Vector3 Point(float u, float v)
+                {
+                    var p = Vector3.Lerp(Vector3.Lerp(a, b, u), Vector3.Lerp(d, c, u), v);
+                    if (rounded)
+                    {
+                        var q = p / scale * 2;
+                        var direction = Vector3.Normalize(q);
+                        var roughness = .92f + .08f * MathF.Sin(direction.X * 11 + direction.Y * 7 + direction.Z * 9 + centre.X);
+                        p = direction * roughness * scale * .5f;
+                    }
+                    var w = p + centre;
+                    var noise = .5f + .25f * MathF.Sin(w.X * 2.31f + w.Z * 1.71f + w.Y * 3.7f)
+                        + .25f * MathF.Sin(w.X * .73f - w.Z * 2.43f + w.Y);
+                    var thickness = MathF.Abs(Vector3.Dot(scale, normal));
+                    return p - normal * MathF.Min(.38f, thickness * .3f) * noise
+                        * MathF.Sin(u * MathF.PI) * MathF.Sin(v * MathF.PI);
+                }
+                void Triangle(Vector3 p, Vector3 q, Vector3 r)
+                {
+                    var n = Vector3.Normalize(Vector3.Cross(q - p, r - p));
+                    if (Vector3.Dot(n, normal) < 0) n = -n;
+                    foreach (var position in new[] { p, q, r })
+                    {
+                        var world = position + centre;
+                        var uv = MathF.Abs(normal.Y) > .5f ? new Vector2(world.X, world.Z)
+                            : MathF.Abs(normal.X) > .5f ? new Vector2(world.Z, world.Y) : new Vector2(world.X, world.Y);
+                        indices.Add((short)vertices.Count);
+                        vertices.Add(new VertexPositionNormalTexture(position, n, uv / 4.8f));
+                    }
+                }
+                for (var y = 0; y < down; y++)
+                for (var x = 0; x < across; x++)
+                {
+                    var p = Point(x / (float)across, y / (float)down);
+                    var q = Point((x + 1f) / across, y / (float)down);
+                    var r = Point((x + 1f) / across, (y + 1f) / down);
+                    var s = Point(x / (float)across, (y + 1f) / down);
+                    Triangle(p, r, q); Triangle(p, s, r);
+                }
+            }
+            mesh = (vertices.ToArray(), indices.ToArray());
+            _rockMeshes[key] = mesh;
+        }
+        var worldMatrix = Matrix.CreateTranslation(centre);
+        _device.SamplerStates[0] = SamplerState.LinearWrap;
+        if (CaveEffect is not null)
+            DrawWithCaveLighting(worldMatrix, tint, texture, mesh.Item1, mesh.Item2);
+        else
+        {
+            _effect.World = worldMatrix; _effect.View = _view; _effect.Projection = _projection;
+            _effect.TextureEnabled = true; _effect.Texture = texture; _effect.DiffuseColor = tint.ToVector3();
+            foreach (var pass in _effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                _device.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, mesh.Item1, 0,
+                    mesh.Item1.Length, mesh.Item2, 0, mesh.Item2.Length / 3);
+            }
+            _effect.TextureEnabled = false;
+        }
     }
 
     /// <summary>

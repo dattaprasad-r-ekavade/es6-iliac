@@ -17,17 +17,17 @@ public sealed class ConsentRenderer
 
     public void Draw(int selection)
     {
-        _ui.Fill(UiLayout.FullScreen, new Color(6, 10, 16));
+        _ui.Fill(UiLayout.FullScreen, UiTheme.PortraitShadow);
 
         // Tall enough for the text and the two answers to be separate things. The first
         // version put the buttons through the last three lines of the explanation, which
         // is a poor look on the one screen that is asking permission.
         var panel = new Rectangle(300, 120, 680, 484);
-        _ui.Panel(panel, new Color(8, 16, 24, 250), UiTheme.Accent);
+        _ui.Panel(panel, UiTheme.PanelRaised, UiTheme.Accent);
 
         _ui.TextCentred("BEFORE YOU PLAY", panel.Center.X, panel.Y + 30f, 26, Color.White);
         _ui.TextCentred("This is an alpha, and it is being tuned from how people actually play.",
-            panel.Center.X, panel.Y + 76f, 15, new Color(190, 203, 200));
+            panel.Center.X, panel.Y + 76f, 15, UiTheme.Body);
 
         var lines = new[]
         {

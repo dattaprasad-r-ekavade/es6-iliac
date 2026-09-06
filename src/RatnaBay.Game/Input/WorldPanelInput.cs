@@ -15,7 +15,7 @@ internal readonly record struct CampCommand(CampAction Action, int StockIndex = 
 
 internal enum ShaftAction { None, Dismiss, Commit }
 
-internal enum FortAction { None, Close, Back, Enter }
+internal enum FortAction { None, Close, Back, Enter, Next, Previous }
 internal readonly record struct FortCommand(FortAction Action, int RoomIndex = -1)
 {
     public static FortCommand Idle => new(FortAction.None);
@@ -49,6 +49,7 @@ internal sealed class WorldPanelInput
     public int ShopSelection { get; set; }
     public int DialogueSelection { get; set; }
     public int FortSelection { get; set; }
+    public int FortPage { get; set; }
     public int CampSelection { get; set; }
     public int DepthSelection { get; set; } = MineEntry.MinTier;
 
@@ -91,9 +92,10 @@ internal sealed class WorldPanelInput
         var digit = ListPicker.DigitIndex(input, keyboard, topicCount);
         if (digit >= 0) DialogueSelection = digit;
 
-        var visible = Math.Min(topicCount, UiLayout.DialogueRows);
+        var start = DialogueSelection / UiLayout.DialogueRows * UiLayout.DialogueRows;
         var pick = ListPicker.Step(DialogueSelection, input, keyboard, mouse, pointer,
-            topicCount, i => i < visible ? UiLayout.DialogueTopic(i) : default);
+            topicCount, i => i >= start && i < start + UiLayout.DialogueRows
+                ? UiLayout.DialogueTopic(i - start) : default);
         DialogueSelection = pick.Selection;
         return pick.Confirmed(input, keyboard, mouse) ? DialogueSelection : -1;
     }
@@ -137,7 +139,18 @@ internal sealed class WorldPanelInput
         if (!sessionLive) return new FortCommand(FortAction.Close);
         if (input.Pressed(keyboard, Keys.Escape))
             return new FortCommand(inRoom ? FortAction.Back : FortAction.Close);
-        if (inRoom) return FortCommand.Idle;
+        if (inRoom)
+        {
+            if (input.Clicked(mouse) && UiLayout.ConversationLeave.Contains(pointer))
+                return new FortCommand(FortAction.Back);
+            if (input.Pressed(keyboard, Keys.Left) ||
+                input.Clicked(mouse) && UiLayout.ConversationPrevious.Contains(pointer))
+                return new FortCommand(FortAction.Previous);
+            if (input.Pressed(keyboard, Keys.Enter) || input.Pressed(keyboard, Keys.Right) ||
+                input.Clicked(mouse) && UiLayout.ConversationNext.Contains(pointer))
+                return new FortCommand(FortAction.Next);
+            return FortCommand.Idle;
+        }
         if (!StepFort(input, keyboard, mouse, pointer, FortRoster.All.Count)) return FortCommand.Idle;
         return new FortCommand(FortAction.Enter, FortSelection);
     }
@@ -162,7 +175,8 @@ internal sealed class WorldPanelInput
         MouseState mouse, Vector2 pointer, IReadOnlyList<string>? topics)
     {
         if (topics is null) return DialogueCommand.Dismiss;
-        if (input.Pressed(keyboard, Keys.Escape)) return DialogueCommand.Dismiss;
+        if (input.Pressed(keyboard, Keys.Escape) ||
+            input.Clicked(mouse) && UiLayout.ConversationLeave.Contains(pointer)) return DialogueCommand.Dismiss;
         if (topics.Count == 0) return DialogueCommand.Idle;
         var chosen = StepDialogue(input, keyboard, mouse, pointer, topics.Count);
         return chosen >= 0

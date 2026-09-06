@@ -21,12 +21,13 @@ internal sealed class CharacterRenderer
     {
         var vitals = player.Vitals;
         var panel = new Rectangle(90, 70, 1100, 580);
-        _ui.Panel(panel, UiTheme.Panel, new Color(117, 153, 166));
+        _ui.Scrim(UiTheme.Scrim, UiTheme.NoBorder);
+        _ui.Panel(panel, UiTheme.Panel, UiTheme.Bronze);
         _ui.Text("CHARACTER", new Vector2(panel.X + 30, panel.Y + 22), 13,
             UiTheme.GoldDim);
 
         var name = string.IsNullOrWhiteSpace(player.Story.State.Profile.Name)
-            ? "Northwatch Wanderer"
+            ? player.Legacy.CurrentName
             : player.Story.State.Profile.Name;
         _ui.TextFit(name, new Vector2(panel.X + 30, panel.Y + 52), 440f, 28, Color.White);
         _ui.TextRight($"{vitals.Gold} gold", panel.Right - 30, panel.Y + 60, 17,
@@ -40,11 +41,11 @@ internal sealed class CharacterRenderer
         _ui.Text($"Level {vitals.Level}   XP {vitals.Xp} / {vitals.XpToLevel}",
             new Vector2(leftX, top + 34), 17, Color.White);
         _ui.Text($"Health     {vitals.Health:0} / {vitals.MaxHealth:0}",
-            new Vector2(leftX, top + 70), 16, new Color(224, 116, 105));
+            new Vector2(leftX, top + 70), 16, UiTheme.Warning);
         _ui.Text($"Prana       {vitals.Prana:0} / {vitals.MaxPrana:0}",
-            new Vector2(leftX, top + 100), 16, new Color(112, 174, 225));
+            new Vector2(leftX, top + 100), 16, UiTheme.Prana);
         _ui.Text($"Stamina   {vitals.Stamina:0} / {vitals.MaxStamina:0}",
-            new Vector2(leftX, top + 130), 16, new Color(117, 194, 137));
+            new Vector2(leftX, top + 130), 16, UiTheme.Stamina);
         _ui.Text($"Jiva stones drawn: {vitals.Channeled}",
             new Vector2(leftX, top + 182), 15, UiTheme.Prompt);
 
@@ -99,7 +100,7 @@ internal sealed class CharacterRenderer
             var filled = slot < stones.Socketed.Count;
 
             _ui.Panel(cell,
-                filled ? new Color(52, 34, 74, 240) : new Color(14, 22, 30, 220),
+                filled ? new Color(52, 34, 74, 240) : UiTheme.PanelRaised,
                 filled ? new Color(178, 132, 226) : new Color(58, 78, 88));
 
             if (!filled || crystal is null) continue;
@@ -176,13 +177,13 @@ internal sealed class CharacterRenderer
             var slot = UiLayout.EquippedSlot(index);
             var filled = index == 0 || armour is not null;
 
-            _ui.Panel(slot, new Color(14, 24, 32, 235),
-                filled ? new Color(120, 150, 130) : new Color(54, 68, 76));
+            _ui.Panel(slot, UiTheme.PanelRaised,
+                filled ? UiTheme.Border : UiTheme.BorderDim);
 
             var label = new Vector2(slot.X + 12, slot.Y + 8);
-            _ui.Text(labels[index], label, 11, new Color(140, 168, 160));
+            _ui.Text(labels[index], label, 11, UiTheme.Muted);
             _ui.TextFit(names[index], new Vector2(slot.X + 12, slot.Y + 24), slot.Width - 24, 15,
-                filled ? Color.White : new Color(128, 138, 142));
+                filled ? UiTheme.Body : UiTheme.Disabled);
 
             // Measured against what the label actually occupies rather than against a number
             // somebody picked once: the interface font can be changed, and a gap that was
@@ -247,12 +248,12 @@ internal sealed class CharacterRenderer
         var chosen = items[selection];
         var detail = new Rectangle(UiLayout.InventoryLeft, belowPack + 22, 426, 78);
 
-        _ui.Panel(detail, new Color(8, 16, 24, 232), new Color(72, 104, 118));
+        _ui.Panel(detail, UiTheme.PanelRaised, UiTheme.BorderDim);
         _ui.TextFit(chosen.Name, new Vector2(detail.X + 14, detail.Y + 10), detail.Width - 28, 16,
             Color.White);
         _ui.TextFit(ItemUse.Describe(chosen.Id, chosen.Kind),
             new Vector2(detail.X + 14, detail.Y + 34), detail.Width - 28, 13,
-            new Color(196, 212, 210));
+            UiTheme.Body);
 
         var verb = ItemUse.DescribeAction(chosen.Id, chosen.Kind);
         _ui.TextFit(verb == "—"
