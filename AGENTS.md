@@ -18,6 +18,7 @@ renders, samples input, and loads content. Read this file before changing code.
 | `tools/RatnaBay.Tools/` | `doctor`, `validate`, `sim`, `mine`, `review`. |
 | `tests/RatnaBay.Domain.Tests/` | Headless domain tests. |
 | `Docs/` | Design and production records. Update them when a closed decision or behaviour changes. |
+| `COMPLETE_OUTLINE.md` | What the game is: loop, world, lore, story, and the design and craft principles. Read first. |
 | `ParkedFeatures.cs` | Built, tested, unreachable player-facing surfaces. Do not revive without a product decision. |
 
 `Game1` is Ratna Bay on `EngineHost`. New independent systems do not go in `Game1`. A second
