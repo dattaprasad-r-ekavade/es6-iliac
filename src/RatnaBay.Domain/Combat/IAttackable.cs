@@ -1,4 +1,4 @@
-namespace RatnaBay.Domain;
+﻿namespace RatnaBay.Domain;
 
 /// <summary>
 /// Something a swing or a spell can land on.
@@ -73,11 +73,28 @@ public static class DamageMath
     /// A bare guard halves a blow; a shield takes it further. Expressing it as the whole
     /// factor means there is one number to read and no second place for the two to disagree —
     /// which is exactly how a "block bonus" and a "block reduction" end up drifting apart.
+    ///
+    /// **Armour comes off the blow, and then the guard reduces what is left.** It used to be
+    /// the other way round, and multiplying first made the two compound: eight points of
+    /// armour absorbed eight damage with the shield down and thirty-six with it up, because
+    /// the flat subtraction was applied to an already-quartered number. A shield with a better
+    /// factor also carries more armour, so the better kit amplified its own armour twice over.
+    ///
+    /// What that produced was not a strong defence but an off switch. A blocked blow needed 41
+    /// raw damage to beat the floor below, and only two of the eight archetypes reach that at
+    /// any level — so hauberk and bronze shield meant exactly one damage per hit from nearly
+    /// everything in the game, twenty-four hits to die against the worst enemy at level ten
+    /// where bare hands take four. MinimumDamage was the only thing keeping it finite, and an
+    /// absolute floor cannot bound a proportion: the kit was taking 3% of a blow.
+    ///
+    /// Subtracting first costs the player real mitigation while blocking and is meant to. It
+    /// leaves an unguarded blow arithmetically identical — at blockFactor 1 the two orders are
+    /// the same expression — so this changes the one interaction that was broken and nothing
+    /// else. Ten hits rather than twenty-four, against six in tier-one gear and four in none.
     /// </summary>
     public static float Resolve(float amount, float armour, float blockFactor)
     {
-        var incoming = amount * MathF.Max(0f, blockFactor);
-        incoming -= armour;
-        return MathF.Max(MinimumDamage, incoming);
+        var afterArmour = MathF.Max(0f, amount - armour);
+        return MathF.Max(MinimumDamage, afterArmour * MathF.Max(0f, blockFactor));
     }
 }
