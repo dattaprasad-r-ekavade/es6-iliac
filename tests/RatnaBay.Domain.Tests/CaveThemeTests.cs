@@ -130,9 +130,39 @@ public sealed class CaveThemeTests
     {
         // Depth decides reward, theme decides tactics. If a payout ever learns about a theme,
         // this is the assertion that should have stopped it.
+        // Depth decides reward, theme decides tactics. Stated as proportionality rather than
+        // as the formula: what must not happen is a theme reaching the payout at all, and a
+        // rebalance of the curve is not that.
+        var baseline = RunState.PayoutFor(3, 1);
+
         foreach (var theme in CaveThemeCatalog.All)
         foreach (var tier in new[] { 1, 2, 3 })
-            Assert.That(RunState.PayoutFor(3, tier), Is.EqualTo(3 * tier),
+            Assert.That(RunState.PayoutFor(3, tier), Is.EqualTo(baseline * tier),
                 $"{theme.Id} changed what a room pays");
     }
+
+    /// <summary>
+    /// Resistance, never immunity -- the rule the constant's own comment insists on.
+    ///
+    /// Doubling either factor broke nothing. Doubling ResistedFactor to 0.9 makes resistance
+    /// meaningless; halving it towards zero is the immunity that locks a Flame-only build out
+    /// of a lava cave, which the design explicitly refuses. Both are stated here as bounds.
+    /// </summary>
+    [Test]
+    public void ACaveResistsASpellWithoutEverBeingImmuneToIt()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(CaveThemeCatalog.ResistedFactor, Is.GreaterThan(0.2f),
+                "a resisted spell still has to be able to finish the cave, badly");
+            Assert.That(CaveThemeCatalog.ResistedFactor, Is.LessThan(0.75f),
+                "and resistance the player cannot feel is not resistance");
+            Assert.That(CaveThemeCatalog.FearedFactor, Is.GreaterThan(1.25f),
+                "bringing the right element has to be worth the trouble");
+            Assert.That(CaveThemeCatalog.FearedFactor,
+                Is.LessThan(1f / CaveThemeCatalog.ResistedFactor),
+                "but the gap between right and wrong element must not decide the run on its own");
+        });
+    }
+
 }

@@ -82,10 +82,19 @@ public class CampTraderTests
     [Test]
     public void APotThatCannotCoverTheWhistleCannotCallOne()
     {
-        var run = AfterRooms(2);          // 3 in the pot, call costs 5
+        // The trader's own price is the design decision here; what the rooms happen to have
+        // paid by now is not. Picking a room count that leaves the pot short would tie this to
+        // the payout curve, so the short pot is arranged rather than assumed: clear enough to
+        // afford a whistle, then spend down to one stone under it.
+        var run = AfterRooms(5);
+        Assert.That(run.TraderCallCost, Is.EqualTo(5), "the first whistle costs five");
+
+        Assert.That(run.TrySpend(run.Pending - (run.TraderCallCost - 1)), Is.True,
+            "leaving one stone less than a whistle costs");
+
         Assert.Multiple(() =>
         {
-            Assert.That(run.TraderCallCost, Is.EqualTo(5));
+            Assert.That(run.Pending, Is.LessThan(run.TraderCallCost), "the pot cannot cover it");
             Assert.That(run.CanCallTrader, Is.False);
         });
     }
@@ -93,14 +102,16 @@ public class CampTraderTests
     [Test]
     public void CallingSpendsOutOfThePotAndRaisesThePriceOfTheNext()
     {
-        var run = AfterRooms(5);          // 15 in the pot
+        var run = AfterRooms(5);
+        var pot = run.Pending;
+        var cost = run.TraderCallCost;
 
-        Assert.That(run.TrySpend(run.TraderCallCost), Is.True);
+        Assert.That(run.TrySpend(cost), Is.True);
         run.NoteTraderCalled();
 
         Assert.Multiple(() =>
         {
-            Assert.That(run.Pending, Is.EqualTo(10), "five stones are not being carried out");
+            Assert.That(run.Pending, Is.EqualTo(pot - cost), "the fare is not being carried out");
             Assert.That(run.TradersCalled, Is.EqualTo(1));
             Assert.That(run.TraderCallCost, Is.EqualTo(10));
         });
@@ -109,12 +120,13 @@ public class CampTraderTests
     [Test]
     public void SpendingMoreThanThePotHoldsSpendsNothing()
     {
-        var run = AfterRooms(3);          // 6 in the pot
+        var run = AfterRooms(3);
+        var pot = run.Pending;
 
         Assert.Multiple(() =>
         {
-            Assert.That(run.TrySpend(7), Is.False);
-            Assert.That(run.Pending, Is.EqualTo(6));
+            Assert.That(run.TrySpend(pot + 1), Is.False, "one more than there is");
+            Assert.That(run.Pending, Is.EqualTo(pot), "and nothing left the pot");
         });
     }
 
@@ -124,14 +136,16 @@ public class CampTraderTests
         // The rule the whole thing rests on. Calling a trader must not be a way to bank: a
         // player who spends five and dies has lost the five as surely as the rest.
         var run = AfterRooms(5);
-        run.TrySpend(5);
+        var spent = 5;
+        var remaining = run.Pending - spent;
+        run.TrySpend(spent);
         run.NoteTraderCalled();
 
         var died = run.Die();
 
         Assert.Multiple(() =>
         {
-            Assert.That(died.StonesLost, Is.EqualTo(10), "only what was left in the pot");
+            Assert.That(died.StonesLost, Is.EqualTo(remaining), "only what was left in the pot");
             Assert.That(run.Pending, Is.Zero);
         });
     }
@@ -174,14 +188,15 @@ public class CampTraderTests
         // has ever bought one.
         var pack = WithLoot(7);
         var run = AfterRooms(4);
+        var fromRooms = run.Pending;
 
         var paid = CampTrader.SellLoot(pack, run);
 
         Assert.Multiple(() =>
         {
-            Assert.That(paid, Is.EqualTo(7));
+            Assert.That(paid, Is.EqualTo(7), "a stone a satchel");
             Assert.That(pack.CountOf("bandit_loot"), Is.Zero);
-            Assert.That(run.Pending, Is.EqualTo(17), "ten from four rooms, seven from the pack");
+            Assert.That(run.Pending, Is.EqualTo(fromRooms + paid), "and it lands in the pot");
         });
     }
 
@@ -192,9 +207,11 @@ public class CampTraderTests
         // out of a mine that dying would otherwise have taken.
         var pack = WithLoot(9);
         var run = AfterRooms(3);
-        CampTrader.SellLoot(pack, run);
+        var fromRooms = run.Pending;
+        var fromLoot = CampTrader.SellLoot(pack, run);
 
-        Assert.That(run.Die().StonesLost, Is.EqualTo(15), "six from rooms, nine from loot");
+        Assert.That(run.Die().StonesLost, Is.EqualTo(fromRooms + fromLoot),
+            "what the rooms paid and what the loot fetched are lost alike");
     }
 
     [Test]

@@ -632,4 +632,30 @@ public class PlayReviewTests
         Assert.That(PlayRecording.TryLoad("nowhere.json", out _, out var error), Is.False);
         Assert.That(error, Is.Not.Empty);
     }
+
+    /// <summary>
+    /// The thresholds the whole recorder exists to measure against.
+    ///
+    /// Doubling any of the three broke nothing, which is a strange gap: the open question this
+    /// game keeps asking is whether the door makes anybody hesitate, and these numbers are
+    /// what "hesitate" means. Their order is the part that must hold -- a reflex is quicker
+    /// than a deliberation, and clearing a room from the doorway is quicker still than
+    /// weighing whether to open the next one.
+    /// </summary>
+    [Test]
+    public void HesitationIsMeasuredAgainstThresholdsThatKeepTheirOrder()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(PlayReview.ReflexSeconds, Is.LessThan(PlayReview.DeliberateSeconds),
+                "a reflex has to be quicker than a decision, or every pause is both");
+            Assert.That(PlayReview.ReflexSeconds, Is.GreaterThan(0f),
+                "nothing is instantaneous, and a zero threshold classifies every run as thoughtless");
+            Assert.That(PlayReview.FromTheDoorwaySeconds, Is.LessThan(PlayReview.DeliberateSeconds),
+                "a room cleared before entering is a shorter event than a door weighed up");
+            Assert.That(PlayReview.DeliberateSeconds, Is.LessThan(10f),
+                "and a player who stood at a door for ten seconds was interrupted, not thinking");
+        });
+    }
+
 }

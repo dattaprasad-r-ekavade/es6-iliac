@@ -55,11 +55,18 @@ public sealed class BossTests
     [Test]
     public void ABossRoomDoesNotBendThePayoutCurve()
     {
+        // The rule is that the curve does not notice the boss: the step into the boss room is
+        // the same size as the step out of it. Said as a relation, so retuning the curve is a
+        // decision made in one place rather than a failure discovered in three.
+        var boss = RunState.BossEvery;
+        var into = RunState.PayoutFor(boss, 1) - RunState.PayoutFor(boss - 1, 1);
+        var outOf = RunState.PayoutFor(boss + 1, 1) - RunState.PayoutFor(boss, 1);
+
         Assert.Multiple(() =>
         {
-            Assert.That(RunState.PayoutFor(4, 1), Is.EqualTo(4));
-            Assert.That(RunState.PayoutFor(5, 1), Is.EqualTo(5), "the boss room pays its room rate");
-            Assert.That(RunState.PayoutFor(6, 1), Is.EqualTo(6), "and the room after it pays more");
+            Assert.That(into, Is.EqualTo(outOf), "the boss room is not a bump in the curve");
+            Assert.That(RunState.PayoutFor(boss + 1, 1),
+                Is.GreaterThan(RunState.PayoutFor(boss, 1)), "and the room after it still pays more");
         });
     }
 
@@ -89,14 +96,14 @@ public sealed class BossTests
     {
         var run = RunState.Begin(seed: 7, tier: 1, rooms: 12);
         run.EnterRoom();
-        run.ClearRoom();
+        var paidForTheRoom = run.ClearRoom();
 
         var before = run.RiskRatio;
         run.Collect(RunState.BossStones);
 
         Assert.Multiple(() =>
         {
-            Assert.That(run.Pending, Is.EqualTo(1 + RunState.BossStones));
+            Assert.That(run.Pending, Is.EqualTo(paidForTheRoom + RunState.BossStones));
             Assert.That(run.RiskRatio, Is.GreaterThan(before),
                 "a fatter pot against the same prize is a tenser door");
         });
@@ -282,4 +289,36 @@ public sealed class BossTests
 
         Assert.That(seen, Has.Count.EqualTo(3), "one of the three never appears");
     }
+
+    /// <summary>
+    /// What killing a boss is worth, in the only terms that matter: against the room it stands
+    /// in, and against the decision at the door after it.
+    ///
+    /// BossStones could be changed to anything -- one, or a hundred -- and nothing failed. A
+    /// drop smaller than the room's own payout makes the fight a waste of health; one large
+    /// enough to dwarf the curve turns every run into "reach room five, leave", which is the
+    /// press-your-luck loop collapsing into a farm.
+    /// </summary>
+    [Test]
+    public void ABossIsWorthFightingWithoutBeingTheWholeRun()
+    {
+        var run = RunState.Begin(seed: 7, tier: 1, rooms: 12);
+        for (var room = 1; room <= RunState.BossEvery; room++)
+        {
+            run.EnterRoom();
+            run.ClearRoom();
+        }
+
+        var roomRate = RunState.PayoutFor(RunState.BossEvery, 1);
+        var potWithoutTheBoss = run.Pending;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(roomRate, Is.LessThan(RunState.BossStones),
+                "a boss has to be worth more than the room it is standing in");
+            Assert.That(potWithoutTheBoss, Is.GreaterThan(RunState.BossStones),
+                "but never worth more than everything walked past to reach it");
+        });
+    }
+
 }

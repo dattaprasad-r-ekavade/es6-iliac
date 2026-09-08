@@ -144,6 +144,48 @@ public class TargetingTests
         var distant = At(40f, -2f);
         Assert.That(Targeting.FindNearestOther(primary, new[] { primary, distant }, 6f), Is.Null);
     }
+
+    /// <summary>
+    /// The swing arc in absolute terms, not merely relative to the spell cone.
+    ///
+    /// Only ASpellConeIsTighterThanASwing referred to this number, so the melee cone could be
+    /// widened without limit and nothing objected -- and narrowing it towards a needle stayed
+    /// legal as long as it stayed wider than 0.28. Both directions are faults: a cone that
+    /// demands the crosshair be dead on turns every miss into a mystery, and one that reaches
+    /// behind the player's shoulders makes facing meaningless.
+    ///
+    /// Stated in degrees off-centre at a realistic reach, because that is the thing a player
+    /// experiences.
+    /// </summary>
+    [Test]
+    public void TheSwingArcIsForgivingWithoutBeingASphere()
+    {
+        // Two metres ahead, half a metre to the side: about 14 degrees off-centre. A player
+        // who is looking at something this close to straight on meant to hit it.
+        var slightlyOff = At(0.5f, -2f);
+
+        // Two metres ahead, two and a half to the side: about 51 degrees. That is not a swing,
+        // that is hitting something the player is not looking at.
+        var wellWide = At(2.5f, -2f);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Targeting.Find(default, 0f, 3f, new[] { slightlyOff }),
+                Is.SameAs(slightlyOff), "a slightly-off swing has to connect");
+            Assert.That(Targeting.Find(default, 0f, 3f, new[] { wellWide }),
+                Is.Null, "but the arc is not a circle around the player");
+        });
+    }
+
+    /// <summary>
+    /// Something directly behind is never in reach, whatever the cone is widened to. The
+    /// cheapest possible statement of "facing matters", and it survives any retune.
+    /// </summary>
+    [Test]
+    public void NothingBehindYouIsEverInTheArc()
+    {
+        Assert.That(Targeting.Find(default, 0f, 4f, new[] { At(0f, 3f) }), Is.Null);
+    }
 }
 
 public class EnemyIntentTests

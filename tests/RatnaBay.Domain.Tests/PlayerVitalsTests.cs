@@ -14,6 +14,54 @@ public class PlayerVitalsTests
         _vitals = new PlayerVitals(_inventory);
     }
 
+    /// <summary>
+    /// How long a bar takes to come back, rather than the number that fills it.
+    ///
+    /// Doubling RestStaminaRegen broke nothing in this suite, which meant the pace of recovery
+    /// out of a fight -- how long a player stands still between rooms -- was not a decision
+    /// anything defended. Written as a duration because that is the thing actually designed:
+    /// a breather, not a pause long enough to go and make tea.
+    /// </summary>
+    [Test]
+    public void AnEmptyStaminaBarComesBackInABreather()
+    {
+        Assert.That(_vitals.SpendStamina(_vitals.MaxStamina), Is.True);
+
+        var seconds = _vitals.MaxStamina / PlayerVitals.RestStaminaRegen;
+
+        // Bounded on both sides, and the fast end matters as much as the slow one: a bar that
+        // refills in a couple of seconds makes sprinting free and stamina stop being a
+        // resource at all. The first draft of this test allowed it, and the sweep caught that.
+        Assert.That(seconds, Is.InRange(6f, 15f),
+            "a rest between fights: long enough to be felt, short enough not to be an errand");
+    }
+
+    /// <summary>
+    /// Prana is the one bar that is meant to stay scarce, so it must come back far slower than
+    /// stamina and never during a fight. Halving the rate broke nothing before this.
+    /// </summary>
+    [Test]
+    public void PranaComesBackFarSlowerThanStaminaAndNeverInAFight()
+    {
+        _vitals.SpendPrana(_vitals.MaxPrana);
+        var emptied = _vitals.Prana;
+
+        _vitals.Tick(1f, inCombat: true);
+        var afterFighting = _vitals.Prana;
+
+        _vitals.Tick(1f, inCombat: false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(afterFighting, Is.EqualTo(emptied),
+                "a fight is not where charge comes back");
+            Assert.That(_vitals.Prana, Is.GreaterThan(afterFighting), "but walking it off is");
+            Assert.That(PlayerVitals.RestPranaRegen,
+                Is.LessThan(PlayerVitals.RestStaminaRegen / 10f),
+                "and it is an order slower than wind, or a jiva stone stops being the way to pay");
+        });
+    }
+
     [Test]
     public void ANewCharacterStartsAliveAndWhole()
     {

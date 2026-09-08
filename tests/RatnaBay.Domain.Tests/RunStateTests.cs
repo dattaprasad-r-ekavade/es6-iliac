@@ -1,4 +1,5 @@
 using RatnaBay.Domain;
+using System.Linq;
 
 namespace RatnaBay.Domain.Tests;
 
@@ -46,12 +47,23 @@ public class RunStateTests
     }
 
     [Test]
-    [TestCase(3, 1.5f)]
-    [TestCase(5, 2.5f)]
-    [TestCase(8, 4.0f)]
-    public void TheStakeClimbsAgainstThePrize(int cleared, float ratio)
+    public void TheStakeClimbsAgainstThePrize()
     {
-        Assert.That(After(cleared).RiskRatio, Is.EqualTo(ratio).Within(0.001f));
+        // The design claim is the shape, not the values: every room banked makes the next door
+        // a worse bet than the last, because the pot grows faster than the prize. The exact
+        // ratios are a consequence of the curve, and the curve is pinned once, above.
+        var run = Descend(rooms: 12);
+        var previous = 0f;
+
+        for (var room = 1; room <= 8; room++)
+        {
+            run.EnterRoom();
+            run.ClearRoom();
+
+            Assert.That(run.RiskRatio, Is.GreaterThan(previous),
+                $"the door after room {room} is no tenser than the one before it");
+            previous = run.RiskRatio;
+        }
     }
 
     [Test]
@@ -114,12 +126,13 @@ public class RunStateTests
         // "always bank when losing" and there is no risk left to press.
         var run = After(2);
         run.EnterRoom();
+        var pot = run.Pending;
 
         Assert.Multiple(() =>
         {
             Assert.That(run.CanCamp, Is.False);
             Assert.That(run.Camp().Outcome, Is.EqualTo(RunOutcome.InProgress));
-            Assert.That(run.Pending, Is.EqualTo(3), "the pot is untouched by a refused camp");
+            Assert.That(run.Pending, Is.EqualTo(pot), "the pot is untouched by a refused camp");
         });
     }
 
@@ -127,12 +140,13 @@ public class RunStateTests
     public void CampingCarriesThePotOutAndEndsTheRun()
     {
         var run = After(5);
+        var pot = run.Pending;
         var result = run.Camp();
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Survived, Is.True);
-            Assert.That(result.StonesCarriedOut, Is.EqualTo(15));
+            Assert.That(result.StonesCarriedOut, Is.EqualTo(pot), "all of it, whatever the curve pays");
             Assert.That(result.StonesLost, Is.Zero);
             Assert.That(result.RoomsCleared, Is.EqualTo(5));
             Assert.That(run.IsActive, Is.False);
@@ -160,12 +174,13 @@ public class RunStateTests
     public void DyingForfeitsEverythingInThePot()
     {
         var run = After(8);
+        var pot = run.Pending;
         var result = run.Die();
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Survived, Is.False);
-            Assert.That(result.StonesLost, Is.EqualTo(36));
+            Assert.That(result.StonesLost, Is.EqualTo(pot), "all of it, whatever the curve pays");
             Assert.That(result.StonesCarriedOut, Is.Zero);
             Assert.That(run.Pending, Is.Zero);
         });
@@ -174,9 +189,17 @@ public class RunStateTests
     [Test]
     public void WhatWasLostIsRecordedSoASuccessorCanFetchIt()
     {
-        // Succession recovers the cache once. This is the only place that still knows the size
-        // of it, so losing the number here would make that feature unimplementable.
-        Assert.That(After(6).Die().StonesLost, Is.EqualTo(21));
+        // Succession recovers the cache once, so the size of it has to survive the run that
+        // lost it. What matters is that the cache is the pot, not that the pot is any
+        // particular number -- the curve is pinned once, in TheBankingCurveMatchesTheDesign.
+        var run = After(6);
+        var pot = run.Pending;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(pot, Is.GreaterThan(0), "there is something to lose");
+            Assert.That(run.Die().StonesLost, Is.EqualTo(pot));
+        });
     }
 
     [Test]
@@ -206,12 +229,13 @@ public class RunStateTests
     public void ClearingTheSameRoomTwicePaysOnce()
     {
         var run = After(3);
+        var pot = run.Pending;
         var again = run.ClearRoom();
 
         Assert.Multiple(() =>
         {
             Assert.That(again, Is.Zero);
-            Assert.That(run.Pending, Is.EqualTo(6));
+            Assert.That(run.Pending, Is.EqualTo(pot), "and the pot does not move");
             Assert.That(run.RoomsCleared, Is.EqualTo(3));
         });
     }
@@ -243,7 +267,15 @@ public class RunStateTests
             run.ClearRoom();
         }
 
-        Assert.That(paid, Is.EqualTo(new[] { 2, 4, 6 }));
+        // What the event has to get right is that it fires once per cleared room and reports
+        // the amount actually banked. Restating the curve here would mean a rebalance broke a
+        // test about an event; the curve has an owner, and this is not it.
+        Assert.Multiple(() =>
+        {
+            Assert.That(paid, Has.Count.EqualTo(3), "once per room, not once per clear attempt");
+            Assert.That(paid.Sum(), Is.EqualTo(run.Pending), "and the announcements add up to the pot");
+            Assert.That(paid, Is.Ordered.Ascending, "each room announces more than the one before");
+        });
     }
 
     // ---------------------------------------------------------------- persistence

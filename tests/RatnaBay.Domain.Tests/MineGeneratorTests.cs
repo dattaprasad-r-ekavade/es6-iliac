@@ -612,4 +612,31 @@ public class MineGeneratorTests
             }
         }
     }
+
+    /// <summary>
+    /// The bounds a request is forced into, and why each end exists.
+    ///
+    /// Both could be changed silently. MaxRooms carries an argument in its own comment -- a
+    /// recorded run reached the last room of a six-room mine and was told there was nothing
+    /// deeper, which is four decisions and a wall -- so a mine short enough to finish is the
+    /// regression to guard, and the endless mine rests on this number being large.
+    /// </summary>
+    [Test]
+    public void AMineIsNeverShortEnoughToSimplyFinish()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(MineRequest.MinRooms, Is.GreaterThanOrEqualTo(2),
+                "one room and a wall is not a run");
+            Assert.That(MineRequest.MaxRooms, Is.GreaterThan(20),
+                "the run has to end because the player stopped, not because the mine did");
+            Assert.That(new MineRequest(Seed: 1, Rooms: 0).Clamped().Rooms,
+                Is.EqualTo(MineRequest.MinRooms), "a nonsense request is forced into range");
+            Assert.That(new MineRequest(Seed: 1, Rooms: 9999).Clamped().Rooms,
+                Is.EqualTo(MineRequest.MaxRooms));
+            Assert.That(new MineRequest(Seed: 1, Depth: -3).Clamped().Depth,
+                Is.GreaterThanOrEqualTo(1), "and there is no such thing as negative depth");
+        });
+    }
+
 }

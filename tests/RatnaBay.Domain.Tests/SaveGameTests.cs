@@ -307,4 +307,26 @@ public class SaveGameTests
                 "gear is stored, never destroyed — the items stay in the pack");
         });
     }
+
+    /// <summary>
+    /// The two version numbers, and the relation between them that makes migration coherent.
+    ///
+    /// Incrementing CurrentVersion broke nothing, which means the format could move forward
+    /// without anybody noticing that saves written by the shipped build no longer load. The
+    /// relation is the part worth pinning: the current format must be at least as new as the
+    /// oldest one still migratable, or the window is inside out.
+    /// </summary>
+    [Test]
+    public void TheMigrationWindowIsTheRightWayRound()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(SaveGame.MinimumMigratableVersion,
+                Is.LessThanOrEqualTo(SaveGame.CurrentVersion),
+                "the oldest migratable save cannot be newer than the format being written");
+            Assert.That(SaveGame.MinimumMigratableVersion, Is.GreaterThan(0),
+                "version zero is the absence of a version, not a version");
+        });
+    }
+
 }

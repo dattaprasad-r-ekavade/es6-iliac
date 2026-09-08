@@ -181,6 +181,46 @@ public class CombatTests
 
         Assert.That(_player.Skills.LevelOf(Skills.Blade), Is.GreaterThan(capped));
     }
+
+    /// <summary>
+    /// Armour is never invulnerability, and an opening strike is worth taking.
+    ///
+    /// Both constants could be changed freely before this. MinimumDamage at zero means a
+    /// heavily armoured thing cannot be hurt by an ordinary weapon at all, and a player
+    /// swinging into a target that never flinches has no way to learn that it is the wrong
+    /// weapon rather than a broken game.
+    /// </summary>
+    [Test]
+    public void ArmourNeverBecomesInvulnerability()
+    {
+        var throughPlate = DamageMath.Resolve(5f, armour: 500f, blocking: true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(throughPlate, Is.EqualTo(DamageMath.MinimumDamage),
+                "absurd armour and a raised guard still let something through");
+            Assert.That(DamageMath.MinimumDamage, Is.GreaterThan(0f),
+                "or a fight can become unwinnable without saying so");
+            Assert.That(DamageMath.BlockReduction, Is.LessThan(1f),
+                "and blocking has to be worth doing");
+        });
+    }
+
+    /// <summary>An unaware target is worth catching. Doubling this multiplier broke nothing.</summary>
+    [Test]
+    public void CatchingSomethingUnawareIsWorthMoreThanATradedBlow()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(PlayerCombat.OpeningStrikeMultiplier, Is.GreaterThan(1f),
+                "there has to be a reason to open rather than announce yourself");
+            Assert.That(PlayerCombat.OpeningStrikeMultiplier, Is.LessThan(5f),
+                "but an opener that ends the fight makes the fight optional");
+            Assert.That(PlayerCombat.CleaveFactor, Is.LessThan(1f),
+                "and a sweep gives up something for hitting more than one thing");
+        });
+    }
+
 }
 
 public class EnemyTests

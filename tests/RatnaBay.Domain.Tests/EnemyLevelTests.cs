@@ -131,4 +131,49 @@ public sealed class EnemyLevelTests
         Assert.That(healthRatio, Is.GreaterThan(damageRatio),
             "a level-eight bandit should take longer to kill than it is deadlier");
     }
+
+    /// <summary>
+    /// The scaling curve's own promise, which nothing was checking.
+    ///
+    /// Enemy.cs argues at length that health must climb faster than damage, because what a
+    /// fight costs is the product of the two: at DamagePerLevel 0.16 the curve was quadratic
+    /// and a level-ten bandit took 75 health off a player who gains 6 a level. Depth is
+    /// supposed to lengthen a fight, not end it.
+    ///
+    /// Doubling either constant broke no test before this. Doubling DamagePerLevel is exactly
+    /// the regression the comment describes, and it went unnoticed.
+    /// </summary>
+    [Test]
+    public void ADeeperEnemyGetsTougherFasterThanItGetsDeadlier()
+    {
+        Assert.That(EnemyArchetype.HealthPerLevel,
+            Is.GreaterThan(EnemyArchetype.DamagePerLevel * 2f),
+            "health has to outrun damage, or depth stops lengthening fights and starts ending them");
+    }
+
+    /// <summary>
+    /// The same claim in the currency it is actually about: what ten levels cost a player.
+    ///
+    /// A level-ten enemy should take substantially longer to kill while hitting only somewhat
+    /// harder. Bounded on both sides -- an enemy that never gets deadlier makes depth
+    /// pointless, and one that gets much deadlier makes it unwinnable.
+    /// </summary>
+    [Test]
+    public void TenLevelsLengthenAFightMoreThanTheyRaiseItsPrice()
+    {
+        var bandit = EnemyCatalog.Find("bandit")!;
+        var deep = bandit.AtLevel(10);
+
+        var tougher = deep.MaxHealth / bandit.MaxHealth;
+        var deadlier = deep.AttackDamage / bandit.AttackDamage;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(deadlier, Is.GreaterThan(1f), "depth has to mean something");
+            Assert.That(tougher, Is.GreaterThan(deadlier),
+                "ten levels must add more health than damage");
+            Assert.That(deadlier, Is.LessThan(2f),
+                "a level-ten bandit hitting twice as hard is the curve that had to be halved once already");
+        });
+    }
 }
