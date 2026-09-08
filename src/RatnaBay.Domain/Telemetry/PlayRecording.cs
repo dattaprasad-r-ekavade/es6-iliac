@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -144,6 +144,41 @@ public sealed class PlayEvent
 }
 
 /// <summary>
+/// The kinds of run that can produce a recording.
+///
+/// Strings rather than an enum, because these are written into a JSON file that outlives the
+/// build that wrote it and is read by a tool that may be older or newer than it. An unknown
+/// value has to survive a round trip and stay readable; an enum either throws or silently
+/// becomes whichever member happens to be zero.
+/// </summary>
+public static class PlayMode
+{
+    /// <summary>A person playing. The only kind the corpus is meant to contain.</summary>
+    public const string Play = "play";
+
+    /// <summary>Driven by --script: the gate, a clip, a walkthrough. Nobody at the keyboard.</summary>
+    public const string Script = "script";
+
+    /// <summary>A screenshot or clip pose. Runs a few frames and exits.</summary>
+    public const string Capture = "capture";
+
+    /// <summary>--faces, --sprites and friends: asset work that never reaches a frame.</summary>
+    public const string Tool = "tool";
+
+    /// <summary>Written before the field existed. Unknown, and not to be counted as play.</summary>
+    public const string Unknown = "";
+
+    /// <summary>
+    /// Whether a run of this kind belongs in the corpus.
+    ///
+    /// The single place that decides. The client asks this both to label the recording and to
+    /// decide whether to record at all, so the label and the behaviour cannot drift apart --
+    /// which is how the first two leaks stayed invisible.
+    /// </summary>
+    public static bool IsWorthRecording(string mode) => mode == Play;
+}
+
+/// <summary>
 /// A recording of one sitting.
 ///
 /// This exists because the most important open question about the game — does the decision at
@@ -156,6 +191,27 @@ public sealed class PlayRecording
     public int Version { get; set; } = 1;
     public string StartedUtc { get; set; } = string.Empty;
     public string Build { get; set; } = string.Empty;
+
+    /// <summary>
+    /// What kind of run this was: see <see cref="PlayMode"/>.
+    ///
+    /// Twice now, a launch path nobody had thought of has put gate runs into the corpus --
+    /// first scripted runs, then <c>--faces</c> and <c>--sprites</c>, which bail out of
+    /// LoadContent but only after Initialize has already flushed the queue. Both times the
+    /// guard was a condition somewhere in the client, and both times the damage was invisible
+    /// in the data: 82 of the first 180 recordings are gate runs and nothing in them says so.
+    ///
+    /// A guard can be walked around by the next launch path. A field cannot: whatever the run
+    /// was, it says what it was, so the third recurrence shows up in a count rather than in an
+    /// afternoon of wondering why the median session is three events long.
+    ///
+    /// Empty means a recording written before this field existed. That is deliberately not
+    /// <see cref="PlayMode.Play"/> -- the 180 already on the server genuinely are of unknown
+    /// kind, and defaulting them to real play would bake the very claim this field exists to
+    /// stop anybody making.
+    /// </summary>
+    public string Mode { get; set; } = string.Empty;
+
     public List<PlayEvent> Events { get; set; } = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()

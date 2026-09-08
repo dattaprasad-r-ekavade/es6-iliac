@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -312,6 +312,13 @@ static int RunReview(string[] arguments)
     Console.WriteLine($"Recording: {Path.GetFileName(path)}");
     Console.WriteLine($"  started {recording!.StartedUtc}, {recording.Events.Count} events, "
         + $"{runs.Count} run(s)");
+
+    // Said out loud, because the whole point of the field is that a reader can tell. A
+    // recording from before it existed says so rather than passing itself off as play.
+    Console.WriteLine(recording.Mode == PlayMode.Unknown
+        ? "  kind: unknown -- written before recordings said what they were"
+        : $"  kind: {recording.Mode}"
+          + (PlayMode.IsWorthRecording(recording.Mode) ? "" : "  (not a sitting anybody played)"));
     Console.WriteLine();
 
     if (runs.Count == 0)

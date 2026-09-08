@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
@@ -56,6 +56,7 @@ public static class SessionSelfTest
             Check(failures, "dialogue portrait atlas is packaged",
                 File.Exists(Path.Combine(AppContext.BaseDirectory, "Content", "Art", "Portraits", "cast.png")));
             CheckConversationInput(failures);
+            CheckRecordingModes(failures);
             var session = GameSession.NewGame(savePath);
             var player = session.Player;
 
@@ -1361,6 +1362,52 @@ public static class SessionSelfTest
 
         Check(failures, $"but the next descent finds it full again ({again.Enemies.Count})",
             again.Enemies.Count == manifest.Spawns.Count);
+    }
+
+    /// <summary>
+    /// What each way of launching the game calls itself.
+    ///
+    /// The domain owns the vocabulary and can test it; the mapping from a command line to a
+    /// kind lives here, and this is the only place it can be checked. It is worth checking
+    /// because it is precisely where the two leaks happened: --script was classified in one
+    /// list and not another, and --faces was in neither.
+    ///
+    /// The assertion that matters most is the last one -- that a plain launch is the only kind
+    /// that records. Everything else is a way of getting that wrong.
+    /// </summary>
+    private static void CheckRecordingModes(List<string> failures)
+    {
+        static string? Option(string[] args, string name)
+        {
+            var index = Array.IndexOf(args, name);
+            return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+        }
+
+        static bool Flag(string[] args, string name) => args.Contains(name);
+
+        static string ModeOf(params string[] args) =>
+            LaunchOptions.Parse(args, false, Option, Flag).RecordingMode;
+
+        Check(failures, "a plain launch is a sitting somebody played",
+            ModeOf() == PlayMode.Play);
+        Check(failures, "--script is a script, not a sitting",
+            ModeOf("--script", "smoke.rbs") == PlayMode.Script);
+        Check(failures, "--script counts even when the file is missing",
+            ModeOf("--script", "does-not-exist.rbs") == PlayMode.Script);
+        Check(failures, "--faces is a tool run",
+            ModeOf("--faces", "out") == PlayMode.Tool);
+        Check(failures, "--sprites is a tool run",
+            ModeOf("--sprites", "out") == PlayMode.Tool);
+        Check(failures, "--moodboard is a tool run",
+            ModeOf("--moodboard") == PlayMode.Tool);
+
+        // The property that actually protects the corpus: everything that is not a plain
+        // launch is excluded, whatever it is called.
+        Check(failures, "only a plain launch is worth recording",
+            PlayMode.IsWorthRecording(ModeOf())
+            && !PlayMode.IsWorthRecording(ModeOf("--script", "smoke.rbs"))
+            && !PlayMode.IsWorthRecording(ModeOf("--faces", "out"))
+            && !PlayMode.IsWorthRecording(ModeOf("--sprites", "out")));
     }
 
     private static void Check(ICollection<string> failures, string what, bool passed)

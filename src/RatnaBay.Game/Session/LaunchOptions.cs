@@ -1,3 +1,4 @@
+﻿using RatnaBay.Domain;
 using System;
 using System.IO;
 using System.Linq;
@@ -51,6 +52,29 @@ internal sealed class LaunchOptions
     public float? StartYaw { get; init; }
     public float? StartPitch { get; init; }
     public bool CoverMode { get; init; }
+
+    /// <summary>
+    /// What kind of run this is, in the recording's own vocabulary.
+    ///
+    /// One property, read by both the label written into the file and the decision not to
+    /// record at all. They were separate conditions before, which is exactly how --faces came
+    /// to be excluded from uploading while still being recorded, and then uploaded anyway by
+    /// the next launch that flushed the queue.
+    ///
+    /// Capture is not decided here: CaptureHost owns --screenshot, --cover and the clip
+    /// recorder, and Game1 passes what it knows. This covers the launch flags only.
+    /// </summary>
+    public string RecordingMode
+    {
+        get
+        {
+            if (FacesPath is not null || SpritesPath is not null || Moodboard || AssetCase)
+                return PlayMode.Tool;
+            if (Scripted) return PlayMode.Script;
+            if (CoverMode || CaptureScreen is not null || StambhaPreview) return PlayMode.Capture;
+            return PlayMode.Play;
+        }
+    }
 
     public static LaunchOptions Parse(string[] args, bool coverMode,
         Func<string[], string, string?> option,

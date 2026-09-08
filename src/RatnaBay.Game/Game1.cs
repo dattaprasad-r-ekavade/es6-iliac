@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using RatnaBay.Domain;
@@ -477,9 +477,11 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // Nobody is playing a script, a capture or a tool mode, so nothing about them belongs
         // in the corpus. Switched off here rather than filtered later, because a recording that
         // exists on disk is a recording something eventually uploads.
-        if (_scripted || _capture.IsCapturing || launch.FacesPath is not null
-            || launch.SpritesPath is not null)
-            _recorder.Disable();
+        //
+        // The kind is asked for once and used twice -- to label the file and to decide whether
+        // to write one at all. Listing the flags here a second time is what let --faces drift
+        // out of one list while staying in the other.
+        _recorder.SetMode(_capture.IsCapturing ? PlayMode.Capture : launch.RecordingMode);
         _startOnTheSurface = launch.StartOnTheSurface;
         _moodboard = launch.Moodboard;
         _assetCase = launch.AssetCase;
@@ -521,15 +523,16 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         // a few frames and exits, nobody is playing, and there is no session to consent to
         // sending. Nothing is uploaded either way, because SendPending is not reached.
         // --cover already funnels into CaptureHost.OutputPath, so this covers both.
-        // Tool modes count as captures here too. They return out of LoadContent before a frame
-        // is drawn -- but Initialize runs first, so --faces and --sprites reached the upload
-        // below and flushed the queue. Thirty --faces invocations in one afternoon is how a
-        // day of gate runs reached the server on 6 September, after the scripted-run guard was
-        // supposed to have stopped exactly that.
-        var capturing = _capture.IsCapturing
-            || _facesPath is not null || _spritesPath is not null;
+        // Asked of the recorder rather than re-derived from the flags. Tool modes count here
+        // too: they return out of LoadContent before a frame is drawn, but Initialize runs
+        // first, so --faces and --sprites reached the upload below and flushed the queue.
+        // Thirty --faces invocations in one afternoon is how a day of gate runs reached the
+        // server on 6 September, after the scripted-run guard was supposed to have stopped
+        // exactly that. One value now answers both questions, so there is no second list to
+        // fall out of.
+        var notASitting = !PlayMode.IsWorthRecording(_recorder.Mode);
 
-        _askingConsent = !capturing
+        _askingConsent = !notASitting
             && !_consent.Asked
             && !string.IsNullOrWhiteSpace(Telemetry.Endpoint);
 
@@ -541,7 +544,7 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         //
         // Suppressing the upload is the second guard, not the first. The recorder is switched
         // off for these runs in the constructor, so there is nothing on disk to send.
-        if (!_askingConsent && !capturing && !_scripted) _uploader.SendPending(_recorder.FilePath);
+        if (!_askingConsent && !notASitting) _uploader.SendPending(_recorder.FilePath);
 
         // Launching straight into the scene (--mode scene, screenshots, playtests) needs a
         // character and a data-authored room, or the HUD has nothing to show.

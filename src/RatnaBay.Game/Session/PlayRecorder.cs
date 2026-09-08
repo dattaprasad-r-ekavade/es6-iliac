@@ -1,4 +1,4 @@
-using RatnaBay.Domain;
+﻿using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -99,6 +99,23 @@ public sealed class PlayRecorder
 
     /// <summary>False when this run is not being recorded at all. See <see cref="Disable"/>.</summary>
     public bool Enabled => !_broken;
+
+    /// <summary>
+    /// Say what kind of run this is, and stop recording if it is not one somebody played.
+    ///
+    /// Both halves here on purpose. Labelling and suppressing used to be separate decisions in
+    /// separate places, and they drifted: a run could be excluded from uploading and still be
+    /// written, then swept up by the next launch that flushed the queue. Now one argument
+    /// settles both, so a launch path that is wrong about one is wrong about neither.
+    /// </summary>
+    public void SetMode(string mode)
+    {
+        _recording.Mode = mode;
+        if (!PlayMode.IsWorthRecording(mode)) Disable();
+    }
+
+    /// <summary>What this run says it is. See <see cref="PlayRecording.Mode"/>.</summary>
+    public string Mode => _recording.Mode;
 
     public void Record(string kind, string detail = "", float value = 0f, float extra = 0f,
         float health = 0f, float prana = 0f, string target = "", float distance = 0f)
