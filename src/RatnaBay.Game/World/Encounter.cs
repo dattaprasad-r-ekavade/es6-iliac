@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using RatnaBay.Domain;
 using System;
 using System.Collections.Generic;
@@ -586,7 +586,28 @@ public sealed class Encounter
                 }
             }
 
+            var from = bolt.Position;
             bolt.Position += velocity * deltaSeconds;
+
+            // Stopped by the world, exactly as an enemy's arrow is.
+            //
+            // This was missing, and the asymmetry was the sharpest exploit in the game: a
+            // player could stand behind a pillar and empty a room through it, while anything
+            // shooting back was stopped by the same stone. Cover only means something if it
+            // means the same thing in both directions.
+            //
+            // Swept against the whole step rather than the endpoint, for the reason UpdateShots
+            // gives: a bolt moves most of a metre a frame and would otherwise step through a
+            // wall thin enough to stand between two rooms.
+            if (_collision is not null
+                && _collision.RaycastBlocked(
+                    new WorldPoint(from.X, from.Y, from.Z),
+                    new WorldPoint(bolt.Position.X, bolt.Position.Y, bolt.Position.Z), out _))
+            {
+                _bolts.RemoveAt(index);
+                Feedback.Cast(bolt.Spell.DisplayName, "struck the rock", bolt.Colour);
+                continue;
+            }
 
             var hit = FindBoltHit(bolt);
             if (hit is null && bolt.Remaining > 0f) continue;
@@ -620,7 +641,14 @@ public sealed class Encounter
             return;
         }
 
+        // Arc jumps to the nearest other body, but not through stone: the jump was chosen on
+        // proximity alone, so a bolt that landed beside a wall arced into whatever stood on
+        // the far side of it.
         var chain = Targeting.FindNearestOther(hit, _enemies, 6f);
+        if (chain is not null && _collision is not null
+            && _collision.RaycastBlocked(hit.Position, chain.Position, out _))
+            chain = null;
+
         _session.Player.Spells.Deliver(bolt.Spell, hit, chain);
 
         Struck(hit);
@@ -653,8 +681,14 @@ public sealed class Encounter
 
         if (!paid.WasCast)
         {
-            Feedback.Cast(spell.DisplayName, "no prana, and no stone to draw",
-                new Color(200, 128, 122));
+            // Two refusals now reach here and they mean opposite things: one is "you cannot
+            // afford this", the other "not while that weapon is still coming back". Saying the
+            // wrong one is how a player concludes a spell is broken rather than mistimed.
+            var why = paid.Result == CastResult.Shouldering
+                ? "both hands still on the weapon"
+                : "no prana, and no stone to draw";
+
+            Feedback.Cast(spell.DisplayName, why, new Color(200, 128, 122));
             return paid;
         }
 

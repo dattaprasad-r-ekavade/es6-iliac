@@ -1,4 +1,4 @@
-using RatnaBay.Domain;
+﻿using RatnaBay.Domain;
 using System.Linq;
 
 namespace RatnaBay.Domain.Tests;
@@ -126,6 +126,49 @@ public sealed class WeaponIdentityTests
             // Refused before paying. A tax that also takes the prana is two punishments.
             Assert.That(player.Vitals.Prana, Is.EqualTo(before));
         });
+    }
+
+    /// <summary>
+    /// The same refusal on the path the game actually takes.
+    ///
+    /// Every test above this called Cast, and Cast is a convenience the client does not use: a
+    /// projectile is paid for when it leaves the hand and delivered when it lands, so
+    /// Encounter.PlayerCast calls Pay directly. The shoulder check lived only in Cast, which
+    /// meant the greatsword's cast delay was started, counted down, and never once refused a
+    /// spell in the shipped game -- swing, then cast in the same frame, and the drawback the
+    /// weapon is balanced around simply was not there.
+    ///
+    /// Four green tests covered a rule the build did not enforce. This is the one that would
+    /// have failed.
+    /// </summary>
+    [Test]
+    public void PayingForASpellIsRefusedWhileTheWeaponIsStillUp()
+    {
+        var player = NewPlayer();
+        var before = player.Vitals.Prana;
+
+        player.Spells.Encumber(Weapon("iron_greatsword").CastDelaySeconds);
+        var paid = player.Spells.Pay(SpellCatalog.FireId);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(paid.Result, Is.EqualTo(CastResult.Shouldering));
+            Assert.That(paid.WasCast, Is.False);
+            Assert.That(player.Vitals.Prana, Is.EqualTo(before),
+                "and a refused cast is still never charged for");
+        });
+    }
+
+    /// <summary>Once the weapon is down, paying works again — or the delay is a permanent ban.</summary>
+    [Test]
+    public void PayingWorksAgainOnceTheWeaponIsDown()
+    {
+        var player = NewPlayer();
+        player.Spells.Encumber(0.9f);
+        player.Spells.Tick(1.0f);
+
+        Assert.That(player.Spells.Pay(SpellCatalog.FireId).Result,
+            Is.Not.EqualTo(CastResult.Shouldering));
     }
 
     [Test]

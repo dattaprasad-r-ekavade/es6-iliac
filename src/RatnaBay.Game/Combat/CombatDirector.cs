@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using RatnaBay.Domain;
 using System;
@@ -240,7 +240,27 @@ internal sealed class CombatDirector
         session.Player.Combat.SetBlocking(mouse.RightButton == ButtonState.Pressed);
 
         if (_feel.SwingBuffered > 0f) _feel.SwingBuffered -= step;
-        if (clicked && !session.Player.Combat.IsReady && encounter.Focused is not null)
+
+        // A click that arrives mid-swing is remembered, regardless of whether anything is
+        // being aimed at.
+        //
+        // Requiring a focused enemy was removed once already, deliberately: it meant the
+        // buffer only helped somebody already in a fight, and the player who needed it most
+        // was not in one. The alpha's single outside player spent an hour swinging at a door
+        // in an empty corridor -- no enemy, so no buffering, so every click inside the
+        // cooldown did nothing, made no sound and moved nothing. Five are in their recording
+        // as "too soon", and the rest of that hour is somebody pressing harder at a game that
+        // appears not to be listening. A swing at air is a legitimate thing to ask for.
+        //
+        // The condition came back when this loop was lifted out of Game1, which is the kind
+        // of regression a refactor makes silently: no test covers client input, so nothing
+        // objected.
+        //
+        // Held for the whole of the weapon's own cooldown rather than a flat window. It was
+        // 0.22s, which matches no weapon -- a sword is 0.45 and a mace 0.72 -- and of the
+        // clicks the buffer failed to catch, 80% arrived too early for 0.22s to reach the
+        // swing. Still one click, not a queue: mashing five times buys one swing.
+        if (clicked && !session.Player.Combat.IsReady)
             _feel.SwingBuffered = session.Player.Combat.ActiveWeapon.Cooldown;
 
         var releaseBuffered = _feel.SwingBuffered > 0f && session.Player.Combat.IsReady;

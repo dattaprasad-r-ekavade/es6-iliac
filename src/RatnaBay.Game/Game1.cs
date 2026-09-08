@@ -397,24 +397,6 @@ public sealed class Game1 : EngineHost, IConsoleTarget, ISessionHooks
         set => _feel.SwingBuffered = value;
     }
 
-    /// <summary>
-    /// How long a click is remembered while the weapon is still swinging.
-    ///
-    /// It was a flat 0.22s, which matches no weapon: a sword's cooldown is 0.45 and a mace's
-    /// is 0.72, so the window reached less than half of one and less than a third of the
-    /// other. The recordings show what that cost -- 660 refused clicks across 76 sessions, all
-    /// of them cooldown and not one of them stamina, and of the ones the buffer failed to
-    /// catch, 80% arrived too early for a 0.22s window to reach the swing. The median lost
-    /// click came 0.19s after the last one: a player pressing at about two and a half a
-    /// second against a weapon that allows two and a bit.
-    ///
-    /// Held for the whole of whatever the weapon's own cooldown is, so a click during a swing
-    /// is never dropped. Still one click, not a queue -- mashing five times buys one swing,
-    /// which is the part that should stay true.
-    /// </summary>
-    private float SwingBufferSeconds =>
-        _session?.Player.Combat.ActiveWeapon.Cooldown ?? 0.45f;
-
     /// <summary>Whether a panel was open on the previous frame.</summary>
     private bool _panelWasOpen;
 

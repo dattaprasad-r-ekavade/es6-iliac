@@ -1,4 +1,4 @@
-namespace RatnaBay.Domain;
+﻿namespace RatnaBay.Domain;
 
 /// <summary>
 /// An enemy, as the spell layer sees it. The status effects are what make the three
@@ -131,10 +131,7 @@ public sealed class SpellCaster
     /// </param>
     public CastOutcome Cast(string? spellId, IEnemy? target = null, IEnemy? chainTarget = null)
     {
-        // Checked before paying, so a refused cast never costs prana.
-        if (IsShouldering)
-            return new CastOutcome(CastResult.Shouldering, SpellCatalog.Get(spellId), 0f);
-
+        // The refusal lives in Pay, so it applies to the client's path as well as this one.
         var paid = Pay(spellId);
         if (!paid.WasCast) return paid;
 
@@ -154,6 +151,19 @@ public sealed class SpellCaster
     {
         var spell = SpellCatalog.Get(spellId);
         if (spell is null) return new CastOutcome(CastResult.UnknownSpell, null, 0f);
+
+        // The shoulder check belongs here, not only in Cast.
+        //
+        // It used to live one level up, and the game never went through that level: the client
+        // casts by calling Pay directly, because a projectile is paid for when it leaves the
+        // hand and delivered when it lands. So a greatsword's 0.9s cast delay was charged,
+        // counted down and never once refused a spell -- swing, then cast in the same frame,
+        // which removes the drawback the weapon is balanced around.
+        //
+        // Four tests covered the rule and all four passed, because they called Cast. Guarding
+        // the payment instead of the convenience wrapper is what makes the rule true of every
+        // caller, including the one that matters.
+        if (IsShouldering) return new CastOutcome(CastResult.Shouldering, spell, 0f);
 
         var cost = CostOf(spell);
         if (!_vitals.SpendPrana(cost)) return new CastOutcome(CastResult.NoCharge, spell, cost);

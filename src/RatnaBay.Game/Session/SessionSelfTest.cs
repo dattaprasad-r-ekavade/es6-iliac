@@ -865,6 +865,7 @@ public static class SessionSelfTest
 
             CheckEnemiesRespectWalls(failures, mine);
             CheckTheArcherBreaksTheDoorway(failures, mine);
+            CheckSpellsDoNotPassThroughRock(failures, mine);
 
             // Last, because a descent opens doors and that changes what the walls do.
             RunOneDescent(failures, mine);
@@ -1045,6 +1046,79 @@ public static class SessionSelfTest
     /// checks the two behaviours that change that: it hurts from across the room, and it gives
     /// ground rather than walking into reach.
     /// </summary>
+    /// <summary>
+    /// A spell obeys the same rock an arrow does.
+    ///
+    /// It did not. UpdateShots stopped an enemy arrow at the wall and said so in a comment --
+    /// "a doorway is cover rather than a firing slit" -- while UpdateBolts moved the player's
+    /// bolt and asked only whether it had reached a body. So a player could stand behind a
+    /// pillar and empty a room through it while nothing could shoot back, which is the
+    /// sharpest exploit a reader has found in this game.
+    ///
+    /// Nothing in the domain could have caught it: bolt flight and the collision index are
+    /// both client-side, and the two halves of the asymmetry are forty lines apart in one
+    /// file. Checked with a control, because a cast that fails for want of prana would pass
+    /// the interesting half of this on its own.
+    /// </summary>
+    private static void CheckSpellsDoNotPassThroughRock(List<string> failures, WorldRuntime mine)
+    {
+        var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
+        var centre = rooms[1].CentrePoint();
+        var bandit = EnemyCatalog.Find("bandit")!;
+
+        // A side of this room emitted whole, so the shot really is through rock. A side with a
+        // doorway comes out as two boxes suffixed .a and .b; a solid one is a single box.
+        var prefix = $"{mine.Manifest.Id}.room01.";
+        var solidSide = new[] { "north", "south", "east", "west" }.First(side =>
+            mine.Manifest.Geometry.Any(box =>
+                string.Equals(box.Id, prefix + side, StringComparison.Ordinal)));
+
+        var beyond = MineGenerator.RoomHalf + 1.5f;
+        var (outside, aim) = solidSide switch
+        {
+            "north" => (new Vector3(centre.X, 1.7f, centre.Z - beyond), new Vector3(0f, 0f, 1f)),
+            "south" => (new Vector3(centre.X, 1.7f, centre.Z + beyond), new Vector3(0f, 0f, -1f)),
+            "east" => (new Vector3(centre.X + beyond, 1.7f, centre.Z), new Vector3(-1f, 0f, 0f)),
+            _ => (new Vector3(centre.X - beyond, 1.7f, centre.Z), new Vector3(1f, 0f, 0f))
+        };
+
+        static float CastAndSettle(WorldRuntime mine, Vector3 from, Vector3 aim, Vector3 enemyAt)
+        {
+            var session = GameSession.NewGame();
+            session.Player.Spells.SelectSpell(SpellCatalog.FireId);
+            session.Player.Vitals.RestorePrana(999f);
+
+            var encounter = new Encounter(session);
+            encounter.UseCollision(mine.Collision);
+            encounter.Spawn(EnemyCatalog.Find("bandit")!, enemyAt, "selftest.bolt");
+
+            var target = encounter.Enemies.Single();
+            var before = target.Health;
+
+            var yaw = MathF.Atan2(aim.X, -aim.Z);
+            encounter.Update(0.016f, from, yaw);
+            encounter.PlayerCast(from, yaw, aim);
+            for (var step = 0; step < 120; step++) encounter.Update(0.05f, from, yaw);
+
+            return before - target.Health;
+        }
+
+        var atCentre = new Vector3(centre.X, 0f, centre.Z);
+
+        // The control: the same cast, from inside the room, has to land. Without this the
+        // check below passes whenever casting is broken for any reason at all.
+        // Eye height, not the floor: a bolt leaves the hand slightly below where the player is
+        // standing, so casting from y=0 launches it under the ground and the first thing it
+        // meets is the floor. The control caught that before it could be mistaken for the fix.
+        var standing = atCentre + aim * -6f;
+        var inTheOpen = CastAndSettle(mine, new Vector3(standing.X, 1.7f, standing.Z), aim, atCentre);
+        Check(failures, $"a bolt with a clear line hits ({inTheOpen:0.#} damage)", inTheOpen > 0f);
+
+        var throughRock = CastAndSettle(mine, outside, aim, atCentre);
+        Check(failures, $"but rock stops it, as it stops an arrow ({throughRock:0.#} damage)",
+            throughRock <= 0f);
+    }
+
     private static void CheckTheArcherBreaksTheDoorway(List<string> failures, WorldRuntime mine)
     {
         var rooms = mine.Manifest.Rooms.OrderBy(room => room.Index).ToList();
