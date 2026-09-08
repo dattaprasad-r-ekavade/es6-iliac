@@ -8,13 +8,44 @@ This document develops the existing material in `Docs/SCRIPT.md`, `Docs/STORY.md
 
 ## 1. The story worth building
 
-You join an order that promises somebody will come for you. At first that promise means a recovered pack and a lamp with your name beneath it. By the end, the order must decide whether it means anything when keeping it stops being profitable.
+**The story in one breath:** You take a dangerous mining job to get ahead. The stones you bring home power the town, but something below is waking the dead. Your crew discovers that a famous rescuer is still down there holding them back. Now you have to get her out—and keep your town standing.
+
+You join an order that promises somebody will come for you. At first that means good equipment, a share of the pay, and people who notice when you return. Eventually you discover who first kept that promise, and why she needs your help.
 
 The campaign begins with useful work, familiar faces, and small improvements. It gradually exposes a system that counts output more carefully than people. The final act asks the order to become the rescue service its name always implied: reach Uttara, relieve her, and take collective responsibility for the threshold she has guarded alone.
 
 **Recommended creative change:** the ending should replace solitary sacrifice with shared responsibility. The player should not simply become the next abandoned person behind the door. Uttara's rescue of fifty-seven proves that saving people is possible; the order's last act should learn from that success.
 
 The province still pays a real price for closing its oldest deep seam. Hospitals need supplies, jobs disappear, and the army demands explanations. Preparation changes particular lives. It does not make the decision painless.
+
+### Tone and clarity: adventure first, meaning through experience
+
+The intended feeling is **a dangerous adventure with a crew you enjoy**, with mystery and consequences underneath. The player should want the next descent for discovery, a better weapon, an argument with a favourite character, or the chance to help somebody—not only from obligation or guilt.
+
+Welcome players unfamiliar with Indian history or vocabulary, including Western audiences, without replacing the setting with European fantasy. Familiar human wants—money, recognition, freedom, family, pride—explain unfamiliar institutions. Keep Indian names, lamps, mine offices, food, clothing, and the miners' naming of the order. Explain what a person does when introducing them; nobody needs a history lesson to understand a boss refusing supplies.
+
+| First introduction | What the player needs to understand |
+|---|---|
+| “Jiva stones. They keep the lamps burning—and pay your wages.” | A valuable resource with everyday uses |
+| “Prana is the power inside the stone.” | What fuels spells and the town |
+| “Preta. The restless dead. Keep your distance.” | The immediate danger; deeper meaning comes later |
+| “Bhagiratha. That's our crew. We go down, and we bring people back.” | Who the player belongs to; explain the name's origin in a later warm conversation |
+| “Suvarnapala, the mine registrar. He approves our supplies.” | A recognisable job before an unfamiliar office title |
+| “Patala—our highest rank.” | Why the rank matters, without memorising seven names |
+
+Use role labels beside names and optional journal definitions. Introduce at most one important unfamiliar term in a short exchange. Show dates and the full chronology in optional records; required scenes can say “ten years ago” and “five years later.” These are accessibility choices, not a claim that all Western players need the same explanation.
+
+**Scene rules:**
+
+- Start with a concrete problem: “The clinic has two stones left,” before discussing a provincial shortage.
+- Give each required conversation one new fact, one personal reaction, and a clear next objective. Put further questions behind optional topics.
+- Aim for 30–60 seconds of essential reading per ordinary story exchange. Let major scenes breathe in safe spaces.
+- Follow a difficult revelation with relief: a repaired room, a shared meal, a joke, a new tool, or a small success. Do not place another tragedy after every return.
+- Let humour come from pride, bargaining, friendships, and professional rivalry. Avoid jokes about accents, unfamiliar names, the dead, or the culture itself.
+- Characters may answer a recruit's sensible questions directly. Mystery should concern what happened, not what the current objective means.
+- The player can understand the adventure as “help the crew, find the rescuer, bring everyone home.” Economic and political detail should reward attention without being required homework.
+
+**Example revision:** replace “The audit makes the governor's account untenable” in player-facing dialogue with “This order has his seal on it. He knew the door was closed. Ask him why he sent men to open it.”
 
 ### Assessment of the existing material
 
@@ -68,6 +99,27 @@ Plan 12 major beats and an initial 45–60 short reactions. Add more only where 
 ## 4. Proposed campaign beats
 
 Every beat below needs a remembered result and a clear reason the next becomes available. Rank can establish access, but major revelations should also follow earlier discoveries.
+
+### The player's version of the campaign
+
+Use these short objectives in the journal. The detailed beats below are authoring notes, not paragraphs to show players.
+
+| Beat | Immediate goal | A lighter or personal moment to include |
+|---|---|---|
+| 1 | Meet your crew. Get ready for your first descent. | Revati catches Ketu trying to charge the newcomer for a “lucky” knot |
+| 2 | Bring something home. See what the crew fixes. | The repaired bench becomes the subject of an absurdly formal opening ceremony |
+| 3 | Find out whose name is missing. | Ganaka is delighted that someone finally brought him a question with evidence |
+| 4 | Help Visakha keep the clinic supplied. | Mara and Visakha bargain like rivals who already know each other's tricks |
+| 5 | Get the materials to reinforce the gate. | Lohasena dares the captain to explain how a requisition form stops an arrow |
+| 6 | Clear the rich man's cellar. Find what he is hiding. | Vasudatta insists that the haunting must be entering from a neighbour's property |
+| 7 | Help Chandrashri protect the proof. | She offers the player a choice of hiding places, then reveals she already used both |
+| 8 | Make the inspector open the old records. | He notices a procedural trick, almost smiles, and accepts it because it is valid |
+| 9 | Find out who ordered the door opened. | A quiet, direct confrontation; do not force a joke into the admission |
+| 10 | Find Uttara. Learn how to bring her back. | Her first complaint is about the crew's terrible bracing, not ten years of torment |
+| 11 | Get your people through the fort safely. | The bench from beat 2 becomes a barricade; Ketu objects to how they carry it |
+| 12 | Finish the repair. Bring everyone home. | Uttara finally allows someone else to inspect the last knot |
+
+The jokes above are proposed moments, not mandatory lines. Cut any that interrupt fear or grief. Characters should also enjoy each other's company when no joke is being told.
 
 ### Beat 1 — An empty line
 
@@ -248,68 +300,95 @@ These are proposed dramatic additions to existing roles. Ages are left open to a
 ### Revati — the person who expects you back
 
 - **Public role:** lamp-keeper; checks equipment, tends names, makes the fort feel inhabited.
-- **Private want:** to stop preparing people for funerals and start preparing them for careers.
+- **Private want:** to build the best rescue crew in the province and lead its first expedition herself. She is tired of being praised for waiting at the door.
 - **Flaw:** withholds information because she thinks uncertainty will keep recruits alive.
 - **Contradiction:** remembers everyone but sometimes treats the next recruit as a replacement tool.
 - **Relationship progression:** checks your lamp; saves you a seat; uses the wrong predecessor's name; admits what she withheld; joins the relief plan.
 - **Ordinary detail:** dislikes ornamental lamps because they are difficult to repair.
 - **Voice:** short practical sentences; emotion enters through what she does for someone.
 - **Possible line:** “That buckle belonged to Nandan. It held. Keep it.”
+- **Pressure and temptation:** the governor offers reliable funding if she keeps the crew on quota work. It would protect recruits tomorrow and postpone the rescue indefinitely.
+- **Friction:** Ketu doubts her underground experience; she resents that he is right. The player helps her earn a place through preparation, not a sudden revelation that she was an expert all along.
+- **Payoff:** she organises the relief team and takes a bounded, trained role. Her ambition becomes responsibility rather than a reckless bid to prove herself.
+- **Lighter voice sample:** “You may boast after I check the straps. I prefer my heroes attached to their equipment.”
 
 ### Ganaka — the man who can make a blank official
 
 - **Public role:** tally-keeper.
-- **Private want:** to leave a ledger someone else can trust.
+- **Private want:** to publish the correct roll under his own name before retirement. He wants justice, but also wants everyone who dismissed him to admit he was right.
 - **Flaw:** once used procedure to excuse an omission he knew was wrong.
 - **Contradiction:** insists on exact figures but cannot remember a colleague's favourite food.
 - **Arc:** records output; accepts one missing name; risks signing a disputed correction; keeps the final watch roll.
 - **Ordinary detail:** dries damp pages beside his lunch and complains when they smell of onions.
 - **Possible line:** “A blank is permitted. That does not make it true.”
+- **Pressure and temptation:** a quiet correction would protect his pension but erase the public proof that he warned them. His pride can put a witness at risk.
+- **Friction:** Chandrashri wants to move quickly; he wants a document nobody can challenge. They compete over whose correction finally forces action.
+- **Payoff:** he accepts shared credit and signs first, taking the risk instead of demanding that someone else do it.
+- **Lighter voice sample:** “A ghost with a date and a place. Already better prepared than the governor.”
 
 ### Visakha — the cost in tomorrow's patients
 
 - **Public role:** physician.
-- **Private want:** a week's supply she does not have to bargain for every morning.
+- **Private want:** to open a clinic where the registrar cannot decide who deserves treatment. She already has a room picked out and no money to keep it lit.
 - **Flaw:** accepts harmful supply arrangements and calls them temporary long after they become routine.
 - **Contradiction:** has little patience for individual promises but remembers every one the player makes.
 - **Arc:** asks for a reserve; sees where it comes from; helps plan the transition; reports who still needs treatment after the ending.
 - **Ordinary detail:** keeps a plant alive in a chipped measuring cup.
 - **Possible line:** “You have brought enough for tonight. I am grateful. Tomorrow remains.”
+- **Pressure and temptation:** Vasudatta offers to fund the clinic if his household is treated first. Accepting helps immediately and recreates the privilege she hates.
+- **Friction:** Mara calls her impossible to bargain with; Visakha calls Mara her most expensive friend. Each has quietly helped the other and refuses to mention it.
+- **Payoff:** the final reserve is governed by an explicit treatment agreement, not a rich patron's favour. Earlier allocations change how quickly the clinic can stand on its own.
+- **Lighter voice sample:** “If you have come to die dramatically, use the other bench. I have just cleaned this one.”
 
 ### Chandrashri — the person who makes a second copy
 
 - **Public role:** governor's clerk.
-- **Private want:** another person to sign beside her, rather than praise her courage privately.
+- **Private want:** the governor's job. She believes she could run the province better, and the evidence is also her chance to prove it.
 - **Flaw:** can value a defensible case more than the witness who must survive giving it.
 - **Arc:** has suspicions; gains evidence; learns to protect a witness as carefully as a document; publishes the record.
 - **Ordinary detail:** enjoys correcting the governor's exaggerated hunting stories.
 - **Possible line:** “Keep the original. I know what happens to originals in this building.”
+- **Pressure and temptation:** the inspector offers her a position in the capital if she submits the evidence quietly and leaves the local consequences to others.
+- **Friction:** Ganaka suspects ambition behind her courage. He is partly right; that does not make the evidence false or her concern insincere.
+- **Payoff:** she stays to organise the transition, accepting a difficult public role rather than an easy escape. Do not automatically crown her a flawless new governor.
+- **Lighter voice sample:** “I have written his speeches for six years. I would like to disagree in my own handwriting.”
 
 ### Vasumitra — an administrator who chose repeatedly
 
 - **Public role:** governor.
-- **Private want:** to hand the problem over while still believing he preserved the province.
+- **Private want:** to leave office as the governor who kept Ratna Bay alive, not the man whose signature reopened the mine. He desperately wants one achievement that survives the truth.
 - **Flaw:** calls his decisions necessities, then treats other people's alternatives as choices.
 - **Human strength:** understands supply, transport, and the cost of a shutdown; can help once he accepts responsibility.
 - **Arc:** deflects; is confronted with his authority on the breach; contributes transition logistics without receiving absolution.
 - **Possible line:** “The carts will not stop needing guards because I have apologised.”
+- **Pressure and temptation:** he can blame the original work crew and preserve his reputation. The signed order makes that lie both tempting and dangerous.
+- **Friction:** he recognises Chandrashri's ambition and admires it until it threatens him. Their familiarity should occasionally feel like a long, exhausting working partnership.
+- **Payoff:** he authorises emergency supplies with his own seal despite the political cost. This is a useful act, not forgiveness for the breach.
+- **Lighter voice sample, before the confrontation:** “Chandrashri says I should be brief. She has prepared three pages explaining why.”
 
 ### Ketu — one of the fifty-seven, new supporting character
 
 - **Role:** yard repairer and rescue survivor; use one existing portrait slot or modest shared presentation initially.
-- **Want:** to train somebody else to repair the gate so he can go home before dark.
+- **Want:** to leave mine work and open a repair stall by the river. He has been saving for years, and keeps spending the money fixing the crew's equipment for free.
 - **Flaw:** refuses to discuss the rescue when doing so would help; resents being treated as living evidence.
 - **Function:** makes Uttara's success tangible, corroborates a tally, supplies rescue knowledge without becoming an exposition dispenser.
 - **Possible line:** “She was not gentle. She checked the knot, called me an idiot, and hauled.”
 - **Scope:** three major appearances and a small reaction pool; no separate questline.
+- **Pressure and temptation:** a buyer finally offers him a stall just as the crew needs his rescue knowledge. Staying has a concrete cost; leaving is understandable.
+- **Friction:** he loudly doubts Revati's readiness because he is frightened of accompanying another rescue leader. She mistakes it for contempt.
+- **Payoff:** he teaches the crew the route and supervises the surface work. He need not return underground to prove he cares. His epilogue can finally open the stall.
+- **Lighter voice sample:** “Lucky knot. Very expensive. Same as the ordinary knot, but I say a blessing over the invoice.”
 
 ### The inspector — new active role, name to be selected
 
-- **Want:** to submit a defensible audit, not rescue a province.
+- **Want:** to expose a falsified shipment that an influential superior previously certified. A clean audit could win him a promotion and settle an old professional humiliation.
 - **Flaw:** mistakes the boundaries of his assignment for the boundaries of his responsibility.
 - **Strength:** will enforce a documented irregularity even against the governor.
 - **Function:** converts the register into access and pressure. Never make him omniscient or correct about everything.
 - **Possible line:** “That is outside my instruction. This signature is not.”
+- **Pressure and temptation:** the complete evidence implicates his own department as well as the governor. He can advance by exposing half the truth, or risk advancement by submitting all of it.
+- **Friction:** Chandrashri sees him as her route to power; he sees her as a useful source who might be manipulating the case. Their alliance is productive and uncomfortable.
+- **Payoff:** he certifies the full discrepancy, while remaining unwilling to promise political reform he cannot deliver.
 
 ### Uttara — a skilled person, still working
 
@@ -320,6 +399,37 @@ These are proposed dramatic additions to existing roles. Ages are left open to a
 - **Arc:** legend, traces, encounter, trust, relief.
 - **Possible line:** “You braced the lower hinge. Good. The upper one lies.”
 - **Guardrail:** do not make her mistake the player for her husband. The name signifies a promise; it should not erase the player or reduce her to confusion.
+- **Personal want beneath the duty:** she wants to know what happened to the people she saved. Give the player ordinary answers: a stall, grandchildren, Ketu still overcharging for repairs. Let her enjoy one answer before discussing the seal.
+- **Pressure and temptation:** she can keep controlling the threshold alone, where nobody can make another decision she distrusts. Trusting the crew means accepting that the town will not become perfect when she leaves.
+- **Friction:** Revati admires her and initially repeats the legend. Uttara interrupts to ask whether the withdrawal route is actually ready.
+- **Payoff:** she deliberately hands over a task, watches someone complete it, and leaves her post. Her final act is trust, not simply exhaustion.
+- **Lighter voice sample:** “Ketu has a stall? Check the roof before you stand under it.”
+
+### Supporting motives that drive the middle act
+
+- **Mara:** wants an exclusive supply contract that makes her independent of rich clients. The clinic agreement could build her reputation or tie up stock she cannot spare. She bargains hard and honours an agreement, especially when it becomes inconvenient.
+- **Lohasena:** wants his work trusted more than imported army equipment. A reinforced gate is a public demonstration of his skill. Pride makes him promise too much; admitting he needs Ketu's help is his small turning point.
+- **Bhadrasena:** wants his soldiers reassigned before the next mine disaster reaches the fort. He can release useful materials, but doing so may delay his transfer. Staying for the defence is a visible choice, not proof that he was secretly kind all along.
+- **Vasudatta:** wants to preserve the family's standing while persuading himself he is a generous employer. He offers the player a bonus to finish quietly. Let his hospitality be enjoyable enough that discovering the cellar changes the player's opinion of someone, not merely confirms an obvious villain.
+
+**Motivation rule:** each major character should want something they can gain or lose during this campaign. Give them one tempting compromise, one relationship that complicates it, and one action showing what they ultimately value. Avoid giving everyone a secret crime or tragic relative; ambition, rivalry, affection, comfort, and vanity create variety too.
+
+### Put those motives into the existing beats
+
+Replace generic explanations within the twelve beats rather than adding mandatory questlines:
+
+| Beat | Personal conflict to play out |
+|---|---|
+| 4 — Clinic supplies | Mara asks for a longer contract; Visakha wants independence. Agree a limited reserve with a clear end date. Neither gets everything. |
+| 5 — Gate materials | Bhadrasena risks delaying his transfer; Lohasena has to accept Ketu's help. Their decision produces the gate the player later defends. |
+| 6 — The house | Vasudatta offers a bonus for discretion. The register remains discoverable regardless; the player can insist the deaths be reported. Do not make campaign access depend on refusing money. |
+| 7 — Protect the proof | Ganaka wants credit; Chandrashri wants speed. A witnessed joint copy gives each responsibility as well as recognition. |
+| 8 — Inspector | The evidence also implicates his department. The tense moment is whether he signs the complete record. |
+| 9 — Breach order | Vasumitra can contribute supplies, but cannot buy silence. His admission and his useful response are separate acts. |
+| 10 — Uttara | Ketu shares withdrawal knowledge from the surface; Revati demonstrates preparation. Uttara checks their work before trusting the plan. |
+| 11–12 — Relief | Show earlier commitments in action: gate, supplies, records, repair crew. The characters have changed what is available, not only how facts were spoken. |
+
+Keep these outcomes mostly within one main path. Optional choices adjust trust, resources, and epilogue details without creating a separate campaign for each character.
 
 ## 6. Succession and optional reactions
 
@@ -357,7 +467,15 @@ Show five brief epilogue panels using existing portraits and fort views. These a
 
 This deliberately softens the existing proposal that nobody elsewhere learns anything. The loss remains substantial, but a complete denial of influence would undercut the game's promise of collective persistence.
 
-### Continued play
+### Make the ending easy to understand and satisfying
+
+Before the final mission, state the plan in three plain steps: **hold the passage, repair the seal, bring the crew back.** Show the route on the existing map or a simple sketch. Explain that the dangerous deep workings are closing, not that every lamp in the empire instantly goes dark.
+
+Let Uttara ask about one survivor and receive a happy, ordinary answer. Let the crew succeed at something the player can see: the final person comes through, the headcount matches, and the pressure behind the repaired door subsides. Consequences follow that earned relief rather than cancelling it.
+
+Keep the epilogue short on the required path: one or two clear sentences per person. Put the wider political report behind an optional “What happened next?” entry. Ketu's stall, Visakha's clinic, Revati's rescue team, and the published names give the player concrete results. Disagreement can remain without making the final mood another lecture.
+
+### Continued play options
 
 Do not immediately reopen the same sealed seam as though the finale did not happen. For the first implementation, offer clearly labelled pre-finale free play from a preserved checkpoint. Later, other seams or contracts can support a chronological postgame, but they are additional product scope.
 
